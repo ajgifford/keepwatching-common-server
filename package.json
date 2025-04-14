@@ -28,10 +28,13 @@
     "axios-retry": "^4.5.0",
     "express": "^5.1.0",
     "firebase-admin": "^13.2.0",
+    "fs": "^0.0.1-security",
     "mysql2": "^3.14.0",
     "node-cache": "^5.1.2",
+    "streaming-availability": "^4.4.0",
     "uuid": "^11.1.0",
     "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
