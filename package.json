@@ -1,0 +1,53 @@
+{
+  "name": "@ajgifford/keepwatching-common-server",
+  "version": "1.0.0",
+  "description": "Common utilities and services for KeepWatching API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "npx tsc",
+    "prepare": "yarn build",
+    "test": "jest",
+    "lint": "eslint . --ext .ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ajgifford/keepwatching-common-server.git"
+  },
+  "author": "Gifford Family Dev",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.8.4",
+    "axios-retry": "^4.5.0",
+    "express": "^5.1.0",
+    "firebase-admin": "^13.2.0",
+    "mysql2": "^3.14.0",
+    "node-cache": "^5.1.2",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@types/express": "^5.0.1",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.14.1",
+    "@types/uuid": "^10.0.0",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-js": "eslint/js",
+    "eslint-plugin-jest": "^28.11.0",
+    "eslint-plugin-react": "^7.37.5",
+    "jest": "^29.7.0",
+    "jest-mock-extended": "^4.0.0-beta1",
+    "prettier": "^3.5.3",
+    "ts-jest": "^29.3.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.29.1"
+  }
+}

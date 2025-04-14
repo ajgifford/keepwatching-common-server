@@ -1,0 +1,5 @@
+node_modules/
+uploads/
+yarn.lock
+README.md
+__snapshots__
