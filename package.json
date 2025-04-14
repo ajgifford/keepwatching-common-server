@@ -8,7 +8,8 @@
     "build": "npx tsc",
     "prepare": "yarn build",
     "test": "jest",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --config ./.prettierrc.js . --write"
   },
   "files": [
     "dist"
