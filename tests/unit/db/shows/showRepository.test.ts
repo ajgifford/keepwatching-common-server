@@ -548,47 +548,6 @@ describe('showRepository', () => {
     });
   });
 
-  describe('transformShow', () => {
-    it('should transform a database row into a Show object', () => {
-      const mockRow = {
-        id: 5,
-        tmdb_id: 12345,
-        title: 'Test Show',
-        description: 'Test description',
-        release_date: '2023-01-01',
-        poster_image: '/path/to/poster.jpg',
-        backdrop_path: '/path/to/backdrop.jpg',
-        user_rating: 8.5,
-        content_rating: 'TV-MA',
-        season_count: 2,
-        episode_count: 10,
-        status: 'Running',
-        type: 'Scripted',
-        in_production: 1,
-        last_air_date: '2023-12-01',
-        last_episode_to_air: 1001,
-        next_episode_to_air: 1002,
-        network: 'Test Network',
-      };
-
-      const show = showsDb.transformShow(mockRow);
-
-      expect(show.id).toBe(5);
-      expect(show.tmdb_id).toBe(12345);
-      expect(show.title).toBe('Test Show');
-      expect(show.description).toBe('Test description');
-      expect(show.release_date).toBe('2023-01-01');
-      expect(show.poster_image).toBe('/path/to/poster.jpg');
-      expect(show.status).toBe('Running');
-      expect(show.type).toBe('Scripted');
-      expect(show.in_production).toBe(1);
-      expect(show.last_air_date).toBe('2023-12-01');
-      expect(show.last_episode_to_air).toBe(1001);
-      expect(show.next_episode_to_air).toBe(1002);
-      expect(show.network).toBe('Test Network');
-    });
-  });
-
   describe('createShow', () => {
     it('should create a properly structured Show object with all fields', () => {
       const show = showsDb.createShow(

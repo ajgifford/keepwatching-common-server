@@ -248,7 +248,7 @@ export async function getShowsForUpdates(): Promise<ContentUpdates[]> {
 /**
  * Helper function to transform database row to Show object
  */
-export function transformShow(row: any): Show {
+function transformShow(row: any): Show {
   return {
     id: row.id,
     tmdb_id: row.tmdb_id,

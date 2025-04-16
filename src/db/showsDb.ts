@@ -4,7 +4,6 @@ export {
   findShowById,
   findShowByTMDBId,
   getShowsForUpdates,
-  transformShow,
   saveShowGenre,
   saveShowStreamingService,
   createShow,
@@ -16,7 +15,6 @@ export {
   getShowWithSeasonsForProfile,
   getNextUnwatchedEpisodesForProfile,
   getProfilesForShow,
-  transformRow,
 } from './shows/profileShowRepository';
 
 export {

@@ -221,7 +221,7 @@ export async function getProfilesForShow(showId: number): Promise<number[]> {
 /**
  * Transforms a raw database row into a ProfileShow object
  */
-export function transformRow(row: RowDataPacket): ProfileShow {
+function transformRow(row: RowDataPacket): ProfileShow {
   if (!row) {
     throw new Error('Cannot transform undefined or null row');
   }
