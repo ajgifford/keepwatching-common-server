@@ -1,12 +1,30 @@
 import { cliLogger } from '../logger/logger';
 import { TransientApiError } from '../middleware/errorMiddleware';
 import { axiosTMDBAPIInstance } from '../utils/axiosInstance';
+import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { AxiosError } from 'axios';
-import NodeCache from 'node-cache';
 
-// Cache with 5 minute TTL for common requests
-const tmdbCache = new NodeCache({ stdTTL: 300 });
+export const TMDB_CACHE_KEYS = {
+  showDetails: (id: number) => `tmdb_show_details_${id}`,
+  movieDetails: (id: number) => `tmdb_movie_details_${id}`,
+  seasonDetails: (showId: number, seasonNumber: number) => `tmdb_season_details_${showId}_${seasonNumber}`,
+  trending: (mediaType: 'tv' | 'movie', page: string = '1') => `tmdb_trending_${mediaType}_${page}`,
+  showRecommendations: (showId: number) => `tmdb_show_recommendations_${showId}`,
+  movieRecommendations: (movieId: number) => `tmdb_movie_recommendations_${movieId}`,
+  similarShows: (showId: number) => `tmdb_similar_shows_${showId}`,
+  similarMovies: (movieId: number) => `tmdb_similar_movies_${movieId}`,
+  showChanges: (showId: number, startDate: string, endDate: string) =>
+    `tmdb_show_changes_${showId}_${startDate}_${endDate}`,
+  movieChanges: (movieId: number, startDate: string, endDate: string) =>
+    `tmdb_movie_changes_${movieId}_${startDate}_${endDate}`,
+  seasonChanges: (seasonId: number, startDate: string, endDate: string) =>
+    `tmdb_season_changes_${seasonId}_${startDate}_${endDate}`,
+  search: {
+    shows: (query: string, page: number, year?: string) => `tmdb_search_shows_${query}_${page}_${year || ''}`,
+    movies: (query: string, page: number, year?: string) => `tmdb_search_movies_${query}_${page}_${year || ''}`,
+  },
+};
 
 /**
  * Interface for TMDB service operations
@@ -127,6 +145,12 @@ export interface TMDBService {
  * Implementation of TMDBService using Axios
  */
 export class DefaultTMDBService implements TMDBService {
+  private cache: CacheService;
+
+  constructor() {
+    this.cache = CacheService.getInstance();
+  }
+
   private async withRetry<T>(
     fn: () => Promise<T>,
     maxRetries: number = 3,
@@ -180,328 +204,325 @@ export class DefaultTMDBService implements TMDBService {
   }
 
   async searchShows(query: string, page: number = 1, year?: string): Promise<any> {
-    return await this.withRetry(
+    const cacheKey = TMDB_CACHE_KEYS.search.shows(query, page, year);
+
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const params: Record<string, any> = {
-          query,
-          page,
-          include_adult: false,
-          language: 'en-US',
-        };
+        return await this.withRetry(
+          async () => {
+            const params: Record<string, any> = {
+              query,
+              page,
+              include_adult: false,
+              language: 'en-US',
+            };
 
-        if (year) {
-          params.first_air_date_year = year;
-        }
+            if (year) {
+              params.first_air_date_year = year;
+            }
 
-        const response = await axiosTMDBAPIInstance.get('/search/tv', { params });
-        return response.data;
+            const response = await axiosTMDBAPIInstance.get('/search/tv', { params });
+            return response.data;
+          },
+          3,
+          1000,
+          `searchShows(${query})`,
+        );
       },
-      3,
-      1000,
-      `searchShows(${query})`,
+      600, // 10 minute TTL for search results
     );
   }
 
   async searchMovies(query: string, page: number = 1, year?: string): Promise<any> {
-    return await this.withRetry(
+    const cacheKey = TMDB_CACHE_KEYS.search.movies(query, page, year);
+
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const params: Record<string, any> = {
-          query,
-          page,
-          include_adult: false,
-          region: 'US',
-          language: 'en-US',
-        };
+        return await this.withRetry(
+          async () => {
+            const params: Record<string, any> = {
+              query,
+              page,
+              include_adult: false,
+              region: 'US',
+              language: 'en-US',
+            };
 
-        if (year) {
-          params.primary_release_year = year;
-        }
+            if (year) {
+              params.primary_release_year = year;
+            }
 
-        const response = await axiosTMDBAPIInstance.get('/search/movie', { params });
-        return response.data;
+            const response = await axiosTMDBAPIInstance.get('/search/movie', { params });
+            return response.data;
+          },
+          3,
+          1000,
+          `searchMovies(${query})`,
+        );
       },
-      3,
-      1000,
-      `searchMovies(${query})`,
+      600, // 10 minute TTL for search results
     );
   }
 
   async getShowDetails(id: number): Promise<any> {
-    const cacheKey = `show_details_${id}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.showDetails(id);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(`/tv/${id}?append_to_response=content_ratings,watch/providers`);
-        return response.data;
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(
+              `/tv/${id}?append_to_response=content_ratings,watch/providers`,
+            );
+            return response.data;
+          },
+          3,
+          1000,
+          `getShowDetails(${id})`,
+        );
       },
-      3,
-      1000,
-      `getShowDetails(${id})`,
+      3600, // 1 hour TTL
     );
-
-    tmdbCache.set(cacheKey, data);
-    return data;
   }
 
   async getMovieDetails(id: number): Promise<any> {
-    const cacheKey = `movie_details_${id}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.movieDetails(id);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(
-          `/movie/${id}?append_to_response=release_dates%2Cwatch%2Fproviders&language=en-US`,
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(
+              `/movie/${id}?append_to_response=release_dates%2Cwatch%2Fproviders&language=en-US`,
+            );
+            return response.data;
+          },
+          3,
+          1000,
+          `getMovieDetails(${id})`,
         );
-        return response.data;
       },
-      3,
-      1000,
-      `getMovieDetails(${id})`,
+      3600, // 1 hour TTL
     );
-
-    tmdbCache.set(cacheKey, data);
-    return data;
   }
 
   async getSeasonDetails(showId: number, seasonNumber: number): Promise<any> {
-    const cacheKey = `season_details_${showId}_${seasonNumber}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.seasonDetails(showId, seasonNumber);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/season/${seasonNumber}`);
-        return response.data;
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/season/${seasonNumber}`);
+            return response.data;
+          },
+          3,
+          1000,
+          `getSeasonDetails(${showId}, ${seasonNumber})`,
+        );
       },
-      3,
-      1000,
-      `getSeasonDetails(${showId}, ${seasonNumber})`,
+      3600, // 1 hour TTL
     );
-
-    tmdbCache.set(cacheKey, data);
-    return data;
   }
 
   async getTrending(mediaType: 'tv' | 'movie', page: string = '1'): Promise<any> {
-    const cacheKey = `trending_${mediaType}_${page}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.trending(mediaType, page);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(`/trending/${mediaType}/week`, {
-          params: {
-            page,
-            language: 'en-US',
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(`/trending/${mediaType}/week`, {
+              params: {
+                page,
+                language: 'en-US',
+              },
+            });
+            return response.data;
           },
-        });
-        return response.data;
+          3,
+          1000,
+          `getTrending(${mediaType}, ${page})`,
+        );
       },
-      3,
-      1000,
-      `getTrending(${mediaType}, ${page})`,
+      1800, // 30 minutes TTL for trending content
     );
-
-    tmdbCache.set(cacheKey, data);
-    return data;
   }
 
   async getShowRecommendations(showId: number): Promise<any> {
-    const cacheKey = `show_recommendations_${showId}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.showRecommendations(showId);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/recommendations`, {
-          params: {
-            language: 'en-US',
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/recommendations`, {
+              params: {
+                language: 'en-US',
+              },
+            });
+            return response.data;
           },
-        });
-        return response.data;
+          3,
+          1000,
+          `getShowRecommendations(${showId})`,
+        );
       },
-      3,
-      1000,
-      `getShowRecommendations(${showId})`,
+      43200, // 12 hours TTL
     );
-
-    tmdbCache.set(cacheKey, data, 43200); // Cache for 12 hours
-    return data;
   }
 
   async getSimilarShows(showId: number): Promise<any> {
-    const cacheKey = `similar_shows_${showId}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.similarShows(showId);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/similar`, {
-          params: {
-            language: 'en-US',
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/similar`, {
+              params: {
+                language: 'en-US',
+              },
+            });
+            return response.data;
           },
-        });
-        return response.data;
+          3,
+          1000,
+          `getSimilarShows(${showId})`,
+        );
       },
-      3,
-      1000,
-      `getSimilarShows(${showId})`,
+      43200, // 12 hours TTL
     );
-
-    tmdbCache.set(cacheKey, data, 43200); // Cache for 12 hours
-    return data;
   }
 
   async getMovieRecommendations(movieId: number): Promise<any> {
-    const cacheKey = `movie_recommendations_${movieId}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.movieRecommendations(movieId);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/recommendations`, {
-          params: {
-            language: 'en-US',
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/recommendations`, {
+              params: {
+                language: 'en-US',
+              },
+            });
+            return response.data;
           },
-        });
-        return response.data;
+          3,
+          1000,
+          `getMovieRecommendations(${movieId})`,
+        );
       },
-      3,
-      1000,
-      `getMovieRecommendations(${movieId})`,
+      43200, // 12 hours TTL
     );
-
-    tmdbCache.set(cacheKey, data, 43200); // Cache for 12 hours
-    return data;
   }
 
   async getSimilarMovies(movieId: number): Promise<any> {
-    const cacheKey = `similar_movies_${movieId}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.similarMovies(movieId);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/similar`, {
-          params: {
-            language: 'en-US',
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/similar`, {
+              params: {
+                language: 'en-US',
+              },
+            });
+            return response.data;
           },
-        });
-        return response.data;
+          3,
+          1000,
+          `getSimilarMovies(${movieId})`,
+        );
       },
-      3,
-      1000,
-      `getSimilarMovies(${movieId})`,
+      43200, // 12 hours TTL
     );
-
-    tmdbCache.set(cacheKey, data, 43200); // Cache for 12 hours
-    return data;
   }
 
   async getShowChanges(showId: number, startDate: string, endDate: string): Promise<any> {
-    const cacheKey = `show_changes_${showId}_${startDate}_${endDate}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.showChanges(showId, startDate, endDate);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(
-          `tv/${showId}/changes?end_date=${endDate}&start_date=${startDate}`,
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(
+              `tv/${showId}/changes?end_date=${endDate}&start_date=${startDate}`,
+            );
+            return response.data;
+          },
+          3,
+          1000,
+          `getShowChanges(${showId})`,
         );
-        return response.data;
       },
-      3,
-      1000,
-      `getShowChanges(${showId})`,
+      600, // 10 minutes TTL for changes data
     );
-
-    tmdbCache.set(cacheKey, data);
-    return data;
   }
 
   async getMovieChanges(movieId: number, startDate: string, endDate: string): Promise<any> {
-    const cacheKey = `movie_changes_${movieId}_${startDate}_${endDate}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.movieChanges(movieId, startDate, endDate);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(
-          `movie/${movieId}/changes?end_date=${endDate}&start_date=${startDate}`,
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(
+              `movie/${movieId}/changes?end_date=${endDate}&start_date=${startDate}`,
+            );
+            return response.data;
+          },
+          3,
+          1000,
+          `getMovieChanges(${movieId})`,
         );
-        return response.data;
       },
-      3,
-      1000,
-      `getMovieChanges(${movieId})`,
+      600, // 10 minutes TTL for changes data
     );
-
-    tmdbCache.set(cacheKey, data);
-    return data;
   }
 
   async getSeasonChanges(seasonId: number, startDate: string, endDate: string): Promise<any> {
-    const cacheKey = `season_changes_${seasonId}_${startDate}_${endDate}`;
-    const cachedResult = tmdbCache.get(cacheKey);
+    const cacheKey = TMDB_CACHE_KEYS.seasonChanges(seasonId, startDate, endDate);
 
-    if (cachedResult) {
-      return cachedResult;
-    }
-
-    const data = await this.withRetry(
+    return await this.cache.getOrSet(
+      cacheKey,
       async () => {
-        const response = await axiosTMDBAPIInstance.get(
-          `tv/season/${seasonId}/changes?end_date=${endDate}&start_date=${startDate}`,
+        return await this.withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get(
+              `tv/season/${seasonId}/changes?end_date=${endDate}&start_date=${startDate}`,
+            );
+            return response.data;
+          },
+          3,
+          1000,
+          `getSeasonChanges(${seasonId})`,
         );
-        return response.data;
       },
-      3,
-      1000,
-      `getSeasonChanges(${seasonId})`,
+      600, // 10 minutes TTL for changes data
     );
-
-    tmdbCache.set(cacheKey, data);
-    return data;
   }
 
   clearCache(key?: string): void {
     if (key) {
-      tmdbCache.del(key);
+      this.cache.invalidate(key);
     } else {
-      tmdbCache.flushAll();
+      // Invalidate all TMDB-related cache keys using pattern matching
+      this.cache.invalidatePattern('tmdb_');
     }
   }
 }
