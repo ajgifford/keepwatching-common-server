@@ -1,4 +1,9 @@
 export * from './db/accountsDb';
+
+export * from './logger/logger';
+export * from './logger/loggerModel';
+export * from './logger/loggerUtil';
+
 export * from './middleware/errorMiddleware';
 
 export * from './types/contentTypes';

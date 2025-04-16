@@ -16,3 +16,25 @@ export interface DiscoverAndSearchResponse {
   total_pages?: number;
   current_page?: number | string;
 }
+
+export type ShowType = 'movie' | 'series';
+
+export type StreamingService = 'netflix' | 'disney' | 'hbo' | 'apple' | 'prime';
+
+export type ChangeType = 'new' | 'upcoming' | 'expiring';
+
+export interface DiscoverTopQuery {
+  showType: ShowType;
+  service: StreamingService;
+}
+
+export interface DiscoverChangesQuery {
+  showType: ShowType;
+  service: StreamingService;
+  changeType: ChangeType;
+}
+
+export interface DiscoverTrendingQuery {
+  showType: ShowType;
+  page: string;
+}
