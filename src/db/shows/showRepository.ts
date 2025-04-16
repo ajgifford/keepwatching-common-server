@@ -1,4 +1,4 @@
-import { DatabaseError } from '../../middleware/errorMiddleware';
+import { CustomError, DatabaseError } from '../../middleware/errorMiddleware';
 import { ContentUpdates } from '../../types/contentTypes';
 import { Show } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
@@ -62,7 +62,13 @@ export async function saveShow(show: Show): Promise<boolean> {
       return success;
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving a show';
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error saving a show: ${error.message}`
+        : 'Unknown database error saving a show';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -121,7 +127,13 @@ export async function updateShow(show: Show): Promise<boolean> {
       return success;
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error updating a show';
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error updating a show: ${error.message}`
+        : 'Unknown database error updating a show';
     throw new DatabaseError(errorMessage, error);
   }
 }

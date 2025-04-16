@@ -1,4 +1,4 @@
-import { DatabaseError } from '../middleware/errorMiddleware';
+import { CustomError, DatabaseError } from '../middleware/errorMiddleware';
 import { ContentUpdates } from '../types/contentTypes';
 import { ProfileMovie, RecentMovie, UpcomingMovie } from '../types/movieTypes';
 import { getDbPool } from '../utils/db';
@@ -66,7 +66,13 @@ export async function saveMovie(movie: Movie): Promise<boolean> {
       return true;
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving a movie';
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error saving a movie: ${error.message}`
+        : 'Unknown database error saving a movie';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -117,7 +123,13 @@ export async function updateMovie(movie: Movie): Promise<boolean> {
       return success;
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error updating a movie';
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error updating a movie: ${error.message}`
+        : 'Unknown database error updating a movie';
     throw new DatabaseError(errorMessage, error);
   }
 }

@@ -1,4 +1,4 @@
-import { DatabaseError } from '../middleware/errorMiddleware';
+import { CustomError, DatabaseError } from '../middleware/errorMiddleware';
 import { getDbPool } from '../utils/db';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
@@ -51,7 +51,13 @@ export async function registerAccount(account: Account): Promise<Account> {
       };
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error during registration';
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error registering an account: ${error.message}`
+        : 'Unknown database error during account registration';
     throw new DatabaseError(errorMessage, error);
   }
 }

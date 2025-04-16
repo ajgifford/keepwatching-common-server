@@ -1,4 +1,4 @@
-import { DatabaseError } from '../../middleware/errorMiddleware';
+import { CustomError, DatabaseError } from '../../middleware/errorMiddleware';
 import { getDbPool } from '../../utils/db';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
@@ -43,7 +43,13 @@ export async function saveFavorite(profileId: string, showId: number, saveChildr
       }
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving a show as a favorite';
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error saving a show as a favorite: ${error.message}`
+        : 'Unknown database error saving a show as a favorite';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -80,8 +86,13 @@ export async function removeFavorite(profileId: string, showId: number): Promise
       await connection.execute(showDeleteQuery, [profileId, showId]);
     });
   } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error removing a show as a favorite';
+      error instanceof Error
+        ? `Database error removing a show as a favorite: ${error.message}`
+        : 'Unknown database error removing a show as a favorite';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -180,9 +191,12 @@ export async function updateAllWatchStatuses(profileId: string, showId: number, 
       return episodesResult.affectedRows > 0;
     });
   } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
     const errorMessage =
       error instanceof Error
-        ? error.message
+        ? `Database error updating all watch statuses of a show: ${error.message}`
         : 'Unknown database error updating all watch statuses of a show (including seasons and episodes)';
     throw new DatabaseError(errorMessage, error);
   }

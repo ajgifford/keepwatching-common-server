@@ -1,4 +1,4 @@
-import { DatabaseError } from '../middleware/errorMiddleware';
+import { CustomError, DatabaseError } from '../middleware/errorMiddleware';
 import { ProfileEpisode, ProfileSeason } from '../types/showTypes';
 import { getDbPool } from '../utils/db';
 import { TransactionHelper } from '../utils/transactionHelper';
@@ -205,6 +205,9 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
       await connection.execute(updateSeasonStatusQuery, [seasonStatus, profileId, seasonId]);
     });
   } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
     const errorMessage =
       error instanceof Error
         ? `Database error updating season status by episodes: ${error.message}`
@@ -252,6 +255,9 @@ export async function updateAllWatchStatuses(profileId: string, seasonId: number
       return episodeResult.affectedRows > 0;
     });
   } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
     const errorMessage =
       error instanceof Error
         ? `Database error updating all watch statuses: ${error.message}`
