@@ -148,7 +148,10 @@ async function saveMovieGenre(movieId: number, genreId: number, connection: Pool
     const query = 'INSERT IGNORE INTO movie_genres (movie_id, genre_id) VALUES (?,?)';
     await connection.execute(query, [movieId, genreId]);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving a movie genre';
+    const errorMessage =
+      error instanceof Error
+        ? `Database error saving a movie genre: ${error.message}`
+        : 'Unknown database error saving a movie genre';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -172,7 +175,9 @@ async function saveMovieStreamingService(
     await connection.execute(query, [movieId, streamingServiceId]);
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error saving a movie streaming service';
+      error instanceof Error
+        ? `Database error saving a movie streaming service: ${error.message}`
+        : 'Unknown database error saving a movie streaming service';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -193,7 +198,10 @@ export async function saveFavorite(profileId: string, movieId: number): Promise<
     const query = 'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id) VALUES (?,?)';
     await getDbPool().execute(query, [Number(profileId), movieId]);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving a movie as a favorite';
+    const errorMessage =
+      error instanceof Error
+        ? `Database error saving a movie as a favorite: ${error.message}`
+        : 'Unknown database error saving a movie as a favorite';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -215,7 +223,9 @@ export async function removeFavorite(profileId: string, movieId: number): Promis
     await getDbPool().execute(query, [profileId, movieId]);
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error removing a movie as a favorite';
+      error instanceof Error
+        ? `Database error removing a movie as a favorite: ${error.message}`
+        : 'Unknown database error removing a movie as a favorite';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -241,7 +251,9 @@ export async function updateWatchStatus(profileId: string, movieId: number, stat
     return result.affectedRows > 0;
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error updating a movie watch status';
+      error instanceof Error
+        ? `Database error updating a movie watch status: ${error.message}`
+        : 'Unknown database error updating a movie watch status';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -263,7 +275,10 @@ export async function findMovieById(id: number): Promise<Movie | null> {
     if (movies.length === 0) return null;
     return transformMovie(movies[0]);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error finding a movie by id';
+    const errorMessage =
+      error instanceof Error
+        ? `Database error finding a movie by id: ${error.message}`
+        : 'Unknown database error finding a movie by id';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -285,7 +300,10 @@ export async function findMovieByTMDBId(tmdbId: number): Promise<Movie | null> {
     if (movies.length === 0) return null;
     return transformMovie(movies[0]);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error finding a movie by TMDB id';
+    const errorMessage =
+      error instanceof Error
+        ? `Database error finding a movie by TMDB id: ${error.message}`
+        : 'Unknown database error finding a movie by TMDB id';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -322,7 +340,9 @@ export async function getAllMoviesForProfile(profileId: string): Promise<Profile
     })) as ProfileMovie[];
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting all movies for a profile';
+      error instanceof Error
+        ? `Database error getting all movies for a profile: ${error.message}`
+        : 'Unknown database error getting all movies for a profile';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -345,7 +365,9 @@ export async function getMovieForProfile(profileId: string, movieId: number): Pr
     return movies[0] as ProfileMovie;
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting a movie for a profile';
+      error instanceof Error
+        ? `Database error getting a movie for a profile: ${error.message}`
+        : 'Unknown database error getting a movie for a profile';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -368,7 +390,9 @@ export async function getRecentMovieReleasesForProfile(profileId: string): Promi
     return rows as RecentMovie[];
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting recent movies for a profile';
+      error instanceof Error
+        ? `Database error getting recent movies for a profile: ${error.message}`
+        : 'Unknown database error getting recent movies for a profile';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -391,7 +415,9 @@ export async function getUpcomingMovieReleasesForProfile(profileId: string): Pro
     return rows as UpcomingMovie[];
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting upcoming movies for a profile';
+      error instanceof Error
+        ? `Database error getting upcoming movies for a profile: ${error.message}`
+        : 'Unknown database error getting upcoming movies for a profile';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -421,7 +447,10 @@ export async function getMoviesForUpdates(): Promise<ContentUpdates[]> {
     });
     return movies;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error getting movies for updates';
+    const errorMessage =
+      error instanceof Error
+        ? `Database error getting movies for updates: ${error.message}`
+        : 'Unknown database error getting movies for updates';
     throw new DatabaseError(errorMessage, error);
   }
 }
