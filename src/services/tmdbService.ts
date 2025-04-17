@@ -1,9 +1,6 @@
-import { cliLogger } from '../logger/logger';
-import { TransientApiError } from '../middleware/errorMiddleware';
 import { axiosTMDBAPIInstance } from '../utils/axiosInstance';
+import { withRetry } from '../utils/retryUtil';
 import { CacheService } from './cacheService';
-import { errorService } from './errorService';
-import { AxiosError } from 'axios';
 
 export const TMDB_CACHE_KEYS = {
   showDetails: (id: number) => `tmdb_show_details_${id}`,
@@ -151,65 +148,13 @@ export class DefaultTMDBService implements TMDBService {
     this.cache = CacheService.getInstance();
   }
 
-  private async withRetry<T>(
-    fn: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 1000,
-    context: string,
-  ): Promise<T> {
-    let lastError: Error | null = null;
-
-    for (let retry = 0; retry <= maxRetries; retry++) {
-      try {
-        return await fn();
-      } catch (error) {
-        lastError = error as Error;
-
-        if (
-          !(error instanceof TransientApiError) &&
-          !(error instanceof AxiosError && this.isRetriableStatus(error.response?.status))
-        ) {
-          throw errorService.handleError(error, context);
-        }
-
-        if (retry === maxRetries) {
-          throw errorService.handleError(error, `${context} (after ${maxRetries} retries)`);
-        }
-
-        const delay = this.calculateRetryDelay(error, retry, baseDelay);
-        cliLogger.info(`Retrying ${context} after error. Attempt ${retry + 1}/${maxRetries} in ${delay}ms`);
-
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-
-    throw errorService.handleError(lastError || new Error('Unknown error'), context);
-  }
-
-  private isRetriableStatus(status?: number): boolean {
-    return status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
-  }
-
-  private calculateRetryDelay(error: any, retry: number, baseDelay: number): number {
-    const retryAfter = error.response?.headers?.['retry-after']
-      ? parseInt(error.response.headers['retry-after']) * 1000
-      : null;
-
-    if (retryAfter) return retryAfter;
-
-    return Math.min(
-      baseDelay * Math.pow(2, retry) * (0.8 + Math.random() * 0.4), // Add 20% jitter
-      60000, // Cap at 1 minute
-    );
-  }
-
   async searchShows(query: string, page: number = 1, year?: string): Promise<any> {
     const cacheKey = TMDB_CACHE_KEYS.search.shows(query, page, year);
 
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const params: Record<string, any> = {
               query,
@@ -225,8 +170,10 @@ export class DefaultTMDBService implements TMDBService {
             const response = await axiosTMDBAPIInstance.get('/search/tv', { params });
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `searchShows(${query})`,
         );
       },
@@ -240,7 +187,7 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const params: Record<string, any> = {
               query,
@@ -257,8 +204,10 @@ export class DefaultTMDBService implements TMDBService {
             const response = await axiosTMDBAPIInstance.get('/search/movie', { params });
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `searchMovies(${query})`,
         );
       },
@@ -272,15 +221,17 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(
               `/tv/${id}?append_to_response=content_ratings,watch/providers`,
             );
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getShowDetails(${id})`,
         );
       },
@@ -294,15 +245,17 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(
               `/movie/${id}?append_to_response=release_dates%2Cwatch%2Fproviders&language=en-US`,
             );
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getMovieDetails(${id})`,
         );
       },
@@ -316,13 +269,15 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/season/${seasonNumber}`);
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getSeasonDetails(${showId}, ${seasonNumber})`,
         );
       },
@@ -336,7 +291,7 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(`/trending/${mediaType}/week`, {
               params: {
@@ -346,8 +301,10 @@ export class DefaultTMDBService implements TMDBService {
             });
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getTrending(${mediaType}, ${page})`,
         );
       },
@@ -361,7 +318,7 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/recommendations`, {
               params: {
@@ -370,8 +327,10 @@ export class DefaultTMDBService implements TMDBService {
             });
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getShowRecommendations(${showId})`,
         );
       },
@@ -385,7 +344,7 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/similar`, {
               params: {
@@ -394,8 +353,10 @@ export class DefaultTMDBService implements TMDBService {
             });
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getSimilarShows(${showId})`,
         );
       },
@@ -409,7 +370,7 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/recommendations`, {
               params: {
@@ -418,8 +379,10 @@ export class DefaultTMDBService implements TMDBService {
             });
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getMovieRecommendations(${movieId})`,
         );
       },
@@ -433,7 +396,7 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/similar`, {
               params: {
@@ -442,8 +405,10 @@ export class DefaultTMDBService implements TMDBService {
             });
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getSimilarMovies(${movieId})`,
         );
       },
@@ -457,15 +422,17 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(
               `tv/${showId}/changes?end_date=${endDate}&start_date=${startDate}`,
             );
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getShowChanges(${showId})`,
         );
       },
@@ -479,15 +446,17 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(
               `movie/${movieId}/changes?end_date=${endDate}&start_date=${startDate}`,
             );
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getMovieChanges(${movieId})`,
         );
       },
@@ -501,15 +470,17 @@ export class DefaultTMDBService implements TMDBService {
     return await this.cache.getOrSet(
       cacheKey,
       async () => {
-        return await this.withRetry(
+        return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(
               `tv/season/${seasonId}/changes?end_date=${endDate}&start_date=${startDate}`,
             );
             return response.data;
           },
-          3,
-          1000,
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
           `getSeasonChanges(${seasonId})`,
         );
       },
