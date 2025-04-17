@@ -1,3 +1,4 @@
+import * as episodesDb from '@db/episodesDb';
 import * as profilesDb from '@db/profilesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
@@ -173,6 +174,172 @@ describe('ShowService', () => {
     });
   });
 
+  describe('getEpisodesForProfile', () => {
+    const mockRecentEpisodes = [
+      { id: 101, title: 'Recent Episode 1', air_date: '2023-04-10', show_id: 1 },
+      { id: 102, title: 'Recent Episode 2', air_date: '2023-04-12', show_id: 2 },
+    ];
+
+    const mockUpcomingEpisodes = [
+      { id: 201, title: 'Upcoming Episode 1', air_date: '2023-04-20', show_id: 1 },
+      { id: 202, title: 'Upcoming Episode 2', air_date: '2023-04-25', show_id: 3 },
+    ];
+
+    const mockNextUnwatchedEpisodes = [
+      {
+        show_id: 1,
+        show_title: 'Show 1',
+        poster_image: '/poster1.jpg',
+        last_watched: '2023-04-05',
+        episodes: [{ episode_id: 301, title: 'Next Episode 1', season_number: 2, episode_number: 3 }],
+      },
+      {
+        show_id: 2,
+        show_title: 'Show 2',
+        poster_image: '/poster2.jpg',
+        last_watched: '2023-04-08',
+        episodes: [{ episode_id: 302, title: 'Next Episode 2', season_number: 1, episode_number: 5 }],
+      },
+    ];
+
+    it('should return episodes from cache when available', async () => {
+      const mockEpisodeData = {
+        recentEpisodes: mockRecentEpisodes,
+        upcomingEpisodes: mockUpcomingEpisodes,
+        nextUnwatchedEpisodes: mockNextUnwatchedEpisodes,
+      };
+
+      mockCache.getOrSet.mockResolvedValue(mockEpisodeData);
+
+      const result = await service.getEpisodesForProfile('123');
+
+      expect(mockCache.getOrSet).toHaveBeenCalledWith('profile_123_episodes', expect.any(Function), 300);
+      expect(result).toEqual(mockEpisodeData);
+    });
+
+    it('should fetch episodes from database when not in cache', async () => {
+      mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
+
+      (episodesDb.getRecentEpisodesForProfile as jest.Mock).mockResolvedValue(mockRecentEpisodes);
+      (episodesDb.getUpcomingEpisodesForProfile as jest.Mock).mockResolvedValue(mockUpcomingEpisodes);
+      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+
+      const result = await service.getEpisodesForProfile('123');
+
+      expect(mockCache.getOrSet).toHaveBeenCalled();
+      expect(episodesDb.getRecentEpisodesForProfile).toHaveBeenCalledWith('123');
+      expect(episodesDb.getUpcomingEpisodesForProfile).toHaveBeenCalledWith('123');
+      expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith('123');
+
+      expect(result).toEqual({
+        recentEpisodes: mockRecentEpisodes,
+        upcomingEpisodes: mockUpcomingEpisodes,
+        nextUnwatchedEpisodes: mockNextUnwatchedEpisodes,
+      });
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
+      (episodesDb.getRecentEpisodesForProfile as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.getEpisodesForProfile('123')).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getEpisodesForProfile(123)');
+    });
+  });
+
+  describe('getNextUnwatchedEpisodesForProfile', () => {
+    const mockNextUnwatchedEpisodes = [
+      {
+        show_id: 1,
+        show_title: 'Show 1',
+        poster_image: '/poster1.jpg',
+        last_watched: '2023-04-05',
+        episodes: [
+          {
+            episode_id: 301,
+            episode_title: 'Next Episode 1',
+            overview: 'Episode overview',
+            episode_number: 3,
+            season_number: 2,
+            episode_still_image: '/still1.jpg',
+            air_date: '2023-03-15',
+            show_id: 1,
+            show_name: 'Show 1',
+            season_id: 201,
+            poster_image: '/poster1.jpg',
+            network: 'Netflix',
+            streaming_services: 'Netflix,Hulu',
+            profile_id: 123,
+          },
+        ],
+      },
+      {
+        show_id: 2,
+        show_title: 'Show 2',
+        poster_image: '/poster2.jpg',
+        last_watched: '2023-04-08',
+        episodes: [
+          {
+            episode_id: 302,
+            episode_title: 'Next Episode 2',
+            overview: 'Episode 2 overview',
+            episode_number: 5,
+            season_number: 1,
+            episode_still_image: '/still2.jpg',
+            air_date: '2023-03-22',
+            show_id: 2,
+            show_name: 'Show 2',
+            season_id: 202,
+            poster_image: '/poster2.jpg',
+            network: 'HBO',
+            streaming_services: 'HBO Max',
+            profile_id: 123,
+          },
+        ],
+      },
+    ];
+
+    it('should return next unwatched episodes from cache when available', async () => {
+      mockCache.getOrSet.mockResolvedValue(mockNextUnwatchedEpisodes);
+
+      const result = await service.getNextUnwatchedEpisodesForProfile('123');
+
+      expect(mockCache.getOrSet).toHaveBeenCalledWith('profile_123_unwatched_episodes', expect.any(Function), 300);
+      expect(result).toEqual(mockNextUnwatchedEpisodes);
+    });
+
+    it('should fetch next unwatched episodes from database when not in cache', async () => {
+      mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
+      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+
+      const result = await service.getNextUnwatchedEpisodesForProfile('123');
+
+      expect(mockCache.getOrSet).toHaveBeenCalled();
+      expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith('123');
+      expect(result).toEqual(mockNextUnwatchedEpisodes);
+    });
+
+    it('should handle empty results', async () => {
+      mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
+      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getNextUnwatchedEpisodesForProfile('123');
+
+      expect(result).toEqual([]);
+      expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith('123');
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
+      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.getNextUnwatchedEpisodesForProfile('123')).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getNextUnwatchedEpisodesForProfile(123)');
+    });
+  });
+
   describe('addShowToFavorites', () => {
     const mockExistingShow = {
       id: 1,
@@ -245,39 +412,157 @@ describe('ShowService', () => {
             episode_count: 10,
             id: 100,
             name: 'Season 1',
-            overview: 'Season 1',
-            poster_path: 'poster',
+            overview: 'Season 1 overview',
+            poster_path: '/season1_poster.jpg',
             season_number: 1,
-            vote_average: 6,
+            vote_average: 7.5,
+          },
+          {
+            air_date: '2023-05-01',
+            episode_count: 6,
+            id: 101,
+            name: 'Season 2',
+            overview: 'Season 2 overview',
+            poster_path: '/season2_poster.jpg',
+            season_number: 2,
+            vote_average: 8.0,
           },
         ],
       };
 
-      const mockTMDBSeasonDetails = {
-        data: {
-          id: 789,
-          name: 'Season 1',
-          episodes: [
-            { id: 101, name: 'Episode 1' },
-            { id: 102, name: 'Episode 2' },
-          ],
-        },
+      const mockTMDBSeason1Details = {
+        id: 100,
+        name: 'Season 1',
+        overview: 'Season 1 overview',
+        episodes: [
+          {
+            id: 1001,
+            name: 'Episode 1',
+            overview: 'Episode 1 overview',
+            episode_number: 1,
+            episode_type: 'standard',
+            season_number: 1,
+            air_date: '2023-02-01',
+            runtime: 42,
+            still_path: '/ep1_still.jpg',
+          },
+          {
+            id: 1002,
+            name: 'Episode 2',
+            overview: 'Episode 2 overview',
+            episode_number: 2,
+            episode_type: 'standard',
+            season_number: 1,
+            air_date: '2023-02-08',
+            runtime: 44,
+            still_path: '/ep2_still.jpg',
+          },
+        ],
+      };
+
+      const mockTMDBSeason2Details = {
+        id: 101,
+        name: 'Season 2',
+        overview: 'Season 2 overview',
+        episodes: [
+          {
+            id: 2001,
+            name: 'Episode 1',
+            overview: 'S2 Episode 1 overview',
+            episode_number: 1,
+            episode_type: 'standard',
+            season_number: 2,
+            air_date: '2023-05-01',
+            runtime: 45,
+            still_path: '/s2ep1_still.jpg',
+          },
+        ],
       };
 
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
-        getSeasonDetails: jest.fn().mockResolvedValue(mockTMDBSeasonDetails),
+        getSeasonDetails: jest
+          .fn()
+          .mockResolvedValueOnce(mockTMDBSeason1Details)
+          .mockResolvedValueOnce(mockTMDBSeason2Details),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
       const newShow = { ...mockTMDBShow, id: 999 };
       (showsDb.createShow as jest.Mock).mockReturnValue(newShow);
       (showsDb.saveShow as jest.Mock).mockResolvedValue(true);
-      (showsDb.getShowForProfile as jest.Mock).mockResolvedValue({
+
+      const mockProfileShow = {
         show_id: 999,
         profile_id: 456,
         title: 'New Show',
         watch_status: 'NOT_WATCHED',
+      };
+      (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
+
+      const mockSavedSeason1 = {
+        id: 201,
+        show_id: 999,
+        tmdb_id: 100,
+        name: 'Season 1',
+        overview: 'Season 1 overview',
+        season_number: 1,
+        release_date: '2023-02-01',
+        poster_image: '/season1_poster.jpg',
+        number_of_episodes: 10,
+      };
+
+      const mockSavedSeason2 = {
+        id: 202,
+        show_id: 999,
+        tmdb_id: 101,
+        name: 'Season 2',
+        overview: 'Season 2 overview',
+        season_number: 2,
+        release_date: '2023-05-01',
+        poster_image: '/season2_poster.jpg',
+        number_of_episodes: 6,
+      };
+
+      (seasonsDb.createSeason as jest.Mock).mockImplementation(
+        (showId, tmdbId, name, overview, seasonNumber, releaseDate, posterImage, numberOfEpisodes) => ({
+          show_id: showId,
+          tmdb_id: tmdbId,
+          name,
+          overview,
+          season_number: seasonNumber,
+          release_date: releaseDate,
+          poster_image: posterImage,
+          number_of_episodes: numberOfEpisodes,
+        }),
+      );
+
+      (seasonsDb.saveSeason as jest.Mock)
+        .mockResolvedValueOnce(mockSavedSeason1)
+        .mockResolvedValueOnce(mockSavedSeason2);
+
+      (seasonsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+
+      const mockSavedEpisode1 = { id: 301, tmdb_id: 1001, show_id: 999, season_id: 201 };
+      const mockSavedEpisode2 = { id: 302, tmdb_id: 1002, show_id: 999, season_id: 201 };
+      const mockSavedEpisode3 = { id: 303, tmdb_id: 2001, show_id: 999, season_id: 202 };
+
+      (episodesDb.createEpisode as jest.Mock).mockImplementation((tmdbId, showId, seasonId) => ({
+        tmdb_id: tmdbId,
+        show_id: showId,
+        season_id: seasonId,
+      }));
+
+      (episodesDb.saveEpisode as jest.Mock)
+        .mockResolvedValueOnce(mockSavedEpisode1)
+        .mockResolvedValueOnce(mockSavedEpisode2)
+        .mockResolvedValueOnce(mockSavedEpisode3);
+
+      (episodesDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+
+      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+        callback();
+        return {} as NodeJS.Timeout;
       });
 
       const result = await service.addShowToFavorites('456', 123);
@@ -289,7 +574,9 @@ describe('ShowService', () => {
       expect(showsDb.saveShow).toHaveBeenCalled();
       expect(showsDb.saveFavorite).toHaveBeenCalledWith('456', 999, false);
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('456');
+      expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledWith(123, 1);
       expect(result).toHaveProperty('favoritedShow');
+      expect(result.favoritedShow).toEqual(mockProfileShow);
     });
 
     it('should throw BadRequestError when saving new show fails', async () => {
