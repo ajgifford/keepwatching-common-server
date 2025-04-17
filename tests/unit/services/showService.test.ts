@@ -239,10 +239,25 @@ describe('ShowService', () => {
         last_air_date: '2023-06-01',
         last_episode_to_air: { id: 100 },
         next_episode_to_air: { id: 101 },
+        seasons: [
+          {
+            air_date: '2023-02-01',
+            episode_count: 10,
+            id: 100,
+            name: 'Season 1',
+            overview: 'Season 1',
+            poster_path: 'poster',
+            season_number: 1,
+            vote_average: 6,
+          },
+        ],
       };
+
+      const mockTMDBSeasonDetails = {};
 
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
+        getSeasonDetails: jest.fn().mockResolvedValue(mockTMDBSeasonDetails),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
@@ -323,7 +338,7 @@ describe('ShowService', () => {
 
     it('should remove a show from favorites successfully', async () => {
       (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
-      (errorService.assertExists as jest.Mock).mockResolvedValue(true);
+      (errorService.assertExists as jest.Mock).mockResolvedValue((item: any) => item);
       (showsDb.removeFavorite as jest.Mock).mockResolvedValue(undefined);
 
       const mockEpisodeData = {
@@ -459,18 +474,20 @@ describe('ShowService', () => {
           inFavorites: false,
         },
       ];
-      (errorService.assertExists as jest.Mock).mockResolvedValue(true);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
+      (errorService.assertExists as jest.Mock).mockResolvedValue((item: any) => item);
       mockCache.getOrSet.mockResolvedValue(mockRecommendations);
 
       const result = await service.getShowRecommendations('123', 1);
 
+      expect(showsDb.findShowById).toHaveBeenCalledWith(1);
       expect(mockCache.getOrSet).toHaveBeenCalledWith('recommendations_1', expect.any(Function), 86400);
       expect(result).toEqual(mockRecommendations);
     });
 
     it('should fetch recommendations from TMDB when not in cache', async () => {
       (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
-      (errorService.assertExists as jest.Mock).mockResolvedValue(true);
+      (errorService.assertExists as jest.Mock).mockResolvedValue((item: any) => item);
 
       const mockTMDBService = {
         getShowRecommendations: jest.fn().mockResolvedValue(mockTMDBResponse),
@@ -797,17 +814,19 @@ describe('ShowService', () => {
         },
       ];
       mockCache.getOrSet.mockResolvedValue(mockSimilarShows);
-      (errorService.assertExists as jest.Mock).mockResolvedValue(true);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
+      (errorService.assertExists as jest.Mock).mockResolvedValue((item: any) => item);
 
       const result = await service.getSimilarShows('123', 1);
 
+      expect(showsDb.findShowById).toHaveBeenCalledWith(1);
       expect(mockCache.getOrSet).toHaveBeenCalledWith('similarShows_1', expect.any(Function), 86400);
       expect(result).toEqual(mockSimilarShows);
     });
 
     it('should fetch similar shows from TMDB when not in cache', async () => {
       (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
-      (errorService.assertExists as jest.Mock).mockResolvedValue(true);
+      (errorService.assertExists as jest.Mock).mockResolvedValue((item: any) => item);
 
       const mockTMDBService = {
         getSimilarShows: jest.fn().mockResolvedValue(mockTMDBResponse),
