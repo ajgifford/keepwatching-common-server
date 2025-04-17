@@ -1,23 +1,8 @@
 import { CustomError, DatabaseError, NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
+import { AccountNotification, AdminNotification } from '../types/notificationTypes';
 import { getDbPool } from '../utils/db';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-
-export interface AccountNotification {
-  notification_id: number;
-  message: string;
-  start_date: Date;
-  end_date: Date;
-}
-
-export interface AdminNotification {
-  notification_id?: number;
-  message: string;
-  start_date: string;
-  end_date: string;
-  send_to_all: boolean;
-  account_id: number | null;
-}
 
 interface NotificationRow extends RowDataPacket {
   notification_id: number;
@@ -125,7 +110,7 @@ export async function dismissNotification(notificationId: number, accountId: num
   }
 }
 
-export async function saveNotification(notification: AdminNotification) {
+export async function addNotification(notification: AdminNotification) {
   const transactionHelper = new TransactionHelper();
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {

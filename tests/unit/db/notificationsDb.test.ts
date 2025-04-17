@@ -165,7 +165,7 @@ describe('notificationDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockAccounts, []]);
       mockConnection.execute.mockResolvedValueOnce([]);
 
-      await notificationsDb.saveNotification(notification);
+      await notificationsDb.addNotification(notification);
 
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
@@ -205,7 +205,7 @@ describe('notificationDb', () => {
       mockConnection.execute.mockResolvedValueOnce(notificationInsertResult);
       mockConnection.execute.mockResolvedValueOnce([]);
 
-      await notificationsDb.saveNotification(notification);
+      await notificationsDb.addNotification(notification);
 
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
@@ -232,7 +232,7 @@ describe('notificationDb', () => {
       mockConnection.execute.mockResolvedValueOnce([{ insertId: 123 }]);
       mockConnection.query.mockResolvedValueOnce([[], []]); // empty accounts result
 
-      await expect(notificationsDb.saveNotification(notification)).rejects.toThrow(
+      await expect(notificationsDb.addNotification(notification)).rejects.toThrow(
         'No accounts found when sending a notification to all accounts',
       );
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
@@ -250,7 +250,7 @@ describe('notificationDb', () => {
       const error = new Error('Database error');
       mockConnection.execute.mockRejectedValueOnce(error);
 
-      await expect(notificationsDb.saveNotification(notification)).rejects.toThrow(
+      await expect(notificationsDb.addNotification(notification)).rejects.toThrow(
         'Database error saving a notification: Database error',
       );
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
