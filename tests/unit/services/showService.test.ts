@@ -253,7 +253,16 @@ describe('ShowService', () => {
         ],
       };
 
-      const mockTMDBSeasonDetails = {};
+      const mockTMDBSeasonDetails = {
+        data: {
+          id: 789,
+          name: 'Season 1',
+          episodes: [
+            { id: 101, name: 'Episode 1' },
+            { id: 102, name: 'Episode 2' },
+          ],
+        },
+      };
 
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
