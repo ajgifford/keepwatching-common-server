@@ -40,9 +40,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "yarn build:main && yarn build:testing",
-    "build:main": "tsc -p tsconfig.json",
-    "build:testing": "tsc -p tsconfig.testing.json",
+    "build": "tsc -p tsconfig.json",
     "prepare": "yarn build",
     "test": "jest",
     "lint": "eslint . --ext .ts",
