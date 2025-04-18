@@ -21,6 +21,6 @@
       "@utils/*": ["src/utils/*"]
     }
   },
-  "include": ["src/**/*", "src/services.ts", "src/utils.ts", "src/types.ts", "src/logger.ts"],
+  "include": ["src/**/*", "src/services.ts", "src/utils.ts", "src/types.ts", "src/logger.ts", "tests/__mocks__/**/*"],
   "exclude": ["node_modules", "tests", "dist", "dist-tests"]
 }

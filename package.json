@@ -29,13 +29,20 @@
       "types": "./dist/logger.d.ts",
       "import": "./dist/logger.js",
       "require": "./dist/logger.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js",
+      "require": "./dist/testing/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "npx tsc",
+    "build": "yarn build:main && yarn build:testing",
+    "build:main": "tsc -p tsconfig.json",
+    "build:testing": "tsc -p tsconfig.testing.json",
     "prepare": "yarn build",
     "test": "jest",
     "lint": "eslint . --ext .ts",
