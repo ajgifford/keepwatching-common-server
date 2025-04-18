@@ -103,6 +103,16 @@ export interface MockContentUpdatesService {
   updateShows: jest.Mock;
 }
 
+export interface MockScheduledUpdatesService {
+  runShowsUpdateJob: jest.Mock;
+  runMoviesUpdateJob: jest.Mock;
+  initScheduledJobs: jest.Mock;
+  getJobsStatus: jest.Mock;
+  pauseJobs: jest.Mock;
+  resumeJobs: jest.Mock;
+  shutdownJobs: jest.Mock;
+}
+
 export interface MockErrorService {
   handleError: jest.Mock;
   assertExists: jest.Mock;

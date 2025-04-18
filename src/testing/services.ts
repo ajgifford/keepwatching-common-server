@@ -8,6 +8,7 @@ import {
   MockMoviesService,
   MockNotificationsService,
   MockProfileService,
+  MockScheduledUpdatesService,
   MockSeasonsService,
   MockShowService,
   MockSocketService,
@@ -103,6 +104,16 @@ export const notificationsService = createTypedServiceMock<MockNotificationsServ
 
 export const contentUpdatesService = createTypedServiceMock<MockContentUpdatesService>(['updateMovies', 'updateShows']);
 
+export const scheduledUpdatesService = createTypedServiceMock<MockScheduledUpdatesService>([
+  'runShowsUpdateJob',
+  'runMoviesUpdateJob',
+  'initScheduledJobs',
+  'getJobsStatus',
+  'pauseJobs',
+  'resumeJobs',
+  'shutdownJobs',
+]);
+
 // Custom implementations for services that need special handling
 export const errorService: MockErrorService = {
   handleError: jest.fn((error) => {
@@ -179,7 +190,6 @@ export class CacheService {
   keys = (...args: any[]) => this.mockImpl.keys(...args);
 }
 
-// Factory function for TMDB service
 export const getTMDBService = jest.fn(() => ({
   searchShows: jest.fn(),
   searchMovies: jest.fn(),
