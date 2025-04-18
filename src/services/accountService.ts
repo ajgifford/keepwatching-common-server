@@ -169,6 +169,78 @@ export class AccountService {
       throw errorService.handleError(error, `editAccount(${accountId})`);
     }
   }
+
+  /**
+   * Find account by its ID
+   *
+   * @param accountId - ID of the account to find
+   * @returns Account information or null if not found
+   * @throws Error if the database operation fails
+   */
+  public async findAccountById(accountId: number): Promise<Account | null> {
+    try {
+      const account = await accountsDb.findAccountById(accountId);
+
+      if (!account) {
+        return null;
+      }
+
+      return {
+        ...account,
+        image: getAccountImage(account.image, account.name),
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `findAccountById(${accountId})`);
+    }
+  }
+
+  /**
+   * Find the account ID associated with a profile
+   *
+   * @param profileId - ID of the profile to look up
+   * @returns Account ID if found, null otherwise
+   * @throws Error if the database operation fails
+   */
+  public async findAccountIdByProfileId(profileId: string): Promise<number | null> {
+    try {
+      return await accountsDb.findAccountIdByProfileId(profileId);
+    } catch (error) {
+      throw errorService.handleError(error, `findAccountIdByProfileId(${profileId})`);
+    }
+  }
+
+  /**
+   * Update an account's profile image
+   *
+   * @param accountId - ID of the account to update
+   * @param imagePath - Path to the new image file
+   * @returns Updated account information
+   * @throws NotFoundError if account not found
+   * @throws BadRequestError if image update fails
+   * @throws Error for other database errors
+   */
+  public async updateAccountImage(accountId: number, imagePath: string) {
+    try {
+      const updatedAccount = await accountsDb.updateAccountImage(accountId, imagePath);
+
+      if (!updatedAccount) {
+        throw new Error(`Failed to update image for account ${accountId}`);
+      }
+
+      // Invalidate cache if CacheService is used
+      this.cache.invalidateAccount(accountId);
+
+      return {
+        id: updatedAccount.id,
+        name: updatedAccount.name,
+        email: updatedAccount.email,
+        image: getAccountImage(updatedAccount.image, updatedAccount.name),
+        default_profile_id: updatedAccount.default_profile_id,
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `updateAccountImage(${accountId}, ${imagePath})`);
+    }
+  }
 }
 
 export const accountService = new AccountService();

@@ -313,4 +313,139 @@ describe('AccountService', () => {
       expect(errorService.handleError).toHaveBeenCalledWith(cacheError, 'logout(1)');
     });
   });
+
+  describe('findAccountById', () => {
+    it('should return account with formatted image when account exists', async () => {
+      const mockAccountData = {
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+        uid: 'test123',
+        image: 'profile.jpg',
+      };
+
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccountData);
+
+      const result = await accountService.findAccountById(1);
+
+      expect(accountsDb.findAccountById).toHaveBeenCalledWith(1);
+      expect(getAccountImage).toHaveBeenCalledWith('profile.jpg', 'Test User');
+      expect(result).toEqual({
+        ...mockAccountData,
+        image: 'account-image-url.jpg', // This is the mocked return value from getAccountImage
+      });
+    });
+
+    it('should return null when account does not exist', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(null);
+
+      const result = await accountService.findAccountById(999);
+
+      expect(accountsDb.findAccountById).toHaveBeenCalledWith(999);
+      expect(getAccountImage).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it('should handle and transform errors using errorService', async () => {
+      const dbError = new Error('Database connection failed');
+      (accountsDb.findAccountById as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(accountService.findAccountById(1)).rejects.toThrow('Database connection failed');
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, 'findAccountById(1)');
+    });
+  });
+
+  describe('findAccountIdByProfileId', () => {
+    it('should return account ID when profile exists', async () => {
+      const profileId = '42';
+      const accountId = 123;
+
+      (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(accountId);
+
+      const result = await accountService.findAccountIdByProfileId(profileId);
+
+      expect(accountsDb.findAccountIdByProfileId).toHaveBeenCalledWith(profileId);
+      expect(result).toBe(accountId);
+    });
+
+    it('should return null when profile does not exist', async () => {
+      const profileId = '999';
+
+      (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(null);
+
+      const result = await accountService.findAccountIdByProfileId(profileId);
+
+      expect(accountsDb.findAccountIdByProfileId).toHaveBeenCalledWith(profileId);
+      expect(result).toBeNull();
+    });
+
+    it('should handle and transform errors using errorService', async () => {
+      const profileId = '42';
+      const dbError = new Error('Database error');
+
+      (accountsDb.findAccountIdByProfileId as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(accountService.findAccountIdByProfileId(profileId)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `findAccountIdByProfileId(${profileId})`);
+    });
+  });
+
+  describe('updateAccountImage', () => {
+    it('should update account image and return formatted account data', async () => {
+      const accountId = 1;
+      const imagePath = 'new-image.jpg';
+      const updatedAccount = {
+        id: accountId,
+        name: 'Test User',
+        email: 'test@example.com',
+        uid: 'test123',
+        image: imagePath,
+        default_profile_id: 5,
+      };
+
+      (accountsDb.updateAccountImage as jest.Mock).mockResolvedValue(updatedAccount);
+
+      mockCacheService.invalidateAccount.mockImplementation(() => {
+        return;
+      });
+
+      const result = await accountService.updateAccountImage(accountId, imagePath);
+
+      expect(accountsDb.updateAccountImage).toHaveBeenCalledWith(accountId, imagePath);
+      expect(getAccountImage).toHaveBeenCalledWith(imagePath, 'Test User');
+      expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(accountId);
+      expect(result).toEqual({
+        id: accountId,
+        name: 'Test User',
+        email: 'test@example.com',
+        image: 'account-image-url.jpg', // From the mock
+        default_profile_id: 5,
+      });
+    });
+
+    it('should throw error when account image update fails', async () => {
+      const accountId = 1;
+      const imagePath = 'new-image.jpg';
+
+      (accountsDb.updateAccountImage as jest.Mock).mockResolvedValue(null);
+
+      await expect(accountService.updateAccountImage(accountId, imagePath)).rejects.toThrow(
+        'Failed to update image for account 1',
+      );
+      expect(accountsDb.updateAccountImage).toHaveBeenCalledWith(accountId, imagePath);
+      expect(mockCacheService.invalidateAccount).not.toHaveBeenCalled();
+    });
+
+    it('should handle database errors using errorService', async () => {
+      const accountId = 1;
+      const imagePath = 'new-image.jpg';
+      const dbError = new Error('Database error');
+
+      (accountsDb.updateAccountImage as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(accountService.updateAccountImage(accountId, imagePath)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `updateAccountImage(${accountId}, ${imagePath})`);
+      expect(mockCacheService.invalidateAccount).not.toHaveBeenCalled();
+    });
+  });
 });
