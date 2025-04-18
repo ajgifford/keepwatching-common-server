@@ -206,3 +206,51 @@ export const getTMDBService = jest.fn(() => ({
   getSeasonChanges: jest.fn(),
   clearCache: jest.fn(),
 }));
+
+export const databaseService = {
+  getInstance: jest.fn().mockReturnThis(),
+  getPool: jest.fn().mockReturnValue({
+    execute: jest.fn().mockResolvedValue([[], []]),
+    query: jest.fn().mockResolvedValue([[], []]),
+    getConnection: jest.fn().mockResolvedValue({
+      beginTransaction: jest.fn().mockResolvedValue(undefined),
+      commit: jest.fn().mockResolvedValue(undefined),
+      rollback: jest.fn().mockResolvedValue(undefined),
+      release: jest.fn(),
+      execute: jest.fn().mockResolvedValue([[], []]),
+      query: jest.fn().mockResolvedValue([[], []]),
+    }),
+    end: jest.fn().mockResolvedValue(undefined),
+  }),
+  isInShutdownMode: jest.fn().mockReturnValue(false),
+  shutdown: jest.fn().mockResolvedValue(undefined),
+  static: {
+    reset: jest.fn(),
+  },
+  // Helper for setting up test data
+  setupMockData: jest.fn((data = {}) => {
+    databaseService.getPool().query.mockImplementation((sql: any) => {
+      // Simple parsing of SQL to determine which table's data to return
+      const tableMatch = sql.toString().match(/from\s+(\w+)/i);
+      const table = tableMatch ? tableMatch[1] : null;
+      return Promise.resolve([data[table] || [], []]);
+    });
+
+    databaseService.getPool().execute.mockImplementation((sql: any) => {
+      if (sql.toString().match(/^insert/i)) {
+        return Promise.resolve([{ insertId: 1, affectedRows: 1 }, []]);
+      } else if (sql.toString().match(/^update|delete/i)) {
+        return Promise.resolve([{ affectedRows: 1 }, []]);
+      } else {
+        const tableMatch = sql.toString().match(/from\s+(\w+)/i);
+        const table = tableMatch ? tableMatch[1] : null;
+        return Promise.resolve([data[table] || [], []]);
+      }
+    });
+  }),
+  // Helper to reset mocks
+  clearMocks: jest.fn(() => {
+    databaseService.getPool().query.mockReset().mockResolvedValue([[], []]);
+    databaseService.getPool().execute.mockReset().mockResolvedValue([[], []]);
+  }),
+};

@@ -1,6 +1,7 @@
 export * from './services/accountService';
 export * from './services/contentDiscoveryService';
 export * from './services/contentUpdatesService';
+export * from './services/databaseService';
 export * from './services/episodesService';
 export * from './services/moviesService';
 export * from './services/notificationsService';

@@ -163,3 +163,13 @@ export interface MockCacheService {
   getStats: jest.Mock;
   keys: jest.Mock;
 }
+
+export interface MockDatabaseService {
+  getInstance: jest.Mock;
+  getPool: jest.Mock;
+  isInShutdownMode: jest.Mock;
+  shutdown: jest.Mock;
+  static: {
+    reset: jest.Mock;
+  };
+}
