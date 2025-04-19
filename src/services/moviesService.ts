@@ -1,12 +1,12 @@
 import { PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
-import * as profilesDb from '../db/profilesDb';
 import { BadRequestError } from '../middleware/errorMiddleware';
 import { ContentUpdates } from '../types/contentTypes';
 import { getUSMPARating } from '../utils/contentUtility';
 import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
+import { profileService } from './profileService';
 import { getTMDBService } from './tmdbService';
 
 /**
@@ -31,7 +31,7 @@ export class MoviesService {
    * Invalidate all caches related to an account by running through it's profiles
    */
   public async invalidateAccountCache(accountId: number): Promise<void> {
-    const profiles = await profilesDb.getAllProfilesByAccountId(accountId);
+    const profiles = await profileService.getProfilesByAccountId(accountId);
     for (const profile of profiles) {
       this.invalidateProfileMovieCache(String(profile.id!));
     }

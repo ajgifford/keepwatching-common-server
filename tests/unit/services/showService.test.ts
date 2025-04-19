@@ -1,17 +1,17 @@
 import * as episodesDb from '@db/episodesDb';
-import * as profilesDb from '@db/profilesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { CustomError, NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
+import { profileService } from '@services/profileService';
 import { ShowService, showService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
 
 jest.mock('@db/showsDb');
 jest.mock('@db/seasonsDb');
 jest.mock('@db/episodesDb');
-jest.mock('@db/profilesDb');
+jest.mock('@services/profileService');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
 jest.mock('@services/socketService');
@@ -1180,29 +1180,29 @@ describe('ShowService', () => {
         { id: 1, name: 'Profile 1', account_id: 123 },
         { id: 2, name: 'Profile 2', account_id: 123 },
       ];
-      (profilesDb.getAllProfilesByAccountId as jest.Mock).mockResolvedValue(mockProfiles);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(mockProfiles);
 
       await service.invalidateAccountCache(123);
 
-      expect(profilesDb.getAllProfilesByAccountId).toHaveBeenCalledWith(123);
+      expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('1');
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('2');
       expect(mockCache.invalidateAccount).toHaveBeenCalledWith(123);
     });
 
     it('should handle empty profiles array', async () => {
-      (profilesDb.getAllProfilesByAccountId as jest.Mock).mockResolvedValue([]);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([]);
 
       await service.invalidateAccountCache(123);
 
-      expect(profilesDb.getAllProfilesByAccountId).toHaveBeenCalledWith(123);
+      expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
       expect(mockCache.invalidateProfileShows).not.toHaveBeenCalled();
       expect(mockCache.invalidateAccount).toHaveBeenCalledWith(123);
     });
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (profilesDb.getAllProfilesByAccountId as jest.Mock).mockRejectedValue(error);
+      (profileService.getProfilesByAccountId as jest.Mock).mockRejectedValue(error);
 
       await expect(service.invalidateAccountCache(123)).rejects.toThrow('Database error');
     });

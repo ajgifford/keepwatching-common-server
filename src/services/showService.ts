@@ -1,6 +1,5 @@
 import { PROFILE_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
 import * as episodesDb from '../db/episodesDb';
-import * as profilesDb from '../db/profilesDb';
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { cliLogger } from '../logger/logger';
@@ -13,6 +12,7 @@ import { filterUSOrEnglishShows } from '../utils/usSearchFilter';
 import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
+import { profileService } from './profileService';
 import { socketService } from './socketService';
 import { getTMDBService } from './tmdbService';
 
@@ -38,7 +38,7 @@ export class ShowService {
    * Invalidate all caches related to an account by running through it's profiles
    */
   public async invalidateAccountCache(accountId: number): Promise<void> {
-    const profiles = await profilesDb.getAllProfilesByAccountId(accountId);
+    const profiles = await profileService.getProfilesByAccountId(accountId);
     for (const profile of profiles) {
       this.invalidateProfileCache(String(profile.id!));
     }
