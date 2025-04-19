@@ -1,12 +1,12 @@
 import { cliLogger, httpLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
 import { updateMovies, updateShows } from '@services/contentUpdatesService';
-import { checkForMovieChanges } from '@services/movieChangesService';
 import { moviesService } from '@services/moviesService';
-import { checkForShowChanges } from '@services/showChangesService';
 import { showService } from '@services/showService';
 import * as changesUtility from '@utils/changesUtility';
 
+jest.mock('@services/moviesService');
+jest.mock('@services/showService');
 jest.mock('@logger/logger', () => ({
   cliLogger: {
     info: jest.fn(),
@@ -16,18 +16,6 @@ jest.mock('@logger/logger', () => ({
     error: jest.fn(),
   },
 }));
-
-jest.mock('@services/moviesService');
-jest.mock('@services/showService');
-
-jest.mock('@services/movieChangesService', () => ({
-  checkForMovieChanges: jest.fn(),
-}));
-
-jest.mock('@services/showChangesService', () => ({
-  checkForShowChanges: jest.fn(),
-}));
-
 jest.mock('@utils/changesUtility', () => ({
   generateDateRange: jest.fn(),
   sleep: jest.fn().mockResolvedValue(undefined),
@@ -49,16 +37,16 @@ describe('contentUpdatesService', () => {
         { id: 2, tmdb_id: 102, title: 'Movie 2' },
       ];
       (moviesService.getMoviesForUpdates as jest.Mock).mockResolvedValue(mockMovies);
-      (checkForMovieChanges as jest.Mock).mockResolvedValue(undefined);
+      (moviesService.checkMovieForChanges as jest.Mock).mockResolvedValue(undefined);
 
       await updateMovies();
 
       expect(moviesService.getMoviesForUpdates).toHaveBeenCalledTimes(1);
       expect(changesUtility.generateDateRange).toHaveBeenCalledWith(10);
       expect(cliLogger.info).toHaveBeenCalledWith('Found 2 movies to check for updates');
-      expect(checkForMovieChanges).toHaveBeenCalledTimes(2);
-      expect(checkForMovieChanges).toHaveBeenCalledWith(mockMovies[0], '2024-12-22', '2025-01-01');
-      expect(checkForMovieChanges).toHaveBeenCalledWith(mockMovies[1], '2024-12-22', '2025-01-01');
+      expect(moviesService.checkMovieForChanges).toHaveBeenCalledTimes(2);
+      expect(moviesService.checkMovieForChanges).toHaveBeenCalledWith(mockMovies[0], '2024-12-22', '2025-01-01');
+      expect(moviesService.checkMovieForChanges).toHaveBeenCalledWith(mockMovies[1], '2024-12-22', '2025-01-01');
       expect(changesUtility.sleep).toHaveBeenCalledTimes(2);
     });
 
@@ -69,7 +57,7 @@ describe('contentUpdatesService', () => {
       await expect(updateMovies()).rejects.toThrow('Database error');
       expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie updates', error);
       expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.MoviesChangeFail, { error });
-      expect(checkForMovieChanges).not.toHaveBeenCalled();
+      expect(moviesService.checkMovieForChanges).not.toHaveBeenCalled();
     });
 
     it('should continue processing if one movie check fails', async () => {
@@ -81,7 +69,7 @@ describe('contentUpdatesService', () => {
       const error = new Error('API error');
 
       (moviesService.getMoviesForUpdates as jest.Mock).mockResolvedValue(mockMovies);
-      (checkForMovieChanges as jest.Mock)
+      (moviesService.checkMovieForChanges as jest.Mock)
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce(undefined);
@@ -89,12 +77,12 @@ describe('contentUpdatesService', () => {
       await updateMovies();
 
       expect(moviesService.getMoviesForUpdates).toHaveBeenCalledTimes(1);
-      expect(checkForMovieChanges).toHaveBeenCalledTimes(3);
+      expect(moviesService.checkMovieForChanges).toHaveBeenCalledTimes(3);
       expect(cliLogger.error).toHaveBeenCalledWith('Failed to check for changes in movie ID 2', error);
 
-      expect(checkForMovieChanges).toHaveBeenCalledWith(mockMovies[0], '2024-12-22', '2025-01-01');
-      expect(checkForMovieChanges).toHaveBeenCalledWith(mockMovies[1], '2024-12-22', '2025-01-01');
-      expect(checkForMovieChanges).toHaveBeenCalledWith(mockMovies[2], '2024-12-22', '2025-01-01');
+      expect(moviesService.checkMovieForChanges).toHaveBeenCalledWith(mockMovies[0], '2024-12-22', '2025-01-01');
+      expect(moviesService.checkMovieForChanges).toHaveBeenCalledWith(mockMovies[1], '2024-12-22', '2025-01-01');
+      expect(moviesService.checkMovieForChanges).toHaveBeenCalledWith(mockMovies[2], '2024-12-22', '2025-01-01');
     });
 
     it('should handle empty movie list', async () => {
@@ -104,7 +92,7 @@ describe('contentUpdatesService', () => {
 
       expect(moviesService.getMoviesForUpdates).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Found 0 movies to check for updates');
-      expect(checkForMovieChanges).not.toHaveBeenCalled();
+      expect(moviesService.checkMovieForChanges).not.toHaveBeenCalled();
     });
   });
 
@@ -115,7 +103,7 @@ describe('contentUpdatesService', () => {
         { id: 2, tmdb_id: 202, title: 'Show 2' },
       ];
       (showService.getShowsForUpdates as jest.Mock).mockResolvedValue(mockShows);
-      (checkForShowChanges as jest.Mock).mockResolvedValue(undefined);
+      (showService.checkShowForChanges as jest.Mock).mockResolvedValue(undefined);
       (changesUtility.generateDateRange as jest.Mock).mockReturnValue({
         currentDate: '2025-01-01',
         pastDate: '2024-12-30', // 2-day range for shows
@@ -126,9 +114,9 @@ describe('contentUpdatesService', () => {
       expect(showService.getShowsForUpdates).toHaveBeenCalledTimes(1);
       expect(changesUtility.generateDateRange).toHaveBeenCalledWith(2);
       expect(cliLogger.info).toHaveBeenCalledWith('Found 2 shows to check for updates');
-      expect(checkForShowChanges).toHaveBeenCalledTimes(2);
-      expect(checkForShowChanges).toHaveBeenCalledWith(mockShows[0], '2024-12-30', '2025-01-01');
-      expect(checkForShowChanges).toHaveBeenCalledWith(mockShows[1], '2024-12-30', '2025-01-01');
+      expect(showService.checkShowForChanges).toHaveBeenCalledTimes(2);
+      expect(showService.checkShowForChanges).toHaveBeenCalledWith(mockShows[0], '2024-12-30', '2025-01-01');
+      expect(showService.checkShowForChanges).toHaveBeenCalledWith(mockShows[1], '2024-12-30', '2025-01-01');
       expect(changesUtility.sleep).toHaveBeenCalledTimes(2);
     });
 
@@ -139,7 +127,7 @@ describe('contentUpdatesService', () => {
       await expect(updateShows()).rejects.toThrow('Database error');
       expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for show updates', error);
       expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowsChangeFail, { error });
-      expect(checkForShowChanges).not.toHaveBeenCalled();
+      expect(showService.checkShowForChanges).not.toHaveBeenCalled();
     });
 
     it('should continue processing if one show check fails', async () => {
@@ -151,7 +139,7 @@ describe('contentUpdatesService', () => {
       const error = new Error('API error');
 
       (showService.getShowsForUpdates as jest.Mock).mockResolvedValue(mockShows);
-      (checkForShowChanges as jest.Mock)
+      (showService.checkShowForChanges as jest.Mock)
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce(undefined);
@@ -164,11 +152,11 @@ describe('contentUpdatesService', () => {
       await updateShows();
 
       expect(showService.getShowsForUpdates).toHaveBeenCalledTimes(1);
-      expect(checkForShowChanges).toHaveBeenCalledTimes(3);
+      expect(showService.checkShowForChanges).toHaveBeenCalledTimes(3);
       expect(cliLogger.error).toHaveBeenCalledWith('Failed to check for changes in show ID 2', error);
-      expect(checkForShowChanges).toHaveBeenCalledWith(mockShows[0], '2024-12-30', '2025-01-01');
-      expect(checkForShowChanges).toHaveBeenCalledWith(mockShows[1], '2024-12-30', '2025-01-01');
-      expect(checkForShowChanges).toHaveBeenCalledWith(mockShows[2], '2024-12-30', '2025-01-01');
+      expect(showService.checkShowForChanges).toHaveBeenCalledWith(mockShows[0], '2024-12-30', '2025-01-01');
+      expect(showService.checkShowForChanges).toHaveBeenCalledWith(mockShows[1], '2024-12-30', '2025-01-01');
+      expect(showService.checkShowForChanges).toHaveBeenCalledWith(mockShows[2], '2024-12-30', '2025-01-01');
     });
 
     it('should handle empty show list', async () => {
@@ -182,7 +170,7 @@ describe('contentUpdatesService', () => {
 
       expect(showService.getShowsForUpdates).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Found 0 shows to check for updates');
-      expect(checkForShowChanges).not.toHaveBeenCalled();
+      expect(showService.checkShowForChanges).not.toHaveBeenCalled();
     });
   });
 });

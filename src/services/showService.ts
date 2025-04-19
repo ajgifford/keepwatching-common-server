@@ -2,10 +2,12 @@ import { PROFILE_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
 import * as episodesDb from '../db/episodesDb';
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
-import { cliLogger } from '../logger/logger';
+import { cliLogger, httpLogger } from '../logger/logger';
+import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError } from '../middleware/errorMiddleware';
-import { ContentUpdates } from '../types/contentTypes';
+import { Change, ContentUpdates } from '../types/contentTypes';
 import { ContinueWatchingShow, Show } from '../types/showTypes';
+import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { filterUSOrEnglishShows } from '../utils/usSearchFilter';
@@ -13,6 +15,7 @@ import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { profileService } from './profileService';
+import { processSeasonChanges } from './seasonChangesService';
 import { socketService } from './socketService';
 import { getTMDBService } from './tmdbService';
 
@@ -470,6 +473,63 @@ export class ShowService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getSimilarShows(${profileId}, ${showId})`);
+    }
+  }
+
+  /**
+   * Check for changes to a specific show and updates if necessary
+   * @param content Show to check for changes
+   * @param pastDate Date past date used as the start of the change window
+   * @param currentDate Date current date used as the end of the change window
+   */
+  public async checkShowForChanges(content: ContentUpdates, pastDate: string, currentDate: string) {
+    const tmdbService = getTMDBService();
+
+    try {
+      const changesData = await tmdbService.getShowChanges(content.tmdb_id, pastDate, currentDate);
+      const changes: Change[] = changesData.changes || [];
+
+      const supportedChanges = changes.filter((item) => SUPPORTED_CHANGE_KEYS.includes(item.key));
+
+      if (supportedChanges.length > 0) {
+        const showDetails = await tmdbService.getShowDetails(content.tmdb_id);
+
+        const updatedShow = showsDb.createShow(
+          showDetails.id,
+          showDetails.name,
+          showDetails.overview,
+          showDetails.first_air_date,
+          showDetails.poster_path,
+          showDetails.backdrop_path,
+          showDetails.vote_average,
+          getUSRating(showDetails.content_ratings),
+          content.id,
+          getUSWatchProviders(showDetails, 9999),
+          showDetails.number_of_episodes,
+          showDetails.number_of_seasons,
+          showDetails.genres.map((genre: { id: any }) => genre.id),
+          showDetails.status,
+          showDetails.type,
+          getInProduction(showDetails),
+          showDetails.last_air_date,
+          getEpisodeToAirId(showDetails.last_episode_to_air),
+          getEpisodeToAirId(showDetails.next_episode_to_air),
+          getUSNetwork(showDetails.networks),
+        );
+
+        await showsDb.updateShow(updatedShow);
+
+        const profileIds = await showsDb.getProfilesForShow(updatedShow.id!);
+
+        const seasonChanges = changes.filter((item) => item.key === 'season');
+        if (seasonChanges.length > 0) {
+          await processSeasonChanges(seasonChanges[0].items, showDetails, content, profileIds, pastDate, currentDate);
+          await this.updateShowWatchStatusForNewContent(updatedShow.id!, profileIds);
+        }
+      }
+    } catch (error) {
+      httpLogger.error(ErrorMessages.ShowChangeFail, { error, showId: content.id });
+      throw errorService.handleError(error, `checkShowForChanges(${content.id})`);
     }
   }
 

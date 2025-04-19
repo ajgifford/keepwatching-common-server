@@ -1,9 +1,7 @@
 import { cliLogger, httpLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { generateDateRange, sleep } from '../utils/changesUtility';
-import { checkForMovieChanges } from './movieChangesService';
 import { moviesService } from './moviesService';
-import { checkForShowChanges } from './showChangesService';
 import { showService } from './showService';
 
 /**
@@ -18,7 +16,7 @@ export async function updateMovies() {
     for (const movie of movies) {
       try {
         await sleep(500);
-        await checkForMovieChanges(movie, pastDate, currentDate);
+        await moviesService.checkMovieForChanges(movie, pastDate, currentDate);
       } catch (error) {
         // Log error but continue with next movie
         cliLogger.error(`Failed to check for changes in movie ID ${movie.id}`, error);
@@ -43,7 +41,7 @@ export async function updateShows() {
     for (const show of shows) {
       try {
         await sleep(500);
-        await checkForShowChanges(show, pastDate, currentDate);
+        await showService.checkShowForChanges(show, pastDate, currentDate);
       } catch (error) {
         // Log error but continue with next show
         cliLogger.error(`Failed to check for changes in show ID ${show.id}`, error);

@@ -1,7 +1,10 @@
 import { PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
+import { httpLogger } from '../logger/logger';
+import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError } from '../middleware/errorMiddleware';
-import { ContentUpdates } from '../types/contentTypes';
+import { Change, ContentUpdates } from '../types/contentTypes';
+import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
 import { getUSMPARating } from '../utils/contentUtility';
 import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
@@ -247,6 +250,47 @@ export class MoviesService {
       return success;
     } catch (error) {
       throw errorService.handleError(error, `updateMovieWatchStatus(${profileId}, ${movieId}, ${status})`);
+    }
+  }
+
+  /**
+   * Check for changes to a specific movie and updates if necessary
+   * @param content Movie to check for changes
+   * @param pastDate Date past date used as the start of the change window
+   * @param currentDate Date current date used as the end of the change window
+   */
+  public async checkMovieForChanges(content: ContentUpdates, pastDate: string, currentDate: string) {
+    const tmdbService = getTMDBService();
+
+    try {
+      const changesData = await tmdbService.getMovieChanges(content.tmdb_id, pastDate, currentDate);
+      const changes: Change[] = changesData.changes || [];
+
+      const supportedChanges = changes.filter((item) => SUPPORTED_CHANGE_KEYS.includes(item.key));
+
+      if (supportedChanges.length > 0) {
+        const movieDetails = await tmdbService.getMovieDetails(content.tmdb_id);
+
+        const updatedMovie = moviesDb.createMovie(
+          movieDetails.id,
+          movieDetails.title,
+          movieDetails.overview,
+          movieDetails.release_date,
+          movieDetails.runtime,
+          movieDetails.poster_path,
+          movieDetails.backdrop_path,
+          movieDetails.vote_average,
+          getUSMPARating(movieDetails.release_dates),
+          content.id,
+          getUSWatchProviders(movieDetails, 9998),
+          movieDetails.genres.map((genre: { id: any }) => genre.id),
+        );
+
+        await moviesDb.updateMovie(updatedMovie);
+      }
+    } catch (error) {
+      httpLogger.error(ErrorMessages.MovieChangeFail, { error, movieId: content.id });
+      throw errorService.handleError(error, `checkMovieForChanges(${content.id})`);
     }
   }
 
