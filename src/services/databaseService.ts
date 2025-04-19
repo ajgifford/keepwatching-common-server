@@ -47,7 +47,7 @@ export class DatabaseService {
    * @returns A promise that resolves when the pool is closed
    */
   public async shutdown(): Promise<void> {
-    if (this.isShuttingDown) {
+    if (this.isInShutdownMode()) {
       cliLogger.info('Database shutdown already in progress');
       return;
     }
