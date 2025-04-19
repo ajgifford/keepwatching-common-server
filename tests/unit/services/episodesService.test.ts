@@ -262,4 +262,87 @@ describe('episodesService', () => {
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, `getRecentEpisodesForProfile(${profileId})`);
     });
   });
+
+  describe('updateEpisode', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should update an episode successfully', async () => {
+      const episodeData = {
+        tmdb_id: 12345,
+        show_id: 100,
+        season_id: 200,
+        episode_number: 1,
+        episode_type: 'standard',
+        season_number: 1,
+        title: 'Test Episode',
+        overview: 'Episode overview',
+        air_date: '2024-01-01',
+        runtime: 45,
+        still_image: '/path/to/image.jpg',
+      };
+
+      const updatedEpisode = { ...episodeData, id: 500 };
+
+      jest.spyOn(episodesDb, 'updateEpisode').mockResolvedValue(updatedEpisode);
+
+      const result = await episodesService.updateEpisode(episodeData);
+
+      expect(episodesDb.updateEpisode).toHaveBeenCalledWith(episodeData);
+      expect(result).toEqual(updatedEpisode);
+    });
+
+    it('should handle errors when updating an episode', async () => {
+      const episodeData = {
+        tmdb_id: 12345,
+        show_id: 100,
+        season_id: 200,
+        episode_number: 1,
+        // Incomplete data
+      };
+
+      const error = new Error('Database error');
+
+      jest.spyOn(episodesDb, 'updateEpisode').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
+        throw err;
+      });
+
+      await expect(episodesService.updateEpisode(episodeData)).rejects.toThrow(error);
+      expect(errorService.handleError).toHaveBeenCalled();
+    });
+  });
+
+  describe('addEpisodeToFavorites', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should add an episode to favorites successfully', async () => {
+      const profileId = 123;
+      const episodeId = 456;
+
+      jest.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
+
+      await episodesService.addEpisodeToFavorites(profileId, episodeId);
+
+      expect(episodesDb.saveFavorite).toHaveBeenCalledWith(profileId, episodeId);
+    });
+
+    it('should handle errors when adding an episode to favorites', async () => {
+      const profileId = 123;
+      const episodeId = 456;
+
+      const error = new Error('Database error');
+
+      jest.spyOn(episodesDb, 'saveFavorite').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
+        throw err;
+      });
+
+      await expect(episodesService.addEpisodeToFavorites(profileId, episodeId)).rejects.toThrow(error);
+      expect(errorService.handleError).toHaveBeenCalled();
+    });
+  });
 });

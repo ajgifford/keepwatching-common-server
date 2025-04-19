@@ -262,4 +262,83 @@ describe('seasonsService', () => {
       );
     });
   });
+
+  describe('updateSeason', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should update a season successfully', async () => {
+      const seasonData = {
+        show_id: 100,
+        tmdb_id: 12345,
+        name: 'Season 1',
+        overview: 'Season overview',
+        season_number: 1,
+        release_date: '2024-01-01',
+        poster_image: '/path/to/poster.jpg',
+        number_of_episodes: 10,
+      };
+
+      const updatedSeason = { ...seasonData, id: 500 };
+
+      jest.spyOn(seasonsDb, 'updateSeason').mockResolvedValue(updatedSeason);
+
+      const result = await seasonsService.updateSeason(seasonData);
+
+      expect(seasonsDb.updateSeason).toHaveBeenCalledWith(seasonData);
+      expect(result).toEqual(updatedSeason);
+    });
+
+    it('should handle errors when updating a season', async () => {
+      const seasonData = {
+        show_id: 100,
+        tmdb_id: 12345,
+        name: 'Season 1',
+        // Incomplete data
+      };
+
+      const error = new Error('Database error');
+
+      jest.spyOn(seasonsDb, 'updateSeason').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
+        throw err;
+      });
+
+      await expect(seasonsService.updateSeason(seasonData)).rejects.toThrow(error);
+      expect(errorService.handleError).toHaveBeenCalled();
+    });
+  });
+
+  describe('addSeasonToFavorites', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should add a season to favorites successfully', async () => {
+      const profileId = 123;
+      const seasonId = 456;
+
+      jest.spyOn(seasonsDb, 'saveFavorite').mockResolvedValue(undefined);
+
+      await seasonsService.addSeasonToFavorites(profileId, seasonId);
+
+      expect(seasonsDb.saveFavorite).toHaveBeenCalledWith(profileId, seasonId);
+    });
+
+    it('should handle errors when adding a season to favorites', async () => {
+      const profileId = 123;
+      const seasonId = 456;
+
+      const error = new Error('Database error');
+
+      jest.spyOn(seasonsDb, 'saveFavorite').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
+        throw err;
+      });
+
+      await expect(seasonsService.addSeasonToFavorites(profileId, seasonId)).rejects.toThrow(error);
+      expect(errorService.handleError).toHaveBeenCalled();
+    });
+  });
 });

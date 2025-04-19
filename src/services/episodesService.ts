@@ -120,6 +120,34 @@ export class EpisodesService {
       throw errorService.handleError(error, `getRecentEpisodesForProfile(${profileId})`);
     }
   }
+
+  /**
+   * Updates an episode or creates a new one if it doesn't exist
+   *
+   * @param episodeData - Episode data to update or create
+   * @returns The updated or created episode
+   */
+  public async updateEpisode(episodeData: any) {
+    try {
+      return await episodesDb.updateEpisode(episodeData);
+    } catch (error) {
+      throw errorService.handleError(error, `updateEpisode(${JSON.stringify(episodeData)})`);
+    }
+  }
+
+  /**
+   * Adds an episode to a profile's favorites
+   *
+   * @param profileId - ID of the profile
+   * @param episodeId - ID of the episode
+   */
+  public async addEpisodeToFavorites(profileId: number, episodeId: number) {
+    try {
+      await episodesDb.saveFavorite(profileId, episodeId);
+    } catch (error) {
+      throw errorService.handleError(error, `addEpisodeToFavorites(${profileId}, ${episodeId})`);
+    }
+  }
 }
 
 // Export a singleton instance for global use

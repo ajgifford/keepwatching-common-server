@@ -1,6 +1,6 @@
-import * as accountsDb from '../db/accountsDb';
 import { cliLogger } from '../logger/logger';
 import { ProfileShow } from '../types/showTypes';
+import { accountService } from './accountService';
 import { Server, Socket } from 'socket.io';
 
 /**
@@ -111,7 +111,7 @@ export class SocketService {
     try {
       if (!this.io) return;
 
-      const account_id = await accountsDb.findAccountIdByProfileId(profileId);
+      const account_id = await accountService.findAccountIdByProfileId(profileId);
       if (!account_id) return;
 
       const sockets = Array.from(this.io.sockets.sockets.values());

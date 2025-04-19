@@ -1,17 +1,17 @@
-import * as moviesDb from '../db/moviesDb';
-import * as showsDb from '../db/showsDb';
 import { cliLogger, httpLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { generateDateRange, sleep } from '../utils/changesUtility';
 import { checkForMovieChanges } from './movieChangesService';
+import { moviesService } from './moviesService';
 import { checkForShowChanges } from './showChangesService';
+import { showService } from './showService';
 
 /**
  * Updates movies that might have changes
  */
 export async function updateMovies() {
   try {
-    const movies = await moviesDb.getMoviesForUpdates();
+    const movies = await moviesService.getMoviesForUpdates();
     cliLogger.info(`Found ${movies.length} movies to check for updates`);
     const { currentDate, pastDate } = generateDateRange(10);
 
@@ -36,7 +36,7 @@ export async function updateMovies() {
  */
 export async function updateShows() {
   try {
-    const shows = await showsDb.getShowsForUpdates();
+    const shows = await showService.getShowsForUpdates();
     cliLogger.info(`Found ${shows.length} shows to check for updates`);
     const { currentDate, pastDate } = generateDateRange(2);
 

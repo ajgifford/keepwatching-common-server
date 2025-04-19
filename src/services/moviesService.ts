@@ -2,6 +2,7 @@ import { PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
 import * as profilesDb from '../db/profilesDb';
 import { BadRequestError } from '../middleware/errorMiddleware';
+import { ContentUpdates } from '../types/contentTypes';
 import { getUSMPARating } from '../utils/contentUtility';
 import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
@@ -36,6 +37,19 @@ export class MoviesService {
     }
 
     this.cache.invalidateAccount(accountId);
+  }
+
+  /**
+   * Gets a list of movies that may need metadata updates
+   *
+   * @returns Array of movies needing updates
+   */
+  public async getMoviesForUpdates(): Promise<ContentUpdates[]> {
+    try {
+      return await moviesDb.getMoviesForUpdates();
+    } catch (error) {
+      throw errorService.handleError(error, `getMoviesForUpdates()`);
+    }
   }
 
   /**

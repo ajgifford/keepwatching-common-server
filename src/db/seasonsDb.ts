@@ -177,7 +177,6 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
   }
 
   try {
-    const pool = getDbPool();
     const transactionHelper = new TransactionHelper();
 
     await transactionHelper.executeInTransaction(async (connection) => {

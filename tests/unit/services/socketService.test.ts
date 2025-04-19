@@ -1,5 +1,5 @@
-import * as accountsDb from '@db/accountsDb';
 import { cliLogger } from '@logger/logger';
+import { accountService } from '@services/accountService';
 import { SocketService, socketService } from '@services/socketService';
 import { Server, Socket } from 'socket.io';
 
@@ -10,7 +10,7 @@ jest.mock('@logger/logger', () => ({
   },
 }));
 
-jest.mock('@db/accountsDb');
+jest.mock('@services/accountService');
 
 describe('SocketService', () => {
   let mockServer: Partial<Server>;
@@ -155,7 +155,7 @@ describe('SocketService', () => {
 
   describe('notifyShowDataLoaded', () => {
     beforeEach(() => {
-      (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(123);
+      (accountService.findAccountIdByProfileId as jest.Mock).mockResolvedValue(123);
 
       // Set up a mock socket in the server's socket map
       mockSocketsMap.set('socket-id', { ...mockSocket, data: { accountId: 123 } });
@@ -168,7 +168,7 @@ describe('SocketService', () => {
       const mockShow = { show_id: 456, title: 'Test Show' };
       await service.notifyShowDataLoaded('profile-123', 456, mockShow as any);
 
-      expect(accountsDb.findAccountIdByProfileId).toHaveBeenCalledWith('profile-123');
+      expect(accountService.findAccountIdByProfileId).toHaveBeenCalledWith('profile-123');
       expect(mockSocket.emit).toHaveBeenCalledWith('updateShowFavorite', {
         message: 'Show data has been fully loaded',
         show: mockShow,
@@ -177,7 +177,7 @@ describe('SocketService', () => {
 
     it('should handle errors when finding account ID', async () => {
       const error = new Error('Database error');
-      (accountsDb.findAccountIdByProfileId as jest.Mock).mockRejectedValue(error);
+      (accountService.findAccountIdByProfileId as jest.Mock).mockRejectedValue(error);
 
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);
@@ -188,7 +188,7 @@ describe('SocketService', () => {
     });
 
     it('should do nothing if account ID is not found', async () => {
-      (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(null);
+      (accountService.findAccountIdByProfileId as jest.Mock).mockResolvedValue(null);
 
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);

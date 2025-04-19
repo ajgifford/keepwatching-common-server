@@ -5,6 +5,7 @@ import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { cliLogger } from '../logger/logger';
 import { BadRequestError } from '../middleware/errorMiddleware';
+import { ContentUpdates } from '../types/contentTypes';
 import { ContinueWatchingShow, Show } from '../types/showTypes';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
@@ -43,6 +44,19 @@ export class ShowService {
     }
 
     this.cache.invalidateAccount(accountId);
+  }
+
+  /**
+   * Gets a list of shows that may need metadata updates
+   *
+   * @returns Array of shows needing updates
+   */
+  public async getShowsForUpdates(): Promise<ContentUpdates[]> {
+    try {
+      return await showsDb.getShowsForUpdates();
+    } catch (error) {
+      throw errorService.handleError(error, `getShowsForUpdates()`);
+    }
   }
 
   /**

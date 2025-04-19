@@ -1,9 +1,8 @@
-import * as episodesDb from '../db/episodesDb';
-import * as seasonsDb from '../db/seasonsDb';
 import { cliLogger } from '../logger/logger';
 import { ChangeItem, ContentUpdates } from '../types/contentTypes';
 import { filterUniqueSeasonIds, sleep } from '../utils/changesUtility';
 import { checkSeasonForEpisodeChanges } from './episodeChangesService';
+import { episodesService } from './episodesService';
 import { seasonsService } from './seasonsService';
 import { getTMDBService } from './tmdbService';
 
@@ -41,23 +40,23 @@ export async function processSeasonChanges(
       }
 
       // Create Season object with updated data
-      const updatedSeason = seasonsDb.createSeason(
-        content.id,
-        seasonInfo.id,
-        seasonInfo.name,
-        seasonInfo.overview,
-        seasonInfo.season_number,
-        seasonInfo.air_date,
-        seasonInfo.poster_path,
-        seasonInfo.episode_count,
-      );
+      const updatedSeason = {
+        show_id: content.id,
+        tmdb_id: seasonInfo.id,
+        name: seasonInfo.name,
+        overview: seasonInfo.overview,
+        season_number: seasonInfo.season_number,
+        release_date: seasonInfo.air_date,
+        poster_image: seasonInfo.poster_path,
+        number_of_episodes: seasonInfo.episode_count,
+      };
 
-      // Update the season in our database
-      await seasonsDb.updateSeason(updatedSeason);
+      // Update the season through the service layer
+      const seasonResult = await seasonsService.updateSeason(updatedSeason);
 
       // Add this season to all profiles that have the show
       for (const profileId of profileIds) {
-        await seasonsDb.saveFavorite(profileId, updatedSeason.id!);
+        await seasonsService.addSeasonToFavorites(profileId, seasonResult.id!);
       }
 
       // Check if there are episode changes for this season
@@ -70,31 +69,31 @@ export async function processSeasonChanges(
 
         // Update each episode
         for (const episodeData of episodes) {
-          const episode = await episodesDb.updateEpisode(
-            episodesDb.createEpisode(
-              episodeData.id,
-              content.id,
-              updatedSeason.id!,
-              episodeData.episode_number,
-              episodeData.episode_type || 'standard',
-              episodeData.season_number,
-              episodeData.name,
-              episodeData.overview,
-              episodeData.air_date,
-              episodeData.runtime || 0,
-              episodeData.still_path,
-            ),
-          );
+          const episodeToUpdate = {
+            tmdb_id: episodeData.id,
+            show_id: content.id,
+            season_id: seasonResult.id!,
+            episode_number: episodeData.episode_number,
+            episode_type: episodeData.episode_type || 'standard',
+            season_number: episodeData.season_number,
+            title: episodeData.name,
+            overview: episodeData.overview,
+            air_date: episodeData.air_date,
+            runtime: episodeData.runtime || 0,
+            still_image: episodeData.still_path,
+          };
+
+          const episode = await episodesService.updateEpisode(episodeToUpdate);
 
           // Add this episode to all profiles that have the show
           for (const profileId of profileIds) {
-            await episodesDb.saveFavorite(profileId, episode.id!);
+            await episodesService.addEpisodeToFavorites(profileId, episode.id!);
           }
         }
 
         // Update watch status for all affected profiles
         for (const profileId of profileIds) {
-          await seasonsService.updateSeasonWatchStatusForNewEpisodes(String(profileId), updatedSeason.id!);
+          await seasonsService.updateSeasonWatchStatusForNewEpisodes(String(profileId), seasonResult.id!);
         }
       }
     } catch (error) {

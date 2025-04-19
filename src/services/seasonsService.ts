@@ -90,6 +90,34 @@ export class SeasonsService {
       throw errorService.handleError(error, `updateSeasonWatchStatusForNewEpisodes(${profileId}, ${seasonId})`);
     }
   }
+
+  /**
+   * Updates a season or creates a new one if it doesn't exist
+   *
+   * @param seasonData - Season data to update or create
+   * @returns The updated or created season
+   */
+  public async updateSeason(seasonData: any) {
+    try {
+      return await seasonsDb.updateSeason(seasonData);
+    } catch (error) {
+      throw errorService.handleError(error, `updateSeason(${JSON.stringify(seasonData)})`);
+    }
+  }
+
+  /**
+   * Adds a season to a profile's favorites
+   *
+   * @param profileId - ID of the profile
+   * @param seasonId - ID of the season
+   */
+  public async addSeasonToFavorites(profileId: number, seasonId: number) {
+    try {
+      await seasonsDb.saveFavorite(profileId, seasonId);
+    } catch (error) {
+      throw errorService.handleError(error, `addSeasonToFavorites(${profileId}, ${seasonId})`);
+    }
+  }
 }
 
 export const seasonsService = new SeasonsService();
