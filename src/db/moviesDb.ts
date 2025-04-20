@@ -503,8 +503,8 @@ export async function getAllMovies(limit: number = 50, offset: number = 0) {
       m.id
     ORDER BY
         m.title
-    LIMIT ${parseInt(limit.toString())}
-    OFFSET ${parseInt(offset.toString())}`;
+    LIMIT ${limit}
+    OFFSET ${offset}`;
 
     const [movies] = await getDbPool().execute<AdminMovieRow[]>(query);
     return movies.map((movie) => transformAdminMovie(movie));

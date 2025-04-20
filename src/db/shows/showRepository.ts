@@ -294,8 +294,8 @@ export async function getAllShows(limit: number = 50, offset: number = 0) {
       s.id
     ORDER BY
         s.title
-    LIMIT ${parseInt(limit.toString())} 
-    OFFSET ${parseInt(offset.toString())}`;
+    LIMIT ${limit} 
+    OFFSET ${offset}`;
 
     const [shows] = await getDbPool().execute<AdminShowRow[]>(query);
     return shows.map((show) => transformAdminShow(show));
