@@ -78,15 +78,28 @@ export async function findProfileById(id: number): Promise<Profile | null> {
   }
 }
 
-export async function getAllProfilesByAccountId(accountId: number): Promise<Profile[]> {
+export async function getProfilesByAccountId(accountId: number): Promise<Profile[]> {
   try {
     const query = `SELECT * FROM profiles WHERE account_id = ?`;
     const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [accountId]);
 
     return rows.map((profile) => createProfile(profile.account_id, profile.name, profile.profile_id, profile.image));
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown database error getting profiles by account';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
+export async function getProfilesWithCountsByAccountId(accountId: number) {
+  try {
+    const query =
+      'SELECT p.*, (SELECT COUNT(*) FROM show_watch_status f WHERE f.profile_id = p.profile_id) as favorited_shows, (SELECT COUNT(*) FROM movie_watch_status f WHERE f.profile_id = p.profile_id) as favorited_movies FROM profiles p WHERE p.account_id = ?';
+    const [profiles] = await getDbPool().execute(query, [accountId]);
+
+    return profiles;
+  } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting all profiles by account';
+      error instanceof Error ? error.message : 'Unknown database error getting profiles with counts by account';
     throw new DatabaseError(errorMessage, error);
   }
 }

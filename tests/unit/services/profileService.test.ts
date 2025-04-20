@@ -75,27 +75,27 @@ describe('ProfileService', () => {
       ];
 
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (profilesDb.getAllProfilesByAccountId as jest.Mock).mockResolvedValue(mockDBProfiles);
+      (profilesDb.getProfilesByAccountId as jest.Mock).mockResolvedValue(mockDBProfiles);
 
       const result = await service.getProfilesByAccountId(123);
 
       expect(mockCache.getOrSet).toHaveBeenCalled();
-      expect(profilesDb.getAllProfilesByAccountId).toHaveBeenCalledWith(123);
+      expect(profilesDb.getProfilesByAccountId).toHaveBeenCalledWith(123);
       expect(result).toEqual(expectedProfiles);
     });
 
     it('should throw BadRequestError when profiles cannot be retrieved', async () => {
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (profilesDb.getAllProfilesByAccountId as jest.Mock).mockResolvedValue(null);
+      (profilesDb.getProfilesByAccountId as jest.Mock).mockResolvedValue(null);
 
       await expect(service.getProfilesByAccountId(123)).rejects.toThrow(CustomError);
-      expect(profilesDb.getAllProfilesByAccountId).toHaveBeenCalledWith(123);
+      expect(profilesDb.getProfilesByAccountId).toHaveBeenCalledWith(123);
     });
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (profilesDb.getAllProfilesByAccountId as jest.Mock).mockRejectedValue(error);
+      (profilesDb.getProfilesByAccountId as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getProfilesByAccountId(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getProfilesByAccountId(123)');

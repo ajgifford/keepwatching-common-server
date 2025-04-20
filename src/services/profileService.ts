@@ -33,7 +33,7 @@ export class ProfileService {
       return await this.cache.getOrSet(
         ACCOUNT_KEYS.profiles(accountId),
         async () => {
-          const profiles = await profilesDb.getAllProfilesByAccountId(accountId);
+          const profiles = await profilesDb.getProfilesByAccountId(accountId);
           if (!profiles) {
             throw new BadRequestError('Failed to get all profiles for an account');
           }
@@ -49,6 +49,30 @@ export class ProfileService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getProfilesByAccountId(${accountId})`);
+    }
+  }
+
+  public async getProfilesWithCountsByAccount(accountId: number) {
+    try {
+      return await this.cache.getOrSet(
+        ACCOUNT_KEYS.profilesWithCounts(accountId),
+        async () => {
+          const profiles = await profilesDb.getProfilesByAccountId(accountId);
+          if (!profiles) {
+            throw new BadRequestError('Failed to get profiles with counts for an account');
+          }
+
+          return profiles.map((profile) => ({
+            id: profile.id,
+            name: profile.name,
+            image: getProfileImage(profile.image, profile.name),
+            account_id: profile.account_id,
+          }));
+        },
+        600, // 10 minutes TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getProfilesWithCountsByAccount(${accountId})`);
     }
   }
 

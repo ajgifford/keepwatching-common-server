@@ -212,7 +212,7 @@ describe('profileDb', () => {
     });
   });
 
-  describe('getAllProfilesByAccountId()', () => {
+  describe('getProfilesByAccountId()', () => {
     it('getAllByAccountId() should return an array of profiles', async () => {
       const mockProfiles = [
         { profile_id: 5, account_id: 1, name: 'Profile 1', image: null },
@@ -221,7 +221,7 @@ describe('profileDb', () => {
 
       mockPool.execute.mockResolvedValueOnce([mockProfiles as RowDataPacket[]]);
 
-      const profiles = await profilesDb.getAllProfilesByAccountId(1);
+      const profiles = await profilesDb.getProfilesByAccountId(1);
 
       expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM profiles WHERE account_id = ?', [1]);
       expect(profiles.length).toBe(2);
@@ -236,14 +236,14 @@ describe('profileDb', () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      await expect(profilesDb.getAllProfilesByAccountId(1)).rejects.toThrow('DB connection failed');
+      await expect(profilesDb.getProfilesByAccountId(1)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting account profiles fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      await expect(profilesDb.getAllProfilesByAccountId(1)).rejects.toThrow(
-        'Unknown database error getting all profiles by account',
+      await expect(profilesDb.getProfilesByAccountId(1)).rejects.toThrow(
+        'Unknown database error getting profiles by account',
       );
     });
   });
