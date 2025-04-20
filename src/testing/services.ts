@@ -13,7 +13,6 @@ import {
   MockShowService,
   MockSocketService,
   MockStatisticsService,
-  MockTMDBService,
   createTypedServiceMock,
 } from './mockFactory';
 
