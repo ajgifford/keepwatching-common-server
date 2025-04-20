@@ -533,6 +533,29 @@ export class ShowService {
     }
   }
 
+  public async getAllShows(page: number, offset: number, limit: number) {
+    try {
+      const allShowsResult = this.cache.getOrSet(SHOW_KEYS.allShows(page, offset, limit), async () => {
+        const [totalCount, shows] = await Promise.all([showsDb.getShowsCount(), showsDb.getAllShows(limit, offset)]);
+        const totalPages = Math.ceil(totalCount / limit);
+        return {
+          results: shows,
+          pagination: {
+            totalCount,
+            totalPages,
+            currentPage: page,
+            limit,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+        };
+      });
+      return allShowsResult;
+    } catch (error) {
+      throw errorService.handleError(error, `getAllShows(${page}, ${offset}, ${limit})`);
+    }
+  }
+
   /**
    * Get statistics about a profile's shows
    *

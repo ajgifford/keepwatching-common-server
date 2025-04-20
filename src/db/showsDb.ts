@@ -7,6 +7,8 @@ export {
   saveShowGenre,
   saveShowStreamingService,
   createShow,
+  getAllShows,
+  getShowsCount,
 } from './shows/showRepository';
 
 export {

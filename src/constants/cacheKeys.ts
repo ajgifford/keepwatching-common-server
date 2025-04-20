@@ -84,6 +84,9 @@ export const SHOW_KEYS = {
 
   /** Gets the cache key for similar shows */
   similar: (showId: number | string) => `similarShows_${showId}`,
+
+  /** Gets the cache key for all shows */
+  allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
 };
 
 // Movie keys
@@ -91,6 +94,9 @@ export const MOVIE_KEYS = {
   /** Gets the cache key for a specific movie for a profile */
   details: (profileId: number | string, movieId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_movie_${movieId}`,
+
+  /** Gets the cache key for all movies */
+  allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
 };
 
 // Discovery keys

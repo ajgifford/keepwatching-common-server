@@ -1,3 +1,5 @@
+import { RowDataPacket } from 'mysql2';
+
 export interface Show {
   id?: number;
   tmdb_id: number;
@@ -114,4 +116,47 @@ export interface ContinueWatchingShow {
   poster_image: string;
   last_watched: string;
   episodes: NextEpisode[];
+}
+
+export interface AdminShow {
+  id: number;
+  tmdbId: number;
+  title: string;
+  description: string;
+  releaseDate: string;
+  posterImage: string;
+  backdropImage: string;
+  network: string;
+  seasonCount: number;
+  episodeCount: number;
+  streamingServices: string;
+  genres: string;
+  status: string;
+  type: string;
+  inProduction: boolean;
+  lastAirDate: string;
+  lastUpdated: string;
+}
+
+export interface AdminShowRow extends RowDataPacket {
+  id: number;
+  tmdb_id: number;
+  title: string;
+  description: string;
+  release_date: string;
+  poster_image: string;
+  backdrop_image: string;
+  network: string;
+  season_count: number;
+  episode_count: number;
+  user_rating: number;
+  content_rating: string;
+  status: string;
+  type: string;
+  in_production: number;
+  last_air_date: string;
+  created_at: Date;
+  updated_at: Date;
+  genres: string;
+  streaming_services: string;
 }

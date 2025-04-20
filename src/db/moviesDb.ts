@@ -1,6 +1,6 @@
 import { CustomError, DatabaseError } from '../middleware/errorMiddleware';
 import { ContentUpdates } from '../types/contentTypes';
-import { ProfileMovie, RecentMovie, UpcomingMovie } from '../types/movieTypes';
+import { AdminMovie, AdminMovieRow, ProfileMovie, RecentMovie, UpcomingMovie } from '../types/movieTypes';
 import { getDbPool } from '../utils/db';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
@@ -455,6 +455,71 @@ export async function getMoviesForUpdates(): Promise<ContentUpdates[]> {
   }
 }
 
+export async function getMoviesCount() {
+  try {
+    const query = `SELECT COUNT(DISTINCT m.id) AS total FROM movies m`;
+    const [result] = await getDbPool().query<(RowDataPacket & { total: number })[]>(query);
+    return result[0].total;
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error retrieving movies count: ${error.message}`
+        : 'Unknown database error retrieving movies count';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
+export async function getAllMovies(limit: number = 50, offset: number = 0) {
+  try {
+    const query = `SELECT 
+      m.id,
+      m.tmdb_id,
+      m.title,
+      m.description,
+      m.release_date,
+      m.runtime,
+      m.poster_image,
+      m.backdrop_image,
+      m.user_rating,
+      m.mpa_rating,
+      m.created_at,
+      m.updated_at,
+    GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
+	  GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+    FROM 
+      movies m
+    LEFT JOIN 
+      movie_genres mg ON m.id = mg.movie_id
+    LEFT JOIN 
+      genres g ON mg.genre_id = g.id
+    LEFT JOIN
+      movie_services ms ON m.id = ms.movie_id
+    LEFT JOIN
+      streaming_services ss on ms.streaming_service_id = ss.id
+    GROUP BY 
+      m.id
+    ORDER BY
+        m.title
+    LIMIT ${parseInt(limit.toString())}
+    OFFSET ${parseInt(offset.toString())}`;
+
+    const [movies] = await getDbPool().execute<AdminMovieRow[]>(query);
+    return movies.map((movie) => transformAdminMovie(movie));
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error retrieving all movies: ${error.message}`
+        : 'Unknown database error retrieving all movies';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
 /**
  * Transforms a raw database row into a Movie object
  *
@@ -474,6 +539,22 @@ function transformMovie(movie: any): Movie {
     backdrop_image: movie.backdrop_image,
     user_rating: movie.user_rating,
     mpa_rating: movie.mpa_rating,
+  };
+}
+
+function transformAdminMovie(movie: AdminMovieRow): AdminMovie {
+  return {
+    id: movie.id,
+    tmdbId: movie.tmdb_id,
+    title: movie.title,
+    description: movie.description,
+    releaseDate: movie.release_date,
+    runtime: movie.runtime,
+    posterImage: movie.poster_image,
+    backdropImage: movie.backdrop_image,
+    streamingServices: movie.streaming_services,
+    genres: movie.genres,
+    lastUpdated: movie.updated_at.toISOString(),
   };
 }
 

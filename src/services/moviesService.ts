@@ -1,4 +1,4 @@
-import { PROFILE_KEYS } from '../constants/cacheKeys';
+import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
 import { httpLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
@@ -291,6 +291,32 @@ export class MoviesService {
     } catch (error) {
       httpLogger.error(ErrorMessages.MovieChangeFail, { error, movieId: content.id });
       throw errorService.handleError(error, `checkMovieForChanges(${content.id})`);
+    }
+  }
+
+  public async getAllMovies(page: number, offset: number, limit: number) {
+    try {
+      const allMoviesResult = this.cache.getOrSet(MOVIE_KEYS.allMovies(page, offset, limit), async () => {
+        const [totalCount, movies] = await Promise.all([
+          moviesDb.getMoviesCount(),
+          moviesDb.getAllMovies(limit, offset),
+        ]);
+        const totalPages = Math.ceil(totalCount / limit);
+        return {
+          results: movies,
+          pagination: {
+            totalCount,
+            totalPages,
+            currentPage: page,
+            limit,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+        };
+      });
+      return allMoviesResult;
+    } catch (error) {
+      throw errorService.handleError(error, `getAllMovies(${page}, ${offset}, ${limit})`);
     }
   }
 

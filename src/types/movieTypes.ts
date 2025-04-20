@@ -1,3 +1,5 @@
+import { RowDataPacket } from 'mysql2';
+
 /**
  * Represents a movie associated with a user profile, including watch status
  * This interface is used when retrieving movies with their watch status for a specific profile
@@ -53,4 +55,35 @@ export interface UpcomingMovie {
   release_date: string;
   poster_image: string;
   watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED';
+}
+
+export interface AdminMovieRow extends RowDataPacket {
+  id: number;
+  tmdb_id: number;
+  title: string;
+  description: string;
+  release_date: string;
+  runtime: number;
+  poster_image: string;
+  backdrop_image: string;
+  user_rating: number;
+  mpa_rating: string;
+  created_at: Date;
+  updated_at: Date;
+  genres: string;
+  streaming_services: string;
+}
+
+export interface AdminMovie {
+  id: number;
+  tmdbId: number;
+  title: string;
+  description: string;
+  releaseDate: string;
+  runtime: number;
+  posterImage: string;
+  backdropImage: string;
+  streamingServices: string;
+  genres: string;
+  lastUpdated: string;
 }

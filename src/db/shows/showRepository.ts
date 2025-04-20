@@ -1,6 +1,6 @@
 import { CustomError, DatabaseError } from '../../middleware/errorMiddleware';
 import { ContentUpdates } from '../../types/contentTypes';
-import { Show } from '../../types/showTypes';
+import { AdminShow, AdminShowRow, Show } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
@@ -257,6 +257,77 @@ export async function getShowsForUpdates(): Promise<ContentUpdates[]> {
   }
 }
 
+export async function getAllShows(limit: number = 50, offset: number = 0) {
+  try {
+    const query = `SELECT 
+      s.id,
+      s.tmdb_id,
+      s.title,
+      s.description,
+      s.release_date,
+      s.poster_image,
+      s.backdrop_image,
+      s.network,
+      s.season_count,
+      s.episode_count,
+      s.user_rating,
+      s.content_rating,
+      s.status,
+      s.type,
+      s.in_production,
+      s.last_air_date,
+      s.created_at,
+      s.updated_at,
+    GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
+    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+    FROM 
+      shows s
+    LEFT JOIN 
+      show_genres sg ON s.id = sg.show_id
+    LEFT JOIN 
+      genres g ON sg.genre_id = g.id
+    LEFT JOIN
+      show_services shs ON s.id = shs.show_id
+    LEFT JOIN
+      streaming_services ss on shs.streaming_service_id = ss.id
+    GROUP BY 
+      s.id
+    ORDER BY
+        s.title
+    LIMIT ${parseInt(limit.toString())} 
+    OFFSET ${parseInt(offset.toString())}`;
+
+    const [shows] = await getDbPool().execute<AdminShowRow[]>(query);
+    return shows.map((show) => transformAdminShow(show));
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error retrieving all shows: ${error.message}`
+        : 'Unknown database error retrieving all shows';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
+export async function getShowsCount() {
+  try {
+    const query = `SELECT COUNT(DISTINCT s.id) AS total FROM shows s`;
+    const [result] = await getDbPool().query<(RowDataPacket & { total: number })[]>(query);
+    return result[0].total;
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error retrieving shows count: ${error.message}`
+        : 'Unknown database error retrieving shows count';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
 /**
  * Helper function to transform database row to Show object
  */
@@ -280,6 +351,28 @@ function transformShow(row: any): Show {
     last_episode_to_air: row.last_episode_to_air,
     next_episode_to_air: row.next_episode_to_air,
     network: row.network,
+  };
+}
+
+function transformAdminShow(show: AdminShowRow): AdminShow {
+  return {
+    id: show.id,
+    tmdbId: show.tmdb_id,
+    title: show.title,
+    description: show.description,
+    releaseDate: show.release_date,
+    posterImage: show.poster_image,
+    backdropImage: show.backdrop_image,
+    network: show.network,
+    seasonCount: show.season_count,
+    episodeCount: show.episode_count,
+    status: show.status,
+    type: show.type,
+    inProduction: Boolean(show.in_production),
+    lastAirDate: show.last_air_date,
+    lastUpdated: show.updated_at.toISOString(),
+    streamingServices: show.streaming_services,
+    genres: show.genres,
   };
 }
 
