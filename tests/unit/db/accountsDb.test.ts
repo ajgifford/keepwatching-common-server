@@ -1,5 +1,5 @@
+import { Account } from '../../../src/types/accountTypes';
 import * as accountsDb from '@db/accountsDb';
-import { Account } from '@db/accountsDb';
 import { CustomError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';

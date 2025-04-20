@@ -1,22 +1,8 @@
 import { CustomError, DatabaseError } from '../middleware/errorMiddleware';
+import { Account, DatabaseAccount } from '../types/accountTypes';
 import { getDbPool } from '../utils/db';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-
-export interface Account {
-  /** Unique identifier for the account (optional, set after saving to database) */
-  id?: number;
-  /** Display name of the account owner */
-  name: string;
-  /** Email address associated with the account */
-  email: string;
-  /** External authentication provider's unique ID (e.g., Firebase UID) */
-  uid: string;
-  /** Path to the account's profile image (optional) */
-  image?: string;
-  /** ID of the profile marked as default for this account (optional) */
-  default_profile_id?: number;
-}
 
 /**
  * Registers a new account with a default profile
@@ -58,6 +44,23 @@ export async function registerAccount(account: Account): Promise<Account> {
       error instanceof Error
         ? `Database error registering an account: ${error.message}`
         : 'Unknown database error during account registration';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
+export async function getAccounts(): Promise<DatabaseAccount[]> {
+  try {
+    const query = 'SELECT * from accounts';
+    const [accounts] = (await getDbPool().execute(query)) as [DatabaseAccount[], any];
+    return accounts;
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error getting all accounts: ${error.message}`
+        : 'Unknown database error getting all accounts';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -107,6 +110,45 @@ export async function editAccount(
     return await findAccountById(accountId);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown database error during account edit';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
+/**
+ * Deletes an account and all its associated data
+ *
+ * This function deletes an account and all related data (profiles, favorites, etc.)
+ * using a transaction to ensure data consistency.
+ *
+ * @param accountId - ID of the account to delete
+ * @returns True if the account was successfully deleted, false if not found
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function deleteAccount(accountId: number): Promise<boolean> {
+  const transactionHelper = new TransactionHelper();
+
+  try {
+    return await transactionHelper.executeInTransaction(async (connection) => {
+      const findAccountQuery = `SELECT uid FROM accounts WHERE account_id = ?`;
+      const [accountRows] = await connection.execute<RowDataPacket[]>(findAccountQuery, [accountId]);
+
+      if (accountRows.length === 0) {
+        return false;
+      }
+
+      const deleteQuery = 'DELETE FROM accounts WHERE account_id = ?';
+      const [result] = await connection.execute<ResultSetHeader>(deleteQuery, [accountId]);
+
+      return result.affectedRows > 0;
+    });
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error deleting account: ${error.message}`
+        : 'Unknown database error during account deletion';
     throw new DatabaseError(errorMessage, error);
   }
 }

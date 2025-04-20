@@ -1,11 +1,13 @@
 import * as accountsDb from '../db/accountsDb';
-import { Account } from '../db/accountsDb';
 import { cliLogger, httpLogger } from '../logger/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../middleware/errorMiddleware';
+import { Account, CombinedUser, DatabaseAccount } from '../types/accountTypes';
+import { getFirebaseAdmin } from '../utils/firebaseUtil';
 import { getAccountImage } from '../utils/imageUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { socketService } from './socketService';
+import { UserRecord } from 'firebase-admin/auth';
 
 /**
  * Interface representing the response for a Google login operation,
@@ -136,6 +138,33 @@ export class AccountService {
     }
   }
 
+  public async getAccounts(): Promise<CombinedUser[]> {
+    try {
+      const users = await this.getAllUsers();
+      const accounts = await accountsDb.getAccounts();
+      return await this.combineUserData(users, accounts);
+    } catch (error) {
+      throw errorService.handleError(error, `getAccounts()`);
+    }
+  }
+
+  async getAllUsers(): Promise<any[]> {
+    let nextPageToken: string | undefined;
+    let allUsers: UserRecord[] = [];
+
+    try {
+      do {
+        const admin = getFirebaseAdmin();
+        const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+        allUsers = allUsers.concat(listUsersResult.users);
+        nextPageToken = listUsersResult.pageToken;
+      } while (nextPageToken);
+      return allUsers;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   /**
    * Updates an account's details (name and default profile)
    *
@@ -167,6 +196,54 @@ export class AccountService {
       };
     } catch (error) {
       throw errorService.handleError(error, `editAccount(${accountId})`);
+    }
+  }
+
+  /**
+   * Deletes an account and all its associated data
+   *
+   * This method handles the complete account deletion process, including:
+   * 1. Deleting the account from the database (with cascading deletions for profiles, watch status, etc.)
+   * 2. Deleting the user from Firebase Authentication if available
+   * 3. Invalidating all cache entries for the account
+   *
+   * @param accountId - ID of the account to delete
+   * @returns True if the account was successfully deleted
+   * @throws {NotFoundError} If the account doesn't exist
+   * @throws {Error} If deletion from Firebase Authentication fails
+   */
+  public async deleteAccount(accountId: number): Promise<boolean> {
+    try {
+      const account = await accountsDb.findAccountById(accountId);
+      if (!account) {
+        throw new NotFoundError(`Account with ID ${accountId} not found`);
+      }
+
+      const deleted = await accountsDb.deleteAccount(accountId);
+      if (!deleted) {
+        throw new Error('Account deletion failed');
+      }
+
+      if (account.uid) {
+        try {
+          const admin = getFirebaseAdmin();
+          await admin.auth().deleteUser(account.uid);
+          cliLogger.info(`Firebase user deleted: ${account.uid}`);
+        } catch (firebaseError) {
+          cliLogger.error(`Error deleting Firebase user: ${account.uid}`, firebaseError);
+          httpLogger.error('Firebase user deletion failed', { error: firebaseError, uid: account.uid });
+        }
+      }
+
+      // Invalidate cache for this account
+      this.cache.invalidateAccount(accountId);
+
+      httpLogger.info(`Account deleted: ${account.email}`, { accountId });
+      cliLogger.info(`Account deleted: ${account.email}`);
+
+      return true;
+    } catch (error) {
+      throw errorService.handleError(error, `deleteAccount(${accountId})`);
     }
   }
 
@@ -240,6 +317,39 @@ export class AccountService {
     } catch (error) {
       throw errorService.handleError(error, `updateAccountImage(${accountId}, ${imagePath})`);
     }
+  }
+
+  public async combineUserData(
+    firebaseUsers: UserRecord[],
+    databaseAccounts: DatabaseAccount[],
+  ): Promise<CombinedUser[]> {
+    const accountMap = new Map(databaseAccounts.map((account) => [account.uid, account]));
+    const combinedUsers = firebaseUsers
+      .filter((firebaseUser) => accountMap.has(firebaseUser.uid))
+      .map((firebaseUser) => {
+        const dbAccount = accountMap.get(firebaseUser.uid)!;
+
+        return {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || null,
+          emailVerified: firebaseUser.emailVerified,
+          displayName: firebaseUser.displayName || null,
+          photoURL: firebaseUser.photoURL || null,
+          disabled: firebaseUser.disabled,
+          metadata: {
+            creationTime: firebaseUser.metadata.creationTime,
+            lastSignInTime: firebaseUser.metadata.lastSignInTime,
+            lastRefreshTime: firebaseUser.metadata.lastRefreshTime || null,
+          },
+          account_id: dbAccount.account_id,
+          account_name: dbAccount.account_name,
+          default_profile_id: dbAccount.default_profile_id,
+          database_image: dbAccount.image,
+          database_created_at: dbAccount.created_at,
+        };
+      });
+
+    return combinedUsers;
   }
 }
 

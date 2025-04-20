@@ -10,3 +10,8 @@ export const getCachedStreamingServiceIds = jest.fn(() => [8, 9, 337, 350, 1899]
 export const setCachedStreamingServiceIds = jest.fn();
 export const getUSWatchProviders = jest.fn((content, defaultProvider) => [defaultProvider]);
 export const loadStreamingService = jest.fn();
+
+// Firebase mocks
+export const initializeFirebase = jest.fn();
+export const isFirebaseInitialized = jest.fn(() => true);
+export const getFirebaseAdmin = jest.fn();
