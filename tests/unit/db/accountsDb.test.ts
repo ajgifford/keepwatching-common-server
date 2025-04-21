@@ -574,4 +574,121 @@ describe('accountsDb Module', () => {
       );
     });
   });
+
+  describe('getAccounts()', () => {
+    it('should return all accounts', async () => {
+      const mockAccounts = [
+        {
+          account_id: 1,
+          account_name: 'John Doe',
+          email: 'john@example.com',
+          uid: 'uid123',
+          image: null,
+          default_profile_id: 10,
+          created_at: new Date(),
+        },
+        {
+          account_id: 2,
+          account_name: 'Jane Doe',
+          email: 'jane@example.com',
+          uid: 'uid456',
+          image: 'path/to/image.jpg',
+          default_profile_id: 20,
+          created_at: new Date(),
+        },
+      ];
+
+      mockPool.execute.mockResolvedValueOnce([mockAccounts]);
+
+      const accounts = await accountsDb.getAccounts();
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * from accounts');
+      expect(accounts).toEqual(mockAccounts);
+    });
+
+    it('should throw error when getting accounts fails', async () => {
+      const mockError = new Error('DB connection failed');
+      mockPool.execute.mockRejectedValueOnce(mockError);
+
+      await expect(accountsDb.getAccounts()).rejects.toThrow('DB connection failed');
+    });
+
+    it('should throw error with default message when getting accounts fails', async () => {
+      mockPool.execute.mockRejectedValueOnce({});
+
+      await expect(accountsDb.getAccounts()).rejects.toThrow('Unknown database error getting all accounts');
+    });
+  });
+
+  describe('deleteAccount()', () => {
+    let mockConnection: any;
+    let mockTransactionHelper: jest.Mocked<TransactionHelper>;
+
+    beforeEach(() => {
+      mockConnection = {
+        execute: jest.fn(),
+      };
+
+      mockTransactionHelper = {
+        executeInTransaction: jest.fn().mockImplementation(async (callback) => {
+          return callback(mockConnection);
+        }),
+      } as unknown as jest.Mocked<TransactionHelper>;
+
+      (TransactionHelper as jest.Mock).mockImplementation(() => mockTransactionHelper);
+    });
+
+    it('should delete an account successfully', async () => {
+      const accountId = 1;
+      mockConnection.execute
+        .mockResolvedValueOnce([[{ uid: 'test-uid-123' }]]) // Find account query
+        .mockResolvedValueOnce([{ affectedRows: 1 }]); // Delete query
+
+      const result = await accountsDb.deleteAccount(accountId);
+
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, 'SELECT uid FROM accounts WHERE account_id = ?', [
+        accountId,
+      ]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, 'DELETE FROM accounts WHERE account_id = ?', [
+        accountId,
+      ]);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when account not found', async () => {
+      const accountId = 999;
+      mockConnection.execute.mockResolvedValueOnce([[]]);
+
+      const result = await accountsDb.deleteAccount(accountId);
+
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
+      expect(mockConnection.execute).toHaveBeenCalledWith('SELECT uid FROM accounts WHERE account_id = ?', [accountId]);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when no rows are affected by delete', async () => {
+      const accountId = 1;
+      mockConnection.execute
+        .mockResolvedValueOnce([[{ uid: 'test-uid-123' }]])
+        .mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+      const result = await accountsDb.deleteAccount(accountId);
+
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(result).toBe(false);
+    });
+
+    it('should throw DatabaseError when transaction fails', async () => {
+      const accountId = 1;
+      const dbError = new Error('Transaction failed');
+      mockTransactionHelper.executeInTransaction.mockRejectedValueOnce(dbError);
+
+      await expect(accountsDb.deleteAccount(accountId)).rejects.toThrow('Transaction failed');
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+    });
+  });
 });

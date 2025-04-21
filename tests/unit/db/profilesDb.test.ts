@@ -247,4 +247,86 @@ describe('profileDb', () => {
       );
     });
   });
+
+  describe('getProfilesWithCountsByAccountId()', () => {
+    it('should return profiles with show and movie counts', async () => {
+      const mockProfiles = [
+        {
+          profile_id: 1,
+          account_id: 5,
+          name: 'Profile 1',
+          image: 'profile1.jpg',
+          favorited_shows: 10,
+          favorited_movies: 5,
+        },
+        {
+          profile_id: 2,
+          account_id: 5,
+          name: 'Profile 2',
+          image: null,
+          favorited_shows: 3,
+          favorited_movies: 7,
+        },
+      ];
+
+      mockPool.execute.mockResolvedValueOnce([mockProfiles]);
+
+      const profiles = await profilesDb.getProfilesWithCountsByAccountId(5);
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT p.*, (SELECT COUNT(*) FROM show_watch_status'),
+        [5],
+      );
+
+      expect(profiles).toEqual(mockProfiles);
+      expect(profiles).toHaveLength(2);
+
+      // Use type assertion to fix TypeScript error
+      const typedProfiles = profiles as Array<{
+        profile_id: number;
+        account_id: number;
+        name: string;
+        image: string | null;
+        favorited_shows: number;
+        favorited_movies: number;
+      }>;
+
+      expect(typedProfiles[0].profile_id).toBe(1);
+      expect(typedProfiles[0].favorited_shows).toBe(10);
+      expect(typedProfiles[0].favorited_movies).toBe(5);
+      expect(typedProfiles[1].profile_id).toBe(2);
+      expect(typedProfiles[1].favorited_shows).toBe(3);
+      expect(typedProfiles[1].favorited_movies).toBe(7);
+    });
+
+    it('should return empty array when no profiles exist for the account', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      const profiles = await profilesDb.getProfilesWithCountsByAccountId(999);
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT p.*, (SELECT COUNT(*) FROM show_watch_status'),
+        [999],
+      );
+
+      expect(profiles).toEqual([]);
+    });
+
+    it('should throw error when getting profiles with counts fails', async () => {
+      const mockError = new Error('DB connection failed');
+      mockPool.execute.mockRejectedValueOnce(mockError);
+
+      await expect(profilesDb.getProfilesWithCountsByAccountId(5)).rejects.toThrow('DB connection failed');
+    });
+
+    it('should throw error with default message when getting profiles with counts fails', async () => {
+      mockPool.execute.mockRejectedValueOnce({});
+
+      await expect(profilesDb.getProfilesWithCountsByAccountId(5)).rejects.toThrow(
+        'Unknown database error getting profiles with show and movie counts by account id',
+      );
+    });
+  });
 });

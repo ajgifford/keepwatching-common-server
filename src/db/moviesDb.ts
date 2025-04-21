@@ -414,7 +414,7 @@ export async function getMoviesForUpdates(): Promise<ContentUpdates[]> {
 export async function getMoviesCount() {
   try {
     const query = `SELECT COUNT(DISTINCT m.id) AS total FROM movies m`;
-    const [result] = await getDbPool().query<(RowDataPacket & { total: number })[]>(query);
+    const [result] = await getDbPool().execute<(RowDataPacket & { total: number })[]>(query);
     return result[0].total;
   } catch (error) {
     handleDatabaseError(error, 'getting the count of movies');

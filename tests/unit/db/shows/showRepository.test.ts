@@ -629,4 +629,162 @@ describe('showRepository', () => {
       expect(show.network).toBeUndefined();
     });
   });
+
+  describe('getTMDBIdForShow', () => {
+    it('should return TMDB ID for a show', async () => {
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ tmdb_id: 12345 }] as RowDataPacket[]]);
+
+      const tmdbId = await showsDb.getTMDBIdForShow(1);
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT tmdb_id from shows where id = ?', [1]);
+      expect(tmdbId).toBe(12345);
+    });
+
+    it('should return null when show not found', async () => {
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as RowDataPacket[]]);
+
+      const tmdbId = await showsDb.getTMDBIdForShow(999);
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT tmdb_id from shows where id = ?', [999]);
+      expect(tmdbId).toBeNull();
+    });
+
+    it('should throw DatabaseError when lookup fails', async () => {
+      const dbError = new Error('Database connection failed');
+      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+
+      await expect(showsDb.getTMDBIdForShow(1)).rejects.toThrow(
+        'Database error getting the TMDB id for a show: Database connection failed',
+      );
+    });
+  });
+
+  describe('getAllShows', () => {
+    it('should return all shows with default pagination', async () => {
+      const mockShowRows = [
+        {
+          id: 1,
+          tmdb_id: 12345,
+          title: 'Test Show 1',
+          description: 'Description 1',
+          release_date: '2023-01-01',
+          poster_image: '/poster1.jpg',
+          backdrop_image: '/backdrop1.jpg',
+          network: 'Netflix',
+          season_count: 3,
+          episode_count: 30,
+          user_rating: 8.5,
+          content_rating: 'TV-MA',
+          status: 'Running',
+          type: 'Scripted',
+          in_production: 1,
+          last_air_date: '2023-06-01',
+          created_at: new Date('2023-01-01'),
+          updated_at: new Date('2023-01-05'),
+          genres: 'Action, Adventure',
+          streaming_services: 'Netflix, Disney+',
+        },
+        {
+          id: 2,
+          tmdb_id: 67890,
+          title: 'Test Show 2',
+          description: 'Description 2',
+          release_date: '2023-02-01',
+          poster_image: '/poster2.jpg',
+          backdrop_image: '/backdrop2.jpg',
+          network: 'HBO',
+          season_count: 2,
+          episode_count: 16,
+          user_rating: 7.5,
+          content_rating: 'TV-14',
+          status: 'Ended',
+          type: 'Scripted',
+          in_production: 0,
+          last_air_date: '2023-05-15',
+          created_at: new Date('2023-02-01'),
+          updated_at: new Date('2023-02-05'),
+          genres: 'Drama, Thriller',
+          streaming_services: 'HBO Max',
+        },
+      ];
+
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShowRows]);
+
+      const shows = await showsDb.getAllShows();
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(shows).toHaveLength(2);
+      expect(shows[0].id).toBe(1);
+      expect(shows[0].tmdbId).toBe(12345);
+      expect(shows[0].title).toBe('Test Show 1');
+      expect(shows[0].genres).toBe('Action, Adventure');
+      expect(shows[0].streamingServices).toBe('Netflix, Disney+');
+      expect(shows[0].lastUpdated).toBe(mockShowRows[0].updated_at.toISOString());
+      expect(shows[0].inProduction).toBe(true);
+    });
+
+    it('should return shows with custom pagination', async () => {
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([
+        [
+          {
+            id: 3,
+            tmdb_id: 11111,
+            title: 'Test Show 3',
+            description: 'Description 3',
+            release_date: '2023-03-01',
+            poster_image: '/poster3.jpg',
+            backdrop_image: '/backdrop3.jpg',
+            network: 'Prime',
+            season_count: 1,
+            episode_count: 8,
+            user_rating: 9.0,
+            content_rating: 'TV-MA',
+            status: 'Running',
+            type: 'Scripted',
+            in_production: 1,
+            last_air_date: '2023-06-15',
+            created_at: new Date('2023-03-01'),
+            updated_at: new Date('2023-03-05'),
+            genres: 'Sci-Fi, Fantasy',
+            streaming_services: 'Prime Video',
+          },
+        ],
+      ]);
+
+      const limit = 10;
+      const offset = 20;
+      const shows = await showsDb.getAllShows(limit, offset);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`));
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`));
+      expect(shows).toHaveLength(1);
+    });
+
+    it('should throw DatabaseError when fetch fails', async () => {
+      const dbError = new Error('Database connection failed');
+      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+
+      await expect(showsDb.getAllShows()).rejects.toThrow('Database error get all shows: Database connection failed');
+    });
+  });
+
+  describe('getShowsCount', () => {
+    it('should return the total count of shows', async () => {
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ total: 42 }] as RowDataPacket[], []]);
+
+      const count = await showsDb.getShowsCount();
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT COUNT(DISTINCT s.id) AS total FROM shows s');
+      expect(count).toBe(42);
+    });
+
+    it('should throw DatabaseError when count fails', async () => {
+      const dbError = new Error('Database connection failed');
+      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+
+      await expect(showsDb.getShowsCount()).rejects.toThrow(
+        'Database error get a count of all shows: Database connection failed',
+      );
+    });
+  });
 });

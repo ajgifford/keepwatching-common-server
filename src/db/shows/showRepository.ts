@@ -297,7 +297,7 @@ export async function getAllShows(limit: number = 50, offset: number = 0) {
 export async function getShowsCount() {
   try {
     const query = `SELECT COUNT(DISTINCT s.id) AS total FROM shows s`;
-    const [result] = await getDbPool().query<(RowDataPacket & { total: number })[]>(query);
+    const [result] = await getDbPool().execute<(RowDataPacket & { total: number })[]>(query);
     return result[0].total;
   } catch (error) {
     handleDatabaseError(error, 'get a count of all shows');
