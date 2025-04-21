@@ -241,18 +241,35 @@ export async function getShowsForUpdates(): Promise<ContentUpdates[]> {
   try {
     const query = `SELECT id, title, tmdb_id, created_at, updated_at from shows where in_production = 1 AND status NOT IN ('Canceled', 'Ended')`;
     const [rows] = await getDbPool().execute<RowDataPacket[]>(query);
-    const shows = rows.map((row) => {
-      return {
-        id: row.id,
-        title: row.title,
-        tmdb_id: row.tmdb_id,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-      };
-    });
+    const shows = rows.map(transformContentUpdate);
     return shows;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown database error getting shows for updates';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
+/**
+ * Gets the TMDB id of a show.
+ *
+ * @param showId The id of the show
+ * @returns The TMDB id of a show
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getTMDBIdForShow(showId: number): Promise<number | null> {
+  try {
+    const query = `SELECT tmdb_id from shows where id = ?`;
+    const [shows] = await getDbPool().execute<RowDataPacket[]>(query, [showId]);
+    if (shows.length === 0) return null;
+    return shows[0].tmdb_id;
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error getting the TMDB Id of a show: ${error.message}`
+        : 'Unknown database error getting the TMDB Id of a show';
     throw new DatabaseError(errorMessage, error);
   }
 }
@@ -328,9 +345,16 @@ export async function getShowsCount() {
   }
 }
 
-/**
- * Helper function to transform database row to Show object
- */
+function transformContentUpdate(row: any): ContentUpdates {
+  return {
+    id: row.id,
+    title: row.title,
+    tmdb_id: row.tmdb_id,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 function transformShow(row: any): Show {
   return {
     id: row.id,

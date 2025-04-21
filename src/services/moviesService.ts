@@ -2,7 +2,7 @@ import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
 import { httpLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { BadRequestError } from '../middleware/errorMiddleware';
+import { BadRequestError, NotFoundError } from '../middleware/errorMiddleware';
 import { Change, ContentUpdates } from '../types/contentTypes';
 import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
 import { getUSMPARating } from '../utils/contentUtility';
@@ -271,7 +271,41 @@ export class MoviesService {
       if (supportedChanges.length > 0) {
         const movieDetails = await tmdbService.getMovieDetails(content.tmdb_id);
 
-        const updatedMovie = moviesDb.createMovie(
+        await moviesDb.updateMovie(
+          moviesDb.createMovie(
+            movieDetails.id,
+            movieDetails.title,
+            movieDetails.overview,
+            movieDetails.release_date,
+            movieDetails.runtime,
+            movieDetails.poster_path,
+            movieDetails.backdrop_path,
+            movieDetails.vote_average,
+            getUSMPARating(movieDetails.release_dates),
+            content.id,
+            getUSWatchProviders(movieDetails, 9998),
+            movieDetails.genres.map((genre: { id: any }) => genre.id),
+          ),
+        );
+      }
+    } catch (error) {
+      httpLogger.error(ErrorMessages.MovieChangeFail, { error, movieId: content.id });
+      throw errorService.handleError(error, `checkMovieForChanges(${content.id})`);
+    }
+  }
+
+  public async updateMovieById(movieId: number) {
+    try {
+      const tmdbId = await moviesDb.getTMDBIdForMovie(movieId);
+      if (!tmdbId) {
+        throw new NotFoundError(`Movie with ID ${movieId} not found`);
+      }
+
+      const tmdbService = getTMDBService();
+      const movieDetails = await tmdbService.getMovieDetails(tmdbId);
+
+      await moviesDb.updateMovie(
+        moviesDb.createMovie(
           movieDetails.id,
           movieDetails.title,
           movieDetails.overview,
@@ -281,16 +315,14 @@ export class MoviesService {
           movieDetails.backdrop_path,
           movieDetails.vote_average,
           getUSMPARating(movieDetails.release_dates),
-          content.id,
+          movieId,
           getUSWatchProviders(movieDetails, 9998),
           movieDetails.genres.map((genre: { id: any }) => genre.id),
-        );
-
-        await moviesDb.updateMovie(updatedMovie);
-      }
+        ),
+      );
     } catch (error) {
-      httpLogger.error(ErrorMessages.MovieChangeFail, { error, movieId: content.id });
-      throw errorService.handleError(error, `checkMovieForChanges(${content.id})`);
+      httpLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
+      throw errorService.handleError(error, `updateMovieById(${movieId})`);
     }
   }
 
@@ -303,7 +335,7 @@ export class MoviesService {
         ]);
         const totalPages = Math.ceil(totalCount / limit);
         return {
-          results: movies,
+          movies,
           pagination: {
             totalCount,
             totalPages,

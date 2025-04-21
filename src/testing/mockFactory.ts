@@ -100,7 +100,9 @@ export interface MockNotificationsService {
 
 export interface MockContentUpdatesService {
   updateMovies: jest.Mock;
+  updateMovieById: jest.Mock;
   updateShows: jest.Mock;
+  updateShowById: jest.Mock;
 }
 
 export interface MockScheduledUpdatesService {

@@ -101,7 +101,12 @@ export const notificationsService = createTypedServiceMock<MockNotificationsServ
   'deleteNotification',
 ]);
 
-export const contentUpdatesService = createTypedServiceMock<MockContentUpdatesService>(['updateMovies', 'updateShows']);
+export const contentUpdatesService = createTypedServiceMock<MockContentUpdatesService>([
+  'updateMovies',
+  'updateMovieById',
+  'updateShows',
+  'updateShowById',
+]);
 
 export const scheduledUpdatesService = createTypedServiceMock<MockScheduledUpdatesService>([
   'runShowsUpdateJob',

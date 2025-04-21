@@ -259,6 +259,31 @@ export async function updateWatchStatus(profileId: string, movieId: number, stat
 }
 
 /**
+ * Gets the TMDB id of a movie.
+ *
+ * @param movieId The id of the movie
+ * @returns The TMDB id of a movie
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getTMDBIdForMovie(movieId: number): Promise<number | null> {
+  try {
+    const query = `SELECT tmdb_id from movies where id = ?`;
+    const [movies] = await getDbPool().execute<RowDataPacket[]>(query, [movieId]);
+    if (movies.length === 0) return null;
+    return movies[0].tmdb_id;
+  } catch (error) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+    const errorMessage =
+      error instanceof Error
+        ? `Database error getting the TMDB Id of a movie: ${error.message}`
+        : 'Unknown database error getting the TMDB Id of a movie';
+    throw new DatabaseError(errorMessage, error);
+  }
+}
+
+/**
  * Finds a movie by its database ID
  *
  * This function retrieves a movie with the specified ID, including

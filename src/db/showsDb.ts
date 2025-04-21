@@ -4,6 +4,7 @@ export {
   findShowById,
   findShowByTMDBId,
   getShowsForUpdates,
+  getTMDBIdForShow,
   saveShowGenre,
   saveShowStreamingService,
   createShow,

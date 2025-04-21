@@ -1,6 +1,7 @@
 import { cliLogger, httpLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { generateDateRange, sleep } from '../utils/changesUtility';
+import { errorService } from './errorService';
 import { moviesService } from './moviesService';
 import { showService } from './showService';
 
@@ -25,7 +26,18 @@ export async function updateMovies() {
   } catch (error) {
     cliLogger.error('Unexpected error while checking for movie updates', error);
     httpLogger.error(ErrorMessages.MoviesChangeFail, { error });
-    throw error;
+    throw errorService.handleError(error, 'updateMovies()');
+  }
+}
+
+/**
+ * Updates a movie
+ */
+export async function updateMovieById(movieId: number) {
+  try {
+    await moviesService.updateMovieById(movieId);
+  } catch (error) {
+    throw errorService.handleError(error, `updateMovieById(${movieId})`);
   }
 }
 
@@ -50,6 +62,17 @@ export async function updateShows() {
   } catch (error) {
     cliLogger.error('Unexpected error while checking for show updates', error);
     httpLogger.error(ErrorMessages.ShowsChangeFail, { error });
-    throw error;
+    throw errorService.handleError(error, 'updateShows()');
+  }
+}
+
+/**
+ * Updates a show
+ */
+export async function updateShowById(showId: number) {
+  try {
+    await showService.updateShowById(showId);
+  } catch (error) {
+    throw errorService.handleError(error, `updateShowById(${showId})`);
   }
 }
