@@ -6,6 +6,7 @@
       "@db/*": ["src/db/*"],
       "@logger/*": ["src/logger/*"],
       "@middleware/*": ["src/middleware/*"],
+      "@schema/*": ["src/schema/*"],
       "@services/*": ["src/services/*"],
       "@utils/*": ["src/utils/*"]
     }
