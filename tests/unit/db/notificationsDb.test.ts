@@ -251,7 +251,7 @@ describe('notificationDb', () => {
       mockConnection.execute.mockRejectedValueOnce(error);
 
       await expect(notificationsDb.addNotification(notification)).rejects.toThrow(
-        'Database error saving a notification: Database error',
+        'Database error adding a notification: Database error',
       );
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
     });

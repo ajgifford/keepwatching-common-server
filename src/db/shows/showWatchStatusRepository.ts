@@ -1,5 +1,5 @@
-import { CustomError, DatabaseError } from '../../middleware/errorMiddleware';
 import { getDbPool } from '../../utils/db';
+import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
@@ -43,14 +43,7 @@ export async function saveFavorite(profileId: string, showId: number, saveChildr
       }
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error saving a show as a favorite: ${error.message}`
-        : 'Unknown database error saving a show as a favorite';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving a show as a favorite');
   }
 }
 
@@ -86,14 +79,7 @@ export async function removeFavorite(profileId: string, showId: number): Promise
       await connection.execute(showDeleteQuery, [profileId, showId]);
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error removing a show as a favorite: ${error.message}`
-        : 'Unknown database error removing a show as a favorite';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'removing a show as a favorite');
   }
 }
 
@@ -117,8 +103,7 @@ export async function updateWatchStatus(profileId: string, showId: number, statu
     // Return true if at least one row was affected (watch status was updated)
     return result.affectedRows > 0;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error updating a show watch status';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating the watch status of a show');
   }
 }
 
@@ -149,9 +134,7 @@ export async function updateWatchStatusBySeason(profileId: string, showId: numbe
     const showStatus = statusResult[0].show_status;
     await pool.execute(showStatusUpdateStmt, [showStatus, profileId, showId]);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error updating a show watch status using seasons';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating the watch status of a show by the status of its seasons');
   }
 }
 
@@ -191,14 +174,7 @@ export async function updateAllWatchStatuses(profileId: string, showId: number, 
       return episodesResult.affectedRows > 0;
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error updating all watch statuses of a show: ${error.message}`
-        : 'Unknown database error updating all watch statuses of a show (including seasons and episodes)';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating the watch status of a show and its children (seasons and episodes)');
   }
 }
 
@@ -219,8 +195,6 @@ export async function getWatchStatus(profileId: string, showId: number): Promise
 
     return rows[0].status;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting the watch status for a show';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting the watch status of a show');
   }
 }

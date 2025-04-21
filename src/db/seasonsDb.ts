@@ -1,6 +1,7 @@
-import { CustomError, DatabaseError } from '../middleware/errorMiddleware';
+import { DatabaseError } from '../middleware/errorMiddleware';
 import { ProfileEpisode, ProfileSeason } from '../types/showTypes';
 import { getDbPool } from '../utils/db';
+import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
@@ -48,11 +49,7 @@ export async function saveSeason(season: Season): Promise<Season> {
       id: result.insertId,
     };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? `Database error saving season: ${error.message}`
-        : 'Unknown database error saving a season';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving a season');
   }
 }
 
@@ -104,11 +101,7 @@ export async function updateSeason(season: Season): Promise<Season> {
       id: result.insertId,
     };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? `Database error updating season: ${error.message}`
-        : 'Unknown database error updating a season';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating a season');
   }
 }
 
@@ -128,11 +121,7 @@ export async function saveFavorite(profileId: number, seasonId: number): Promise
     const query = 'INSERT IGNORE INTO season_watch_status (profile_id, season_id) VALUES (?, ?)';
     await getDbPool().execute(query, [profileId, seasonId]);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? `Database error saving season favorite: ${error.message}`
-        : 'Unknown database error saving a season as a favorite';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving a season as a favorite');
   }
 }
 
@@ -156,11 +145,7 @@ export async function updateWatchStatus(profileId: string, seasonId: number, sta
 
     return result.affectedRows > 0;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? `Database error updating season watch status: ${error.message}`
-        : 'Unknown database error updating a season watch status';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating the watch status of a season');
   }
 }
 
@@ -204,14 +189,7 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
       await connection.execute(updateSeasonStatusQuery, [seasonStatus, profileId, seasonId]);
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error updating season status by episodes: ${error.message}`
-        : 'Unknown database error updating a season watch status using episodes';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating season watch status using episode status');
   }
 }
 
@@ -254,14 +232,7 @@ export async function updateAllWatchStatuses(profileId: string, seasonId: number
       return episodeResult.affectedRows > 0;
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error updating all watch statuses: ${error.message}`
-        : 'Unknown database error updating all statuses of a season and episodes';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating a season watch status and its episodes');
   }
 }
 
@@ -320,11 +291,7 @@ export async function getSeasonsForShow(profileId: string, showId: string): Prom
       episodes: episodesBySeasonId[season.season_id] || [],
     })) as ProfileSeason[];
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? `Database error getting seasons for show: ${error.message}`
-        : 'Unknown database error getting all seasons for a show';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting all seasons for a show');
   }
 }
 
@@ -347,11 +314,7 @@ export async function getShowIdForSeason(seasonId: number): Promise<number | nul
     if (rows.length === 0) return null;
     return rows[0].show_id;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? `Database error getting show ID for season: ${error.message}`
-        : 'Unknown database error getting the show ID for a season';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting the show id for a season');
   }
 }
 
@@ -375,11 +338,7 @@ export async function getWatchStatus(profileId: string, seasonId: number): Promi
     if (rows.length === 0) return null;
     return rows[0].status;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? `Database error getting season watch status: ${error.message}`
-        : 'Unknown database error getting the watch status for a season';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting a seasons watch status');
   }
 }
 

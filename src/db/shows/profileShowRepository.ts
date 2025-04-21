@@ -1,4 +1,3 @@
-import { DatabaseError } from '../../middleware/errorMiddleware';
 import {
   ContinueWatchingShow,
   NextEpisode,
@@ -7,6 +6,7 @@ import {
   ProfileShowWithSeasons,
 } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
+import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { RowDataPacket } from 'mysql2';
 
 /**
@@ -26,9 +26,7 @@ export async function getAllShowsForProfile(profileId: string): Promise<ProfileS
     const transformedRows = shows.map(transformRow);
     return transformedRows;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting all shows for a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting all shows for a profile');
   }
 }
 
@@ -51,8 +49,7 @@ export async function getShowForProfile(profileId: string, showId: number): Prom
 
     return result;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error getting a show for a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting a show for a profile');
   }
 }
 
@@ -140,9 +137,7 @@ export async function getShowWithSeasonsForProfile(
 
     return show;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting a show and its seasons for a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting a show and its seasons for a profile');
   }
 }
 
@@ -185,11 +180,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: string): Pro
 
     return results;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : 'Unknown database error getting the next unwatched episodes for a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting the next unwatched episodes for a profile');
   }
 }
 
@@ -212,9 +203,7 @@ export async function getProfilesForShow(showId: number): Promise<number[]> {
     });
     return profileIds;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting the profiles for a show';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting the profiles that have favorited a show');
   }
 }
 

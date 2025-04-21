@@ -1,6 +1,7 @@
-import { CustomError, DatabaseError, NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
+import { NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
 import { AccountNotification, AdminNotification } from '../types/notificationTypes';
 import { getDbPool } from '../utils/db';
+import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
@@ -55,14 +56,7 @@ export async function getNotificationsForAccount(accountId: number): Promise<Acc
       };
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error getting notifications for an account: ${error.message}`
-        : 'Unknown database error getting notifications for an account';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting notifications for an account');
   }
 }
 
@@ -99,14 +93,7 @@ export async function dismissNotification(notificationId: number, accountId: num
     // Return true if at least one row was affected (notification was dismissed)
     return result.affectedRows > 0;
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error dismissing a notification: ${error.message}`
-        : 'Unknown database error dismissing a notification';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'dismissing a notification');
   }
 }
 
@@ -145,14 +132,7 @@ export async function addNotification(notification: AdminNotification) {
       }
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error saving a notification: ${error.message}`
-        : 'Unknown database error saving a notification';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'adding a notification');
   }
 }
 
@@ -176,14 +156,7 @@ export async function updateNotification(notification: AdminNotification) {
 
     return notification;
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error updating a notification: ${error.message}`
-        : 'Unknown database error updating a notification';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating a notification');
   }
 }
 
@@ -196,14 +169,7 @@ export async function getAllNotifications(expired: boolean): Promise<AdminNotifi
     const [notifications] = await getDbPool().execute<NotificationRow[]>(query);
     return notifications.map(transformRow);
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error getting all notifications: ${error.message}`
-        : 'Unknown database error getting all notifications';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting all notifications');
   }
 }
 
@@ -217,14 +183,7 @@ export async function deleteNotification(notification_id: number): Promise<void>
       throw new NoAffectedRowsError(`No notification found with ID ${notification_id}`);
     }
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error deleting a notification: ${error.message}`
-        : 'Unknown database error deleting a notification';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'deleting a notification');
   }
 }
 

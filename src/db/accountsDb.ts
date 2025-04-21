@@ -1,6 +1,6 @@
-import { CustomError, DatabaseError } from '../middleware/errorMiddleware';
 import { Account, DatabaseAccount } from '../types/accountTypes';
 import { getDbPool } from '../utils/db';
+import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
@@ -37,14 +37,7 @@ export async function registerAccount(account: Account): Promise<Account> {
       };
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error registering an account: ${error.message}`
-        : 'Unknown database error during account registration';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'registering an account');
   }
 }
 
@@ -54,14 +47,7 @@ export async function getAccounts(): Promise<DatabaseAccount[]> {
     const [accounts] = (await getDbPool().execute(query)) as [DatabaseAccount[], any];
     return accounts;
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error getting all accounts: ${error.message}`
-        : 'Unknown database error getting all accounts';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting all accounts');
   }
 }
 
@@ -82,8 +68,7 @@ export async function updateAccountImage(accountId: number, imagePath: string): 
 
     return await findAccountById(accountId);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error during image update';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating an account image');
   }
 }
 
@@ -109,8 +94,7 @@ export async function editAccount(
 
     return await findAccountById(accountId);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error during account edit';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'editing an account');
   }
 }
 
@@ -142,14 +126,7 @@ export async function deleteAccount(accountId: number): Promise<boolean> {
       return result.affectedRows > 0;
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error deleting account: ${error.message}`
-        : 'Unknown database error during account deletion';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'deleting an account');
   }
 }
 
@@ -177,8 +154,7 @@ export async function findAccountByUID(uid: string): Promise<Account | null> {
       default_profile_id: account.default_profile_id,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error when finding account by UID';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'finding an account by UID');
   }
 }
 
@@ -206,9 +182,7 @@ export async function findAccountByEmail(email: string): Promise<Account | null>
       default_profile_id: account.default_profile_id,
     };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error when finding account by email';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'finding an account by email');
   }
 }
 
@@ -236,8 +210,7 @@ export async function findAccountById(id: number): Promise<Account | null> {
       default_profile_id: account.default_profile_id,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error when finding account by ID';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'finding an account by id');
   }
 }
 
@@ -258,9 +231,7 @@ export async function findAccountIdByProfileId(profileId: string): Promise<numbe
     const profile = rows[0];
     return profile.account_id;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error when finding account ID by profile ID';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'finding an account by profile id');
   }
 }
 

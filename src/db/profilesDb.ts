@@ -1,5 +1,5 @@
-import { DatabaseError } from '../middleware/errorMiddleware';
 import { getDbPool } from '../utils/db';
+import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 export interface Profile {
@@ -19,8 +19,7 @@ export async function saveProfile(profile: Profile): Promise<Profile> {
       id: result.insertId,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving a profile');
   }
 }
 
@@ -33,8 +32,7 @@ export async function updateProfileName(profile: Profile, name: string): Promise
 
     return { ...profile, name };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error updating a profile name';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating a profile name');
   }
 }
 
@@ -47,8 +45,7 @@ export async function updateProfileImage(profile: Profile, image: string): Promi
 
     return { ...profile, image };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error updating a profile image';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating a profile image');
   }
 }
 
@@ -59,8 +56,7 @@ export async function deleteProfile(profile: Profile): Promise<boolean> {
 
     return result.affectedRows > 0;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error deleting a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'deleting a profile');
   }
 }
 
@@ -73,8 +69,7 @@ export async function findProfileById(id: number): Promise<Profile | null> {
 
     return createProfile(rows[0].account_id, rows[0].name, rows[0].profile_id, rows[0].image);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error finding a profile by id';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'finding a profile by id');
   }
 }
 
@@ -85,8 +80,7 @@ export async function getProfilesByAccountId(accountId: number): Promise<Profile
 
     return rows.map((profile) => createProfile(profile.account_id, profile.name, profile.profile_id, profile.image));
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error getting profiles by account';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting profiles by account id');
   }
 }
 
@@ -98,9 +92,7 @@ export async function getProfilesWithCountsByAccountId(accountId: number) {
 
     return profiles;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting profiles with counts by account';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting profiles with show and movie counts by account id');
   }
 }
 

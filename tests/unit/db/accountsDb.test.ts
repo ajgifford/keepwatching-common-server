@@ -251,7 +251,7 @@ describe('accountsDb Module', () => {
       mockPool.execute.mockRejectedValueOnce({});
 
       await expect(accountsDb.editAccount(1, 'Jane Doe', 23)).rejects.toThrow(
-        'Unknown database error during account edit',
+        'Unknown database error editing an account',
       );
     });
   });
@@ -442,7 +442,7 @@ describe('accountsDb Module', () => {
       mockPool.execute.mockRejectedValueOnce({});
 
       await expect(accountsDb.findAccountByUID('uid123')).rejects.toThrow(
-        'Unknown database error when finding account by UID',
+        'Unknown database error finding an account by UID',
       );
     });
   });
@@ -487,7 +487,7 @@ describe('accountsDb Module', () => {
       mockPool.execute.mockRejectedValueOnce({});
 
       await expect(accountsDb.findAccountByEmail('john@example.com')).rejects.toThrow(
-        'Unknown database error when finding account by email',
+        'Unknown database error finding an account by email',
       );
     });
   });
@@ -531,7 +531,7 @@ describe('accountsDb Module', () => {
     it('should throw error with default message when find by id fails', async () => {
       mockPool.execute.mockRejectedValueOnce({});
 
-      await expect(accountsDb.findAccountById(1)).rejects.toThrow('Unknown database error when finding account by ID');
+      await expect(accountsDb.findAccountById(1)).rejects.toThrow('Unknown database error finding an account by id');
     });
   });
 
@@ -570,7 +570,7 @@ describe('accountsDb Module', () => {
       mockPool.execute.mockRejectedValueOnce({});
 
       await expect(accountsDb.findAccountIdByProfileId('5')).rejects.toThrow(
-        'Unknown database error when finding account ID by profile ID',
+        'Unknown database error finding an account by profile id',
       );
     });
   });

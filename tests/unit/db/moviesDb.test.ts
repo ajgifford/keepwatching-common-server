@@ -502,7 +502,7 @@ describe('moviesDb Module', () => {
       mockPool.execute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getRecentMovieReleasesForProfile('123')).rejects.toThrow(
-        'Database error getting recent movies for a profile',
+        'Database error getting recent movie releases for a profile: Database connection failed',
       );
     });
   });
@@ -530,7 +530,7 @@ describe('moviesDb Module', () => {
       mockPool.execute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getUpcomingMovieReleasesForProfile('123')).rejects.toThrow(
-        'Database error getting upcoming movies for a profile',
+        'Database error getting upcoming movie releases for a profile: Database connection failed',
       );
     });
   });

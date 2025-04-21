@@ -1,7 +1,7 @@
-import { CustomError, DatabaseError } from '../../middleware/errorMiddleware';
 import { ContentUpdates } from '../../types/contentTypes';
 import { AdminShow, AdminShowRow, Show } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
+import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
@@ -62,14 +62,7 @@ export async function saveShow(show: Show): Promise<boolean> {
       return success;
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error saving a show: ${error.message}`
-        : 'Unknown database error saving a show';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving a show');
   }
 }
 
@@ -127,14 +120,7 @@ export async function updateShow(show: Show): Promise<boolean> {
       return success;
     });
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error updating a show: ${error.message}`
-        : 'Unknown database error updating a show';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating a show');
   }
 }
 
@@ -152,8 +138,7 @@ export async function saveShowGenre(showId: number, genreId: number, connection:
     const query = 'INSERT IGNORE INTO show_genres (show_id, genre_id) VALUES (?,?)';
     await connection.execute(query, [showId, genreId]);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving a show genre';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving the genre for a show');
   }
 }
 
@@ -175,9 +160,7 @@ export async function saveShowStreamingService(
     const query = 'INSERT IGNORE INTO show_services (show_id, streaming_service_id) VALUES (?, ?)';
     await connection.execute(query, [showId, streamingServiceId]);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error saving a show streaming service';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving the streaming service for a show');
   }
 }
 
@@ -199,8 +182,7 @@ export async function findShowById(id: number): Promise<Show | null> {
 
     return transformShow(shows[0]);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error finding a show by id';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'finding a show by its id');
   }
 }
 
@@ -222,8 +204,7 @@ export async function findShowByTMDBId(tmdbId: number): Promise<Show | null> {
 
     return transformShow(shows[0]);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error finding a show by TMDB id';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'finding a show by its TMDB id');
   }
 }
 
@@ -244,8 +225,7 @@ export async function getShowsForUpdates(): Promise<ContentUpdates[]> {
     const shows = rows.map(transformContentUpdate);
     return shows;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error getting shows for updates';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting shows for updates');
   }
 }
 
@@ -263,14 +243,7 @@ export async function getTMDBIdForShow(showId: number): Promise<number | null> {
     if (shows.length === 0) return null;
     return shows[0].tmdb_id;
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error getting the TMDB Id of a show: ${error.message}`
-        : 'Unknown database error getting the TMDB Id of a show';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting the TMDB id for a show');
   }
 }
 
@@ -317,14 +290,7 @@ export async function getAllShows(limit: number = 50, offset: number = 0) {
     const [shows] = await getDbPool().execute<AdminShowRow[]>(query);
     return shows.map((show) => transformAdminShow(show));
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error retrieving all shows: ${error.message}`
-        : 'Unknown database error retrieving all shows';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'get all shows');
   }
 }
 
@@ -334,14 +300,7 @@ export async function getShowsCount() {
     const [result] = await getDbPool().query<(RowDataPacket & { total: number })[]>(query);
     return result[0].total;
   } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    const errorMessage =
-      error instanceof Error
-        ? `Database error retrieving shows count: ${error.message}`
-        : 'Unknown database error retrieving shows count';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'get a count of all shows');
   }
 }
 

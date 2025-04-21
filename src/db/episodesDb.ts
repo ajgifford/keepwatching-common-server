@@ -1,6 +1,6 @@
-import { DatabaseError } from '../middleware/errorMiddleware';
 import { ProfileEpisode } from '../types/showTypes';
 import { getDbPool } from '../utils/db';
+import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 export interface Episode {
@@ -70,8 +70,7 @@ export async function saveEpisode(episode: Episode): Promise<Episode> {
       id: result.insertId,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error saving an episode';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving an episode');
   }
 }
 
@@ -139,8 +138,7 @@ export async function updateEpisode(episode: Episode): Promise<Episode> {
       id: result.insertId,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error updating an episode';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating an episode');
   }
 }
 
@@ -161,9 +159,7 @@ export async function saveFavorite(profileId: number, episodeId: number): Promis
     const query = 'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id) VALUES (?,?)';
     await getDbPool().execute(query, [profileId, episodeId]);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error saving an episode as a favorite';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'saving an episode as a favorite');
   }
 }
 
@@ -187,9 +183,7 @@ export async function removeFavorite(profileId: string, episodeId: number): Prom
     const query = 'DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id = ?';
     await getDbPool().execute(query, [Number(profileId), episodeId]);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error removing an episode as a favorite';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'removing an episode as a favorite');
   }
 }
 
@@ -222,9 +216,7 @@ export async function updateWatchStatus(profileId: string, episodeId: number, st
     // Return true if at least one row was affected (watch status was updated)
     return result.affectedRows > 0;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error updating an episode watch status';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'updating an episode watch status');
   }
 }
 
@@ -258,9 +250,7 @@ export async function getEpisodesForSeason(profileId: string, seasonId: number):
     const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [Number(profileId), seasonId]);
     return rows as ProfileEpisode[];
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting episodes for a season';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting episodes for a season');
   }
 }
 
@@ -285,9 +275,7 @@ export async function getUpcomingEpisodesForProfile(profileId: string) {
     const [rows] = await getDbPool().execute(query, [Number(profileId)]);
     return rows;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting upcoming episodes for a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting upcoming episodes for a profile');
   }
 }
 
@@ -312,9 +300,7 @@ export async function getRecentEpisodesForProfile(profileId: string) {
     const [rows] = await getDbPool().execute(query, [Number(profileId)]);
     return rows;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown database error getting recent episodes for a profile';
-    throw new DatabaseError(errorMessage, error);
+    handleDatabaseError(error, 'getting recent episodes for a profile');
   }
 }
 

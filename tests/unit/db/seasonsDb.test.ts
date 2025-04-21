@@ -81,7 +81,9 @@ describe('seasonsDb Module', () => {
         number_of_episodes: 8,
       };
 
-      await expect(seasonsDb.saveSeason(season)).rejects.toThrow('Database error saving season');
+      await expect(seasonsDb.saveSeason(season)).rejects.toThrow(
+        'Database error saving a season: Database connection failed',
+      );
     });
 
     it('should handle error with generic message when error has no message', async () => {
@@ -160,7 +162,9 @@ describe('seasonsDb Module', () => {
         number_of_episodes: 10,
       };
 
-      await expect(seasonsDb.updateSeason(season)).rejects.toThrow('Database error updating season');
+      await expect(seasonsDb.updateSeason(season)).rejects.toThrow(
+        'Database error updating a season: Database connection failed',
+      );
     });
   });
 
@@ -185,7 +189,9 @@ describe('seasonsDb Module', () => {
       const mockError = new Error('Database connection failed');
       mockPool.execute.mockRejectedValueOnce(mockError);
 
-      await expect(seasonsDb.saveFavorite(123, 456)).rejects.toThrow('Database error saving season favorite');
+      await expect(seasonsDb.saveFavorite(123, 456)).rejects.toThrow(
+        'Database error saving a season as a favorite: Database connection failed',
+      );
     });
   });
 
@@ -221,7 +227,7 @@ describe('seasonsDb Module', () => {
       mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(seasonsDb.updateWatchStatus('123', 456, 'WATCHED')).rejects.toThrow(
-        'Database error updating season watch status',
+        'Database error updating the watch status of a season: Database connection failed',
       );
     });
   });
@@ -288,7 +294,7 @@ describe('seasonsDb Module', () => {
       mockConnection.execute.mockRejectedValueOnce(mockError);
 
       await expect(seasonsDb.updateWatchStatusByEpisode('123', 456)).rejects.toThrow(
-        'Database error updating season status by episodes',
+        'Database error updating season watch status using episode status: Database connection failed',
       );
     });
   });
@@ -350,7 +356,7 @@ describe('seasonsDb Module', () => {
       mockConnection.execute.mockRejectedValueOnce(mockError);
 
       await expect(seasonsDb.updateAllWatchStatuses('123', 456, 'WATCHED')).rejects.toThrow(
-        'Database error updating all watch statuses',
+        'Database error updating a season watch status and its episodes: Database connection failed',
       );
     });
   });
@@ -496,7 +502,7 @@ describe('seasonsDb Module', () => {
       mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(seasonsDb.getSeasonsForShow('123', '100')).rejects.toThrow(
-        'Database error getting seasons for show',
+        'Database error getting all seasons for a show: Database connection failed',
       );
     });
   });
@@ -527,7 +533,9 @@ describe('seasonsDb Module', () => {
       const mockError = new Error('Database connection failed');
       mockPool.execute.mockRejectedValueOnce(mockError);
 
-      await expect(seasonsDb.getShowIdForSeason(1)).rejects.toThrow('Database error getting show ID for season');
+      await expect(seasonsDb.getShowIdForSeason(1)).rejects.toThrow(
+        'Database error getting the show id for a season: Database connection failed',
+      );
     });
   });
 
@@ -561,7 +569,9 @@ describe('seasonsDb Module', () => {
       const mockError = new Error('Database connection failed');
       mockPool.execute.mockRejectedValueOnce(mockError);
 
-      await expect(seasonsDb.getWatchStatus('123', 1)).rejects.toThrow('Database error getting season watch status');
+      await expect(seasonsDb.getWatchStatus('123', 1)).rejects.toThrow(
+        'Database error getting a seasons watch status: Database connection failed',
+      );
     });
   });
 
