@@ -1,6 +1,6 @@
 import { Show } from '../../../../src/types/showTypes';
 import * as showsDb from '@db/showsDb';
-import { CustomError } from '@middleware/errorMiddleware';
+import { DatabaseError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
@@ -181,7 +181,7 @@ describe('showRepository', () => {
         'TV-MA',
       );
 
-      await expect(showsDb.saveShow(show)).rejects.toThrow(CustomError);
+      await expect(showsDb.saveShow(show)).rejects.toThrow(DatabaseError);
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.rollback).toHaveBeenCalled();
       expect(mockConnection.release).toHaveBeenCalled();
@@ -357,7 +357,7 @@ describe('showRepository', () => {
         5, // id
       );
 
-      await expect(showsDb.updateShow(show)).rejects.toThrow(CustomError);
+      await expect(showsDb.updateShow(show)).rejects.toThrow(DatabaseError);
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.rollback).toHaveBeenCalled();
       expect(mockConnection.release).toHaveBeenCalled();
@@ -380,7 +380,7 @@ describe('showRepository', () => {
       const mockError = new Error('Database error');
       (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
-      await expect(showsDb.saveShowGenre(5, 28, mockConnection as PoolConnection)).rejects.toThrow(CustomError);
+      await expect(showsDb.saveShowGenre(5, 28, mockConnection as PoolConnection)).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -401,7 +401,7 @@ describe('showRepository', () => {
       (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
       await expect(showsDb.saveShowStreamingService(5, 8, mockConnection as PoolConnection)).rejects.toThrow(
-        CustomError,
+        DatabaseError,
       );
     });
   });
@@ -454,7 +454,7 @@ describe('showRepository', () => {
       const mockError = new Error('Database error');
       (mockPool.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
-      await expect(showsDb.findShowById(5)).rejects.toThrow(CustomError);
+      await expect(showsDb.findShowById(5)).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -495,7 +495,7 @@ describe('showRepository', () => {
       const mockError = new Error('Database error');
       (mockPool.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
-      await expect(showsDb.findShowByTMDBId(12345)).rejects.toThrow(CustomError);
+      await expect(showsDb.findShowByTMDBId(12345)).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -544,7 +544,7 @@ describe('showRepository', () => {
       const mockError = new Error('Database error');
       (mockPool.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
-      await expect(showsDb.getShowsForUpdates()).rejects.toThrow(CustomError);
+      await expect(showsDb.getShowsForUpdates()).rejects.toThrow(DatabaseError);
     });
   });
 

@@ -1,6 +1,6 @@
 import * as accountsDb from '@db/accountsDb';
 import { cliLogger, httpLogger } from '@logger/logger';
-import { CustomError, NotFoundError } from '@middleware/errorMiddleware';
+import { BadRequestError, ForbiddenError, NotFoundError } from '@middleware/errorMiddleware';
 import { accountService } from '@services/accountService';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
@@ -139,7 +139,7 @@ describe('AccountService', () => {
     it('should throw NotFoundError when account does not exist', async () => {
       (accountsDb.findAccountById as jest.Mock).mockResolvedValue(null);
 
-      await expect(accountService.editAccount(999, 'Test', 1)).rejects.toThrow(CustomError);
+      await expect(accountService.editAccount(999, 'Test', 1)).rejects.toThrow(NotFoundError);
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(999);
     });
 
@@ -147,7 +147,7 @@ describe('AccountService', () => {
       (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
       (accountsDb.editAccount as jest.Mock).mockResolvedValue(null);
 
-      await expect(accountService.editAccount(123, 'Updated Account', 2)).rejects.toThrow(CustomError);
+      await expect(accountService.editAccount(123, 'Updated Account', 2)).rejects.toThrow(BadRequestError);
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
       expect(accountsDb.editAccount).toHaveBeenCalledWith(123, 'Updated Account', 2);
     });
@@ -312,7 +312,7 @@ describe('AccountService', () => {
       });
 
       await expect(accountService.googleLogin('Google User', 'test@example.com', 'google-uid-123')).rejects.toThrow(
-        CustomError,
+        ForbiddenError,
       );
 
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('google-uid-123');

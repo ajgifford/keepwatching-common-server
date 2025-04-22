@@ -4,7 +4,7 @@ import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { cliLogger, httpLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import { CustomError, NotFoundError } from '@middleware/errorMiddleware';
+import { BadRequestError, NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { profileService } from '@services/profileService';
@@ -178,7 +178,7 @@ describe('ShowService', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.getShowDetailsForProfile('123', '999')).rejects.toThrow(CustomError);
+      await expect(service.getShowDetailsForProfile('123', '999')).rejects.toThrow(NotFoundError);
       expect(showsDb.getShowWithSeasonsForProfile).toHaveBeenCalledWith('123', '999');
       expect(errorService.assertExists).toHaveBeenCalled();
     });
@@ -629,7 +629,7 @@ describe('ShowService', () => {
       (showsDb.createShow as jest.Mock).mockReturnValue(newShow);
       (showsDb.saveShow as jest.Mock).mockResolvedValue(false);
 
-      await expect(service.addShowToFavorites('456', 123)).rejects.toThrow(CustomError);
+      await expect(service.addShowToFavorites('456', 123)).rejects.toThrow(BadRequestError);
       expect(showsDb.findShowByTMDBId).toHaveBeenCalledWith(123);
       expect(showsDb.saveShow).toHaveBeenCalled();
       expect(showsDb.saveFavorite).not.toHaveBeenCalled();
@@ -680,7 +680,7 @@ describe('ShowService', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.removeShowFromFavorites('123', 999)).rejects.toThrow(CustomError);
+      await expect(service.removeShowFromFavorites('123', 999)).rejects.toThrow(NotFoundError);
       expect(showsDb.findShowById).toHaveBeenCalledWith(999);
       expect(showsDb.removeFavorite).not.toHaveBeenCalled();
     });
@@ -722,7 +722,7 @@ describe('ShowService', () => {
     it('should throw BadRequestError when update fails', async () => {
       (showsDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
 
-      await expect(service.updateShowWatchStatus('123', 1, 'WATCHED')).rejects.toThrow(CustomError);
+      await expect(service.updateShowWatchStatus('123', 1, 'WATCHED')).rejects.toThrow(BadRequestError);
       expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('123', 1, 'WATCHED');
     });
 
@@ -833,7 +833,7 @@ describe('ShowService', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.getShowRecommendations('123', 999)).rejects.toThrow(CustomError);
+      await expect(service.getShowRecommendations('123', 999)).rejects.toThrow(NotFoundError);
       expect(showsDb.findShowById).toHaveBeenCalledWith(999);
     });
 
@@ -1172,7 +1172,7 @@ describe('ShowService', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.getSimilarShows('123', 999)).rejects.toThrow(CustomError);
+      await expect(service.getSimilarShows('123', 999)).rejects.toThrow(NotFoundError);
       expect(showsDb.findShowById).toHaveBeenCalledWith(999);
     });
 

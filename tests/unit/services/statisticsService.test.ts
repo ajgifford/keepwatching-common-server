@@ -1,4 +1,4 @@
-import { CustomError } from '@middleware/errorMiddleware';
+import { BadRequestError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
@@ -211,7 +211,7 @@ describe('statisticsService', () => {
         throw err;
       });
 
-      await expect(statisticsService.getAccountStatistics(123)).rejects.toThrow(CustomError);
+      await expect(statisticsService.getAccountStatistics(123)).rejects.toThrow(BadRequestError);
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
     });
 

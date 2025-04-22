@@ -1,7 +1,7 @@
 import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
-import { CustomError } from '@middleware/errorMiddleware';
+import { BadRequestError } from '@middleware/errorMiddleware';
 import { episodesService } from '@services/episodesService';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
@@ -45,7 +45,9 @@ describe('episodesService', () => {
         throw error;
       });
 
-      await expect(episodesService.updateEpisodeWatchStatus(profileId, episodeId, status)).rejects.toThrow(CustomError);
+      await expect(episodesService.updateEpisodeWatchStatus(profileId, episodeId, status)).rejects.toThrow(
+        BadRequestError,
+      );
       expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
       expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
       expect(showsDb.getNextUnwatchedEpisodesForProfile).not.toHaveBeenCalled();
@@ -108,7 +110,7 @@ describe('episodesService', () => {
 
       await expect(
         episodesService.updateNextEpisodeWatchStatus(profileId, showId, seasonId, episodeId, status),
-      ).rejects.toThrow(CustomError);
+      ).rejects.toThrow(BadRequestError);
 
       expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
       expect(seasonsDb.updateWatchStatusByEpisode).not.toHaveBeenCalled();

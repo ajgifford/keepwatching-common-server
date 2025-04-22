@@ -181,7 +181,7 @@ describe('ErrorService', () => {
 
       expect(() => {
         errorService.assertExists(entity, 'Entity', 1);
-      }).toThrow(CustomError);
+      }).toThrow(NotFoundError);
 
       try {
         errorService.assertExists(entity, 'Entity', 1);
@@ -198,7 +198,7 @@ describe('ErrorService', () => {
 
       expect(() => {
         errorService.assertExists(entity, 'Entity', 'abc123');
-      }).toThrow(CustomError);
+      }).toThrow(NotFoundError);
 
       try {
         errorService.assertExists(entity, 'Entity', 'abc123');
@@ -223,12 +223,12 @@ describe('ErrorService', () => {
 
       expect(() => {
         errorService.assertNotExists(entity, 'Entity', 'email', 'test@example.com');
-      }).toThrow(CustomError);
+      }).toThrow(ConflictError);
 
       try {
         errorService.assertNotExists(entity, 'Entity', 'email', 'test@example.com');
       } catch (error: any) {
-        expect(error).toBeInstanceOf(CustomError);
+        expect(error).toBeInstanceOf(ConflictError);
         expect(error.message).toBe('Entity with email test@example.com already exists');
         expect(error.statusCode).toBe(409);
         expect(error.errorCode).toBe('CONFLICT');

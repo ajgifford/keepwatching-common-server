@@ -1,6 +1,6 @@
 import { Account } from '../../../src/types/accountTypes';
 import * as accountsDb from '@db/accountsDb';
-import { CustomError } from '@middleware/errorMiddleware';
+import { DatabaseError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
@@ -107,7 +107,7 @@ describe('accountsDb Module', () => {
       const dbError = new Error('Database connection error');
       mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
 
-      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(CustomError);
+      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).not.toHaveBeenCalled();
     });
@@ -122,7 +122,7 @@ describe('accountsDb Module', () => {
       const dbError = new Error('Duplicate email');
       mockExecute.mockRejectedValueOnce(dbError);
 
-      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(CustomError);
+      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('INSERT INTO accounts (account_name, email, uid) VALUES (?, ?, ?)', [
@@ -146,7 +146,7 @@ describe('accountsDb Module', () => {
 
       mockExecute.mockResolvedValueOnce(accountInsertResult).mockRejectedValueOnce(new Error('Profile insert failed'));
 
-      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(CustomError);
+      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(
         1,
@@ -181,7 +181,7 @@ describe('accountsDb Module', () => {
         .mockResolvedValueOnce(profileInsertResult)
         .mockRejectedValueOnce(new Error('Update default profile failed'));
 
-      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(CustomError);
+      await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
       expect(mockExecute).toHaveBeenCalledTimes(3);
       expect(mockExecute).toHaveBeenNthCalledWith(
         3,
@@ -318,7 +318,7 @@ describe('accountsDb Module', () => {
       const dbError = new Error('Database error');
       mockExecute.mockRejectedValueOnce(dbError);
 
-      await expect(accountsDb.updateAccountImage(accountId, imagePath)).rejects.toThrow(CustomError);
+      await expect(accountsDb.updateAccountImage(accountId, imagePath)).rejects.toThrow(DatabaseError);
 
       expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
@@ -335,7 +335,7 @@ describe('accountsDb Module', () => {
 
       mockExecute.mockResolvedValueOnce(updateResult).mockRejectedValueOnce(new Error('Select query failed'));
 
-      await expect(accountsDb.updateAccountImage(accountId, imagePath)).rejects.toThrow(CustomError);
+      await expect(accountsDb.updateAccountImage(accountId, imagePath)).rejects.toThrow(DatabaseError);
 
       expect(getDbPool).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenCalledTimes(2);
