@@ -148,23 +148,6 @@ export class AccountService {
     }
   }
 
-  async getAllUsers(): Promise<any[]> {
-    let nextPageToken: string | undefined;
-    let allUsers: UserRecord[] = [];
-
-    try {
-      do {
-        const admin = getFirebaseAdmin();
-        const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
-        allUsers = allUsers.concat(listUsersResult.users);
-        nextPageToken = listUsersResult.pageToken;
-      } while (nextPageToken);
-      return allUsers;
-    } catch (error) {
-      throw error;
-    }
-  }
-
   /**
    * Updates an account's details (name and default profile)
    *
@@ -319,7 +302,24 @@ export class AccountService {
     }
   }
 
-  public async combineUserData(
+  private async getAllUsers(): Promise<any[]> {
+    let nextPageToken: string | undefined;
+    let allUsers: UserRecord[] = [];
+
+    try {
+      do {
+        const admin = getFirebaseAdmin();
+        const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+        allUsers = allUsers.concat(listUsersResult.users);
+        nextPageToken = listUsersResult.pageToken;
+      } while (nextPageToken);
+      return allUsers;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async combineUserData(
     firebaseUsers: UserRecord[],
     databaseAccounts: DatabaseAccount[],
   ): Promise<CombinedUser[]> {

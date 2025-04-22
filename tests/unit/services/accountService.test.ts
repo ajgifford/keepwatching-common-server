@@ -1,10 +1,12 @@
 import * as accountsDb from '@db/accountsDb';
 import { cliLogger, httpLogger } from '@logger/logger';
-import { CustomError } from '@middleware/errorMiddleware';
+import { CustomError, NotFoundError } from '@middleware/errorMiddleware';
 import { accountService } from '@services/accountService';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
+import { getFirebaseAdmin } from '@utils/firebaseUtil';
 import { getAccountImage } from '@utils/imageUtility';
+import { UserRecord } from 'firebase-admin/auth';
 
 jest.mock('@logger/logger', () => ({
   cliLogger: {
@@ -21,6 +23,44 @@ jest.mock('@db/accountsDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
 jest.mock('@utils/imageUtility');
+jest.mock('@utils/firebaseUtil');
+
+type MockUserRecord = {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+  displayName: string | null;
+  photoURL: string | null;
+  disabled: boolean;
+  metadata: {
+    creationTime: string;
+    lastSignInTime: string;
+    lastRefreshTime: string | null;
+  };
+  providerData: any[]; // Add missing property
+  toJSON: () => object; // Add missing method
+};
+
+function createMockUserRecord(data: Partial<MockUserRecord>): UserRecord {
+  const defaultData: MockUserRecord = {
+    uid: 'default-uid',
+    email: 'default@example.com',
+    emailVerified: false,
+    displayName: null,
+    photoURL: null,
+    disabled: false,
+    metadata: {
+      creationTime: '2023-01-01',
+      lastSignInTime: '2023-01-01',
+      lastRefreshTime: null,
+    },
+    providerData: [],
+    toJSON: () => ({}),
+  };
+
+  const mockData = { ...defaultData, ...data };
+  return mockData as unknown as UserRecord;
+}
 
 describe('AccountService', () => {
   const mockCacheService = {
@@ -445,6 +485,218 @@ describe('AccountService', () => {
 
       await expect(accountService.updateAccountImage(accountId, imagePath)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(dbError, `updateAccountImage(${accountId}, ${imagePath})`);
+      expect(mockCacheService.invalidateAccount).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getAccounts', () => {
+    const mockDatabaseAccounts = [
+      {
+        account_id: 1,
+        account_name: 'User One',
+        email: 'user1@example.com',
+        uid: 'uid1',
+        default_profile_id: 101,
+        image: 'db-image1.jpg',
+        created_at: new Date('2023-01-01'),
+      },
+      {
+        account_id: 2,
+        account_name: 'User Two',
+        email: 'user2@example.com',
+        uid: 'uid2',
+        default_profile_id: 201,
+        image: null,
+        created_at: new Date('2023-02-01'),
+      },
+    ];
+
+    it('should return combined user data from Firebase and database', async () => {
+      const mockUser1 = createMockUserRecord({
+        uid: 'uid1',
+        email: 'user1@example.com',
+        emailVerified: true,
+        displayName: 'User One',
+        photoURL: 'photo1.jpg',
+        metadata: {
+          creationTime: '2023-01-01',
+          lastSignInTime: '2023-01-10',
+          lastRefreshTime: '2023-01-10',
+        },
+      });
+
+      const mockUser2 = createMockUserRecord({
+        uid: 'uid2',
+        email: 'user2@example.com',
+        emailVerified: false,
+        displayName: 'User Two',
+        photoURL: null,
+        metadata: {
+          creationTime: '2023-02-01',
+          lastSignInTime: '2023-02-10',
+          lastRefreshTime: null,
+        },
+      });
+
+      const mockListUsersResult = {
+        users: [mockUser1],
+        pageToken: 'next-page-token',
+      };
+
+      const mockListUsersResult2 = {
+        users: [mockUser2],
+        pageToken: undefined,
+      };
+
+      const mockFirebaseAdmin = {
+        auth: jest.fn().mockReturnValue({
+          listUsers: jest.fn().mockResolvedValueOnce(mockListUsersResult).mockResolvedValueOnce(mockListUsersResult2),
+        }),
+      };
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+      (accountsDb.getAccounts as jest.Mock).mockResolvedValue(mockDatabaseAccounts);
+
+      const result = await accountService.getAccounts();
+
+      expect(accountsDb.getAccounts).toHaveBeenCalled();
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        uid: 'uid1',
+        email: 'user1@example.com',
+        emailVerified: true,
+        displayName: 'User One',
+        photoURL: 'photo1.jpg',
+        disabled: false,
+        metadata: {
+          creationTime: '2023-01-01',
+          lastSignInTime: '2023-01-10',
+          lastRefreshTime: '2023-01-10',
+        },
+        account_id: 1,
+        account_name: 'User One',
+        default_profile_id: 101,
+        database_image: 'db-image1.jpg',
+        database_created_at: mockDatabaseAccounts[0].created_at,
+      });
+      expect(result[1]).toEqual({
+        uid: 'uid2',
+        email: 'user2@example.com',
+        emailVerified: false,
+        displayName: 'User Two',
+        photoURL: null,
+        disabled: false,
+        metadata: {
+          creationTime: '2023-02-01',
+          lastSignInTime: '2023-02-10',
+          lastRefreshTime: null,
+        },
+        account_id: 2,
+        account_name: 'User Two',
+        default_profile_id: 201,
+        database_image: null,
+        database_created_at: mockDatabaseAccounts[1].created_at,
+      });
+    });
+
+    it('should handle errors during account retrieval', async () => {
+      const mockError = new Error('Failed to retrieve accounts');
+      const mockFirebaseAdmin = {
+        auth: jest.fn().mockReturnValue({
+          listUsers: jest.fn().mockRejectedValue(mockError),
+        }),
+      };
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+
+      await expect(accountService.getAccounts()).rejects.toThrow('Failed to retrieve accounts');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAccounts()');
+    });
+  });
+
+  describe('deleteAccount', () => {
+    const mockAccount = {
+      id: 123,
+      uid: 'firebase-uid-123',
+      name: 'User to Delete',
+      email: 'delete@example.com',
+    };
+
+    it('should delete an account successfully', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(true);
+
+      const mockFirebaseAdmin = {
+        auth: jest.fn().mockReturnValue({
+          deleteUser: jest.fn().mockResolvedValue(undefined),
+        }),
+      };
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+
+      const result = await accountService.deleteAccount(123);
+
+      expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
+      expect(accountsDb.deleteAccount).toHaveBeenCalledWith(123);
+      expect(getFirebaseAdmin).toHaveBeenCalled();
+      expect(mockFirebaseAdmin.auth().deleteUser).toHaveBeenCalledWith('firebase-uid-123');
+      expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(123);
+      expect(httpLogger.info).toHaveBeenCalledWith('Account deleted: delete@example.com', { accountId: 123 });
+      expect(result).toBe(true);
+    });
+
+    it('should throw NotFoundError when account does not exist', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(null);
+      const notFoundError = new NotFoundError('Account with ID 999 not found');
+      (errorService.handleError as jest.Mock).mockImplementation(() => {
+        throw notFoundError;
+      });
+
+      await expect(accountService.deleteAccount(999)).rejects.toThrow(notFoundError);
+      expect(accountsDb.findAccountById).toHaveBeenCalledWith(999);
+      expect(accountsDb.deleteAccount).not.toHaveBeenCalled();
+      expect(mockCacheService.invalidateAccount).not.toHaveBeenCalled();
+    });
+
+    it('should still succeed when Firebase user deletion fails', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(true);
+
+      const firebaseError = new Error('Firebase user not found');
+      const mockFirebaseAdmin = {
+        auth: jest.fn().mockReturnValue({
+          deleteUser: jest.fn().mockRejectedValue(firebaseError),
+        }),
+      };
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+
+      const result = await accountService.deleteAccount(123);
+
+      expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
+      expect(accountsDb.deleteAccount).toHaveBeenCalledWith(123);
+      expect(getFirebaseAdmin).toHaveBeenCalled();
+      expect(mockFirebaseAdmin.auth().deleteUser).toHaveBeenCalledWith('firebase-uid-123');
+      expect(cliLogger.error).toHaveBeenCalledWith(`Error deleting Firebase user: firebase-uid-123`, firebaseError);
+      expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(123);
+      expect(result).toBe(true);
+    });
+
+    it('should throw error when database deletion fails', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      const dbError = new Error('Database deletion failed');
+      (accountsDb.deleteAccount as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(accountService.deleteAccount(123)).rejects.toThrow('Database deletion failed');
+      expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
+      expect(accountsDb.deleteAccount).toHaveBeenCalledWith(123);
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, 'deleteAccount(123)');
+    });
+
+    it('should handle case when deleteAccount returns false', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(false);
+
+      await expect(accountService.deleteAccount(123)).rejects.toThrow('Account deletion failed');
+      expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
+      expect(accountsDb.deleteAccount).toHaveBeenCalledWith(123);
       expect(mockCacheService.invalidateAccount).not.toHaveBeenCalled();
     });
   });
