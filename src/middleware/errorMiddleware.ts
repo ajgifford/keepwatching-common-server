@@ -1,4 +1,4 @@
-import { AxiosError } from 'axios';
+import { AxiosError, isAxiosError } from 'axios';
 import { NextFunction, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -26,7 +26,7 @@ export const errorHandler = (error: Error, req: Request, res: Response, next: Ne
         },
       });
     }
-  } else if (error instanceof AxiosError && error.response) {
+  } else if (isAxiosError(error) && error.response) {
     const status = error.response.status;
 
     if (status === 408 || status === 429 || status === 502 || status === 503 || status === 504) {
@@ -36,6 +36,7 @@ export const errorHandler = (error: Error, req: Request, res: Response, next: Ne
 
       res.status(status).json({
         status: 'error',
+        requestId,
         error: {
           message: `External API error: ${error.response.statusText || 'Service currently unavailable'}`,
           retryAfter: retryAfter,
@@ -80,53 +81,62 @@ export class TransientApiError extends CustomError {
     public retryAfter: number = 60,
   ) {
     super(message, statusCode, 'TRANSIENT_API_ERROR');
+    Object.setPrototypeOf(this, TransientApiError.prototype);
   }
 }
 
 export class AuthenticationError extends CustomError {
   constructor(message: string) {
     super(message, 401, 'UNAUTHORIZED');
+    Object.setPrototypeOf(this, AuthenticationError.prototype);
   }
 }
 
 export class BadRequestError extends CustomError {
   constructor(message: string) {
     super(message, 400, 'BAD_REQUEST');
+    Object.setPrototypeOf(this, BadRequestError.prototype);
   }
 }
 
 export class UnauthorizedError extends CustomError {
   constructor(message: string) {
     super(message, 401, 'UNAUTHORIZED');
+    Object.setPrototypeOf(this, UnauthorizedError.prototype);
   }
 }
 
 export class ForbiddenError extends CustomError {
   constructor(message: string) {
     super(message, 403, 'FORBIDDEN');
+    Object.setPrototypeOf(this, ForbiddenError.prototype);
   }
 }
 
 export class NotFoundError extends CustomError {
   constructor(message: string) {
     super(message, 404, 'NOT_FOUND');
+    Object.setPrototypeOf(this, NotFoundError.prototype);
   }
 }
 
 export class ConflictError extends CustomError {
   constructor(message: string) {
     super(message, 409, 'CONFLICT');
+    Object.setPrototypeOf(this, ConflictError.prototype);
   }
 }
 
 export class NoAffectedRowsError extends CustomError {
   constructor(message: string) {
     super(message, 400, 'NO_AFFECTED_ROWS');
+    Object.setPrototypeOf(this, NoAffectedRowsError.prototype);
   }
 }
 
 export class DatabaseError extends CustomError {
   constructor(message: string, originalError: any) {
     super(message, 500, 'DATABASE_ERROR');
+    Object.setPrototypeOf(this, DatabaseError.prototype);
   }
 }
