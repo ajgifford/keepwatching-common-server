@@ -51,7 +51,7 @@ export interface ProfileSeason {
   release_date: string;
   poster_image: string;
   number_of_episodes: number;
-  watch_status: 'WATCHED' | 'NOT_WATCHED' | 'WATCHING';
+  watch_status: 'WATCHED' | 'NOT_WATCHED' | 'WATCHING' | 'UP_TO_DATE';
   episodes: ProfileEpisode[];
 }
 
@@ -68,7 +68,7 @@ export interface ProfileShow {
   content_rating: string;
   season_count: number;
   episode_count: number;
-  watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED';
+  watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED' | 'UP_TO_DATE';
   status: string;
   type: string;
   in_production: 0 | 1;

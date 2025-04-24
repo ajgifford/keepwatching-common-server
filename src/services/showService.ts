@@ -762,6 +762,7 @@ export class ShowService {
           const watched = shows.filter((s) => s.watch_status === 'WATCHED').length;
           const watching = shows.filter((s) => s.watch_status === 'WATCHING').length;
           const notWatched = shows.filter((s) => s.watch_status === 'NOT_WATCHED').length;
+          const upToDate = shows.filter((s) => s.watch_status === 'UP_TO_DATE').length;
 
           const genreCounts: Record<string, number> = {};
           shows.forEach((show) => {
@@ -789,7 +790,7 @@ export class ShowService {
 
           return {
             total: total,
-            watchStatusCounts: { watched, watching, notWatched },
+            watchStatusCounts: { watched, watching, notWatched, upToDate },
             genreDistribution: genreCounts,
             serviceDistribution: serviceCounts,
             watchProgress: total > 0 ? Math.round((watched / total) * 100) : 0,

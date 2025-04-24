@@ -1,9 +1,7 @@
-import { cliLogger } from '../logger/logger';
 import { WatchStatus } from '../types/watchStatusTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { cli } from 'winston/lib/winston/config';
 
 /**
  * Utility for working with watch statuses

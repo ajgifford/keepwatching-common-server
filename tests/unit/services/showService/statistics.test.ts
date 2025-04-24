@@ -24,29 +24,53 @@ describe('ShowService - Statistics', () => {
         show_id: 1,
         title: 'Show 1',
         watch_status: 'WATCHED',
+        status: 'Ended',
+        in_production: 0,
         genres: 'Drama, Sci-Fi & Fantasy',
         streaming_services: 'Netflix, Disney+',
       },
       {
         show_id: 2,
         title: 'Show 2',
-        watch_status: 'WATCHING',
+        watch_status: 'UP_TO_DATE',
+        status: 'Returning Series',
+        in_production: 1,
         genres: 'Comedy, Drama',
         streaming_services: 'Netflix, Prime Video',
       },
       {
         show_id: 3,
         title: 'Show 3',
+        watch_status: 'WATCHING',
+        status: 'Returning Series',
+        in_production: 1,
+        genres: 'Comedy, Action & Adventure',
+        streaming_services: 'Hulu, Prime Video',
+      },
+      {
+        show_id: 4,
+        title: 'Show 4',
         watch_status: 'NOT_WATCHED',
+        status: 'Returning Series',
+        in_production: 1,
         genres: 'Action & Adventure, Sci-Fi & Fantasy',
         streaming_services: 'Hulu, Prime Video',
+      },
+      {
+        show_id: 5,
+        title: 'Show 5',
+        watch_status: 'WATCHED',
+        status: 'Canceled',
+        in_production: 0,
+        genres: 'Drama, Mystery',
+        streaming_services: 'Netflix, HBO Max',
       },
     ];
 
     it('should return statistics from cache when available', async () => {
       const mockStats = {
         total: 3,
-        watchStatusCounts: { watched: 1, watching: 1, notWatched: 1 },
+        watchStatusCounts: { watched: 2, watching: 1, notWatched: 1, upToDate: 1 },
         genreDistribution: { Drama: 2, 'Sci-Fi & Fantasy': 2, Comedy: 1, 'Action & Adventure': 1 },
         serviceDistribution: { Netflix: 2, 'Disney+': 1, 'Prime Video': 2, Hulu: 1 },
         watchProgress: 33,
@@ -66,15 +90,16 @@ describe('ShowService - Statistics', () => {
       const result = await service.getProfileShowStatistics('123');
 
       expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith('123');
-      expect(result).toHaveProperty('total', 3);
+      expect(result).toHaveProperty('total', 5);
       expect(result).toHaveProperty('watchStatusCounts');
-      expect(result.watchStatusCounts).toHaveProperty('watched', 1);
+      expect(result.watchStatusCounts).toHaveProperty('watched', 2);
       expect(result.watchStatusCounts).toHaveProperty('watching', 1);
       expect(result.watchStatusCounts).toHaveProperty('notWatched', 1);
+      expect(result.watchStatusCounts).toHaveProperty('upToDate', 1);
       expect(result).toHaveProperty('genreDistribution');
       expect(result).toHaveProperty('serviceDistribution');
       expect(result).toHaveProperty('watchProgress');
-      expect(result.watchProgress).toBe(33); // 1/3 * 100, rounded
+      expect(result.watchProgress).toBe(40); // 1/3 * 100, rounded
     });
 
     it('should handle empty shows list', async () => {
@@ -87,6 +112,7 @@ describe('ShowService - Statistics', () => {
       expect(result.watchStatusCounts).toHaveProperty('watched', 0);
       expect(result.watchStatusCounts).toHaveProperty('watching', 0);
       expect(result.watchStatusCounts).toHaveProperty('notWatched', 0);
+      expect(result.watchStatusCounts).toHaveProperty('upToDate', 0);
       expect(result.genreDistribution).toEqual({});
       expect(result.serviceDistribution).toEqual({});
       expect(result.watchProgress).toBe(0);

@@ -16,6 +16,7 @@ export interface AggregatedStats {
       watched: number;
       watching: number;
       notWatched: number;
+      upToDate: number;
     };
     genreDistribution: Record<string, number>;
     serviceDistribution: Record<string, number>;
@@ -145,7 +146,7 @@ export class StatisticsService {
     const aggregate = {
       shows: {
         total: 0,
-        watchStatusCounts: { watched: 0, watching: 0, notWatched: 0 },
+        watchStatusCounts: { watched: 0, watching: 0, notWatched: 0, upToDate: 0 },
         genreDistribution: {} as Record<string, number>,
         serviceDistribution: {} as Record<string, number>,
       },
@@ -166,6 +167,7 @@ export class StatisticsService {
       aggregate.shows.watchStatusCounts.watched += profileStat.showStatistics.watchStatusCounts.watched;
       aggregate.shows.watchStatusCounts.watching += profileStat.showStatistics.watchStatusCounts.watching;
       aggregate.shows.watchStatusCounts.notWatched += profileStat.showStatistics.watchStatusCounts.notWatched;
+      aggregate.shows.watchStatusCounts.upToDate += profileStat.showStatistics.watchStatusCounts.upToDate || 0;
 
       aggregate.movies.total += profileStat.movieStatistics.total;
       aggregate.movies.watchStatusCounts.watched += profileStat.movieStatistics.watchStatusCounts.watched;
@@ -260,6 +262,7 @@ export class StatisticsService {
           watched: 0,
           watching: 0,
           notWatched: 0,
+          upToDate: 0,
         },
         genreDistribution: {},
         serviceDistribution: {},
