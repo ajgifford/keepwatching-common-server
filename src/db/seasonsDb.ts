@@ -130,7 +130,7 @@ export async function saveFavorite(profileId: number, seasonId: number): Promise
  *
  * @param profileId - ID of the profile to update watch status for
  * @param seasonId - ID of the season to update
- * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
+ * @param status - New watch status ('NOT_WATCHED', 'WATCHING', 'WATCHED', or 'UP_TO_DATE')
  * @returns True if the watch status was updated, false if no rows affected
  * @throws {DatabaseError} If a database error occurs
  */
@@ -151,6 +151,13 @@ export async function updateWatchStatus(profileId: string, seasonId: number, sta
 
 /**
  * Updates the watch status of a season based on its episodes' statuses
+ * Now handles the UP_TO_DATE status as well
+ *
+ * Season should be:
+ * - WATCHED if all aired episodes are watched and there are no future episodes
+ * - UP_TO_DATE if all aired episodes are watched and there are future episodes
+ * - WATCHING if some aired episodes are watched
+ * - NOT_WATCHED if no episodes are watched
  *
  * @param profileId - ID of the profile to update
  * @param seasonId - ID of the season to update
@@ -165,28 +172,48 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
     const transactionHelper = new TransactionHelper();
 
     await transactionHelper.executeInTransaction(async (connection) => {
-      // Get appropriate status based on episodes
-      const episodeWatchStatusQuery = `
-        SELECT 
-          CASE 
-            WHEN COUNT(DISTINCT ews.status) = 1 THEN MAX(ews.status) 
-            ELSE 'WATCHING' 
-          END AS season_status 
-        FROM episodes e 
-        JOIN episode_watch_status ews ON e.id = ews.episode_id 
+      const episodeStatusQuery = `
+        SELECT
+          COUNT(*) as total_episodes,
+          SUM(CASE WHEN ews.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_episodes,
+          SUM(CASE WHEN e.air_date > CURRENT_DATE() THEN 1 ELSE 0 END) as future_episodes,
+          SUM(CASE WHEN e.air_date <= CURRENT_DATE() THEN 1 ELSE 0 END) as aired_episodes,
+          SUM(CASE WHEN e.air_date <= CURRENT_DATE() AND ews.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_aired_episodes
+        FROM episodes e
+        JOIN episode_watch_status ews ON e.id = ews.episode_id
         WHERE e.season_id = ? AND ews.profile_id = ?
       `;
 
-      const [statusResult] = await connection.execute<RowDataPacket[]>(episodeWatchStatusQuery, [seasonId, profileId]);
+      const [episodeStatus] = await connection.execute<RowDataPacket[]>(episodeStatusQuery, [seasonId, profileId]);
+      if (!episodeStatus.length) return;
 
-      if (!statusResult.length) return;
+      if (episodeStatus[0].total_episodes === 0) {
+        await connection.execute('UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?', [
+          'NOT_WATCHED',
+          profileId,
+          seasonId,
+        ]);
+        return;
+      }
 
-      // Update season status
-      const updateSeasonStatusQuery =
-        'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?';
+      const status = episodeStatus[0];
+      let seasonStatus = 'NOT_WATCHED';
 
-      const seasonStatus = statusResult[0].season_status;
-      await connection.execute(updateSeasonStatusQuery, [seasonStatus, profileId, seasonId]);
+      if (status.watched_aired_episodes === status.aired_episodes) {
+        if (status.future_episodes > 0) {
+          seasonStatus = 'UP_TO_DATE';
+        } else {
+          seasonStatus = 'WATCHED';
+        }
+      } else if (status.watched_episodes > 0 && status.watched_episodes < status.total_episodes) {
+        seasonStatus = 'WATCHING';
+      }
+
+      await connection.execute('UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?', [
+        seasonStatus,
+        profileId,
+        seasonId,
+      ]);
     });
   } catch (error) {
     handleDatabaseError(error, 'updating season watch status using episode status');
@@ -194,11 +221,17 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
 }
 
 /**
- * Updates the watch status of a season and all its episodes
+ * Updates the watch status of a season and all its applicable episodes
+ *
+ * When status is UP_TO_DATE:
+ * - Only episodes that have already aired are marked as WATCHED
+ * - Future episodes remain NOT_WATCHED
+ *
+ * For all other statuses, all episodes get the same status
  *
  * @param profileId - ID of the profile to update
  * @param seasonId - ID of the season to update
- * @param status - New watch status
+ * @param status - New watch status ('NOT_WATCHED', 'WATCHING', 'WATCHED', or 'UP_TO_DATE')
  * @returns True if the update was successful, false otherwise
  * @throws {DatabaseError} If a database error occurs
  */
@@ -211,25 +244,56 @@ export async function updateAllWatchStatuses(profileId: string, seasonId: number
 
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
-      // Update season
+      // Update season status
       const seasonQuery = 'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?';
       const [seasonResult] = await connection.execute<ResultSetHeader>(seasonQuery, [status, profileId, seasonId]);
 
       if (seasonResult.affectedRows === 0) return false;
 
-      // Update episodes
-      const episodeQuery = `
-        UPDATE episode_watch_status 
-        SET status = ? 
-        WHERE profile_id = ? 
-        AND episode_id IN (
-          SELECT id from episodes where season_id = ?
-        )
-      `;
+      // Different behavior based on status
+      if (status === 'UP_TO_DATE') {
+        // For UP_TO_DATE, we need to mark aired episodes as WATCHED and keep future episodes as NOT_WATCHED
+        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
-      const [episodeResult] = await connection.execute<ResultSetHeader>(episodeQuery, [status, profileId, seasonId]);
+        // Update aired episodes to WATCHED
+        const airedEpisodesQuery = `
+          UPDATE episode_watch_status ews
+          JOIN episodes e ON ews.episode_id = e.id
+          SET ews.status = 'WATCHED'
+          WHERE ews.profile_id = ? 
+          AND e.season_id = ?
+          AND (e.air_date IS NULL OR e.air_date <= ?)
+        `;
+        await connection.execute<ResultSetHeader>(airedEpisodesQuery, [profileId, seasonId, currentDate]);
 
-      return episodeResult.affectedRows > 0;
+        // Update future episodes to NOT_WATCHED
+        const futureEpisodesQuery = `
+          UPDATE episode_watch_status ews
+          JOIN episodes e ON ews.episode_id = e.id
+          SET ews.status = 'NOT_WATCHED'
+          WHERE ews.profile_id = ? 
+          AND e.season_id = ?
+          AND e.air_date > ?
+        `;
+        await connection.execute<ResultSetHeader>(futureEpisodesQuery, [profileId, seasonId, currentDate]);
+
+        // Success if we're able to run both queries (even if no rows affected)
+        return true;
+      } else {
+        // For regular statuses, update all episodes to the same status
+        const episodeQuery = `
+          UPDATE episode_watch_status 
+          SET status = ? 
+          WHERE profile_id = ? 
+          AND episode_id IN (
+            SELECT id from episodes where season_id = ?
+          )
+        `;
+
+        const [episodeResult] = await connection.execute<ResultSetHeader>(episodeQuery, [status, profileId, seasonId]);
+
+        return episodeResult.affectedRows > 0;
+      }
     });
   } catch (error) {
     handleDatabaseError(error, 'updating a season watch status and its episodes');

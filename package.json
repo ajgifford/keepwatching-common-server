@@ -43,6 +43,7 @@
     "build": "tsc -p tsconfig.json",
     "prepare": "yarn build",
     "test": "jest",
+    "test-c": "jest --coverage",
     "lint": "eslint . --ext .ts",
     "format": "prettier --config ./.prettierrc.js . --write"
   },
@@ -59,6 +60,7 @@
     "axios": "^1.8.4",
     "axios-retry": "^4.5.0",
     "cron-parser": "^5.1.1",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "firebase-admin": "^13.2.0",
     "fs": "^0.0.1-security",
@@ -87,6 +89,7 @@
     "jest-mock-extended": "^4.0.0-beta1",
     "prettier": "^3.5.3",
     "ts-jest": "^29.3.2",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.29.1"
   },

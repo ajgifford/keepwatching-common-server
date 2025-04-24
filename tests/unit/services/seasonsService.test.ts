@@ -129,8 +129,8 @@ describe('seasonsService', () => {
       await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
 
       expect(seasonsDb.getWatchStatus).toHaveBeenCalledWith('123', 789);
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'WATCHING');
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('123', 456, 'WATCHING');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('123', 456, 'UP_TO_DATE');
     });
 
     it('should update only season status when show status is already WATCHING', async () => {
@@ -140,7 +140,7 @@ describe('seasonsService', () => {
 
       await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'WATCHING');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
     });
 
@@ -171,7 +171,7 @@ describe('seasonsService', () => {
 
       await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'WATCHING');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
       expect(seasonsDb.getShowIdForSeason).toHaveBeenCalledWith(789);
       expect(showsDb.getWatchStatus).not.toHaveBeenCalled();
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
@@ -184,7 +184,7 @@ describe('seasonsService', () => {
 
       await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'WATCHING');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
       expect(showsDb.getWatchStatus).toHaveBeenCalledWith('123', 456);
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
     });
@@ -255,7 +255,7 @@ describe('seasonsService', () => {
         'Show update failed',
       );
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'WATCHING');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
         'updateSeasonWatchStatusForNewEpisodes(123, 789)',

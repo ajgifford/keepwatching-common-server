@@ -86,12 +86,12 @@ export async function removeFavorite(profileId: string, showId: number): Promise
 /**
  * Updates the watch status of a show for a specific profile
  *
- * This function marks a show as watched, watching, or not watched
+ * This function marks a show as watched, watching, not watched, or up to date
  * for a specific user profile.
  *
  * @param profileId - ID of the profile to update the status for
  * @param showId - ID of the show to update
- * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
+ * @param status - New watch status ('WATCHED', 'WATCHING', 'NOT_WATCHED', or 'UP_TO_DATE')
  * @returns `True` if the status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  */
@@ -109,12 +109,12 @@ export async function updateWatchStatus(profileId: string, showId: number, statu
 
 /**
  * Updates the watch status of a show for a specific profile based on the status of its seasons.
- * This function examines all seasons associated with the show and determines the appropriate
- * show status based on season statuses.
  *
- * - If all seasons have the same status, the show gets that status
- * - If seasons have mixed statuses, the shows is marked as "WATCHING"
- * - If no seasons exist or no watch status information is available, the show is marked as "NOT_WATCHED"
+ * Show status logic:
+ * - WATCHED: All seasons are WATCHED (no UP_TO_DATE seasons)
+ * - UP_TO_DATE: All seasons are either WATCHED or UP_TO_DATE, with at least one UP_TO_DATE
+ * - WATCHING: Some seasons are WATCHED/UP_TO_DATE and others are NOT_WATCHED, or any season is WATCHING
+ * - NOT_WATCHED: All seasons are NOT_WATCHED
  *
  * @param profileId - ID of the profile to update the watch status for
  * @param showId - ID of the show to update
@@ -125,14 +125,49 @@ export async function updateWatchStatusBySeason(profileId: string, showId: numbe
   try {
     const pool = getDbPool();
 
-    const seasonWatchStatusQuery = `SELECT CASE WHEN COUNT(DISTINCT status) = 1 THEN MAX(status) WHEN COUNT(*) = 0 THEN 'NOT_WATCHED' ELSE 'WATCHING' END AS show_status FROM seasons s JOIN season_watch_status sws ON s.id = sws.season_id WHERE s.show_id = ? AND sws.profile_id = ?`;
-    const [statusResult] = await pool.execute<RowDataPacket[]>(seasonWatchStatusQuery, [showId, profileId]);
+    const seasonStatusQuery = `
+      SELECT 
+        COUNT(*) as total_seasons,
+        SUM(CASE WHEN sws.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_seasons,
+        SUM(CASE WHEN sws.status = 'WATCHING' THEN 1 ELSE 0 END) as watching_seasons,
+        SUM(CASE WHEN sws.status = 'NOT_WATCHED' THEN 1 ELSE 0 END) as not_watched_seasons,
+        SUM(CASE WHEN sws.status = 'UP_TO_DATE' THEN 1 ELSE 0 END) as up_to_date_seasons
+      FROM seasons s 
+      JOIN season_watch_status sws ON s.id = sws.season_id 
+      WHERE s.show_id = ? AND sws.profile_id = ?
+    `;
 
+    const [statusResult] = await pool.execute<RowDataPacket[]>(seasonStatusQuery, [showId, profileId]);
     if (!statusResult.length) return;
 
-    const showStatusUpdateStmt = 'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?';
-    const showStatus = statusResult[0].show_status;
-    await pool.execute(showStatusUpdateStmt, [showStatus, profileId, showId]);
+    if (statusResult[0].total_seasons === 0) {
+      await pool.execute('UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?', [
+        'NOT_WATCHED',
+        profileId,
+        showId,
+      ]);
+      return;
+    }
+
+    const status = statusResult[0];
+    let showStatus = 'NOT_WATCHED';
+
+    if (status.watched_seasons === status.total_seasons) {
+      showStatus = 'WATCHED';
+    } else if (
+      status.watched_seasons + status.up_to_date_seasons === status.total_seasons &&
+      status.up_to_date_seasons > 0
+    ) {
+      showStatus = 'UP_TO_DATE';
+    } else if (status.watching_seasons > 0 || (status.watched_seasons > 0 && status.not_watched_seasons > 0)) {
+      showStatus = 'WATCHING';
+    }
+
+    await pool.execute('UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?', [
+      showStatus,
+      profileId,
+      showId,
+    ]);
   } catch (error) {
     handleDatabaseError(error, 'updating the watch status of a show by the status of its seasons');
   }
@@ -146,7 +181,7 @@ export async function updateWatchStatusBySeason(profileId: string, showId: numbe
  *
  * @param profileId - ID of the profile to update the watch status for
  * @param showId - ID of the show to update
- * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
+ * @param status - New watch status ('WATCHED', 'WATCHING', 'NOT_WATCHED', or 'UP_TO_DATE')
  * @returns `True` if the watch status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  */

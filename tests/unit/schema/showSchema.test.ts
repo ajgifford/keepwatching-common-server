@@ -129,7 +129,7 @@ describe('showSchema', () => {
     });
 
     it('should validate all valid status values', () => {
-      const statuses = ['WATCHED', 'WATCHING', 'NOT_WATCHED'];
+      const statuses = ['WATCHED', 'WATCHING', 'NOT_WATCHED', 'UP_TO_DATE'];
 
       statuses.forEach((status) => {
         const input = {
@@ -170,7 +170,9 @@ describe('showSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.status?._errors).toContain('Status must be one of: WATCHED, WATCHING, or NOT_WATCHED');
+        expect(formattedErrors.status?._errors).toContain(
+          'Status must be one of: NOT_WATCHED, WATCHING, WATCHED, or UP_TO_DATE',
+        );
       }
     });
 

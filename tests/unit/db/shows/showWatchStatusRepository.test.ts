@@ -194,10 +194,19 @@ describe('showWatchStatusRepository', () => {
   });
 
   describe('updateWatchStatusBySeason', () => {
-    it('should update show status based on all seasons having same status', async () => {
-      // Mock the case where all seasons have the same status (e.g., all "WATCHED")
+    it('should update show status to WATCHED when all are seasons are WATCHED', async () => {
       mockPool.execute
-        .mockResolvedValueOnce([[{ show_status: 'WATCHED' }] as RowDataPacket[]]) // Status query response
+        .mockResolvedValueOnce([
+          [
+            {
+              watched_seasons: 2,
+              total_seasons: 2,
+              up_to_date_seasons: 0,
+              watching_seasons: 0,
+              not_watched_seasons: 0,
+            },
+          ] as RowDataPacket[],
+        ]) // Status query response
         .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Update response
 
       await showsDb.updateWatchStatusBySeason('123', 5);
@@ -205,7 +214,7 @@ describe('showWatchStatusRepository', () => {
       expect(mockPool.execute).toHaveBeenCalledTimes(2);
       expect(mockPool.execute).toHaveBeenNthCalledWith(
         1,
-        expect.stringContaining('SELECT CASE WHEN COUNT(DISTINCT status) = 1 THEN MAX(status)'),
+        expect.stringContaining(`SUM(CASE WHEN sws.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_seasons,`),
         [5, '123'],
       );
       expect(mockPool.execute).toHaveBeenNthCalledWith(
@@ -215,10 +224,49 @@ describe('showWatchStatusRepository', () => {
       );
     });
 
-    it('should update show status to WATCHING when seasons have mixed statuses', async () => {
-      // Mock the case where seasons have mixed statuses
+    it('should update show status to UP_TO_DATE when there is an active season', async () => {
       mockPool.execute
-        .mockResolvedValueOnce([[{ show_status: 'WATCHING' }] as RowDataPacket[]]) // Status query response
+        .mockResolvedValueOnce([
+          [
+            {
+              watched_seasons: 2,
+              total_seasons: 3,
+              up_to_date_seasons: 1,
+              watching_seasons: 0,
+              not_watched_seasons: 0,
+            },
+          ] as RowDataPacket[],
+        ]) // Status query response
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Update response
+
+      await showsDb.updateWatchStatusBySeason('123', 5);
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(2);
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(`SUM(CASE WHEN sws.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_seasons,`),
+        [5, '123'],
+      );
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        2,
+        'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?',
+        ['UP_TO_DATE', '123', 5],
+      );
+    });
+
+    it('should update show status to WATCHING when seasons have mixed statuses', async () => {
+      mockPool.execute
+        .mockResolvedValueOnce([
+          [
+            {
+              watched_seasons: 2,
+              total_seasons: 5,
+              up_to_date_seasons: 0,
+              watching_seasons: 1,
+              not_watched_seasons: 2,
+            },
+          ] as RowDataPacket[],
+        ]) // Status query response
         .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Update response
 
       await showsDb.updateWatchStatusBySeason('123', 5);
@@ -227,6 +275,30 @@ describe('showWatchStatusRepository', () => {
         2,
         'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?',
         ['WATCHING', '123', 5],
+      );
+    });
+
+    it('should update show status to NOT_WATCHED when no seasons have been watched', async () => {
+      mockPool.execute
+        .mockResolvedValueOnce([
+          [
+            {
+              watched_seasons: 0,
+              total_seasons: 5,
+              up_to_date_seasons: 0,
+              watching_seasons: 0,
+              not_watched_seasons: 5,
+            },
+          ] as RowDataPacket[],
+        ]) // Status query response
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Update response
+
+      await showsDb.updateWatchStatusBySeason('123', 5);
+
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        2,
+        'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?',
+        ['NOT_WATCHED', '123', 5],
       );
     });
 

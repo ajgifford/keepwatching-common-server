@@ -11,7 +11,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  collectCoverage: true,
+  collectCoverage: false,
   collectCoverageFrom: ['src/**/*.ts', '!src/index.ts', '!src/testing/**/*'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],

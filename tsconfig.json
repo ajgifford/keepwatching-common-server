@@ -22,6 +22,14 @@
       "@utils/*": ["src/utils/*"]
     }
   },
-  "include": ["src/**/*", "src/services.ts", "src/utils.ts", "src/types.ts", "src/logger.ts"],
+  "include": [
+    "src/**/*",
+    "src/services.ts",
+    "src/utils.ts",
+    "src/types.ts",
+    "src/logger.ts",
+    "src/schema.ts",
+    "migrateWatchStatus.ts"
+  ],
   "exclude": ["node_modules", "tests", "dist"]
 }

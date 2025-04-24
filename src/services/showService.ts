@@ -7,6 +7,7 @@ import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NotFoundError } from '../middleware/errorMiddleware';
 import { Change, ContentUpdates } from '../types/contentTypes';
 import { ContinueWatchingShow, Show } from '../types/showTypes';
+import { WatchStatus } from '../types/watchStatusTypes';
 import { SUPPORTED_CHANGE_KEYS, sleep } from '../utils/changesUtility';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
@@ -366,7 +367,9 @@ export class ShowService {
 
   /**
    * Update watch status for a show when new seasons are added
-   * If a show was previously marked as WATCHED, update to WATCHING since there's new content
+   * If a show was previously marked as WATCHED, update to UP_TO_DATE since there's new content
+   * that's consistent with what the user has already seen
+   *
    * @param showId ID of the show in the database
    * @param profileIds List of profile IDs that have this show in their watchlist
    */
@@ -375,8 +378,8 @@ export class ShowService {
       for (const profileId of profileIds) {
         const watchStatus = await showsDb.getWatchStatus(String(profileId), showId);
 
-        if (watchStatus === 'WATCHED') {
-          await showsDb.updateWatchStatus(String(profileId), showId, 'WATCHING');
+        if (watchStatus === WatchStatus.WATCHED) {
+          await showsDb.updateWatchStatus(String(profileId), showId, WatchStatus.UP_TO_DATE);
           this.cache.invalidate(SHOW_KEYS.details(profileId, showId));
           this.cache.invalidate(PROFILE_KEYS.shows(profileId));
           this.cache.invalidate(PROFILE_KEYS.nextUnwatchedEpisodes(profileId));
@@ -384,6 +387,76 @@ export class ShowService {
       }
     } catch (error) {
       throw errorService.handleError(error, `updateShowWatchStatusForNewContent(${showId})`);
+    }
+  }
+
+  /**
+   * Checks whether a show's status should be updated to reflect that new content is available
+   *
+   * @param profileId ID of the profile
+   * @param showId ID of the show
+   * @returns Object indicating if the status was updated and the new status
+   */
+  public async checkAndUpdateShowStatus(
+    profileId: string,
+    showId: number,
+  ): Promise<{
+    updated: boolean;
+    status: string | null;
+  }> {
+    try {
+      const currentStatus = await showsDb.getWatchStatus(profileId, showId);
+
+      // Only proceed if current status is WATCHED
+      if (currentStatus !== WatchStatus.WATCHED) {
+        return { updated: false, status: currentStatus };
+      }
+
+      // Check if the show has any unwatched episodes or seasons
+      const hasNew = await this.hasUnwatchedContent(profileId, showId);
+
+      // If there is new content, update to UP_TO_DATE
+      if (hasNew) {
+        await showsDb.updateWatchStatus(profileId, showId, WatchStatus.UP_TO_DATE);
+        this.invalidateProfileCache(profileId);
+        return { updated: true, status: WatchStatus.UP_TO_DATE };
+      }
+
+      return { updated: false, status: currentStatus };
+    } catch (error) {
+      throw errorService.handleError(error, `checkAndUpdateShowStatus(${profileId}, ${showId})`);
+    }
+  }
+
+  /**
+   * Checks if a show has any unwatched content (seasons or episodes)
+   *
+   * @param profileId ID of the profile
+   * @param showId ID of the show
+   * @returns True if there's unwatched content
+   */
+  private async hasUnwatchedContent(profileId: string, showId: number): Promise<boolean> {
+    try {
+      // Get all seasons for the show
+      const seasons = await seasonsDb.getSeasonsForShow(profileId, String(showId));
+
+      // Check if any season is not WATCHED
+      for (const season of seasons) {
+        if (season.watch_status !== WatchStatus.WATCHED) {
+          return true;
+        }
+
+        // Check if any episode is not WATCHED
+        for (const episode of season.episodes) {
+          if (episode.watch_status !== WatchStatus.WATCHED) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      throw errorService.handleError(error, `hasUnwatchedContent(${profileId}, ${showId})`);
     }
   }
 

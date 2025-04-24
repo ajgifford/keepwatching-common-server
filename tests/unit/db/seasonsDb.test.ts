@@ -245,30 +245,93 @@ describe('seasonsDb Module', () => {
       (TransactionHelper as jest.Mock).mockImplementation(() => mockTransactionHelper);
     });
 
-    it('should update season status based on episodes status', async () => {
+    it('should update season status to WATCHED when all episodes are watched and there are no future episodes', async () => {
       mockConnection.execute
-        .mockResolvedValueOnce([[{ season_status: 'WATCHED' }] as RowDataPacket[]])
+        .mockResolvedValueOnce([
+          [
+            {
+              total_episodes: 10,
+              watched_aired_episodes: 10,
+              aired_episodes: 10,
+              future_episodes: 0,
+              watched_episodes: 10,
+            },
+          ] as RowDataPacket[],
+        ])
         .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await seasonsDb.updateWatchStatusByEpisode('123', 456);
 
       expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-
-      const firstCall = mockConnection.execute.mock.calls[0];
-      expect(firstCall[0]).toContain('SELECT');
-      expect(firstCall[0]).toContain('CASE');
-      expect(firstCall[0]).toContain('WHEN COUNT(DISTINCT ews.status) = 1 THEN MAX(ews.status)');
-      expect(firstCall[0]).toContain(`ELSE 'WATCHING'`);
-      expect(firstCall[0]).toContain('END AS season_status');
-      expect(firstCall[0]).toContain('FROM episodes e');
-      expect(firstCall[0]).toContain('JOIN episode_watch_status ews ON e.id = ews.episode_id');
-      expect(firstCall[0]).toContain('WHERE e.season_id = ? AND ews.profile_id = ?');
-      expect(firstCall[1]).toEqual([456, '123']);
-
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(`SUM(CASE WHEN ews.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_episodes`),
+        [456, '123'],
+      );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
         'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
         ['WATCHED', '123', 456],
+      );
+    });
+
+    it('should update season status to UP_TO_DATE when all episodes are watched and there are future episodes', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([
+          [
+            {
+              total_episodes: 13,
+              watched_aired_episodes: 10,
+              aired_episodes: 10,
+              future_episodes: 3,
+              watched_episodes: 10,
+            },
+          ] as RowDataPacket[],
+        ])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await seasonsDb.updateWatchStatusByEpisode('123', 456);
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(`SUM(CASE WHEN ews.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_episodes`),
+        [456, '123'],
+      );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        2,
+        'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
+        ['UP_TO_DATE', '123', 456],
+      );
+    });
+
+    it('should update season status to WATCHING when there unwatched aired episodes', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([
+          [
+            {
+              total_episodes: 13,
+              watched_aired_episodes: 8,
+              aired_episodes: 10,
+              future_episodes: 3,
+              watched_episodes: 10,
+            },
+          ] as RowDataPacket[],
+        ])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await seasonsDb.updateWatchStatusByEpisode('123', 456);
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(`SUM(CASE WHEN ews.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_episodes`),
+        [456, '123'],
+      );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        2,
+        'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
+        ['WATCHING', '123', 456],
       );
     });
 

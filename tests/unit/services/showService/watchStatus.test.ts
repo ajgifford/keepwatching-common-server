@@ -59,8 +59,8 @@ describe('ShowService - Watch Status', () => {
 
       expect(showsDb.getWatchStatus).toHaveBeenCalledTimes(2);
       expect(showsDb.updateWatchStatus).toHaveBeenCalledTimes(2);
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('1', 123, 'WATCHING');
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('2', 123, 'WATCHING');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('1', 123, 'UP_TO_DATE');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('2', 123, 'UP_TO_DATE');
     });
 
     it('should not update show status if already set to something other than WATCHED', async () => {

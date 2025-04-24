@@ -12,8 +12,8 @@ export const showParamsSchema = z.object({
 
 export const showWatchStatusSchema = z.object({
   showId: z.number().int().positive('Show ID must be a positive integer'),
-  status: z.enum(['WATCHED', 'WATCHING', 'NOT_WATCHED'], {
-    errorMap: () => ({ message: 'Status must be one of: WATCHED, WATCHING, or NOT_WATCHED' }),
+  status: z.enum(['NOT_WATCHED', 'WATCHING', 'WATCHED', 'UP_TO_DATE'], {
+    errorMap: () => ({ message: 'Status must be one of: NOT_WATCHED, WATCHING, WATCHED, or UP_TO_DATE' }),
   }),
   recursive: z.boolean().default(false).optional(),
 });
