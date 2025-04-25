@@ -11,7 +11,7 @@ export interface DatabaseAccount {
   account_id: number;
   account_name: string;
   email: string;
-  image: string | null;
+  image: string | undefined;
   default_profile_id: number | null;
   uid: string;
   created_at: Date;

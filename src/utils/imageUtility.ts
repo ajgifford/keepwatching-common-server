@@ -49,5 +49,5 @@ function getImage(image: string | undefined, name: string, folder: string) {
 }
 
 function buildUploadedImageURL(image: string, folder: string) {
-  return `${process.env.KW_HOST}/uploads/${folder}/${image}`;
+  return `/uploads/${folder}/${image}`;
 }

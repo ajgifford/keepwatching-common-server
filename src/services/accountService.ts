@@ -344,7 +344,7 @@ export class AccountService {
           account_id: dbAccount.account_id,
           account_name: dbAccount.account_name,
           default_profile_id: dbAccount.default_profile_id,
-          database_image: dbAccount.image,
+          database_image: getAccountImage(dbAccount.image, dbAccount.account_name),
           database_created_at: dbAccount.created_at,
         };
       });
