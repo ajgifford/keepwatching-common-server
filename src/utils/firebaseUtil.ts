@@ -7,24 +7,16 @@ let firebaseInitialized = false;
  * Initialize Firebase Admin SDK if not already initialized
  * 
  * This function initializes Firebase Admin SDK with the service account
- * credentials from environment variables
+ * provided
  * 
  * @returns True if initialization was successful
  */
-export function initializeFirebase(): boolean {
+export function initializeFirebase(serviceAccount: object): boolean {
   if (firebaseInitialized) {
     return true;
   }
 
   try {
-    // Check if Firebase credentials are available
-    if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-      cliLogger.warn('Firebase service account not provided, Firebase features will be disabled');
-      return false;
-    }
-
-    // Initialize Firebase Admin SDK
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
