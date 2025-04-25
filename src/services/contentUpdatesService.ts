@@ -69,9 +69,9 @@ export async function updateShows() {
 /**
  * Updates a show
  */
-export async function updateShowById(showId: number) {
+export async function updateShowById(showId: number, tmdbId: number) {
   try {
-    await showService.updateShowById(showId);
+    await showService.updateShowById(showId, tmdbId);
   } catch (error) {
     throw errorService.handleError(error, `updateShowById(${showId})`);
   }

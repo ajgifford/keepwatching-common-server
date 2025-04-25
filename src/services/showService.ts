@@ -607,13 +607,12 @@ export class ShowService {
     }
   }
 
-  public async updateShowById(showId: number, updateMode: 'all' | 'latest' = 'latest'): Promise<boolean> {
+  public async updateShowById(
+    showId: number,
+    tmdbId: number,
+    updateMode: 'all' | 'latest' = 'latest',
+  ): Promise<boolean> {
     try {
-      const tmdbId = await showsDb.getTMDBIdForShow(showId);
-      if (!tmdbId) {
-        throw new NotFoundError(`Show with ID ${showId} not found`);
-      }
-
       const tmdbService = getTMDBService();
       const showDetails = await tmdbService.getShowDetails(tmdbId);
 
