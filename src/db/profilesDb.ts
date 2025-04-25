@@ -9,6 +9,12 @@ export interface Profile {
   image?: string;
 }
 
+export interface AdminProfile extends Profile{
+  created_at: string;
+  favorited_shows: number;
+  favorited_movies: number
+}
+
 export async function saveProfile(profile: Profile): Promise<Profile> {
   try {
     const query = 'INSERT into profiles (account_id, name) VALUES (?, ?)';
@@ -84,13 +90,13 @@ export async function getProfilesByAccountId(accountId: number): Promise<Profile
   }
 }
 
-export async function getProfilesWithCountsByAccountId(accountId: number) {
+export async function getProfilesWithCountsByAccountId(accountId: number): Promise<AdminProfile[]> {
   try {
     const query =
       'SELECT p.*, (SELECT COUNT(*) FROM show_watch_status f WHERE f.profile_id = p.profile_id) as favorited_shows, (SELECT COUNT(*) FROM movie_watch_status f WHERE f.profile_id = p.profile_id) as favorited_movies FROM profiles p WHERE p.account_id = ?';
-    const [profiles] = await getDbPool().execute(query, [accountId]);
+    const [profiles] = await getDbPool().execute<RowDataPacket[]>(query, [accountId]);
 
-    return profiles;
+    return profiles.map((profile) => createAdminProfile(profile.account_id, profile.name, profile.favorited_shows, profile.favorited_movies, profile.profile_id, profile.image, profile.created_at));;
   } catch (error) {
     handleDatabaseError(error, 'getting profiles with show and movie counts by account id');
   }
@@ -100,6 +106,26 @@ export function createProfile(accountId: number, name: string, id?: number, imag
   return {
     account_id: accountId,
     name: name,
+    ...(id ? { id } : {}),
+    ...(image ? { image } : {}),
+  };
+}
+
+export function createAdminProfile(
+  accountId: number, 
+  name: string, 
+  favoritedShows: number,
+  favoritedMovies: number,
+  id?: number, 
+  image?: string,
+  createdAt?: string
+): AdminProfile {
+  return {
+    account_id: accountId,
+    name: name,
+    favorited_shows: favoritedShows,
+    favorited_movies: favoritedMovies,
+    created_at: createdAt || new Date().toISOString(),
     ...(id ? { id } : {}),
     ...(image ? { image } : {}),
   };

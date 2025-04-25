@@ -57,7 +57,7 @@ export class ProfileService {
       return await this.cache.getOrSet(
         ACCOUNT_KEYS.profilesWithCounts(accountId),
         async () => {
-          const profiles = await profilesDb.getProfilesByAccountId(accountId);
+          const profiles = await profilesDb.getProfilesWithCountsByAccountId(accountId);
           if (!profiles) {
             throw new BadRequestError('Failed to get profiles with counts for an account');
           }
@@ -67,6 +67,9 @@ export class ProfileService {
             name: profile.name,
             image: getProfileImage(profile.image, profile.name),
             account_id: profile.account_id,
+            created_at: profile.created_at,
+            favorited_shows: profile.favorited_shows,
+            favorited_movies: profile.favorited_movies
           }));
         },
         600, // 10 minutes TTL
