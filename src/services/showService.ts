@@ -579,8 +579,8 @@ export class ShowService {
           getUSRating(showDetails.content_ratings),
           content.id,
           getUSWatchProviders(showDetails, 9999),
-          showDetails.number_of_episodes,
           showDetails.number_of_seasons,
+          showDetails.number_of_episodes,
           showDetails.genres.map((genre: { id: any }) => genre.id),
           showDetails.status,
           showDetails.type,
@@ -627,8 +627,8 @@ export class ShowService {
         getUSRating(showDetails.content_ratings),
         showId,
         getUSWatchProviders(showDetails, 9999),
-        showDetails.number_of_episodes,
         showDetails.number_of_seasons,
+        showDetails.number_of_episodes,
         showDetails.genres.map((genre: { id: any }) => genre.id),
         showDetails.status,
         showDetails.type,
@@ -710,6 +710,7 @@ export class ShowService {
         this.cache.invalidate(SHOW_KEYS.details(profileId, showId));
         this.cache.invalidate(PROFILE_KEYS.shows(profileId));
         this.cache.invalidate(PROFILE_KEYS.nextUnwatchedEpisodes(profileId));
+        this.cache.invalidatePattern('allShows_');
       }
 
       socketService.notifyShowsUpdate(`Show ${showDetails.name} has been updated`);

@@ -224,7 +224,7 @@ export class DefaultTMDBService implements TMDBService {
         return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(
-              `/tv/${id}?append_to_response=content_ratings,watch/providers`,
+              `/tv/${id}?append_to_response=content_ratings,watch/providers`, { timeout: 10000 }
             );
             return response.data;
           },
@@ -248,7 +248,7 @@ export class DefaultTMDBService implements TMDBService {
         return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get(
-              `/movie/${id}?append_to_response=release_dates%2Cwatch%2Fproviders&language=en-US`,
+              `/movie/${id}?append_to_response=release_dates%2Cwatch%2Fproviders&language=en-US`, { timeout: 10000 }
             );
             return response.data;
           },
@@ -271,7 +271,7 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/season/${seasonNumber}`);
+            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/season/${seasonNumber}`, { timeout: 10000 });
             return response.data;
           },
           {
