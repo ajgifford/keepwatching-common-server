@@ -229,24 +229,6 @@ export async function getShowsForUpdates(): Promise<ContentUpdates[]> {
   }
 }
 
-/**
- * Gets the TMDB id of a show.
- *
- * @param showId The id of the show
- * @returns The TMDB id of a show
- * @throws {DatabaseError} If a database error occurs during the operation
- */
-export async function getTMDBIdForShow(showId: number): Promise<number | null> {
-  try {
-    const query = `SELECT tmdb_id from shows where id = ?`;
-    const [shows] = await getDbPool().execute<RowDataPacket[]>(query, [showId]);
-    if (shows.length === 0) return null;
-    return shows[0].tmdb_id;
-  } catch (error) {
-    handleDatabaseError(error, 'getting the TMDB id for a show');
-  }
-}
-
 export async function getAllShows(limit: number = 50, offset: number = 0) {
   try {
     const query = `SELECT 

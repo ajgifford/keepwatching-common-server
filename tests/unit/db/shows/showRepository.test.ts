@@ -630,35 +630,6 @@ describe('showRepository', () => {
     });
   });
 
-  describe('getTMDBIdForShow', () => {
-    it('should return TMDB ID for a show', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ tmdb_id: 12345 }] as RowDataPacket[]]);
-
-      const tmdbId = await showsDb.getTMDBIdForShow(1);
-
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT tmdb_id from shows where id = ?', [1]);
-      expect(tmdbId).toBe(12345);
-    });
-
-    it('should return null when show not found', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as RowDataPacket[]]);
-
-      const tmdbId = await showsDb.getTMDBIdForShow(999);
-
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT tmdb_id from shows where id = ?', [999]);
-      expect(tmdbId).toBeNull();
-    });
-
-    it('should throw DatabaseError when lookup fails', async () => {
-      const dbError = new Error('Database connection failed');
-      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
-
-      await expect(showsDb.getTMDBIdForShow(1)).rejects.toThrow(
-        'Database error getting the TMDB id for a show: Database connection failed',
-      );
-    });
-  });
-
   describe('getAllShows', () => {
     it('should return all shows with default pagination', async () => {
       const mockShowRows = [

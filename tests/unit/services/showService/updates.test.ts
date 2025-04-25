@@ -469,9 +469,6 @@ describe('ShowService - Content Updates', () => {
     };
 
     it('should update a show successfully', async () => {
-      // Set up mocks
-      (showsDb.getTMDBIdForShow as jest.Mock).mockResolvedValue(tmdbId);
-
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
@@ -514,11 +511,8 @@ describe('ShowService - Content Updates', () => {
       (episodesDb.updateEpisode as jest.Mock).mockResolvedValue(mockEpisode);
       (episodesDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 
-      // Execute test
-      const result = await showService.updateShowById(showId, updateMode);
+      const result = await showService.updateShowById(showId, tmdbId, updateMode);
 
-      // Verify
-      expect(showsDb.getTMDBIdForShow).toHaveBeenCalledWith(showId);
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(tmdbId);
       expect(contentUtility.getUSRating).toHaveBeenCalledWith(mockTMDBShow.content_ratings);
       expect(contentUtility.getInProduction).toHaveBeenCalledWith(mockTMDBShow);
@@ -531,7 +525,6 @@ describe('ShowService - Content Updates', () => {
       expect(showsDb.updateShow).toHaveBeenCalled();
       expect(showsDb.getProfilesForShow).toHaveBeenCalledWith(showId);
 
-      // For latest mode, only the newest season should be updated
       expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledWith(tmdbId, 2);
       expect(seasonsDb.updateSeason).toHaveBeenCalled();
       expect(seasonsDb.saveFavorite).toHaveBeenCalledTimes(2); // Once for each profile
@@ -546,9 +539,6 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should update all seasons when updateMode is "all"', async () => {
-      // Set up mocks
-      (showsDb.getTMDBIdForShow as jest.Mock).mockResolvedValue(tmdbId);
-
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
@@ -587,38 +577,21 @@ describe('ShowService - Content Updates', () => {
       (episodesDb.createEpisode as jest.Mock).mockReturnValue(mockEpisode);
       (episodesDb.updateEpisode as jest.Mock).mockResolvedValue(mockEpisode);
 
-      // Execute test
-      await showService.updateShowById(showId, 'all');
+      await showService.updateShowById(showId, tmdbId, 'all');
 
-      // Verify - in 'all' mode both seasons should be updated
       expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledTimes(2);
       expect(mockTMDBService.getSeasonDetails).toHaveBeenNthCalledWith(1, tmdbId, 2);
       expect(mockTMDBService.getSeasonDetails).toHaveBeenNthCalledWith(2, tmdbId, 1);
     });
 
-    it('should throw NotFoundError when show does not exist', async () => {
-      (showsDb.getTMDBIdForShow as jest.Mock).mockResolvedValue(null);
-
-      const mockError = new NotFoundError(`Show with ID ${showId} not found`);
-      (errorService.handleError as jest.Mock).mockImplementation(() => {
-        throw mockError;
-      });
-
-      await expect(showService.updateShowById(showId)).rejects.toThrow(mockError);
-      expect(showsDb.getTMDBIdForShow).toHaveBeenCalledWith(showId);
-    });
-
     it('should handle API errors', async () => {
-      (showsDb.getTMDBIdForShow as jest.Mock).mockResolvedValue(tmdbId);
-
       const mockError = new Error('TMDB API error');
       const mockTMDBService = {
         getShowDetails: jest.fn().mockRejectedValue(mockError),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
-      await expect(showService.updateShowById(showId)).rejects.toThrow('TMDB API error');
-      expect(showsDb.getTMDBIdForShow).toHaveBeenCalledWith(showId);
+      await expect(showService.updateShowById(showId, tmdbId)).rejects.toThrow('TMDB API error');
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(tmdbId);
       expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
         error: mockError,
@@ -628,9 +601,6 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should handle errors when updating a season', async () => {
-      // Set up mocks
-      (showsDb.getTMDBIdForShow as jest.Mock).mockResolvedValue(tmdbId);
-
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
@@ -658,7 +628,7 @@ describe('ShowService - Content Updates', () => {
       const logSpy = jest.spyOn(cliLogger, 'error');
 
       // Execute test
-      const result = await showService.updateShowById(showId);
+      const result = await showService.updateShowById(showId, tmdbId);
 
       // Verify the error was logged but the function still completed successfully
       expect(logSpy).toHaveBeenCalledWith(
