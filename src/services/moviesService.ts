@@ -43,6 +43,13 @@ export class MoviesService {
   }
 
   /**
+   * Invalidate the cache related to all movies
+   */
+  public async invalidateAllMoviesCache() {
+    this.cache.invalidatePattern('allMovies_');
+  }
+
+  /**
    * Gets a list of movies that may need metadata updates
    *
    * @returns Array of movies needing updates

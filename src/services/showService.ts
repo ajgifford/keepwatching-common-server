@@ -52,6 +52,13 @@ export class ShowService {
   }
 
   /**
+   * Invalidate the cache related to all shows
+   */
+  public async invalidateAllShowsCache() {
+    this.cache.invalidatePattern('allShows_');
+  }
+
+  /**
    * Gets a list of shows that may need metadata updates
    *
    * @returns Array of shows needing updates

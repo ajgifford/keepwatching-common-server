@@ -23,6 +23,7 @@ export async function updateMovies() {
         cliLogger.error(`Failed to check for changes in movie ID ${movie.id}`, error);
       }
     }
+    await moviesService.invalidateAllMoviesCache();
   } catch (error) {
     cliLogger.error('Unexpected error while checking for movie updates', error);
     httpLogger.error(ErrorMessages.MoviesChangeFail, { error });
@@ -48,6 +49,7 @@ export async function updateShows() {
         cliLogger.error(`Failed to check for changes in show ID ${show.id}`, error);
       }
     }
+    await showService.invalidateAllShowsCache();
   } catch (error) {
     cliLogger.error('Unexpected error while checking for show updates', error);
     httpLogger.error(ErrorMessages.ShowsChangeFail, { error });
