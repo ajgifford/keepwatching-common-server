@@ -763,8 +763,6 @@ describe('MoviesService', () => {
     };
 
     it('should update a movie successfully', async () => {
-      (moviesDb.getTMDBIdForMovie as jest.Mock).mockResolvedValue(tmdbId);
-
       const mockTMDBService = {
         getMovieDetails: jest.fn().mockResolvedValue(mockTMDBMovie),
       };
@@ -776,9 +774,8 @@ describe('MoviesService', () => {
       (moviesDb.createMovie as jest.Mock).mockReturnValue(mockUpdatedMovie);
       (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
 
-      await moviesService.updateMovieById(movieId);
+      await moviesService.updateMovieById(movieId, tmdbId);
 
-      expect(moviesDb.getTMDBIdForMovie).toHaveBeenCalledWith(movieId);
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(tmdbId);
       expect(getUSMPARating).toHaveBeenCalledWith(mockTMDBMovie.release_dates);
       expect(getUSWatchProviders).toHaveBeenCalledWith(mockTMDBMovie, 9998);
@@ -799,28 +796,14 @@ describe('MoviesService', () => {
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
     });
 
-    it('should throw NotFoundError when movie does not exist', async () => {
-      (moviesDb.getTMDBIdForMovie as jest.Mock).mockResolvedValue(null);
-      const mockError = new NotFoundError(`Movie with ID ${movieId} not found`);
-      (errorService.handleError as jest.Mock).mockImplementationOnce(() => {
-        throw mockError;
-      });
-
-      await expect(moviesService.updateMovieById(movieId)).rejects.toThrow(mockError);
-      expect(moviesDb.getTMDBIdForMovie).toHaveBeenCalledWith(movieId);
-    });
-
     it('should handle API errors', async () => {
-      (moviesDb.getTMDBIdForMovie as jest.Mock).mockResolvedValue(tmdbId);
-
       const mockError = new Error('TMDB API error');
       const mockTMDBService = {
         getMovieDetails: jest.fn().mockRejectedValue(mockError),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
-      await expect(moviesService.updateMovieById(movieId)).rejects.toThrow('TMDB API error');
-      expect(moviesDb.getTMDBIdForMovie).toHaveBeenCalledWith(movieId);
+      await expect(moviesService.updateMovieById(movieId, tmdbId)).rejects.toThrow('TMDB API error');
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(tmdbId);
       expect(httpLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
         error: mockError,
@@ -830,8 +813,6 @@ describe('MoviesService', () => {
     });
 
     it('should handle database errors', async () => {
-      (moviesDb.getTMDBIdForMovie as jest.Mock).mockResolvedValue(tmdbId);
-
       const mockTMDBService = {
         getMovieDetails: jest.fn().mockResolvedValue(mockTMDBMovie),
       };
@@ -845,8 +826,7 @@ describe('MoviesService', () => {
       const mockError = new Error('Database error');
       (moviesDb.updateMovie as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(moviesService.updateMovieById(movieId)).rejects.toThrow('Database error');
-      expect(moviesDb.getTMDBIdForMovie).toHaveBeenCalledWith(movieId);
+      await expect(moviesService.updateMovieById(movieId, tmdbId)).rejects.toThrow('Database error');
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
       expect(httpLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
         error: mockError,

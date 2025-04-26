@@ -31,17 +31,6 @@ export async function updateMovies() {
 }
 
 /**
- * Updates a movie
- */
-export async function updateMovieById(movieId: number) {
-  try {
-    await moviesService.updateMovieById(movieId);
-  } catch (error) {
-    throw errorService.handleError(error, `updateMovieById(${movieId})`);
-  }
-}
-
-/**
  * Updates shows that might have changes
  */
 export async function updateShows() {
@@ -63,16 +52,5 @@ export async function updateShows() {
     cliLogger.error('Unexpected error while checking for show updates', error);
     httpLogger.error(ErrorMessages.ShowsChangeFail, { error });
     throw errorService.handleError(error, 'updateShows()');
-  }
-}
-
-/**
- * Updates a show
- */
-export async function updateShowById(showId: number, tmdbId: number) {
-  try {
-    await showService.updateShowById(showId, tmdbId);
-  } catch (error) {
-    throw errorService.handleError(error, `updateShowById(${showId})`);
   }
 }

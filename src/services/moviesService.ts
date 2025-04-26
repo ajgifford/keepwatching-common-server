@@ -294,13 +294,8 @@ export class MoviesService {
     }
   }
 
-  public async updateMovieById(movieId: number) {
+  public async updateMovieById(movieId: number, tmdbId: number) {
     try {
-      const tmdbId = await moviesDb.getTMDBIdForMovie(movieId);
-      if (!tmdbId) {
-        throw new NotFoundError(`Movie with ID ${movieId} not found`);
-      }
-
       const tmdbService = getTMDBService();
       const movieDetails = await tmdbService.getMovieDetails(tmdbId);
 
