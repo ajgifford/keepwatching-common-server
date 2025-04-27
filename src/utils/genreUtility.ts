@@ -1,3 +1,6 @@
+// src/utils/genreUtility.ts
+import { cliLogger } from '../logger/logger';
+
 export const genreIdToGenreMap: Map<number, string> = new Map();
 
 genreIdToGenreMap.set(28, 'Action');
@@ -28,10 +31,32 @@ genreIdToGenreMap.set(10752, 'War');
 genreIdToGenreMap.set(10768, 'War & Politics');
 genreIdToGenreMap.set(37, 'Western');
 
+/**
+ * Converts an array of genre IDs to their corresponding genre names
+ * @param genreIds - Array of genre IDs to convert
+ * @returns Array of genre names
+ */
 export function generateGenreArrayFromIds(genreIds: number[]): string[] {
+  if (!genreIds || !Array.isArray(genreIds)) {
+    cliLogger.warn(`Invalid genreIds provided to generateGenreArrayFromIds: ${genreIds}`);
+    return [];
+  }
+
   const genres: string[] = [];
-  genreIds.map((id) => {
-    genres.push(genreIdToGenreMap.get(id)!);
-  });
+
+  try {
+    genreIds.forEach((id) => {
+      const genre = genreIdToGenreMap.get(id);
+      if (genre) {
+        genres.push(genre);
+      } else {
+        cliLogger.warn(`Unknown genre ID: ${id}`);
+      }
+    });
+  } catch (error) {
+    cliLogger.error(`Error in generateGenreArrayFromIds: ${error}`);
+    return [];
+  }
+
   return genres;
 }

@@ -171,10 +171,13 @@ async function saveMovieStreamingService(
  * @returns A promise that resolves when the favorite has been added
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function saveFavorite(profileId: string, movieId: number): Promise<void> {
+export async function saveFavorite(profileId: string, movieId: number): Promise<boolean> {
   try {
     const query = 'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id) VALUES (?,?)';
-    await getDbPool().execute(query, [Number(profileId), movieId]);
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [Number(profileId), movieId]);
+
+    // Return true if a row was inserted, false if the row already existed (IGNORE)
+    return result.affectedRows > 0;
   } catch (error) {
     handleDatabaseError(error, 'saving a movie as a favorite');
   }

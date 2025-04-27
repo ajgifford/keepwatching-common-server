@@ -2,7 +2,7 @@ import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
 import { httpLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { BadRequestError, NotFoundError } from '../middleware/errorMiddleware';
+import { BadRequestError, NoAffectedRowsError } from '../middleware/errorMiddleware';
 import { Change, ContentUpdates } from '../types/contentTypes';
 import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
 import { getUSMPARating } from '../utils/contentUtility';
@@ -120,19 +120,19 @@ export class MoviesService {
    * Adds a movie to a profile's favorites
    *
    * @param profileId - ID of the profile to add the movie for
-   * @param movieId - TMDB ID of the movie to add
+   * @param movieTMDBId - TMDB ID of the movie to add
    * @returns Object containing the favorited movie and updated recent/upcoming lists
    */
-  public async addMovieToFavorites(profileId: string, movieId: number) {
+  public async addMovieToFavorites(profileId: string, movieTMDBId: number) {
     try {
-      const existingMovieToFavorite = await moviesDb.findMovieByTMDBId(movieId);
+      const existingMovieToFavorite = await moviesDb.findMovieByTMDBId(movieTMDBId);
       if (existingMovieToFavorite) {
-        return await this.favoriteExistingMovie(movieId, profileId);
+        return await this.favoriteExistingMovie(existingMovieToFavorite.id!, profileId);
       }
 
-      return await this.favoriteNewMovie(movieId, profileId);
+      return await this.favoriteNewMovie(movieTMDBId, profileId);
     } catch (error) {
-      throw errorService.handleError(error, `addMovieToFavorites(${profileId}, ${movieId})`);
+      throw errorService.handleError(error, `addMovieToFavorites(${profileId}, ${movieTMDBId})`);
     }
   }
 
@@ -144,7 +144,10 @@ export class MoviesService {
    * @returns Object containing the favorited movie and updated recent/upcoming lists
    */
   private async favoriteExistingMovie(movieId: number, profileId: string) {
-    await moviesDb.saveFavorite(profileId, movieId);
+    const saved = await moviesDb.saveFavorite(profileId, movieId);
+    if (!saved) {
+      throw new NoAffectedRowsError('Failed to save a movie as a favorite');
+    }
 
     this.invalidateProfileMovieCache(profileId);
 
@@ -171,7 +174,7 @@ export class MoviesService {
     const tmdbService = getTMDBService();
     const response = await tmdbService.getMovieDetails(movieId);
 
-    const movieToFavorite = moviesDb.createMovie(
+    const newMovieToFavorite = moviesDb.createMovie(
       response.id,
       response.title,
       response.overview,
@@ -186,14 +189,17 @@ export class MoviesService {
       response.genres.map((genre: { id: any }) => genre.id),
     );
 
-    const saveSuccess = await moviesDb.saveMovie(movieToFavorite);
-    if (!saveSuccess) {
-      throw new BadRequestError('Failed to save movie information');
+    const movieSaved = await moviesDb.saveMovie(newMovieToFavorite);
+    if (!movieSaved) {
+      throw new NoAffectedRowsError('Failed to save movie information');
     }
 
-    await moviesDb.saveFavorite(profileId, movieId);
+    const favoriteSaved = await moviesDb.saveFavorite(profileId, newMovieToFavorite.id!);
+    if (!favoriteSaved) {
+      throw new NoAffectedRowsError('Failed to save a movie as a favorite');
+    }
 
-    const newMovie = await moviesDb.getMovieForProfile(profileId, movieToFavorite.id!);
+    const newMovie = await moviesDb.getMovieForProfile(profileId, newMovieToFavorite.id!);
     const recentMovies = await this.getRecentMoviesForProfile(profileId);
     const upcomingMovies = await this.getUpcomingMoviesForProfile(profileId);
 
