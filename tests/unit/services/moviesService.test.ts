@@ -215,7 +215,10 @@ describe('MoviesService', () => {
       (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(null);
       (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
       (moviesDb.createMovie as jest.Mock).mockResolvedValue(newMovie);
-      (moviesDb.saveMovie as jest.Mock).mockReturnValue(true);
+      (moviesDb.saveMovie as jest.Mock).mockImplementation((movie) => {
+        movie.id = 999; // Modify the passed movie object to add the ID
+        return true;
+      });
       (moviesDb.saveFavorite as jest.Mock).mockReturnValue(true);
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
