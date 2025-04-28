@@ -49,16 +49,16 @@ export async function saveMovie(movie: Movie): Promise<boolean> {
         movie.user_rating,
         movie.mpa_rating,
       ]);
-      const movieId = result.insertId;
+      movie.id = result.insertId;
 
       if (movie.genreIds && movie.genreIds.length > 0) {
-        const genrePromises = movie.genreIds.map((genreId) => saveMovieGenre(movieId, genreId, connection));
+        const genrePromises = movie.genreIds.map((genreId) => saveMovieGenre(movie.id!, genreId, connection));
         await Promise.all(genrePromises);
       }
 
       if (movie.streaming_services && movie.streaming_services.length > 0) {
         const servicePromises = movie.streaming_services.map((serviceId) =>
-          saveMovieStreamingService(movieId, serviceId, connection),
+          saveMovieStreamingService(movie.id!, serviceId, connection),
         );
         await Promise.all(servicePromises);
       }
@@ -224,24 +224,6 @@ export async function updateWatchStatus(profileId: string, movieId: number, stat
     return result.affectedRows > 0;
   } catch (error) {
     handleDatabaseError(error, 'updating a movie watch status');
-  }
-}
-
-/**
- * Gets the TMDB id of a movie.
- *
- * @param movieId The id of the movie
- * @returns The TMDB id of a movie
- * @throws {DatabaseError} If a database error occurs during the operation
- */
-export async function getTMDBIdForMovie(movieId: number): Promise<number | null> {
-  try {
-    const query = `SELECT tmdb_id from movies where id = ?`;
-    const [movies] = await getDbPool().execute<RowDataPacket[]>(query, [movieId]);
-    if (movies.length === 0) return null;
-    return movies[0].tmdb_id;
-  } catch (error) {
-    handleDatabaseError(error, 'getting the TMDB id for a movie');
   }
 }
 

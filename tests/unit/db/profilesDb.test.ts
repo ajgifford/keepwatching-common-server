@@ -1,5 +1,6 @@
 import * as profilesDb from '@db/profilesDb';
 import { getDbPool } from '@utils/db';
+import exp from 'constants';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 jest.mock('@utils/db', () => {
@@ -258,6 +259,7 @@ describe('profileDb', () => {
           image: 'profile1.jpg',
           favorited_shows: 10,
           favorited_movies: 5,
+          created_at: '2025-01-01',
         },
         {
           profile_id: 2,
@@ -266,6 +268,27 @@ describe('profileDb', () => {
           image: null,
           favorited_shows: 3,
           favorited_movies: 7,
+          created_at: '2025-01-02',
+        },
+      ];
+
+      const expectedProfiles = [
+        {
+          id: 1,
+          account_id: 5,
+          name: 'Profile 1',
+          image: 'profile1.jpg',
+          favorited_shows: 10,
+          favorited_movies: 5,
+          created_at: '2025-01-01',
+        },
+        {
+          id: 2,
+          account_id: 5,
+          name: 'Profile 2',
+          favorited_shows: 3,
+          favorited_movies: 7,
+          created_at: '2025-01-02',
         },
       ];
 
@@ -279,12 +302,12 @@ describe('profileDb', () => {
         [5],
       );
 
-      expect(profiles).toEqual(mockProfiles);
+      expect(profiles).toEqual(expectedProfiles);
       expect(profiles).toHaveLength(2);
 
       // Use type assertion to fix TypeScript error
       const typedProfiles = profiles as Array<{
-        profile_id: number;
+        id: number;
         account_id: number;
         name: string;
         image: string | null;
@@ -292,10 +315,10 @@ describe('profileDb', () => {
         favorited_movies: number;
       }>;
 
-      expect(typedProfiles[0].profile_id).toBe(1);
+      expect(typedProfiles[0].id).toBe(1);
       expect(typedProfiles[0].favorited_shows).toBe(10);
       expect(typedProfiles[0].favorited_movies).toBe(5);
-      expect(typedProfiles[1].profile_id).toBe(2);
+      expect(typedProfiles[1].id).toBe(2);
       expect(typedProfiles[1].favorited_shows).toBe(3);
       expect(typedProfiles[1].favorited_movies).toBe(7);
     });

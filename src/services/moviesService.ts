@@ -166,13 +166,13 @@ export class MoviesService {
    * Adds a new movie (not yet in the database) to a profile's favorites
    * Fetches movie data from TMDB API, saves it to the database, and adds to favorites
    *
-   * @param movieId - TMDB ID of the movie to add
+   * @param movieTMDBId - TMDB ID of the movie to add
    * @param profileId - ID of the profile to add the movie for
    * @returns Object containing the favorited movie and updated recent/upcoming lists
    */
-  private async favoriteNewMovie(movieId: number, profileId: string) {
+  private async favoriteNewMovie(movieTMDBId: number, profileId: string) {
     const tmdbService = getTMDBService();
-    const response = await tmdbService.getMovieDetails(movieId);
+    const response = await tmdbService.getMovieDetails(movieTMDBId);
 
     const newMovieToFavorite = moviesDb.createMovie(
       response.id,

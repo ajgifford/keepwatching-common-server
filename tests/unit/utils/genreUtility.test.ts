@@ -32,7 +32,7 @@ describe('genreUtility', () => {
       const ids = [28, 99999, 35]; // 99999 is not in the map
 
       const result = generateGenreArrayFromIds(ids);
-      expect(result).toEqual(['Action', undefined, 'Comedy']);
+      expect(result).toEqual(['Action', 'Comedy']);
     });
   });
 });

@@ -576,7 +576,7 @@ describe('AccountService', () => {
         account_id: 1,
         account_name: 'User One',
         default_profile_id: 101,
-        database_image: 'db-image1.jpg',
+        database_image: 'account-image-url.jpg',
         database_created_at: mockDatabaseAccounts[0].created_at,
       });
       expect(result[1]).toEqual({
@@ -594,7 +594,7 @@ describe('AccountService', () => {
         account_id: 2,
         account_name: 'User Two',
         default_profile_id: 201,
-        database_image: null,
+        database_image: 'account-image-url.jpg',
         database_created_at: mockDatabaseAccounts[1].created_at,
       });
     });

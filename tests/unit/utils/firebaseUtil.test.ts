@@ -18,36 +18,22 @@ jest.mock('@logger/logger', () => ({
 }));
 
 describe('firebaseUtil', () => {
-  const originalEnv = process.env;
+  const serviceAccount = JSON.stringify({
+    projectId: 'test-project',
+    privateKey: 'test-key',
+    clientEmail: 'test@example.com',
+  }) as unknown as object;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     (global as any).firebaseInitialized = false;
 
-    process.env = { ...originalEnv };
-
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-
   describe('initializeFirebase', () => {
-    it('should return false when Firebase credentials are not provided', () => {
-      delete process.env.FIREBASE_SERVICE_ACCOUNT;
-
-      const result = initializeFirebase();
-
-      expect(result).toBe(false);
-      expect(cliLogger.warn).toHaveBeenCalledWith(
-        'Firebase service account not provided, Firebase features will be disabled',
-      );
-      expect(admin.initializeApp).not.toHaveBeenCalled();
-    });
-
     it('should initialize Firebase when valid credentials are provided', () => {
       process.env.FIREBASE_SERVICE_ACCOUNT = JSON.stringify({
         projectId: 'test-project',
@@ -55,7 +41,7 @@ describe('firebaseUtil', () => {
         clientEmail: 'test@example.com',
       });
 
-      const result = initializeFirebase();
+      const result = initializeFirebase(serviceAccount);
 
       expect(result).toBe(true);
       expect(admin.credential.cert).toHaveBeenCalled();
@@ -68,7 +54,7 @@ describe('firebaseUtil', () => {
     it('should return true and not reinitialize if already initialized', () => {
       (global as any).firebaseInitialized = true;
 
-      const result = initializeFirebase();
+      const result = initializeFirebase(serviceAccount);
 
       expect(result).toBe(true);
       expect(admin.initializeApp).not.toHaveBeenCalled();

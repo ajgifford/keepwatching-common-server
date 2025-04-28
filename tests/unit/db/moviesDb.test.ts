@@ -620,35 +620,6 @@ describe('moviesDb Module', () => {
     });
   });
 
-  describe('getTMDBIdForMovie', () => {
-    it('should return TMDB ID for a movie', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ tmdb_id: 12345 }] as RowDataPacket[]]);
-
-      const tmdbId = await moviesDb.getTMDBIdForMovie(1);
-
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT tmdb_id from movies where id = ?', [1]);
-      expect(tmdbId).toBe(12345);
-    });
-
-    it('should return null when movie not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[] as RowDataPacket[]]);
-
-      const tmdbId = await moviesDb.getTMDBIdForMovie(999);
-
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT tmdb_id from movies where id = ?', [999]);
-      expect(tmdbId).toBeNull();
-    });
-
-    it('should throw DatabaseError when lookup fails', async () => {
-      const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
-
-      await expect(moviesDb.getTMDBIdForMovie(1)).rejects.toThrow(
-        'Database error getting the TMDB id for a movie: Database connection failed',
-      );
-    });
-  });
-
   describe('getMoviesCount', () => {
     it('should return the total count of movies', async () => {
       mockPool.execute.mockResolvedValueOnce([[{ total: 42 }] as RowDataPacket[], []]);

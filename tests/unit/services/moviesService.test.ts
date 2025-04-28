@@ -158,6 +158,7 @@ describe('MoviesService', () => {
       const mockUpcomingMovies = [{ movie_id: 2 }];
 
       (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovie);
+      (moviesDb.saveFavorite as jest.Mock).mockResolvedValue(true);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
 
@@ -167,7 +168,7 @@ describe('MoviesService', () => {
       const result = await moviesService.addMovieToFavorites('123', 12345);
 
       expect(moviesDb.findMovieByTMDBId).toHaveBeenCalledWith(12345);
-      expect(moviesDb.saveFavorite).toHaveBeenCalledWith('123', 12345);
+      expect(moviesDb.saveFavorite).toHaveBeenCalledWith('123', 5);
       expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledWith('123');
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
@@ -207,13 +208,15 @@ describe('MoviesService', () => {
         streaming_services: [8, 9],
         genreIds: [28, 12],
       };
+      const newMovie = { ...mockMovie, id: 999 };
 
       const mockTMDBService = { getMovieDetails: jest.fn().mockResolvedValue(mockTMDBResponse) };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
       (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(null);
       (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
-      (moviesDb.createMovie as jest.Mock).mockResolvedValue(mockMovie);
+      (moviesDb.createMovie as jest.Mock).mockResolvedValue(newMovie);
       (moviesDb.saveMovie as jest.Mock).mockReturnValue(true);
+      (moviesDb.saveFavorite as jest.Mock).mockReturnValue(true);
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
@@ -239,7 +242,7 @@ describe('MoviesService', () => {
         [28, 12],
       );
       expect(moviesDb.saveMovie).toHaveBeenCalled();
-      expect(moviesDb.saveFavorite).toHaveBeenCalledWith('123', 12345);
+      expect(moviesDb.saveFavorite).toHaveBeenCalledWith('123', 999);
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
         recentMovies: mockRecentMovies,

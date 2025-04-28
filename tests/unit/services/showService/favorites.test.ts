@@ -173,14 +173,6 @@ describe('ShowService - Favorites', () => {
       (showsDb.createShow as jest.Mock).mockReturnValue(newShow);
       (showsDb.saveShow as jest.Mock).mockResolvedValue(true);
 
-      const mockProfileShow = {
-        show_id: 999,
-        profile_id: 456,
-        title: 'New Show',
-        watch_status: 'NOT_WATCHED',
-      };
-      (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
-
       const mockSavedSeason1 = {
         id: 201,
         show_id: 999,

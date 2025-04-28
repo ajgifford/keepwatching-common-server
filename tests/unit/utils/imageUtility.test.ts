@@ -1,24 +1,12 @@
 import {
-  buildTMDBImagePath,
-  buildDefaultImagePath,
   buildAccountImageName,
+  buildDefaultImagePath,
   buildProfileImageName,
-  getPhotoForGoogleAccount,
+  buildTMDBImagePath,
   getAccountImage,
-  getProfileImage
+  getPhotoForGoogleAccount,
+  getProfileImage,
 } from '@utils/imageUtility';
-
-// Mock environment variables
-const originalEnv = process.env;
-beforeEach(() => {
-  jest.resetModules();
-  process.env = { ...originalEnv };
-  process.env.KW_HOST = 'https://keepwatching.example.com';
-});
-
-afterEach(() => {
-  process.env = originalEnv;
-});
 
 describe('imageUtility', () => {
   describe('buildTMDBImagePath', () => {
@@ -35,11 +23,15 @@ describe('imageUtility', () => {
 
   describe('buildDefaultImagePath', () => {
     it('should build a placeholder URL with account name', () => {
-      expect(buildDefaultImagePath('John Doe')).toBe('https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto');
+      expect(buildDefaultImagePath('John Doe')).toBe(
+        'https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto',
+      );
     });
 
     it('should properly replace spaces with plus signs', () => {
-      expect(buildDefaultImagePath('John Doe Jr')).toBe('https://placehold.co/300x200/orange/white?text=John+Doe+Jr&font=roboto');
+      expect(buildDefaultImagePath('John Doe Jr')).toBe(
+        'https://placehold.co/300x200/orange/white?text=John+Doe+Jr&font=roboto',
+      );
     });
   });
 
@@ -48,13 +40,13 @@ describe('imageUtility', () => {
       // Mock Date.now() to return a fixed timestamp
       const mockDate = 1609459200000; // 2021-01-01
       jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
-      
+
       const id = '12345';
       const mimetype = 'image/jpeg';
-      
+
       const result = buildAccountImageName(id, mimetype);
       expect(result).toBe(`accountImage_12345_${mockDate}.jpeg`);
-      
+
       // Restore the original Date.now
       jest.spyOn(Date, 'now').mockRestore();
     });
@@ -62,13 +54,13 @@ describe('imageUtility', () => {
     it('should build correct account image filename with png extension', () => {
       const mockDate = 1609459200000; // 2021-01-01
       jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
-      
+
       const id = '12345';
       const mimetype = 'image/png';
-      
+
       const result = buildAccountImageName(id, mimetype);
       expect(result).toBe(`accountImage_12345_${mockDate}.png`);
-      
+
       jest.spyOn(Date, 'now').mockRestore();
     });
   });
@@ -77,26 +69,26 @@ describe('imageUtility', () => {
     it('should build correct profile image filename with jpg extension', () => {
       const mockDate = 1609459200000; // 2021-01-01
       jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
-      
+
       const id = '12345';
       const mimetype = 'image/jpeg';
-      
+
       const result = buildProfileImageName(id, mimetype);
       expect(result).toBe(`profileImage_12345_${mockDate}.jpeg`);
-      
+
       jest.spyOn(Date, 'now').mockRestore();
     });
 
     it('should build correct profile image filename with png extension', () => {
       const mockDate = 1609459200000; // 2021-01-01
       jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
-      
+
       const id = '12345';
       const mimetype = 'image/png';
-      
+
       const result = buildProfileImageName(id, mimetype);
       expect(result).toBe(`profileImage_12345_${mockDate}.png`);
-      
+
       jest.spyOn(Date, 'now').mockRestore();
     });
   });
@@ -106,15 +98,15 @@ describe('imageUtility', () => {
       const name = 'John Doe';
       const photoURL = 'https://google.photos/123';
       const image = 'profile123.jpg';
-      
-      expect(getPhotoForGoogleAccount(name, photoURL, image)).toBe('https://keepwatching.example.com/uploads/accounts/profile123.jpg');
+
+      expect(getPhotoForGoogleAccount(name, photoURL, image)).toBe('/uploads/accounts/profile123.jpg');
     });
 
     it('should return photoURL when image is not provided but photoURL is', () => {
       const name = 'John Doe';
       const photoURL = 'https://google.photos/123';
       const image = undefined;
-      
+
       expect(getPhotoForGoogleAccount(name, photoURL, image)).toBe('https://google.photos/123');
     });
 
@@ -122,8 +114,10 @@ describe('imageUtility', () => {
       const name = 'John Doe';
       const photoURL = undefined;
       const image = undefined;
-      
-      expect(getPhotoForGoogleAccount(name, photoURL, image)).toBe('https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto');
+
+      expect(getPhotoForGoogleAccount(name, photoURL, image)).toBe(
+        'https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto',
+      );
     });
   });
 
@@ -131,14 +125,14 @@ describe('imageUtility', () => {
     it('should return uploaded image path when image is provided', () => {
       const name = 'John Doe';
       const image = 'account123.jpg';
-      
-      expect(getAccountImage(image, name)).toBe('https://keepwatching.example.com/uploads/accounts/account123.jpg');
+
+      expect(getAccountImage(image, name)).toBe('/uploads/accounts/account123.jpg');
     });
 
     it('should return default image when image is not provided', () => {
       const name = 'John Doe';
       const image = undefined;
-      
+
       expect(getAccountImage(image, name)).toBe('https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto');
     });
   });
@@ -147,14 +141,14 @@ describe('imageUtility', () => {
     it('should return uploaded image path when image is provided', () => {
       const name = 'John Doe';
       const image = 'profile123.jpg';
-      
-      expect(getProfileImage(image, name)).toBe('https://keepwatching.example.com/uploads/profiles/profile123.jpg');
+
+      expect(getProfileImage(image, name)).toBe('/uploads/profiles/profile123.jpg');
     });
 
     it('should return default image when image is not provided', () => {
       const name = 'John Doe';
       const image = undefined;
-      
+
       expect(getProfileImage(image, name)).toBe('https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto');
     });
   });
