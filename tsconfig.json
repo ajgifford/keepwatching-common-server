@@ -5,6 +5,7 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist",
+    "rootDir": "./src",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -29,7 +30,7 @@
     "src/types.ts",
     "src/logger.ts",
     "src/schema.ts",
-    "migrateWatchStatus.ts"
+    "src/migrateWatchStatus.ts"
   ],
   "exclude": ["node_modules", "tests", "dist"]
 }

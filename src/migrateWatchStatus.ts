@@ -6,9 +6,9 @@
  */
 import * as dotenv from 'dotenv';
 
-import { cliLogger } from './src/logger/logger';
-import { getDbPool, resetDbPool } from './src/utils/db';
-import { WatchStatusUtility } from './src/utils/watchStatusUtility';
+import { cliLogger } from './logger/logger';
+import { getDbPool, resetDbPool } from './utils/db';
+import { WatchStatusUtility } from './utils/watchStatusUtility';
 import { RowDataPacket } from 'mysql2';
 import { exit } from 'process';
 
