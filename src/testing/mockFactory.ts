@@ -19,7 +19,12 @@ export interface MockAccountService {
   register: jest.Mock;
   googleLogin: jest.Mock;
   logout: jest.Mock;
+  getAccounts: jest.Mock;
   editAccount: jest.Mock;
+  deleteAccount: jest.Mock;
+  findAccountById: jest.Mock;
+  findAccountIdByProfileId: jest.Mock;
+  updateAccountImage: jest.Mock;
 }
 
 export interface MockProfileService {

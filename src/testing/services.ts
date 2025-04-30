@@ -22,7 +22,12 @@ export const accountService = createTypedServiceMock<MockAccountService>([
   'register',
   'googleLogin',
   'logout',
+  'getAccounts',
   'editAccount',
+  'deleteAccount',
+  'findAccountById',
+  'findAccountIdByProfileId',
+  'updateAccountImage',
 ]);
 
 export const profileService = createTypedServiceMock<MockProfileService>([
