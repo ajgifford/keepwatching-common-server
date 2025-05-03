@@ -1,5 +1,5 @@
 import * as accountsDb from '@db/accountsDb';
-import { cliLogger, httpLogger } from '@logger/logger';
+import { appLogger, cliLogger } from '@logger/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@middleware/errorMiddleware';
 import { accountService } from '@services/accountService';
 import { CacheService } from '@services/cacheService';
@@ -13,7 +13,7 @@ jest.mock('@logger/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
   },
-  httpLogger: {
+  appLogger: {
     info: jest.fn(),
     error: jest.fn(),
   },
@@ -170,7 +170,7 @@ describe('AccountService', () => {
 
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('test-uid-123');
       expect(errorService.assertExists).toHaveBeenCalledWith(mockAccount, 'Account', 'test-uid-123');
-      expect(httpLogger.info).toHaveBeenCalledWith('User logged in: test@example.com', { userId: 'test-uid-123' });
+      expect(appLogger.info).toHaveBeenCalledWith('User logged in: test@example.com', { userId: 'test-uid-123' });
       expect(result).toEqual(mockAccount);
     });
 
@@ -183,7 +183,7 @@ describe('AccountService', () => {
       await expect(accountService.login('nonexistent-uid')).rejects.toThrow('Account not found');
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('nonexistent-uid');
       expect(errorService.assertExists).toHaveBeenCalledWith(null, 'Account', 'nonexistent-uid');
-      expect(httpLogger.info).not.toHaveBeenCalled();
+      expect(appLogger.info).not.toHaveBeenCalled();
     });
 
     it('should handle unexpected errors during login', async () => {
@@ -207,7 +207,7 @@ describe('AccountService', () => {
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('new-uid-123');
       expect(accountsDb.createAccount).toHaveBeenCalledWith('Test User', 'test@example.com', 'new-uid-123');
       expect(accountsDb.registerAccount).toHaveBeenCalled();
-      expect(httpLogger.info).toHaveBeenCalledWith('New user registered: test@example.com', { userId: 'new-uid-123' });
+      expect(appLogger.info).toHaveBeenCalledWith('New user registered: test@example.com', { userId: 'new-uid-123' });
     });
 
     it('should throw error when email already exists', async () => {
@@ -269,7 +269,7 @@ describe('AccountService', () => {
 
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('test-uid-123');
       expect(accountsDb.findAccountByEmail).not.toHaveBeenCalled();
-      expect(httpLogger.info).toHaveBeenCalledWith('User logged in via Google: test@example.com', {
+      expect(appLogger.info).toHaveBeenCalledWith('User logged in via Google: test@example.com', {
         userId: 'test-uid-123',
       });
 
@@ -639,7 +639,7 @@ describe('AccountService', () => {
       expect(getFirebaseAdmin).toHaveBeenCalled();
       expect(mockFirebaseAdmin.auth().deleteUser).toHaveBeenCalledWith('firebase-uid-123');
       expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(123);
-      expect(httpLogger.info).toHaveBeenCalledWith('Account deleted: delete@example.com', { accountId: 123 });
+      expect(appLogger.info).toHaveBeenCalledWith('Account deleted: delete@example.com', { accountId: 123 });
       expect(result).toBe(true);
     });
 

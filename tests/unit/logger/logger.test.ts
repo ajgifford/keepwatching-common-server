@@ -1,12 +1,6 @@
-import { cliLogger, httpLogger } from '@logger/logger';
+import { appLogger, cliLogger, formatAppLoggerResponse } from '@logger/logger';
 import { HTTPHeaders, SpecialMessages } from '@logger/loggerModel';
-import { formatHTTPLoggerResponse } from '@logger/loggerUtil';
-import { randomBytes } from 'crypto';
 import fs from 'fs';
-import path from 'path';
-import winston from 'winston';
-import { format } from 'winston';
-import DailyRotateFile from 'winston-daily-rotate-file';
 
 jest.mock('winston', () => {
   const originalModule = jest.requireActual('winston');
@@ -83,7 +77,7 @@ describe('Logger Module', () => {
     });
   });
 
-  describe('formatHTTPLoggerResponse function', () => {
+  describe('formatAppLoggerResponse function', () => {
     it('should format HTTP request and response correctly', () => {
       const mockReq = {
         headers: {
@@ -125,7 +119,7 @@ describe('Logger Module', () => {
       };
 
       const startTime = Date.now() - 150; // 150ms ago
-      const result = formatHTTPLoggerResponse(mockReq as any, mockRes as any, responseBody, startTime);
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, responseBody, startTime);
 
       // Check request formatting
       expect(result.request).toHaveProperty('headers');
@@ -174,7 +168,7 @@ describe('Logger Module', () => {
         statusCode: 200,
       };
 
-      const result = formatHTTPLoggerResponse(mockReq as any, mockRes as any, {});
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
       expect(result.request.clientIp).toBe('192.168.1.1');
     });
 
@@ -195,7 +189,7 @@ describe('Logger Module', () => {
         statusCode: 200,
       };
 
-      const result = formatHTTPLoggerResponse(mockReq as any, mockRes as any, {});
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
       expect(result.request.body.length).toBeLessThan(1000);
       expect(result.request.body).toMatch(/\.\.\. \[truncated\]$/);
     });
@@ -221,7 +215,7 @@ describe('Logger Module', () => {
         statusCode: 200,
       };
 
-      const result = formatHTTPLoggerResponse(mockReq as any, mockRes as any, { items: longArray });
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, { items: longArray });
 
       // Should truncate the array to 5 items plus a message
       expect(Array.isArray(result.response.body.items)).toBe(true);
@@ -258,7 +252,7 @@ describe('Logger Module', () => {
         statusCode: 200,
       };
 
-      const result = formatHTTPLoggerResponse(mockReq as any, mockRes as any, {});
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
 
       // Should redact password fields in nested objects
       expect(result.request.body.user.credentials.password).toBe(SpecialMessages.Redacted);
@@ -285,18 +279,18 @@ describe('Logger Module', () => {
         statusCode: 200,
       };
 
-      const result = formatHTTPLoggerResponse(mockReq as any, mockRes as any, {});
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
       expect(result.response.requestDuration).toBe('.');
     });
   });
 
   describe('Logger Instances', () => {
-    it('httpLogger should have the expected methods', () => {
-      expect(httpLogger).toHaveProperty('log');
-      expect(httpLogger).toHaveProperty('info');
-      expect(httpLogger).toHaveProperty('error');
-      expect(httpLogger).toHaveProperty('warn');
-      expect(httpLogger).toHaveProperty('debug');
+    it('appLogger should have the expected methods', () => {
+      expect(appLogger).toHaveProperty('log');
+      expect(appLogger).toHaveProperty('info');
+      expect(appLogger).toHaveProperty('error');
+      expect(appLogger).toHaveProperty('warn');
+      expect(appLogger).toHaveProperty('debug');
     });
 
     it('cliLogger should have the expected methods', () => {

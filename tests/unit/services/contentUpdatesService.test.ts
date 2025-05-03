@@ -1,4 +1,4 @@
-import { cliLogger, httpLogger } from '@logger/logger';
+import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
 import { updateMovies, updateShows } from '@services/contentUpdatesService';
 import { moviesService } from '@services/moviesService';
@@ -12,7 +12,7 @@ jest.mock('@logger/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
   },
-  httpLogger: {
+  appLogger: {
     error: jest.fn(),
   },
 }));
@@ -56,7 +56,7 @@ describe('contentUpdatesService', () => {
 
       await expect(updateMovies()).rejects.toThrow('Database error');
       expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie updates', error);
-      expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.MoviesChangeFail, { error });
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.MoviesChangeFail, { error });
       expect(moviesService.checkMovieForChanges).not.toHaveBeenCalled();
     });
 
@@ -126,7 +126,7 @@ describe('contentUpdatesService', () => {
 
       await expect(updateShows()).rejects.toThrow('Database error');
       expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for show updates', error);
-      expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowsChangeFail, { error });
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowsChangeFail, { error });
       expect(showService.checkShowForChanges).not.toHaveBeenCalled();
     });
 

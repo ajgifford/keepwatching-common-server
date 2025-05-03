@@ -1,4 +1,4 @@
-import { cliLogger, httpLogger } from '../logger/logger';
+import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { generateDateRange, sleep } from '../utils/changesUtility';
 import { errorService } from './errorService';
@@ -26,7 +26,7 @@ export async function updateMovies() {
     await moviesService.invalidateAllMoviesCache();
   } catch (error) {
     cliLogger.error('Unexpected error while checking for movie updates', error);
-    httpLogger.error(ErrorMessages.MoviesChangeFail, { error });
+    appLogger.error(ErrorMessages.MoviesChangeFail, { error });
     throw errorService.handleError(error, 'updateMovies()');
   }
 }
@@ -52,7 +52,7 @@ export async function updateShows() {
     await showService.invalidateAllShowsCache();
   } catch (error) {
     cliLogger.error('Unexpected error while checking for show updates', error);
-    httpLogger.error(ErrorMessages.ShowsChangeFail, { error });
+    appLogger.error(ErrorMessages.ShowsChangeFail, { error });
     throw errorService.handleError(error, 'updateShows()');
   }
 }

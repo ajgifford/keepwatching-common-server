@@ -1,4 +1,4 @@
-import { cliLogger, httpLogger } from '../logger/logger';
+import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { updateMovies, updateShows } from './contentUpdatesService';
 import { errorService } from './errorService';
@@ -58,7 +58,7 @@ export async function runShowsUpdateJob(): Promise<boolean> {
   jobs.showsUpdate.lastRunTime = new Date();
 
   cliLogger.info('Starting the show change job');
-  httpLogger.info('Shows update job started');
+  appLogger.info('Shows update job started');
 
   try {
     await updateShows();
@@ -69,12 +69,12 @@ export async function runShowsUpdateJob(): Promise<boolean> {
 
     jobs.showsUpdate.lastRunStatus = 'success';
     cliLogger.info('Shows update job completed successfully');
-    httpLogger.info('Shows update job completed');
+    appLogger.info('Shows update job completed');
     return true;
   } catch (error) {
     jobs.showsUpdate.lastRunStatus = 'failed';
     cliLogger.error('Failed to complete show update job', error);
-    httpLogger.error(ErrorMessages.ShowsChangeFail, { error });
+    appLogger.error(ErrorMessages.ShowsChangeFail, { error });
     return false;
   } finally {
     jobs.showsUpdate.isRunning = false;
@@ -96,7 +96,7 @@ export async function runMoviesUpdateJob(): Promise<boolean> {
   jobs.moviesUpdate.lastRunTime = new Date();
 
   cliLogger.info('Starting the movie change job');
-  httpLogger.info('Movies update job started');
+  appLogger.info('Movies update job started');
 
   try {
     await updateMovies();
@@ -107,12 +107,12 @@ export async function runMoviesUpdateJob(): Promise<boolean> {
 
     jobs.moviesUpdate.lastRunStatus = 'success';
     cliLogger.info('Movies update job completed successfully');
-    httpLogger.info('Movies update job completed');
+    appLogger.info('Movies update job completed');
     return true;
   } catch (error) {
     jobs.moviesUpdate.lastRunStatus = 'failed';
     cliLogger.error('Failed to complete movie update job', error);
-    httpLogger.error(ErrorMessages.MoviesChangeFail, { error });
+    appLogger.error(ErrorMessages.MoviesChangeFail, { error });
     return false;
   } finally {
     jobs.moviesUpdate.isRunning = false;

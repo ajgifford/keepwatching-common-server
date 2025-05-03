@@ -2,7 +2,7 @@ import { PROFILE_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
 import * as episodesDb from '../db/episodesDb';
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
-import { cliLogger, httpLogger } from '../logger/logger';
+import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NotFoundError } from '../middleware/errorMiddleware';
 import { Change, ContentUpdates } from '../types/contentTypes';
@@ -609,7 +609,7 @@ export class ShowService {
         }
       }
     } catch (error) {
-      httpLogger.error(ErrorMessages.ShowChangeFail, { error, showId: content.id });
+      appLogger.error(ErrorMessages.ShowChangeFail, { error, showId: content.id });
       throw errorService.handleError(error, `checkShowForChanges(${content.id})`);
     }
   }
@@ -724,7 +724,7 @@ export class ShowService {
 
       return true;
     } catch (error) {
-      httpLogger.error(ErrorMessages.ShowChangeFail, { error, showId });
+      appLogger.error(ErrorMessages.ShowChangeFail, { error, showId });
       throw errorService.handleError(error, `updateShowById(${showId})`);
     }
   }

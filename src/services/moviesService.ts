@@ -1,6 +1,6 @@
 import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
-import { httpLogger } from '../logger/logger';
+import { appLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NoAffectedRowsError } from '../middleware/errorMiddleware';
 import { Change, ContentUpdates } from '../types/contentTypes';
@@ -302,7 +302,7 @@ export class MoviesService {
         );
       }
     } catch (error) {
-      httpLogger.error(ErrorMessages.MovieChangeFail, { error, movieId: content.id });
+      appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId: content.id });
       throw errorService.handleError(error, `checkMovieForChanges(${content.id})`);
     }
   }
@@ -329,7 +329,7 @@ export class MoviesService {
         ),
       );
     } catch (error) {
-      httpLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
+      appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
       throw errorService.handleError(error, `updateMovieById(${movieId})`);
     }
   }

@@ -1,4 +1,4 @@
-import { cliLogger, httpLogger } from '@logger/logger';
+import { appLogger, cliLogger } from '@logger/logger';
 import { updateMovies, updateShows } from '@services/contentUpdatesService';
 import {
   getJobsStatus,
@@ -18,7 +18,7 @@ jest.mock('@logger/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
   },
-  httpLogger: {
+  appLogger: {
     info: jest.fn(),
     error: jest.fn(),
   },
@@ -131,7 +131,7 @@ describe('scheduledUpdatesService', () => {
       expect(updateShows).toHaveBeenCalledTimes(1);
       expect(mockNotifyShowUpdates).not.toHaveBeenCalled();
       expect(cliLogger.error).toHaveBeenCalledWith('Failed to complete show update job', error);
-      expect(httpLogger.error).toHaveBeenCalled();
+      expect(appLogger.error).toHaveBeenCalled();
     });
 
     it('should skip execution if job is already running', async () => {
@@ -177,7 +177,7 @@ describe('scheduledUpdatesService', () => {
       expect(updateMovies).toHaveBeenCalledTimes(1);
       expect(mockNotifyMovieUpdates).not.toHaveBeenCalled();
       expect(cliLogger.error).toHaveBeenCalledWith('Failed to complete movie update job', error);
-      expect(httpLogger.error).toHaveBeenCalled();
+      expect(appLogger.error).toHaveBeenCalled();
     });
 
     it('should skip execution if job is already running', async () => {

@@ -1,4 +1,4 @@
-import { cliLogger, httpLogger } from '@logger/logger';
+import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
 import { checkSeasonForEpisodeChanges } from '@services/episodeChangesService';
 import { getTMDBService } from '@services/tmdbService';
@@ -7,7 +7,7 @@ jest.mock('@logger/logger', () => ({
   cliLogger: {
     error: jest.fn(),
   },
-  httpLogger: {
+  appLogger: {
     error: jest.fn(),
   },
 }));
@@ -107,7 +107,7 @@ describe('episodeChangesService', () => {
       expect(result).toBe(false);
       expect(mockTMDBService.getSeasonChanges).toHaveBeenCalledWith(seasonId, pastDate, currentDate);
       expect(cliLogger.error).toHaveBeenCalledWith(`Error checking changes for season ID ${seasonId}`, error);
-      expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.SeasonChangeFail, { error, seasonId });
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.SeasonChangeFail, { error, seasonId });
     });
   });
 });

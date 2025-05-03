@@ -2,7 +2,6 @@ import { mockTMDBResponses } from './fixtures';
 import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
-import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { ShowService, showService } from '@services/showService';
 import { socketService } from '@services/socketService';
@@ -27,7 +26,7 @@ jest.mock('@logger/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
   },
-  httpLogger: {
+  appLogger: {
     error: jest.fn(),
   },
 }));

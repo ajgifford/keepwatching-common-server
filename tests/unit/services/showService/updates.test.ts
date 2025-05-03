@@ -3,9 +3,8 @@ import { createMockCache, setupMocks } from './helpers/mocks';
 import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
-import { cliLogger, httpLogger } from '@logger/logger';
+import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import { NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { processSeasonChanges } from '@services/seasonChangesService';
@@ -239,7 +238,7 @@ describe('ShowService - Content Updates', () => {
       await expect(showService.checkShowForChanges(mockShowContent, pastDate, currentDate)).rejects.toThrow();
 
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
-      expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
         error: mockError,
         showId: mockShowContent.id,
       });
@@ -272,7 +271,7 @@ describe('ShowService - Content Updates', () => {
 
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(456);
-      expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
         error: mockError,
         showId: mockShowContent.id,
       });
@@ -358,7 +357,7 @@ describe('ShowService - Content Updates', () => {
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(456);
       expect(showsDb.updateShow).toHaveBeenCalled();
-      expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
         error: mockError,
         showId: mockShowContent.id,
       });
@@ -593,7 +592,7 @@ describe('ShowService - Content Updates', () => {
 
       await expect(showService.updateShowById(showId, tmdbId)).rejects.toThrow('TMDB API error');
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(tmdbId);
-      expect(httpLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.ShowChangeFail, {
         error: mockError,
         showId,
       });

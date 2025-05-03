@@ -1,5 +1,5 @@
 import * as accountsDb from '../db/accountsDb';
-import { cliLogger, httpLogger } from '../logger/logger';
+import { appLogger, cliLogger } from '../logger/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../middleware/errorMiddleware';
 import { Account, CombinedUser, DatabaseAccount } from '../types/accountTypes';
 import { getFirebaseAdmin } from '../utils/firebaseUtil';
@@ -40,7 +40,7 @@ export class AccountService {
       const account = await accountsDb.findAccountByUID(uid);
       errorService.assertExists(account, 'Account', uid);
 
-      httpLogger.info(`User logged in: ${account.email}`, { userId: account.uid });
+      appLogger.info(`User logged in: ${account.email}`, { userId: account.uid });
       cliLogger.info(`User authenticated: ${account.email}`);
 
       return account;
@@ -69,7 +69,7 @@ export class AccountService {
       const account = accountsDb.createAccount(name, email, uid);
       await accountsDb.registerAccount(account);
 
-      httpLogger.info(`New user registered: ${email}`, { userId: uid });
+      appLogger.info(`New user registered: ${email}`, { userId: uid });
       cliLogger.info(`New account created: ${email}`);
 
       return account;
@@ -92,7 +92,7 @@ export class AccountService {
       const existingAccount = await accountsDb.findAccountByUID(uid);
 
       if (existingAccount) {
-        httpLogger.info(`User logged in via Google: ${existingAccount.email}`, { userId: existingAccount.uid });
+        appLogger.info(`User logged in via Google: ${existingAccount.email}`, { userId: existingAccount.uid });
         cliLogger.info(`Google authentication: existing user ${existingAccount.email}`);
 
         return {
@@ -111,7 +111,7 @@ export class AccountService {
       const newAccount = accountsDb.createAccount(name, email, uid);
       await accountsDb.registerAccount(newAccount);
 
-      httpLogger.info(`New user registered via Google: ${email}`, { userId: uid });
+      appLogger.info(`New user registered via Google: ${email}`, { userId: uid });
       cliLogger.info(`Google authentication: new account created for ${email}`);
 
       return {
@@ -214,14 +214,14 @@ export class AccountService {
           cliLogger.info(`Firebase user deleted: ${account.uid}`);
         } catch (firebaseError) {
           cliLogger.error(`Error deleting Firebase user: ${account.uid}`, firebaseError);
-          httpLogger.error('Firebase user deletion failed', { error: firebaseError, uid: account.uid });
+          appLogger.error('Firebase user deletion failed', { error: firebaseError, uid: account.uid });
         }
       }
 
       // Invalidate cache for this account
       this.cache.invalidateAccount(accountId);
 
-      httpLogger.info(`Account deleted: ${account.email}`, { accountId });
+      appLogger.info(`Account deleted: ${account.email}`, { accountId });
       cliLogger.info(`Account deleted: ${account.email}`);
 
       return true;

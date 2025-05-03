@@ -1,6 +1,6 @@
 import { Change, ContentUpdates } from '../../../src/types/contentTypes';
 import * as moviesDb from '@db/moviesDb';
-import { httpLogger } from '@logger/logger';
+import { appLogger } from '@logger/logger';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
@@ -24,7 +24,7 @@ jest.mock('@services/tmdbService', () => ({
   getTMDBService: jest.fn(),
 }));
 jest.mock('@logger/logger', () => ({
-  httpLogger: {
+  appLogger: {
     error: jest.fn(),
   },
 }));
@@ -519,7 +519,7 @@ describe('MoviesService', () => {
       );
 
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
-      expect(httpLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
+      expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
         error: mockError,
         movieId: 123,
       });
@@ -554,7 +554,7 @@ describe('MoviesService', () => {
       );
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(456);
-      expect(httpLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
+      expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
         error: mockError,
         movieId: 123,
       });
@@ -642,7 +642,7 @@ describe('MoviesService', () => {
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(456);
       expect(moviesDb.updateMovie).toHaveBeenCalled();
-      expect(httpLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
+      expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
         error: mockError,
         movieId: 123,
       });
@@ -811,7 +811,7 @@ describe('MoviesService', () => {
 
       await expect(moviesService.updateMovieById(movieId, tmdbId)).rejects.toThrow('TMDB API error');
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(tmdbId);
-      expect(httpLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
+      expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
         error: mockError,
         movieId,
       });
@@ -834,7 +834,7 @@ describe('MoviesService', () => {
 
       await expect(moviesService.updateMovieById(movieId, tmdbId)).rejects.toThrow('Database error');
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
-      expect(httpLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
+      expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
         error: mockError,
         movieId,
       });
