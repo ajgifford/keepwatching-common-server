@@ -1,5 +1,5 @@
-import { appLogger, cliLogger, formatAppLoggerResponse } from '@logger/logger';
-import { HTTPHeaders, SpecialMessages } from '@logger/loggerModel';
+import { Logger, appLogger, cliLogger, formatAppLoggerResponse, getResponseMessage } from '@logger/logger';
+import { HTTPHeaders, HTTPMethods, SensitiveKeys, SpecialMessages, SuccessMessages } from '@logger/loggerModel';
 import fs from 'fs';
 
 jest.mock('winston', () => {
@@ -12,6 +12,7 @@ jest.mock('winston', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      transports: [{ on: jest.fn() }],
     }),
     format: {
       ...originalModule.format,
@@ -23,14 +24,20 @@ jest.mock('winston', () => {
       colorize: jest.fn().mockReturnValue({}),
     },
     transports: {
-      File: jest.fn().mockImplementation(() => ({})),
-      Console: jest.fn().mockImplementation(() => ({})),
+      File: jest.fn().mockImplementation(() => ({
+        on: jest.fn(),
+      })),
+      Console: jest.fn().mockImplementation(() => ({
+        on: jest.fn(),
+      })),
     },
   };
 });
 
 jest.mock('winston-daily-rotate-file', () => {
-  return jest.fn().mockImplementation(() => ({}));
+  return jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+  }));
 });
 
 jest.mock('crypto', () => ({
@@ -74,6 +81,150 @@ describe('Logger Module', () => {
 
       expect(fs.existsSync).toHaveBeenCalledWith(expect.any(String));
       expect(fs.mkdirSync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Logger instances', () => {
+    it('appLogger should have the expected methods', () => {
+      expect(appLogger).toHaveProperty('info');
+      expect(appLogger).toHaveProperty('error');
+      expect(appLogger).toHaveProperty('warn');
+      expect(appLogger).toHaveProperty('debug');
+    });
+
+    it('cliLogger should have the expected methods', () => {
+      expect(cliLogger).toHaveProperty('info');
+      expect(cliLogger).toHaveProperty('error');
+      expect(cliLogger).toHaveProperty('warn');
+      expect(cliLogger).toHaveProperty('debug');
+    });
+  });
+
+  describe('Logger static methods', () => {
+    it('Logger.info should call appLogger.info and cliLogger.info', () => {
+      const message = 'Test info message';
+      const meta = { data: 'test' };
+
+      Logger.info(message, meta);
+
+      expect(appLogger.info).toHaveBeenCalledWith(message, { meta });
+      expect(cliLogger.info).toHaveBeenCalledWith(message);
+    });
+
+    it('Logger.error should call appLogger.error and cliLogger.error', () => {
+      const message = 'Test error message';
+      const meta = new Error('Test error');
+
+      Logger.error(message, meta);
+
+      expect(appLogger.error).toHaveBeenCalledWith(message, { error: meta });
+      expect(cliLogger.error).toHaveBeenCalledWith(message);
+    });
+
+    it('Logger.warn should call appLogger.warn and cliLogger.warn', () => {
+      const message = 'Test warning message';
+      const meta = { data: 'test' };
+
+      Logger.warn(message, meta);
+
+      expect(appLogger.warn).toHaveBeenCalledWith(message, { meta });
+      expect(cliLogger.warn).toHaveBeenCalledWith(message);
+    });
+
+    it('Logger.debug should call appLogger.debug and cliLogger.debug', () => {
+      const message = 'Test debug message';
+      const meta = { data: 'test' };
+
+      Logger.debug(message, meta);
+
+      expect(appLogger.debug).toHaveBeenCalledWith(message, { meta });
+      expect(cliLogger.debug).toHaveBeenCalledWith(message);
+    });
+
+    it('Logger.logError should format and log error details', () => {
+      const error = new Error('Test error');
+      const mockRequest = {
+        method: 'GET',
+        originalUrl: '/api/test',
+        headers: { 'content-type': 'application/json' },
+        body: { test: 'data' },
+        query: { sort: 'desc' },
+        params: { id: '123' },
+      };
+
+      Logger.logError(error, mockRequest);
+
+      expect(appLogger.error).toHaveBeenCalledWith(
+        'Application error occurred',
+        expect.objectContaining({
+          message: error.message,
+          stack: error.stack,
+          timestamp: expect.any(String),
+          request: expect.objectContaining({
+            method: mockRequest.method,
+            url: mockRequest.originalUrl,
+          }),
+        }),
+      );
+      expect(cliLogger.error).toHaveBeenCalledWith(`Error: ${error.message}`);
+    });
+
+    it('Logger.logRequest should setup request logging middleware', () => {
+      const mockReq = {
+        method: 'GET',
+        originalUrl: '/api/test',
+        headers: { 'content-type': 'application/json' },
+        body: { test: 'data' },
+        query: { sort: 'desc' },
+        params: { id: '123' },
+        ip: '127.0.0.1',
+      };
+
+      const mockRes = {
+        send: jest.fn(),
+        getHeaders: jest.fn().mockReturnValue({ 'content-type': 'application/json' }),
+        statusCode: 200,
+      };
+
+      const mockNext = jest.fn();
+
+      Logger.logRequest(mockReq, mockRes, mockNext);
+
+      expect(appLogger.info).toHaveBeenCalledWith(
+        `Incoming ${mockReq.method} request to ${mockReq.originalUrl}`,
+        expect.objectContaining({
+          method: mockReq.method,
+          url: mockReq.originalUrl,
+        }),
+      );
+
+      expect(mockNext).toHaveBeenCalled();
+    });
+  });
+
+  describe('getResponseMessage function', () => {
+    it('should return correct message for POST method', () => {
+      expect(getResponseMessage(HTTPMethods.POST)).toBe(SuccessMessages.CreateSuccess);
+    });
+
+    it('should return correct message for GET method', () => {
+      expect(getResponseMessage(HTTPMethods.GET)).toBe(SuccessMessages.GetSuccess);
+    });
+
+    it('should return correct message for PUT method', () => {
+      expect(getResponseMessage(HTTPMethods.PUT)).toBe(SuccessMessages.UpdateSuccess);
+    });
+
+    it('should return correct message for PATCH method', () => {
+      expect(getResponseMessage(HTTPMethods.PATCH)).toBe(SuccessMessages.UpdateSuccess);
+    });
+
+    it('should return correct message for DELETE method', () => {
+      expect(getResponseMessage(HTTPMethods.DELETE)).toBe(SuccessMessages.DeleteSuccess);
+    });
+
+    it('should return generic message for unknown method', () => {
+      expect(getResponseMessage('CUSTOM')).toBe(SuccessMessages.GenericSuccess);
     });
   });
 
@@ -224,6 +375,47 @@ describe('Logger Module', () => {
       expect(result.response.body.items[5]).toMatch(/and \d+ more items/);
     });
 
+    it('should redact all sensitive keys in objects', () => {
+      const mockReq = {
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+        baseUrl: '/api',
+        url: '/auth',
+        body: {
+          username: 'testuser',
+          password: 'secret',
+          new_password: 'newSecret',
+          old_password: 'oldSecret',
+          token: 'myAuthToken',
+          api_key: 'myApiKey',
+          secret: 'mySecret',
+          repeat_password: 'secret',
+          normalField: 'notRedacted',
+        },
+        params: {},
+        query: {},
+        socket: { remoteAddress: '127.0.0.1' },
+      };
+
+      const mockRes = {
+        getHeaders: jest.fn().mockReturnValue({}),
+        statusCode: 200,
+      };
+
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
+
+      // Check all sensitive fields are redacted
+      Object.values(SensitiveKeys).forEach((key) => {
+        if (mockReq.body[key]) {
+          expect(result.request.body[key]).toBe(SpecialMessages.Redacted);
+        }
+      });
+
+      // Normal field should remain untouched
+      expect(result.request.body.normalField).toBe('notRedacted');
+      expect(result.request.body.username).toBe('testuser');
+    });
+
     it('should redact sensitive information recursively in nested objects', () => {
       const mockReq = {
         headers: { 'content-type': 'application/json' },
@@ -262,7 +454,39 @@ describe('Logger Module', () => {
       expect(result.request.body.user.profile.email).toBe('test@example.com');
     });
 
-    it('should handle case when no request start time is provided', () => {
+    it('should redact sensitive information in arrays', () => {
+      const mockReq = {
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+        baseUrl: '/api',
+        url: '/users',
+        body: {
+          users: [
+            { username: 'user1', password: 'pass1' },
+            { username: 'user2', password: 'pass2' },
+          ],
+        },
+        params: {},
+        query: {},
+        socket: { remoteAddress: '127.0.0.1' },
+      };
+
+      const mockRes = {
+        getHeaders: jest.fn().mockReturnValue({}),
+        statusCode: 200,
+      };
+
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
+
+      // Should redact password fields in array items
+      expect(result.request.body.users[0].password).toBe(SpecialMessages.Redacted);
+      expect(result.request.body.users[1].password).toBe(SpecialMessages.Redacted);
+      // But should keep other fields intact
+      expect(result.request.body.users[0].username).toBe('user1');
+      expect(result.request.body.users[1].username).toBe('user2');
+    });
+
+    it('should handle when no request start time is provided', () => {
       const mockReq = {
         headers: {},
         method: 'GET',
@@ -282,23 +506,95 @@ describe('Logger Module', () => {
       const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
       expect(result.response.requestDuration).toBe('.');
     });
-  });
 
-  describe('Logger Instances', () => {
-    it('appLogger should have the expected methods', () => {
-      expect(appLogger).toHaveProperty('log');
-      expect(appLogger).toHaveProperty('info');
-      expect(appLogger).toHaveProperty('error');
-      expect(appLogger).toHaveProperty('warn');
-      expect(appLogger).toHaveProperty('debug');
+    it('should handle null body values', () => {
+      const mockReq = {
+        headers: {},
+        method: 'GET',
+        baseUrl: '/api',
+        url: '/test',
+        body: null,
+        params: {},
+        query: {},
+        socket: { remoteAddress: '127.0.0.1' },
+      };
+
+      const mockRes = {
+        getHeaders: jest.fn().mockReturnValue({}),
+        statusCode: 200,
+      };
+
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, null);
+
+      // Should not throw errors
+      expect(result.request.body).toBe(null);
+      expect(result.response.body).toBe(null);
     });
 
-    it('cliLogger should have the expected methods', () => {
-      expect(cliLogger).toHaveProperty('log');
-      expect(cliLogger).toHaveProperty('info');
-      expect(cliLogger).toHaveProperty('error');
-      expect(cliLogger).toHaveProperty('warn');
-      expect(cliLogger).toHaveProperty('debug');
+    it('should handle undefined body values', () => {
+      const mockReq = {
+        headers: {},
+        method: 'GET',
+        baseUrl: '/api',
+        url: '/test',
+        body: undefined,
+        params: {},
+        query: {},
+        socket: { remoteAddress: '127.0.0.1' },
+      };
+
+      const mockRes = {
+        getHeaders: jest.fn().mockReturnValue({}),
+        statusCode: 200,
+      };
+
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, undefined);
+
+      // Should not throw errors
+      expect(result.request.body).toBe(undefined);
+      expect(result.response.body).toBe(undefined);
+    });
+
+    it('should handle complex nested objects without errors', () => {
+      const complexObj = {
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                password: 'secret',
+                data: [1, 2, 3],
+                deep: {
+                  api_key: 'secret-key',
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const mockReq = {
+        headers: {},
+        method: 'POST',
+        baseUrl: '/api',
+        url: '/complex',
+        body: complexObj,
+        params: {},
+        query: {},
+        socket: { remoteAddress: '127.0.0.1' },
+      };
+
+      const mockRes = {
+        getHeaders: jest.fn().mockReturnValue({}),
+        statusCode: 200,
+      };
+
+      const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
+
+      // Should redact deeply nested sensitive fields
+      expect(result.request.body.level1.level2.level3.level4.password).toBe(SpecialMessages.Redacted);
+      expect(result.request.body.level1.level2.level3.level4.deep.api_key).toBe(SpecialMessages.Redacted);
+      // But preserve structure and non-sensitive data
+      expect(result.request.body.level1.level2.level3.level4.data).toEqual([1, 2, 3]);
     });
   });
 });
