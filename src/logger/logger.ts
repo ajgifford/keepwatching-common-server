@@ -1,3 +1,10 @@
+import {
+  getAppVersion,
+  getEnvironment,
+  getLogDirectory,
+  getLogTimestampFormat,
+  getServiceName,
+} from '../config/config';
 import { HTTPHeaders, HTTPMethods, SensitiveKeys, SpecialMessages, SuccessMessages } from './loggerModel';
 import { randomBytes } from 'crypto';
 import fs from 'fs';
@@ -7,11 +14,13 @@ import { format, transports } from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
 const { combine, timestamp, json, printf, label, colorize } = format;
-const timestampFormat: string = 'MMM-DD-YYYY HH:mm:ss';
+const serviceName = getServiceName();
+const appVersion = getAppVersion();
+const timestampFormat = getLogTimestampFormat();
+const environment = getEnvironment();
 const generateLogId = (): string => randomBytes(16).toString('hex');
-const appVersion = process.env.npm_package_version;
 
-const logDirectory = path.resolve(process.env.LOG_DIR || 'logs');
+const logDirectory = getLogDirectory();
 if (!fs.existsSync(logDirectory)) {
   fs.mkdirSync(logDirectory, { recursive: true });
 }
@@ -27,7 +36,7 @@ export const appLogger = winston.createLogger({
         timestamp,
         appInfo: {
           appVersion,
-          environment: process.env.NODE_ENV,
+          environment: environment,
           processId: process.pid,
         },
         message,
@@ -37,14 +46,14 @@ export const appLogger = winston.createLogger({
       return JSON.stringify(response);
     }),
   ),
-  defaultMeta: { service: process.env.SERVICE_NAME || 'keepwatching' },
+  defaultMeta: { service: serviceName },
   transports: [
     new transports.File({
-      filename: path.join(logDirectory, `${process.env.SERVICE_NAME || 'keepwatching'}-error.log`),
+      filename: path.join(logDirectory, `${serviceName}-error.log`),
       level: 'error',
     }),
     new DailyRotateFile({
-      filename: path.join(logDirectory, `${process.env.SERVICE_NAME || 'keepwatching'}-%DATE%.log`),
+      filename: path.join(logDirectory, `${serviceName}-%DATE%.log`),
       datePattern: 'MMMM-DD-YYYY',
       zippedArchive: false,
       maxSize: '20m',

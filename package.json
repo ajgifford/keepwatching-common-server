@@ -15,6 +15,11 @@
       "import": "./dist/schema.js",
       "require": "./dist/schema.js"
     },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "require": "./dist/config.js"
+    },
     "./services": {
       "types": "./dist/services.d.ts",
       "import": "./dist/services.js",

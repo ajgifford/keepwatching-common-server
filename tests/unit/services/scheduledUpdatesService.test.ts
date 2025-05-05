@@ -1,3 +1,4 @@
+import * as config from '@config/config';
 import { appLogger, cliLogger } from '@logger/logger';
 import { updateMovies, updateShows } from '@services/contentUpdatesService';
 import {
@@ -24,6 +25,11 @@ jest.mock('@logger/logger', () => ({
   },
 }));
 
+jest.mock('@config/config', () => ({
+  getShowsUpdateSchedule: jest.fn().mockReturnValue('0 2 * * *'),
+  getMoviesUpdateSchedule: jest.fn().mockReturnValue('0 1 7,14,21,28 * *'),
+}));
+
 jest.mock('@services/contentUpdatesService', () => ({
   updateMovies: jest.fn(),
   updateShows: jest.fn(),
@@ -46,21 +52,18 @@ jest.mock('cron-parser', () => ({
 }));
 
 describe('scheduledUpdatesService', () => {
-  const originalEnv = process.env;
   let mockNotifyShowUpdates: jest.Mock;
   let mockNotifyMovieUpdates: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    process.env = { ...originalEnv };
 
     mockNotifyShowUpdates = jest.fn();
     mockNotifyMovieUpdates = jest.fn();
   });
 
   afterEach(() => {
-    process.env = originalEnv;
     jest.useRealTimers();
   });
 
@@ -79,8 +82,8 @@ describe('scheduledUpdatesService', () => {
     });
 
     it('should use custom cron schedules from environment variables', () => {
-      process.env.SHOWS_UPDATE_SCHEDULE = '0 4 * * *';
-      process.env.MOVIES_UPDATE_SCHEDULE = '0 3 1,15 * *';
+      (config.getShowsUpdateSchedule as jest.Mock).mockReturnValueOnce('0 4 * * *');
+      (config.getMoviesUpdateSchedule as jest.Mock).mockReturnValueOnce('0 3 1,15 * *');
 
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
 
@@ -135,17 +138,12 @@ describe('scheduledUpdatesService', () => {
     });
 
     it('should skip execution if job is already running', async () => {
-      // First call to set isRunning = true
       const firstExecution = runShowsUpdateJob();
-
-      // Second call should skip
       const secondExecution = runShowsUpdateJob();
 
-      // Complete first job
       (updateShows as jest.Mock).mockResolvedValueOnce(undefined);
       await firstExecution;
 
-      // Check second job
       const result = await secondExecution;
       expect(result).toBe(false);
       expect(updateShows).toHaveBeenCalledTimes(1); // Only called for first execution
@@ -181,17 +179,12 @@ describe('scheduledUpdatesService', () => {
     });
 
     it('should skip execution if job is already running', async () => {
-      // First call to set isRunning = true
       const firstExecution = runMoviesUpdateJob();
-
-      // Second call should skip
       const secondExecution = runMoviesUpdateJob();
 
-      // Complete first job
       (updateMovies as jest.Mock).mockResolvedValueOnce(undefined);
       await firstExecution;
 
-      // Check second job
       const result = await secondExecution;
       expect(result).toBe(false);
       expect(updateMovies).toHaveBeenCalledTimes(1); // Only called for first execution

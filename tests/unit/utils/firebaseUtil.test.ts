@@ -35,12 +35,6 @@ describe('firebaseUtil', () => {
 
   describe('initializeFirebase', () => {
     it('should initialize Firebase when valid credentials are provided', () => {
-      process.env.FIREBASE_SERVICE_ACCOUNT = JSON.stringify({
-        projectId: 'test-project',
-        privateKey: 'test-key',
-        clientEmail: 'test@example.com',
-      });
-
       const result = initializeFirebase(serviceAccount);
 
       expect(result).toBe(true);

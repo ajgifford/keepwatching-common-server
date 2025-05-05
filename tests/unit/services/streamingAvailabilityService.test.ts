@@ -1,7 +1,7 @@
+import * as config from '@config/config';
 import { StreamingAvailabilityService } from '@services/streamingAvailabilityService';
 import { Client, Configuration } from 'streaming-availability';
 
-// Mock external dependency
 jest.mock('streaming-availability', () => {
   const mockClient = {
     showsApi: {
@@ -18,29 +18,21 @@ jest.mock('streaming-availability', () => {
   };
 });
 
-describe('StreamingAvailabilityService', () => {
-  // Save original environment
-  const originalEnv = process.env;
+jest.mock('@config/config', () => ({
+  getStreamingAPIKey: jest.fn().mockReturnValue('mock-api-key'),
+}));
 
+describe('StreamingAvailabilityService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Set environment variables needed for testing
-    process.env = {
-      ...originalEnv,
-      STREAMING_API_KEY: 'mock-api-key',
-    };
   });
 
   afterEach(() => {
-    // Restore environment
-    process.env = originalEnv;
-    // Reset singleton for each test
     Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
   });
 
   describe('getInstance', () => {
     it('should create a new instance when called for the first time', () => {
-      // Force the instance to be null before testing
       Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
 
       const service = StreamingAvailabilityService.getInstance();
@@ -85,7 +77,6 @@ describe('StreamingAvailabilityService', () => {
 
   describe('constructor', () => {
     it('should initialize client with API key from environment', () => {
-      // We need to test the constructor implicitly since it's private
       const service = StreamingAvailabilityService.getInstance();
 
       expect(Configuration).toHaveBeenCalledWith({
@@ -95,10 +86,8 @@ describe('StreamingAvailabilityService', () => {
     });
 
     it('should handle missing API key gracefully', () => {
-      // Remove API key from environment
-      delete process.env.STREAMING_API_KEY;
+      (config.getStreamingAPIKey as jest.Mock).mockReturnValueOnce(undefined);
 
-      // This should not throw an error, but should use undefined as the API key
       const service = StreamingAvailabilityService.getInstance();
 
       expect(Configuration).toHaveBeenCalledWith({
@@ -109,10 +98,7 @@ describe('StreamingAvailabilityService', () => {
 
   describe('integration with client', () => {
     it('should allow calling client methods', async () => {
-      // Create mock response
       const mockResponse = [{ title: 'Test Show', tmdbId: 'tv/123' }];
-
-      // Set up mock implementation directly on the mock client instance
       const mockClient = {
         showsApi: {
           getTopShows: jest.fn().mockResolvedValue(mockResponse),
@@ -122,10 +108,8 @@ describe('StreamingAvailabilityService', () => {
         },
       };
 
-      // Replace the Client constructor with one that returns our mock
       (Client as jest.Mock).mockImplementation(() => mockClient);
 
-      // Get a fresh instance with our new mock
       Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
       const service = StreamingAvailabilityService.getInstance();
       const client = service.getClient();
@@ -145,10 +129,7 @@ describe('StreamingAvailabilityService', () => {
     });
 
     it('should integrate with changesApi methods', async () => {
-      // Create mock response
       const mockResponse = { shows: { 'tv/123': { title: 'Changed Show' } } };
-
-      // Set up mock implementation directly on the mock client instance
       const mockClient = {
         showsApi: {
           getTopShows: jest.fn(),
@@ -158,10 +139,8 @@ describe('StreamingAvailabilityService', () => {
         },
       };
 
-      // Replace the Client constructor with one that returns our mock
       (Client as jest.Mock).mockImplementation(() => mockClient);
 
-      // Get a fresh instance with our new mock
       Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
       const service = StreamingAvailabilityService.getInstance();
       const client = service.getClient();

@@ -1,18 +1,10 @@
+import { getDBConfig } from '../config/config';
 import mysql, { Pool } from 'mysql2/promise';
 
 let poolInstance: Pool | null = null;
 
 export const createDbPool = (config?: any): Pool => {
-  const poolConfig = config || {
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PWD,
-    database: process.env.MYSQL_DB,
-    waitForConnections: true,
-    connectionLimit: 100,
-    queueLimit: 0,
-  };
-
+  const poolConfig = config || getDBConfig();
   return mysql.createPool(poolConfig);
 };
 

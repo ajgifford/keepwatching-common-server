@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@config/*": ["src/config/*"],
       "@constants/*": ["src/constants/*"],
       "@db/*": ["src/db/*"],
       "@logger/*": ["src/logger/*"],

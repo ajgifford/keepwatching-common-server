@@ -1,3 +1,4 @@
+import { getStreamingAPIKey } from '../config/config';
 import { Client, Configuration } from 'streaming-availability';
 
 export class StreamingAvailabilityService {
@@ -10,7 +11,7 @@ export class StreamingAvailabilityService {
   private constructor() {
     this.client = new Client(
       new Configuration({
-        apiKey: `${process.env.STREAMING_API_KEY}`,
+        apiKey: `${getStreamingAPIKey()}`,
       }),
     );
   }

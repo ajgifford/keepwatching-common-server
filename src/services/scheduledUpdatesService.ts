@@ -1,3 +1,4 @@
+import { getMoviesUpdateSchedule, getShowsUpdateSchedule } from '../config/config';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { updateMovies, updateShows } from './contentUpdatesService';
@@ -34,13 +35,10 @@ type NotificationCallback = () => void;
 let showUpdatesCallback: NotificationCallback | null = null;
 let movieUpdatesCallback: NotificationCallback | null = null;
 
-// Get schedule from environment variables or use defaults
 const getScheduleConfig = () => {
   return {
-    // Default: Daily at 2 AM
-    showsUpdateSchedule: process.env.SHOWS_UPDATE_SCHEDULE || '0 2 * * *',
-    // Default: Weekly on 7th, 14th, 21st, 28th at 1 AM
-    moviesUpdateSchedule: process.env.MOVIES_UPDATE_SCHEDULE || '0 1 7,14,21,28 * *',
+    showsUpdateSchedule: getShowsUpdateSchedule(),
+    moviesUpdateSchedule: getMoviesUpdateSchedule(),
   };
 };
 

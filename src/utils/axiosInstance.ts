@@ -1,11 +1,12 @@
+import { getStreamingAPIHost, getStreamingAPIKey, getTMDBToken } from '../config/config';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 
 const axiosStreamingAPIInstance = axios.create({
   baseURL: 'https://streaming-availability.p.rapidapi.com',
   headers: {
-    'x-rapidapi-key': `${process.env.STREAMING_API_KEY}`,
-    'x-rapidapi-host': `${process.env.STREAMING_API_HOST}`,
+    'x-rapidapi-key': `${getStreamingAPIKey()}`,
+    'x-rapidapi-host': `${getStreamingAPIHost()}`,
   },
   timeout: 5000,
 });
@@ -14,7 +15,7 @@ const axiosTMDBAPIInstance = axios.create({
   baseURL: 'https://api.themoviedb.org/3',
   headers: {
     accept: 'application/json',
-    Authorization: `Bearer ${process.env.TMDB_TOKEN}`,
+    Authorization: `Bearer ${getTMDBToken()}`,
   },
   timeout: 5000,
 });
