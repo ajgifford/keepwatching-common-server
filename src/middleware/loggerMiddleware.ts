@@ -34,5 +34,3 @@ export const responseInterceptor = (req: Request, res: Response, next: NextFunct
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   Logger.logRequest(req, res, next);
 };
-
-export default responseInterceptor;
