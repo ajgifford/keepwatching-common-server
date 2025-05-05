@@ -90,12 +90,12 @@ export function getTMDBToken() {
   return process.env.TMDB_TOKEN;
 }
 
-export function rateLimitTimeWindow() {
+export function getRateLimitTimeWindow() {
   // Default: 10 minutes
   return Number(process.env.RATE_LIMIT_TIME_WINDOW) || 10 * 60 * 1000;
 }
 
-export function rateLimitLimit() {
+export function getRateLimitMax() {
   // Default: 100
-  return Number(process.env.RATE_LIMIT_LIMIT) || 100;
+  return Number(process.env.RATE_LIMIT_MAX) || 100;
 }
