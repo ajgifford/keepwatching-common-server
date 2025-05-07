@@ -52,6 +52,10 @@ export function getCertsServerPath() {
   return process.env.CERT_PATH || 'certs/server.crt';
 }
 
+export function getServiceAccountPath() {
+  return process.env.SERVICE_ACCOUNT_PATH || '/certs/keepwatching-service-account-dev.json';
+}
+
 export function getDBConfig(): DBConfig {
   return {
     host: process.env.MYSQL_HOST || 'localhost',
