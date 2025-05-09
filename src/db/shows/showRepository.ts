@@ -1,5 +1,5 @@
 import { ContentUpdates } from '../../types/contentTypes';
-import { AdminShow, AdminShowRow, Show } from '../../types/showTypes';
+import { Show } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';

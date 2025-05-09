@@ -1,7 +1,18 @@
-import { ADMIN_KEYS } from '../constants/cacheKeys';
+import { ADMIN_KEYS, PROFILE_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
+import * as episodesDb from '../db/episodesDb';
+import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
+import { appLogger, cliLogger } from '../logger/logger';
+import { ErrorMessages } from '../logger/loggerModel';
+import { sleep } from '../utils/changesUtility';
+import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
+import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
+import { seasonsService } from './seasonsService';
+import { showService } from './showService';
+import { socketService } from './socketService';
+import { getTMDBService } from './tmdbService';
 
 /**
  * Service for handling admin-specific show operations
@@ -176,6 +187,121 @@ export class AdminShowService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getCompleteShowInfo(${showId})`);
+    }
+  }
+
+  public async updateShowById(
+    showId: number,
+    tmdbId: number,
+    updateMode: 'all' | 'latest' = 'latest',
+  ): Promise<boolean> {
+    try {
+      const tmdbService = getTMDBService();
+      const showDetails = await tmdbService.getShowDetails(tmdbId);
+
+      const updatedShow = showsDb.createShow(
+        showDetails.id,
+        showDetails.name,
+        showDetails.overview,
+        showDetails.first_air_date,
+        showDetails.poster_path,
+        showDetails.backdrop_path,
+        showDetails.vote_average,
+        getUSRating(showDetails.content_ratings),
+        showId,
+        getUSWatchProviders(showDetails, 9999),
+        showDetails.number_of_seasons,
+        showDetails.number_of_episodes,
+        showDetails.genres.map((genre: { id: any }) => genre.id),
+        showDetails.status,
+        showDetails.type,
+        getInProduction(showDetails),
+        showDetails.last_air_date,
+        getEpisodeToAirId(showDetails.last_episode_to_air),
+        getEpisodeToAirId(showDetails.next_episode_to_air),
+        getUSNetwork(showDetails.networks),
+      );
+
+      const showUpdated = await showsDb.updateShow(updatedShow);
+      if (!showUpdated) {
+        return false;
+      }
+
+      const seasons = showDetails.seasons || [];
+      const validSeasons = seasons
+        .filter((season: any) => season.season_number > 0)
+        .sort((a: any, b: any) => b.season_number - a.season_number);
+      const seasonsToUpdate = updateMode === 'latest' ? validSeasons.slice(0, 1) : validSeasons;
+
+      const profileIds = await showsDb.getProfilesForShow(showId);
+
+      for (const responseSeason of seasonsToUpdate) {
+        await sleep(500);
+
+        try {
+          const responseData = await tmdbService.getSeasonDetails(showDetails.id, responseSeason.season_number);
+
+          const season = await seasonsDb.updateSeason(
+            seasonsDb.createSeason(
+              showId,
+              responseSeason.id,
+              responseSeason.name,
+              responseSeason.overview,
+              responseSeason.season_number,
+              responseSeason.air_date,
+              responseSeason.poster_path,
+              responseSeason.episode_count,
+            ),
+          );
+
+          for (const profileId of profileIds) {
+            await seasonsDb.saveFavorite(profileId, season.id!);
+          }
+
+          for (const responseEpisode of responseData.episodes) {
+            const episode = await episodesDb.updateEpisode(
+              episodesDb.createEpisode(
+                responseEpisode.id,
+                showId,
+                season.id!,
+                responseEpisode.episode_number,
+                responseEpisode.episode_type || 'standard',
+                responseEpisode.season_number,
+                responseEpisode.name,
+                responseEpisode.overview,
+                responseEpisode.air_date,
+                responseEpisode.runtime || 0,
+                responseEpisode.still_path,
+              ),
+            );
+            for (const profileId of profileIds) {
+              await episodesDb.saveFavorite(profileId, episode.id!);
+            }
+          }
+
+          for (const profileId of profileIds) {
+            await seasonsService.updateSeasonWatchStatusForNewEpisodes(String(profileId), season.id!);
+          }
+        } catch (error) {
+          cliLogger.error(`Error updating season ${responseSeason.season_number} for show ${showId}`, error);
+        }
+      }
+
+      await showService.updateShowWatchStatusForNewContent(showId, profileIds);
+
+      for (const profileId of profileIds) {
+        this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
+        this.cache.invalidate(PROFILE_KEYS.shows(profileId));
+        this.cache.invalidate(PROFILE_KEYS.nextUnwatchedEpisodes(profileId));
+        this.cache.invalidatePattern('allShows_');
+      }
+
+      socketService.notifyShowsUpdate(`Show ${showDetails.name} has been updated`);
+
+      return true;
+    } catch (error) {
+      appLogger.error(ErrorMessages.ShowChangeFail, { error, showId });
+      throw errorService.handleError(error, `updateShowById(${showId})`);
     }
   }
 

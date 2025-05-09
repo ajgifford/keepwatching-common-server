@@ -1,5 +1,5 @@
 import { NotFoundError } from '../../middleware/errorMiddleware';
-import { AdminShow, AdminShowRow, ProfileSeason } from '../../types/showTypes';
+import { AdminShow, AdminShowRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { RowDataPacket } from 'mysql2';
