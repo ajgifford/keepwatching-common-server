@@ -1,5 +1,7 @@
 import {
   MockAccountService,
+  MockAdminMovieService,
+  MockAdminShowService,
   MockCacheService,
   MockContentDiscoveryService,
   MockContentUpdatesService,
@@ -40,6 +42,27 @@ export const profileService = createTypedServiceMock<MockProfileService>([
   'deleteProfile',
   'createProfileObject',
   'invalidateProfileCache',
+]);
+
+export const adminMovieService = createTypedServiceMock<MockAdminMovieService>([
+  'getAllMovies',
+  'getMovieDetails',
+  'getMovieProfiles',
+  'getMovieWatchProgress',
+  'getCompleteMovieInfo',
+  'invalidateMovieCache',
+]);
+
+export const adminShowService = createTypedServiceMock<MockAdminShowService>([
+  'getAllShows',
+  'getShowDetails',
+  'getShowSeasons',
+  'getShowSeasonsWithEpisodes',
+  'getSeasonEpisodes',
+  'getShowProfiles',
+  'getShowWatchProgress',
+  'getCompleteShowInfo',
+  'invalidateShowCache',
 ]);
 
 export const showService = createTypedServiceMock<MockShowService>([

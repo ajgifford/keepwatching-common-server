@@ -1,4 +1,5 @@
 export * from './services/accountService';
+export * from './services/adminMovieService';
 export * from './services/adminShowService';
 export * from './services/contentDiscoveryService';
 export * from './services/contentUpdatesService';

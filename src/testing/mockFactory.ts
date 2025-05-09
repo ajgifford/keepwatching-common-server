@@ -39,6 +39,27 @@ export interface MockProfileService {
   invalidateProfileCache: jest.Mock;
 }
 
+export interface MockAdminShowService {
+  getAllShows: jest.Mock;
+  getShowDetails: jest.Mock;
+  getShowSeasons: jest.Mock;
+  getShowSeasonsWithEpisodes: jest.Mock;
+  getSeasonEpisodes: jest.Mock;
+  getShowProfiles: jest.Mock;
+  getShowWatchProgress: jest.Mock;
+  getCompleteShowInfo: jest.Mock;
+  invalidateShowCache: jest.Mock;
+}
+
+export interface MockAdminMovieService {
+  getAllMovies: jest.Mock;
+  getMovieDetails: jest.Mock;
+  getMovieProfiles: jest.Mock;
+  getMovieWatchProgress: jest.Mock;
+  getCompleteMovieInfo: jest.Mock;
+  invalidateMovieCache: jest.Mock;
+}
+
 export interface MockShowService {
   getShowsForProfile: jest.Mock;
   getShowDetailsForProfile: jest.Mock;
