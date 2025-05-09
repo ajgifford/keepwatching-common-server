@@ -1,5 +1,6 @@
 import * as moviesDb from '@db/moviesDb';
 import { appLogger } from '@logger/logger';
+import { ErrorMessages } from '@logger/loggerModel';
 import { adminMovieService } from '@services/adminMovieService';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
@@ -25,7 +26,7 @@ jest.mock('@logger/logger', () => ({
   },
 }));
 
-describe('MoviesService', () => {
+describe('AdminMovieService', () => {
   let mockCacheService: jest.Mocked<any>;
 
   beforeEach(() => {
@@ -41,6 +42,10 @@ describe('MoviesService', () => {
     Object.defineProperty(adminMovieService, 'cache', {
       value: mockCacheService,
       writable: true,
+    });
+
+    (errorService.handleError as jest.Mock).mockImplementation((error) => {
+      throw error;
     });
   });
 
@@ -130,7 +135,7 @@ describe('MoviesService', () => {
 
       await expect(adminMovieService.updateMovieById(movieId, tmdbId)).rejects.toThrow('TMDB API error');
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(tmdbId);
-      expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.MovieChangeFail, {
         error: mockError,
         movieId,
       });
@@ -153,7 +158,7 @@ describe('MoviesService', () => {
 
       await expect(adminMovieService.updateMovieById(movieId, tmdbId)).rejects.toThrow('Database error');
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
-      expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.MovieChangeFail, {
         error: mockError,
         movieId,
       });
@@ -222,6 +227,19 @@ describe('MoviesService', () => {
       await adminMovieService.getAllMovies(1, 0, 50);
 
       expect(moviesDb.getAllMovies).toHaveBeenCalledWith(50, 0);
+    });
+  });
+
+  describe('invalidateMovieCache', () => {
+    it('should invalidate all cache keys related to a movie', () => {
+      const movieId = 123;
+
+      adminMovieService.invalidateMovieCache(movieId);
+
+      // Check that all cache keys are invalidated
+      expect(mockCacheService.invalidate).toHaveBeenCalledWith(expect.stringContaining('movie_details'));
+      expect(mockCacheService.invalidate).toHaveBeenCalledWith(expect.stringContaining('movie_profiles'));
+      expect(mockCacheService.invalidate).toHaveBeenCalledWith(expect.stringContaining('movie_complete'));
     });
   });
 });

@@ -53,6 +53,8 @@ describe('AdminShowService', () => {
   ];
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
     mockCacheService = {
       getOrSet: jest.fn(),
       invalidate: jest.fn(),

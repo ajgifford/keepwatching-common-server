@@ -87,27 +87,28 @@ export class AdminMovieService {
     }
   }
 
-  public async updateMovieById(movieId: number, tmdbId: number) {
+  public async updateMovieById(movieId: number, tmdbId: number): Promise<boolean> {
     try {
       const tmdbService = getTMDBService();
       const movieDetails = await tmdbService.getMovieDetails(tmdbId);
 
-      await moviesDb.updateMovie(
-        moviesDb.createMovie(
-          movieDetails.id,
-          movieDetails.title,
-          movieDetails.overview,
-          movieDetails.release_date,
-          movieDetails.runtime,
-          movieDetails.poster_path,
-          movieDetails.backdrop_path,
-          movieDetails.vote_average,
-          getUSMPARating(movieDetails.release_dates),
-          movieId,
-          getUSWatchProviders(movieDetails, 9998),
-          movieDetails.genres.map((genre: { id: any }) => genre.id),
-        ),
+      const movie = moviesDb.createMovie(
+        movieDetails.id,
+        movieDetails.title,
+        movieDetails.overview,
+        movieDetails.release_date,
+        movieDetails.runtime,
+        movieDetails.poster_path,
+        movieDetails.backdrop_path,
+        movieDetails.vote_average,
+        getUSMPARating(movieDetails.release_dates),
+        movieId,
+        getUSWatchProviders(movieDetails, 9998),
+        movieDetails.genres.map((genre: { id: any }) => genre.id),
       );
+
+      const updated = await moviesDb.updateMovie(movie);
+      return updated;
     } catch (error) {
       appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
       throw errorService.handleError(error, `updateMovieById(${movieId})`);
@@ -119,7 +120,7 @@ export class AdminMovieService {
    *
    * @param movieId - ID of the movie to invalidate cache for
    */
-  public invalidateShowCache(movieId: number): void {
+  public invalidateMovieCache(movieId: number): void {
     this.cache.invalidate(ADMIN_KEYS.movieDetails(movieId));
     this.cache.invalidate(ADMIN_KEYS.movieProfiles(movieId));
     this.cache.invalidate(ADMIN_KEYS.movieComplete(movieId));
