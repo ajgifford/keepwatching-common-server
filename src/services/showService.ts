@@ -100,7 +100,7 @@ export class ShowService {
   public async getShowDetailsForProfile(profileId: string, showId: string) {
     try {
       const show = await this.cache.getOrSet(
-        SHOW_KEYS.details(profileId, showId),
+        SHOW_KEYS.detailsForProfile(profileId, showId),
         () => showsDb.getShowWithSeasonsForProfile(profileId, showId),
         600,
       );
@@ -362,7 +362,7 @@ export class ShowService {
         );
       }
 
-      this.cache.invalidate(SHOW_KEYS.details(profileId, showId));
+      this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
       this.cache.invalidate(PROFILE_KEYS.shows(profileId));
       this.cache.invalidate(PROFILE_KEYS.nextUnwatchedEpisodes(profileId));
 
@@ -387,7 +387,7 @@ export class ShowService {
 
         if (watchStatus === WatchStatus.WATCHED) {
           await showsDb.updateWatchStatus(String(profileId), showId, WatchStatus.UP_TO_DATE);
-          this.cache.invalidate(SHOW_KEYS.details(profileId, showId));
+          this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
           this.cache.invalidate(PROFILE_KEYS.shows(profileId));
           this.cache.invalidate(PROFILE_KEYS.nextUnwatchedEpisodes(profileId));
         }
@@ -714,7 +714,7 @@ export class ShowService {
       await this.updateShowWatchStatusForNewContent(showId, profileIds);
 
       for (const profileId of profileIds) {
-        this.cache.invalidate(SHOW_KEYS.details(profileId, showId));
+        this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
         this.cache.invalidate(PROFILE_KEYS.shows(profileId));
         this.cache.invalidate(PROFILE_KEYS.nextUnwatchedEpisodes(profileId));
         this.cache.invalidatePattern('allShows_');
@@ -726,29 +726,6 @@ export class ShowService {
     } catch (error) {
       appLogger.error(ErrorMessages.ShowChangeFail, { error, showId });
       throw errorService.handleError(error, `updateShowById(${showId})`);
-    }
-  }
-
-  public async getAllShows(page: number, offset: number, limit: number) {
-    try {
-      const allShowsResult = this.cache.getOrSet(SHOW_KEYS.allShows(page, offset, limit), async () => {
-        const [totalCount, shows] = await Promise.all([showsDb.getShowsCount(), showsDb.getAllShows(limit, offset)]);
-        const totalPages = Math.ceil(totalCount / limit);
-        return {
-          shows,
-          pagination: {
-            totalCount,
-            totalPages,
-            currentPage: page,
-            limit,
-            hasNextPage: page < totalPages,
-            hasPrevPage: page > 1,
-          },
-        };
-      });
-      return allShowsResult;
-    } catch (error) {
-      throw errorService.handleError(error, `getAllShows(${page}, ${offset}, ${limit})`);
     }
   }
 

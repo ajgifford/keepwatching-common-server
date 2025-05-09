@@ -16,6 +16,8 @@ export const CACHE_KEY_PATTERNS = {
   DISCOVER: 'discover',
   SEARCH: 'search',
   RECOMMENDATIONS: 'recommendations',
+  SIMILAR: 'similar',
+  ADMIN: 'admin',
 };
 
 // Account keys
@@ -78,17 +80,44 @@ export const PROFILE_KEYS = {
 // Show keys
 export const SHOW_KEYS = {
   /** Gets the cache key for detailed show information for a profile */
-  details: (profileId: number | string, showId: number | string) =>
+  detailsForProfile: (profileId: number | string, showId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_show_details_${showId}`,
 
   /** Gets the cache key for show recommendations */
   recommendations: (showId: number | string) => `${CACHE_KEY_PATTERNS.RECOMMENDATIONS}_${showId}`,
 
   /** Gets the cache key for similar shows */
-  similar: (showId: number | string) => `similarShows_${showId}`,
+  similar: (showId: number | string) => `${CACHE_KEY_PATTERNS.SIMILAR}_${showId}`,
+};
 
+export const ADMIN_KEYS = {
   /** Gets the cache key for all shows */
   allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
+
+  /** Gets the cache key for admin show details */
+  showDetails: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_show_details_${showId}`,
+
+  /** Gets the cache key for admin show seasons */
+  showSeasons: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_show_seasons_${showId}`,
+
+  /** Gets the cache key for admin season episodes */
+  seasonEpisodes: (seasonId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_season_episodes_${seasonId}`,
+
+  /** Gets the cache key for admin show profiles */
+  showProfiles: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_show_profiles_${showId}`,
+
+  /** Gets the cache key for admin show watch progress */
+  showWatchProgress: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_show_watch_progress_${showId}`,
+
+  /** Gets the cache key for seasons with episodes */
+  showSeasonsWithEpisodes: (showId: number | string) =>
+    `${CACHE_KEY_PATTERNS.ADMIN}_show_seasons_with_episodes_${showId}`,
+
+  /** Gets the cache key for complete admin show information */
+  showComplete: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_show_complete_${showId}`,
+
+  /** Gets a pattern for invalidating all season episodes for a show */
+  showSeasonsPattern: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_season_episodes_${showId}`,
 };
 
 // Movie keys

@@ -7,8 +7,6 @@ export {
   saveShowGenre,
   saveShowStreamingService,
   createShow,
-  getAllShows,
-  getShowsCount,
 } from './shows/showRepository';
 
 export {
@@ -27,3 +25,14 @@ export {
   updateAllWatchStatuses,
   getWatchStatus,
 } from './shows/showWatchStatusRepository';
+
+export {
+  getAllShows,
+  getShowsCount,
+  getAdminShowDetails,
+  getAdminShowSeasons,
+  getAdminShowSeasonsWithEpisodes,
+  getAdminSeasonEpisodes,
+  getAdminShowProfiles,
+  getAdminShowWatchProgress,
+} from './shows/adminShowRepository';

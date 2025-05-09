@@ -62,10 +62,10 @@ describe('Cache Keys Module', () => {
 
   describe('SHOW_KEYS', () => {
     it('should generate correct keys for show data', () => {
-      expect(SHOW_KEYS.details('123', '456')).toBe('profile_123_show_details_456');
-      expect(SHOW_KEYS.details(123, 456)).toBe('profile_123_show_details_456');
+      expect(SHOW_KEYS.detailsForProfile('123', '456')).toBe('profile_123_show_details_456');
+      expect(SHOW_KEYS.detailsForProfile(123, 456)).toBe('profile_123_show_details_456');
       expect(SHOW_KEYS.recommendations(789)).toBe('recommendations_789');
-      expect(SHOW_KEYS.similar(789)).toBe('similarShows_789');
+      expect(SHOW_KEYS.similar(789)).toBe('similar_789');
     });
   });
 
