@@ -1,8 +1,7 @@
+import { Movie } from '../../../src/types/movieTypes';
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { PoolConnection } from 'mysql2/promise';
 
 jest.mock('@utils/db', () => {
   const mockPool = {
@@ -37,7 +36,7 @@ describe('moviesDb Module', () => {
 
   describe('saveMovie', () => {
     it('should save a movie to the database', async () => {
-      const movieData: moviesDb.Movie = {
+      const movieData: Movie = {
         tmdb_id: 12345,
         title: 'Test Movie',
         description: 'A test movie description',
@@ -94,7 +93,7 @@ describe('moviesDb Module', () => {
     });
 
     it('should handle a movie without genres and streaming services', async () => {
-      const movieData: moviesDb.Movie = {
+      const movieData: Movie = {
         tmdb_id: 12345,
         title: 'Test Movie',
         description: 'A test movie description',
@@ -120,7 +119,7 @@ describe('moviesDb Module', () => {
     });
 
     it('should throw DatabaseError when database operation fails', async () => {
-      const movieData: moviesDb.Movie = {
+      const movieData: Movie = {
         tmdb_id: 12345,
         title: 'Test Movie',
         description: 'A test movie description',
@@ -141,7 +140,7 @@ describe('moviesDb Module', () => {
 
   describe('updateMovie', () => {
     it('should update an existing movie', async () => {
-      const movieData: moviesDb.Movie = {
+      const movieData: Movie = {
         id: 1,
         tmdb_id: 12345,
         title: 'Updated Movie',
@@ -189,7 +188,7 @@ describe('moviesDb Module', () => {
     });
 
     it('should throw DatabaseError when update fails', async () => {
-      const movieData: moviesDb.Movie = {
+      const movieData: Movie = {
         id: 1,
         tmdb_id: 12345,
         title: 'Updated Movie',
@@ -617,118 +616,6 @@ describe('moviesDb Module', () => {
         user_rating: 8.5,
         mpa_rating: 'PG-13',
       });
-    });
-  });
-
-  describe('getMoviesCount', () => {
-    it('should return the total count of movies', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ total: 42 }] as RowDataPacket[], []]);
-
-      const count = await moviesDb.getMoviesCount();
-
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT COUNT(DISTINCT m.id) AS total FROM movies m');
-      expect(count).toBe(42);
-    });
-
-    it('should throw DatabaseError when count fails', async () => {
-      const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
-
-      await expect(moviesDb.getMoviesCount()).rejects.toThrow(
-        'Database error getting the count of movies: Database connection failed',
-      );
-    });
-  });
-
-  describe('getAllMovies', () => {
-    it('should return all movies with default pagination', async () => {
-      const mockMovieRows = [
-        {
-          id: 1,
-          tmdb_id: 12345,
-          title: 'Test Movie 1',
-          description: 'Description 1',
-          release_date: '2023-01-01',
-          runtime: 120,
-          poster_image: '/poster1.jpg',
-          backdrop_image: '/backdrop1.jpg',
-          user_rating: 8.5,
-          mpa_rating: 'PG-13',
-          created_at: new Date('2023-01-01'),
-          updated_at: new Date('2023-01-05'),
-          genres: 'Action, Adventure',
-          streaming_services: 'Netflix, Disney+',
-        },
-        {
-          id: 2,
-          tmdb_id: 67890,
-          title: 'Test Movie 2',
-          description: 'Description 2',
-          release_date: '2023-02-01',
-          runtime: 110,
-          poster_image: '/poster2.jpg',
-          backdrop_image: '/backdrop2.jpg',
-          user_rating: 7.5,
-          mpa_rating: 'PG',
-          created_at: new Date('2023-02-01'),
-          updated_at: new Date('2023-02-05'),
-          genres: 'Comedy, Drama',
-          streaming_services: 'Prime Video',
-        },
-      ];
-
-      mockPool.execute.mockResolvedValueOnce([mockMovieRows]);
-
-      const movies = await moviesDb.getAllMovies();
-
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(movies).toHaveLength(2);
-      expect(movies[0].id).toBe(1);
-      expect(movies[0].tmdbId).toBe(12345);
-      expect(movies[0].title).toBe('Test Movie 1');
-      expect(movies[0].genres).toBe('Action, Adventure');
-      expect(movies[0].streamingServices).toBe('Netflix, Disney+');
-      expect(movies[0].lastUpdated).toBe(mockMovieRows[0].updated_at.toISOString());
-    });
-
-    it('should return movies with custom pagination', async () => {
-      mockPool.execute.mockResolvedValueOnce([
-        [
-          {
-            id: 3,
-            tmdb_id: 11111,
-            title: 'Test Movie 3',
-            description: 'Description 3',
-            release_date: '2023-03-01',
-            runtime: 130,
-            poster_image: '/poster3.jpg',
-            backdrop_image: '/backdrop3.jpg',
-            user_rating: 9.0,
-            mpa_rating: 'R',
-            created_at: new Date('2023-03-01'),
-            updated_at: new Date('2023-03-05'),
-            genres: 'Horror, Thriller',
-            streaming_services: 'HBO Max',
-          },
-        ],
-      ]);
-
-      const limit = 10;
-      const offset = 20;
-      const movies = await moviesDb.getAllMovies(limit, offset);
-
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`));
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`));
-      expect(movies).toHaveLength(1);
-    });
-
-    it('should throw DatabaseError when fetch fails', async () => {
-      const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
-
-      await expect(moviesDb.getAllMovies()).rejects.toThrow(
-        'Database error getting all movies: Database connection failed',
-      );
     });
   });
 });

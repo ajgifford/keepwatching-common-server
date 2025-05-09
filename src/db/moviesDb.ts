@@ -1,25 +1,12 @@
 import { ContentUpdates } from '../types/contentTypes';
-import { AdminMovie, AdminMovieRow, ProfileMovie, RecentMovie, UpcomingMovie } from '../types/movieTypes';
+import { Movie, ProfileMovie, RecentMovie, UpcomingMovie } from '../types/movieTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 
-export interface Movie {
-  id?: number;
-  tmdb_id: number;
-  title: string;
-  description: string;
-  release_date: string;
-  runtime: number;
-  poster_image: string;
-  backdrop_image: string;
-  user_rating: number;
-  mpa_rating: string;
-  streaming_services?: number[];
-  genreIds?: number[];
-}
+export { getAllMovies, getMoviesCount, getMovieDetails, getMovieProfiles } from './movies/adminMovieRepository';
 
 /**
  * Saves a new movie to the database
@@ -396,57 +383,6 @@ export async function getMoviesForUpdates(): Promise<ContentUpdates[]> {
   }
 }
 
-export async function getMoviesCount() {
-  try {
-    const query = `SELECT COUNT(DISTINCT m.id) AS total FROM movies m`;
-    const [result] = await getDbPool().execute<(RowDataPacket & { total: number })[]>(query);
-    return result[0].total;
-  } catch (error) {
-    handleDatabaseError(error, 'getting the count of movies');
-  }
-}
-
-export async function getAllMovies(limit: number = 50, offset: number = 0) {
-  try {
-    const query = `SELECT 
-      m.id,
-      m.tmdb_id,
-      m.title,
-      m.description,
-      m.release_date,
-      m.runtime,
-      m.poster_image,
-      m.backdrop_image,
-      m.user_rating,
-      m.mpa_rating,
-      m.created_at,
-      m.updated_at,
-    GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-	  GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
-    FROM 
-      movies m
-    LEFT JOIN 
-      movie_genres mg ON m.id = mg.movie_id
-    LEFT JOIN 
-      genres g ON mg.genre_id = g.id
-    LEFT JOIN
-      movie_services ms ON m.id = ms.movie_id
-    LEFT JOIN
-      streaming_services ss on ms.streaming_service_id = ss.id
-    GROUP BY 
-      m.id
-    ORDER BY
-        m.title
-    LIMIT ${limit}
-    OFFSET ${offset}`;
-
-    const [movies] = await getDbPool().execute<AdminMovieRow[]>(query);
-    return movies.map((movie) => transformAdminMovie(movie));
-  } catch (error) {
-    handleDatabaseError(error, 'getting all movies');
-  }
-}
-
 /**
  * Transforms a raw database row into a Movie object
  *
@@ -466,22 +402,6 @@ function transformMovie(movie: any): Movie {
     backdrop_image: movie.backdrop_image,
     user_rating: movie.user_rating,
     mpa_rating: movie.mpa_rating,
-  };
-}
-
-function transformAdminMovie(movie: AdminMovieRow): AdminMovie {
-  return {
-    id: movie.id,
-    tmdbId: movie.tmdb_id,
-    title: movie.title,
-    description: movie.description,
-    releaseDate: movie.release_date,
-    runtime: movie.runtime,
-    posterImage: movie.poster_image,
-    backdropImage: movie.backdrop_image,
-    streamingServices: movie.streaming_services,
-    genres: movie.genres,
-    lastUpdated: movie.updated_at.toISOString(),
   };
 }
 

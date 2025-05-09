@@ -57,6 +57,21 @@ export interface UpcomingMovie {
   watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED';
 }
 
+export interface Movie {
+  id?: number;
+  tmdb_id: number;
+  title: string;
+  description: string;
+  release_date: string;
+  runtime: number;
+  poster_image: string;
+  backdrop_image: string;
+  user_rating: number;
+  mpa_rating: string;
+  streaming_services?: number[];
+  genreIds?: number[];
+}
+
 export interface AdminMovieRow extends RowDataPacket {
   id: number;
   tmdb_id: number;

@@ -307,59 +307,6 @@ export class MoviesService {
     }
   }
 
-  public async updateMovieById(movieId: number, tmdbId: number) {
-    try {
-      const tmdbService = getTMDBService();
-      const movieDetails = await tmdbService.getMovieDetails(tmdbId);
-
-      await moviesDb.updateMovie(
-        moviesDb.createMovie(
-          movieDetails.id,
-          movieDetails.title,
-          movieDetails.overview,
-          movieDetails.release_date,
-          movieDetails.runtime,
-          movieDetails.poster_path,
-          movieDetails.backdrop_path,
-          movieDetails.vote_average,
-          getUSMPARating(movieDetails.release_dates),
-          movieId,
-          getUSWatchProviders(movieDetails, 9998),
-          movieDetails.genres.map((genre: { id: any }) => genre.id),
-        ),
-      );
-    } catch (error) {
-      appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
-      throw errorService.handleError(error, `updateMovieById(${movieId})`);
-    }
-  }
-
-  public async getAllMovies(page: number, offset: number, limit: number) {
-    try {
-      const allMoviesResult = this.cache.getOrSet(MOVIE_KEYS.allMovies(page, offset, limit), async () => {
-        const [totalCount, movies] = await Promise.all([
-          moviesDb.getMoviesCount(),
-          moviesDb.getAllMovies(limit, offset),
-        ]);
-        const totalPages = Math.ceil(totalCount / limit);
-        return {
-          movies,
-          pagination: {
-            totalCount,
-            totalPages,
-            currentPage: page,
-            limit,
-            hasNextPage: page < totalPages,
-            hasPrevPage: page > 1,
-          },
-        };
-      });
-      return allMoviesResult;
-    } catch (error) {
-      throw errorService.handleError(error, `getAllMovies(${page}, ${offset}, ${limit})`);
-    }
-  }
-
   /**
    * Get statistics about a profile's movies
    *

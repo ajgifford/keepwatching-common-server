@@ -94,6 +94,9 @@ export const ADMIN_KEYS = {
   /** Gets the cache key for all shows */
   allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
 
+  /** Gets the cache key for all movies */
+  allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
+
   /** Gets the cache key for admin show details */
   showDetails: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_show_details_${showId}`,
 
@@ -118,6 +121,15 @@ export const ADMIN_KEYS = {
 
   /** Gets a pattern for invalidating all season episodes for a show */
   showSeasonsPattern: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_season_episodes_${showId}`,
+
+  /** Gets the cache key for admin movie details */
+  movieDetails: (movieId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_movie_details_${movieId}`,
+
+  /** Gets the cache key for admin movie profiles */
+  movieProfiles: (movieId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_movie_profiles_${movieId}`,
+
+  /** Gets the cache key for complete admin movie information */
+  movieComplete: (movieId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_movie_complete_${movieId}`,
 };
 
 // Movie keys
@@ -125,9 +137,6 @@ export const MOVIE_KEYS = {
   /** Gets the cache key for a specific movie for a profile */
   details: (profileId: number | string, movieId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_movie_${movieId}`,
-
-  /** Gets the cache key for all movies */
-  allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
 };
 
 // Discovery keys
