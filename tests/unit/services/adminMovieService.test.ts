@@ -4,30 +4,78 @@ import { ErrorMessages } from '@logger/loggerModel';
 import { adminMovieService } from '@services/adminMovieService';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
+import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import { getUSMPARating } from '@utils/contentUtility';
 import { getUSWatchProviders } from '@utils/watchProvidersUtility';
 
+// Mock the repositories and services
 jest.mock('@db/moviesDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
-jest.mock('@utils/contentUtility', () => ({
-  getUSMPARating: jest.fn().mockReturnValue('PG-13'),
-}));
-jest.mock('@utils/watchProvidersUtility', () => ({
-  getUSWatchProviders: jest.fn().mockReturnValue([8, 9]),
-}));
-jest.mock('@services/tmdbService', () => ({
-  getTMDBService: jest.fn(),
-}));
+jest.mock('@services/socketService');
+jest.mock('@services/tmdbService');
+jest.mock('@utils/contentUtility');
+jest.mock('@utils/watchProvidersUtility');
 jest.mock('@logger/logger', () => ({
   appLogger: {
+    error: jest.fn(),
+  },
+  cliLogger: {
+    info: jest.fn(),
     error: jest.fn(),
   },
 }));
 
 describe('AdminMovieService', () => {
   let mockCacheService: jest.Mocked<any>;
+
+  const mockMovieId = 123;
+  const mockTMDBId = 456;
+  const mockMovieDetails = {
+    id: mockMovieId,
+    title: 'Test Movie',
+    tmdbId: mockTMDBId,
+    genres: 'Action, Comedy',
+    streamingServices: 'Netflix, Disney+',
+  };
+  const mockProfiles = [
+    {
+      profileId: 101,
+      name: 'Test User 1',
+      watchStatus: 'WATCHED',
+      accountId: 201,
+      accountName: 'Test Account',
+      addedDate: '2023-01-15T00:00:00.000Z',
+      lastUpdated: '2023-01-16T00:00:00.000Z',
+    },
+    {
+      profileId: 102,
+      name: 'Test User 2',
+      watchStatus: 'NOT_WATCHED',
+      accountId: 201,
+      accountName: 'Test Account',
+      addedDate: '2023-01-20T00:00:00.000Z',
+      lastUpdated: '2023-01-20T00:00:00.000Z',
+    },
+  ];
+
+  const mockMovies = [
+    { id: 1, title: 'Movie 1', releaseDate: '2023-01-01', genres: 'Action, Drama', tmdbId: 1001 },
+    { id: 2, title: 'Movie 2', releaseDate: '2023-02-01', genres: 'Comedy, Romance', tmdbId: 1002 },
+  ];
+
+  const mockPaginationResult = {
+    movies: mockMovies,
+    pagination: {
+      totalCount: 10,
+      totalPages: 5,
+      currentPage: 1,
+      limit: 2,
+      hasNextPage: true,
+      hasPrevPage: false,
+    },
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -47,14 +95,200 @@ describe('AdminMovieService', () => {
     (errorService.handleError as jest.Mock).mockImplementation((error) => {
       throw error;
     });
+
+    // Set up default mocks
+    (moviesDb.getMovieDetails as jest.Mock).mockResolvedValue(mockMovieDetails);
+    (moviesDb.getMovieProfiles as jest.Mock).mockResolvedValue(mockProfiles);
+    (moviesDb.getAllMovies as jest.Mock).mockResolvedValue(mockMovies);
+    (moviesDb.getMoviesCount as jest.Mock).mockResolvedValue(10);
+    (socketService.notifyMoviesUpdate as jest.Mock).mockImplementation(() => {});
+  });
+
+  describe('getMovieDetails', () => {
+    it('should return cached movie details when available', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockMovieDetails);
+
+      const result = await adminMovieService.getMovieDetails(mockMovieId);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(result).toEqual(mockMovieDetails);
+      expect(moviesDb.getMovieDetails).not.toHaveBeenCalled();
+    });
+
+    it('should fetch movie details from database when not in cache', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+        return await fetchFn();
+      });
+
+      const result = await adminMovieService.getMovieDetails(mockMovieId);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(moviesDb.getMovieDetails).toHaveBeenCalledWith(mockMovieId);
+      expect(result).toEqual(mockMovieDetails);
+    });
+
+    it('should handle errors properly', async () => {
+      const error = new Error('Database error');
+      (moviesDb.getMovieDetails as jest.Mock).mockRejectedValue(error);
+
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+        return await fetchFn();
+      });
+
+      await expect(adminMovieService.getMovieDetails(mockMovieId)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, `getMovieDetails(${mockMovieId})`);
+    });
+  });
+
+  describe('getMovieProfiles', () => {
+    it('should return cached movie profiles when available', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockProfiles);
+
+      const result = await adminMovieService.getMovieProfiles(mockMovieId);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(result).toEqual(mockProfiles);
+      expect(moviesDb.getMovieProfiles).not.toHaveBeenCalled();
+    });
+
+    it('should fetch movie profiles from database when not in cache', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+        return await fetchFn();
+      });
+
+      const result = await adminMovieService.getMovieProfiles(mockMovieId);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(moviesDb.getMovieProfiles).toHaveBeenCalledWith(mockMovieId);
+      expect(result).toEqual(mockProfiles);
+    });
+
+    it('should handle errors properly', async () => {
+      const error = new Error('Database error');
+      (moviesDb.getMovieProfiles as jest.Mock).mockRejectedValue(error);
+
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+        return await fetchFn();
+      });
+
+      await expect(adminMovieService.getMovieProfiles(mockMovieId)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, `getMovieProfiles(${mockMovieId})`);
+    });
+  });
+
+  describe('getCompleteMovieInfo', () => {
+    it('should return cached complete movie info when available', async () => {
+      const mockCompleteInfo = {
+        details: mockMovieDetails,
+        profiles: mockProfiles,
+      };
+
+      mockCacheService.getOrSet.mockResolvedValue(mockCompleteInfo);
+
+      const result = await adminMovieService.getCompleteMovieInfo(mockMovieId);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(result).toEqual(mockCompleteInfo);
+      expect(moviesDb.getMovieDetails).not.toHaveBeenCalled();
+      expect(moviesDb.getMovieProfiles).not.toHaveBeenCalled();
+    });
+
+    it('should fetch and combine movie details and profiles when not in cache', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+        return await fetchFn();
+      });
+
+      const result = await adminMovieService.getCompleteMovieInfo(mockMovieId);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(moviesDb.getMovieDetails).toHaveBeenCalledWith(mockMovieId);
+      expect(moviesDb.getMovieProfiles).toHaveBeenCalledWith(mockMovieId);
+
+      expect(result).toEqual({
+        details: mockMovieDetails,
+        profiles: mockProfiles,
+      });
+    });
+
+    it('should handle errors properly', async () => {
+      const error = new Error('Database error');
+      (moviesDb.getMovieDetails as jest.Mock).mockRejectedValue(error);
+
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+        return await fetchFn();
+      });
+
+      await expect(adminMovieService.getCompleteMovieInfo(mockMovieId)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, `getCompleteMovieInfo(${mockMovieId})`);
+    });
+  });
+
+  describe('getAllMovies', () => {
+    it('should return movies with pagination from cache when available', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockPaginationResult);
+
+      const result = await adminMovieService.getAllMovies(1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith('allMovies_1_0_2', expect.any(Function));
+      expect(result).toEqual(mockPaginationResult);
+      expect(moviesDb.getAllMovies).not.toHaveBeenCalled();
+      expect(moviesDb.getMoviesCount).not.toHaveBeenCalled();
+    });
+
+    it('should fetch movies with pagination from database when not in cache', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+
+      const result = await adminMovieService.getAllMovies(1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(moviesDb.getMoviesCount).toHaveBeenCalled();
+      expect(moviesDb.getAllMovies).toHaveBeenCalledWith(2, 0);
+
+      expect(result).toEqual({
+        movies: mockMovies,
+        pagination: {
+          totalCount: 10,
+          totalPages: 5,
+          currentPage: 1,
+          limit: 2,
+          hasNextPage: true,
+          hasPrevPage: false,
+        },
+      });
+    });
+
+    it('should calculate pagination correctly', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      (moviesDb.getMoviesCount as jest.Mock).mockResolvedValue(21);
+
+      const result = await adminMovieService.getAllMovies(2, 5, 5);
+
+      expect(result.pagination).toEqual({
+        totalCount: 21,
+        totalPages: 5, // 21 / 5 = 4.2, ceil = 5
+        currentPage: 2,
+        limit: 5,
+        hasNextPage: true, // currentPage 2 < totalPages 5
+        hasPrevPage: true, // currentPage 2 > 1
+      });
+    });
+
+    it('should handle errors properly', async () => {
+      const error = new Error('Database error');
+      (moviesDb.getMoviesCount as jest.Mock).mockRejectedValue(error);
+
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+        return await fetchFn();
+      });
+
+      await expect(adminMovieService.getAllMovies(1, 0, 2)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalled();
+    });
   });
 
   describe('updateMovieById', () => {
-    const movieId = 123;
-    const tmdbId = 456;
-
     const mockTMDBMovie = {
-      id: tmdbId,
+      id: mockTMDBId,
       title: 'Updated Movie Title',
       overview: 'New overview',
       release_date: '2023-01-15',
@@ -78,8 +312,8 @@ describe('AdminMovieService', () => {
     };
 
     const mockUpdatedMovie = {
-      id: movieId,
-      tmdb_id: tmdbId,
+      id: mockMovieId,
+      tmdb_id: mockTMDBId,
       title: 'Updated Movie Title',
       description: 'New overview',
       release_date: '2023-01-15',
@@ -104,13 +338,13 @@ describe('AdminMovieService', () => {
       (moviesDb.createMovie as jest.Mock).mockReturnValue(mockUpdatedMovie);
       (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
 
-      await adminMovieService.updateMovieById(movieId, tmdbId);
+      const result = await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
 
-      expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(tmdbId);
+      expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(mockTMDBId);
       expect(getUSMPARating).toHaveBeenCalledWith(mockTMDBMovie.release_dates);
       expect(getUSWatchProviders).toHaveBeenCalledWith(mockTMDBMovie, 9998);
       expect(moviesDb.createMovie).toHaveBeenCalledWith(
-        tmdbId,
+        mockTMDBId,
         'Updated Movie Title',
         'New overview',
         '2023-01-15',
@@ -119,27 +353,28 @@ describe('AdminMovieService', () => {
         '/backdrop.jpg',
         8.5,
         'PG-13',
-        movieId,
+        mockMovieId,
         [8, 9],
         [28, 12],
       );
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
+      expect(result).toBe(true);
     });
 
-    it('should handle API errors', async () => {
+    it('should handle TMDB API errors', async () => {
       const mockError = new Error('TMDB API error');
       const mockTMDBService = {
         getMovieDetails: jest.fn().mockRejectedValue(mockError),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
-      await expect(adminMovieService.updateMovieById(movieId, tmdbId)).rejects.toThrow('TMDB API error');
-      expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(tmdbId);
+      await expect(adminMovieService.updateMovieById(mockMovieId, mockTMDBId)).rejects.toThrow('TMDB API error');
+      expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(mockTMDBId);
       expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.MovieChangeFail, {
         error: mockError,
-        movieId,
+        movieId: mockMovieId,
       });
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `updateMovieById(${movieId})`);
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `updateMovieById(${mockMovieId})`);
     });
 
     it('should handle database errors', async () => {
@@ -156,90 +391,31 @@ describe('AdminMovieService', () => {
       const mockError = new Error('Database error');
       (moviesDb.updateMovie as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(adminMovieService.updateMovieById(movieId, tmdbId)).rejects.toThrow('Database error');
+      await expect(adminMovieService.updateMovieById(mockMovieId, mockTMDBId)).rejects.toThrow('Database error');
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
       expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.MovieChangeFail, {
         error: mockError,
-        movieId,
+        movieId: mockMovieId,
       });
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `updateMovieById(${movieId})`);
-    });
-  });
-
-  describe('getAllMovies', () => {
-    const mockMovies = [
-      { id: 1, title: 'Movie 1', created_at: '2023-01-01', updated_at: '2023-01-10' },
-      { id: 2, title: 'Movie 2', created_at: '2023-02-01', updated_at: '2023-02-10' },
-    ];
-
-    const mockPaginationResult = {
-      movies: mockMovies,
-      pagination: {
-        totalCount: 10,
-        totalPages: 5,
-        currentPage: 1,
-        limit: 2,
-        hasNextPage: true,
-        hasPrevPage: false,
-      },
-    };
-
-    it('should return movies with pagination from cache when available', async () => {
-      mockCacheService.getOrSet.mockResolvedValue(mockPaginationResult);
-
-      const result = await adminMovieService.getAllMovies(1, 0, 2);
-
-      expect(mockCacheService.getOrSet).toHaveBeenCalledWith('allMovies_1_0_2', expect.any(Function));
-      expect(result).toEqual(mockPaginationResult);
-    });
-
-    it('should fetch movies with pagination from database when not in cache', async () => {
-      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-
-      (moviesDb.getMoviesCount as jest.Mock).mockResolvedValue(10);
-      (moviesDb.getAllMovies as jest.Mock).mockResolvedValue(mockMovies);
-
-      const result = await adminMovieService.getAllMovies(1, 0, 2);
-
-      expect(mockCacheService.getOrSet).toHaveBeenCalled();
-      expect(moviesDb.getMoviesCount).toHaveBeenCalled();
-      expect(moviesDb.getAllMovies).toHaveBeenCalledWith(2, 0);
-
-      expect(result).toEqual({
-        movies: mockMovies,
-        pagination: {
-          totalCount: 10,
-          totalPages: 5,
-          currentPage: 1,
-          limit: 2,
-          hasNextPage: true,
-          hasPrevPage: false,
-        },
-      });
-    });
-
-    it('should use default values when not provided', async () => {
-      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-
-      (moviesDb.getMoviesCount as jest.Mock).mockResolvedValue(100);
-      (moviesDb.getAllMovies as jest.Mock).mockResolvedValue(mockMovies);
-
-      await adminMovieService.getAllMovies(1, 0, 50);
-
-      expect(moviesDb.getAllMovies).toHaveBeenCalledWith(50, 0);
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `updateMovieById(${mockMovieId})`);
     });
   });
 
   describe('invalidateMovieCache', () => {
     it('should invalidate all cache keys related to a movie', () => {
-      const movieId = 123;
-
-      adminMovieService.invalidateMovieCache(movieId);
+      adminMovieService.invalidateMovieCache(mockMovieId);
 
       // Check that all cache keys are invalidated
-      expect(mockCacheService.invalidate).toHaveBeenCalledWith(expect.stringContaining('movie_details'));
-      expect(mockCacheService.invalidate).toHaveBeenCalledWith(expect.stringContaining('movie_profiles'));
-      expect(mockCacheService.invalidate).toHaveBeenCalledWith(expect.stringContaining('movie_complete'));
+      expect(mockCacheService.invalidate).toHaveBeenCalledWith(
+        expect.stringContaining(`admin_movie_details_${mockMovieId}`),
+      );
+      expect(mockCacheService.invalidate).toHaveBeenCalledWith(
+        expect.stringContaining(`admin_movie_profiles_${mockMovieId}`),
+      );
+      expect(mockCacheService.invalidate).toHaveBeenCalledWith(
+        expect.stringContaining(`admin_movie_complete_${mockMovieId}`),
+      );
+      expect(mockCacheService.invalidate).toHaveBeenCalledTimes(3);
     });
   });
 });

@@ -135,4 +135,125 @@ describe('adminMovieRepository', () => {
       );
     });
   });
+
+  describe('getMovieDetails', () => {
+    const movieId = 123;
+    const mockMovieRow = {
+      id: movieId,
+      tmdb_id: 45678,
+      title: 'The Test Movie',
+      description: 'A movie about testing',
+      release_date: '2023-04-15',
+      runtime: 125,
+      poster_image: '/poster_path.jpg',
+      backdrop_image: '/backdrop_path.jpg',
+      user_rating: 8.7,
+      mpa_rating: 'PG-13',
+      created_at: new Date('2023-04-01'),
+      updated_at: new Date('2023-04-10'),
+      genres: 'Action, Sci-Fi, Thriller',
+      streaming_services: 'Netflix, HBO Max',
+    };
+
+    it('should return movie details when found', async () => {
+      mockPool.execute.mockResolvedValueOnce([[mockMovieRow]]);
+
+      const movie = await moviesDb.getMovieDetails(movieId);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('m.id = ?'), [movieId]);
+      expect(movie).toEqual({
+        id: movieId,
+        tmdbId: 45678,
+        title: 'The Test Movie',
+        description: 'A movie about testing',
+        releaseDate: '2023-04-15',
+        runtime: 125,
+        posterImage: '/poster_path.jpg',
+        backdropImage: '/backdrop_path.jpg',
+        streamingServices: 'Netflix, HBO Max',
+        genres: 'Action, Sci-Fi, Thriller',
+        lastUpdated: mockMovieRow.updated_at.toISOString(),
+      });
+    });
+
+    it('should throw NotFoundError when movie is not found', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await expect(moviesDb.getMovieDetails(movieId)).rejects.toThrow(`Movie with ID ${movieId} not found`);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('m.id = ?'), [movieId]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query execution failed');
+      mockPool.execute.mockRejectedValueOnce(dbError);
+
+      await expect(moviesDb.getMovieDetails(movieId)).rejects.toThrow(
+        'Database error getMovieDetails(123): Query execution failed',
+      );
+    });
+  });
+
+  describe('getMovieProfiles', () => {
+    const movieId = 123;
+    const mockProfiles = [
+      {
+        profile_id: 1,
+        name: 'User One',
+        image: 'profile1.jpg',
+        account_id: 101,
+        account_name: 'Account One',
+        watch_status: 'WATCHED',
+        added_date: new Date('2023-04-05'),
+        status_updated_date: new Date('2023-04-06'),
+      },
+      {
+        profile_id: 2,
+        name: 'User Two',
+        image: 'profile2.jpg',
+        account_id: 102,
+        account_name: 'Account Two',
+        watch_status: 'WATCHING',
+        added_date: new Date('2023-04-07'),
+        status_updated_date: new Date('2023-04-08'),
+      },
+    ];
+
+    it('should return profiles watching a movie', async () => {
+      mockPool.execute.mockResolvedValueOnce([mockProfiles]);
+
+      const profiles = await moviesDb.getMovieProfiles(movieId);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('mws.movie_id = ?'), [movieId]);
+      expect(profiles).toHaveLength(2);
+      expect(profiles[0]).toEqual({
+        profileId: 1,
+        name: 'User One',
+        image: 'profile1.jpg',
+        accountId: 101,
+        accountName: 'Account One',
+        watchStatus: 'WATCHED',
+        addedDate: mockProfiles[0].added_date.toISOString(),
+        lastUpdated: mockProfiles[0].status_updated_date.toISOString(),
+      });
+      expect(profiles[1].watchStatus).toBe('WATCHING');
+    });
+
+    it('should return empty array when no profiles are found', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      const profiles = await moviesDb.getMovieProfiles(movieId);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('mws.movie_id = ?'), [movieId]);
+      expect(profiles).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query execution failed');
+      mockPool.execute.mockRejectedValueOnce(dbError);
+
+      await expect(moviesDb.getMovieProfiles(movieId)).rejects.toThrow(
+        'Database error getMovieProfiles(123): Query execution failed',
+      );
+    });
+  });
 });

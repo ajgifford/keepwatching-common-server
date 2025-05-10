@@ -17,7 +17,7 @@ export class AdminMovieService {
 
   public async getAllMovies(page: number, offset: number, limit: number) {
     try {
-      const allMoviesResult = this.cache.getOrSet(ADMIN_KEYS.allMovies(page, offset, limit), async () => {
+      return await this.cache.getOrSet(ADMIN_KEYS.allMovies(page, offset, limit), async () => {
         const [totalCount, movies] = await Promise.all([
           moviesDb.getMoviesCount(),
           moviesDb.getAllMovies(limit, offset),
@@ -35,7 +35,6 @@ export class AdminMovieService {
           },
         };
       });
-      return allMoviesResult;
     } catch (error) {
       throw errorService.handleError(error, `getAllMovies(${page}, ${offset}, ${limit})`);
     }

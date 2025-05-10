@@ -1,4 +1,4 @@
-import { Movie } from '../../../src/types/movieTypes';
+import { Movie } from '../../../../src/types/movieTypes';
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
@@ -14,7 +14,7 @@ jest.mock('@utils/db', () => {
 
 jest.mock('@utils/transactionHelper');
 
-describe('moviesDb Module', () => {
+describe('movieRepository', () => {
   let mockPool: any;
   let mockConnection: any;
   let mockTransactionHelper: any;
