@@ -151,6 +151,8 @@ function transformAdminMovie(movie: AdminMovieRow): AdminMovie {
     runtime: movie.runtime,
     posterImage: movie.poster_image,
     backdropImage: movie.backdrop_image,
+    userRating: movie.user_rating,
+    mpaRating: movie.mpa_rating,
     streamingServices: movie.streaming_services,
     genres: movie.genres,
     lastUpdated: movie.updated_at.toISOString(),

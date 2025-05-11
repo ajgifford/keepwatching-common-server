@@ -170,6 +170,8 @@ describe('adminMovieRepository', () => {
         runtime: 125,
         posterImage: '/poster_path.jpg',
         backdropImage: '/backdrop_path.jpg',
+        userRating: 8.7,
+        mpaRating: 'PG-13',
         streamingServices: 'Netflix, HBO Max',
         genres: 'Action, Sci-Fi, Thriller',
         lastUpdated: mockMovieRow.updated_at.toISOString(),

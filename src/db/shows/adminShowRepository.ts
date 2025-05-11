@@ -487,6 +487,8 @@ function transformAdminShow(show: AdminShowRow): AdminShow {
     network: show.network,
     seasonCount: show.season_count,
     episodeCount: show.episode_count,
+    userRating: show.user_rating,
+    contentRating: show.content_rating,
     status: show.status,
     type: show.type,
     inProduction: Boolean(show.in_production),

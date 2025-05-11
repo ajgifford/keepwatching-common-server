@@ -129,6 +129,8 @@ export interface AdminShow {
   network: string;
   seasonCount: number;
   episodeCount: number;
+  userRating: number;
+  contentRating: string;
   streamingServices: string;
   genres: string;
   status: string;

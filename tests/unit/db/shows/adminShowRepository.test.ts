@@ -197,6 +197,8 @@ describe('adminShowRepository', () => {
         network: 'Test Network',
         seasonCount: 3,
         episodeCount: 30,
+        userRating: 8.5,
+        contentRating: 'TV-14',
         status: 'Running',
         type: 'Scripted',
         inProduction: true,
