@@ -1,51 +1,50 @@
 import {
+  getEpisodeToAirId,
+  getInProduction,
+  getStreamingPremieredDate,
+  getTMDBItemName,
+  getTMDBPremieredDate,
+  getUSMPARating,
   getUSNetwork,
   getUSRating,
-  getInProduction,
-  getEpisodeToAirId,
-  getUSMPARating,
   stripPrefix,
-  getStreamingPremieredDate,
-  getTMDBPremieredDate,
-  getTMDBItemName
 } from '@utils/contentUtility';
-import { ContentRatings, Network, ReleaseDates } from '../../../src/types/contentTypes';
 
 describe('contentUtility', () => {
   describe('getUSNetwork', () => {
     it('should return the name of a US network when present', () => {
-      const networks: Network[] = [
+      const networks = [
         {
           id: '1',
           logo_path: '/path/to/logo1.png',
           name: 'Non-US Network',
-          origin_country: 'UK'
+          origin_country: 'UK',
         },
         {
           id: '2',
           logo_path: '/path/to/logo2.png',
           name: 'US Network',
-          origin_country: 'US'
-        }
+          origin_country: 'US',
+        },
       ];
 
       expect(getUSNetwork(networks)).toBe('US Network');
     });
 
     it('should return null when no US network is present', () => {
-      const networks: Network[] = [
+      const networks = [
         {
           id: '1',
           logo_path: '/path/to/logo1.png',
           name: 'Non-US Network',
-          origin_country: 'UK'
+          origin_country: 'UK',
         },
         {
           id: '2',
           logo_path: '/path/to/logo2.png',
           name: 'Another Network',
-          origin_country: 'CA'
-        }
+          origin_country: 'CA',
+        },
       ];
 
       expect(getUSNetwork(networks)).toBeNull();
@@ -58,46 +57,46 @@ describe('contentUtility', () => {
 
   describe('getUSRating', () => {
     it('should return the US rating when present', () => {
-      const contentRatings: ContentRatings = {
+      const contentRatings = {
         results: [
           {
             descriptors: [],
             iso_3166_1: 'UK',
-            rating: 'PG'
+            rating: 'PG',
           },
           {
             descriptors: [],
             iso_3166_1: 'US',
-            rating: 'TV-MA'
-          }
-        ]
+            rating: 'TV-MA',
+          },
+        ],
       };
 
       expect(getUSRating(contentRatings)).toBe('TV-MA');
     });
 
     it('should return default "TV-G" when no US rating is present', () => {
-      const contentRatings: ContentRatings = {
+      const contentRatings = {
         results: [
           {
             descriptors: [],
             iso_3166_1: 'UK',
-            rating: 'PG'
+            rating: 'PG',
           },
           {
             descriptors: [],
             iso_3166_1: 'CA',
-            rating: 'G'
-          }
-        ]
+            rating: 'G',
+          },
+        ],
       };
 
       expect(getUSRating(contentRatings)).toBe('TV-G');
     });
 
     it('should return default "TV-G" for empty results array', () => {
-      const contentRatings: ContentRatings = {
-        results: []
+      const contentRatings = {
+        results: [],
       };
 
       expect(getUSRating(contentRatings)).toBe('TV-G');
@@ -129,7 +128,7 @@ describe('contentUtility', () => {
 
   describe('getUSMPARating', () => {
     it('should return the US certification when present', () => {
-      const releaseDates: ReleaseDates = {
+      const releaseDates = {
         results: [
           {
             iso_3166_1: 'UK',
@@ -140,9 +139,9 @@ describe('contentUtility', () => {
                 iso_639_1: 'en',
                 note: '',
                 release_date: new Date('2023-01-01'),
-                type: 3
-              }
-            ]
+                type: 3,
+              },
+            ],
           },
           {
             iso_3166_1: 'US',
@@ -153,18 +152,18 @@ describe('contentUtility', () => {
                 iso_639_1: 'en',
                 note: '',
                 release_date: new Date('2023-01-15'),
-                type: 3
-              }
-            ]
-          }
-        ]
+                type: 3,
+              },
+            ],
+          },
+        ],
       };
 
       expect(getUSMPARating(releaseDates)).toBe('PG-13');
     });
 
     it('should return default "PG" when no US certification is present', () => {
-      const releaseDates: ReleaseDates = {
+      const releaseDates = {
         results: [
           {
             iso_3166_1: 'UK',
@@ -175,19 +174,19 @@ describe('contentUtility', () => {
                 iso_639_1: 'en',
                 note: '',
                 release_date: new Date('2023-01-01'),
-                type: 3
-              }
-            ]
-          }
-        ]
+                type: 3,
+              },
+            ],
+          },
+        ],
       };
 
       expect(getUSMPARating(releaseDates)).toBe('PG');
     });
 
     it('should return default "PG" for empty results array', () => {
-      const releaseDates: ReleaseDates = {
-        results: []
+      const releaseDates = {
+        results: [],
       };
 
       expect(getUSMPARating(releaseDates)).toBe('PG');

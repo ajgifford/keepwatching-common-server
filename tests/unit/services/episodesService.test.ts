@@ -13,39 +13,39 @@ jest.mock('@services/errorService');
 jest.mock('@services/showService');
 
 describe('episodesService', () => {
+  const accountId = 1;
+  const profileId = 123;
+  const showId = 789;
+  const seasonId = 456;
+  const episodeId = 101;
+  const status = 'WATCHED';
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('updateEpisodeWatchStatus', () => {
     it('should update episode watch status and return next unwatched episodes', async () => {
-      const profileId = '123';
-      const episodeId = 456;
-      const status = 'WATCHED';
       const mockNextUnwatchedEpisodes = [{ show_id: 1, episodes: [{ episode_id: 789 }] }];
 
       (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
       (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
 
-      const result = await episodesService.updateEpisodeWatchStatus(profileId, episodeId, status);
+      const result = await episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
       expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
-      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(profileId);
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
       expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
-      expect(result).toEqual({ nextUnwatchedEpisodes: mockNextUnwatchedEpisodes });
+      expect(result).toEqual(mockNextUnwatchedEpisodes);
     });
 
     it('should throw BadRequestError when update fails', async () => {
-      const profileId = '123';
-      const episodeId = 456;
-      const status = 'WATCHED';
-
       (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
       (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw error;
       });
 
-      await expect(episodesService.updateEpisodeWatchStatus(profileId, episodeId, status)).rejects.toThrow(
+      await expect(episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status)).rejects.toThrow(
         BadRequestError,
       );
       expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
@@ -54,9 +54,6 @@ describe('episodesService', () => {
     });
 
     it('should handle database errors', async () => {
-      const profileId = '123';
-      const episodeId = 456;
-      const status = 'WATCHED';
       const mockError = new Error('Database error');
 
       (episodesDb.updateWatchStatus as jest.Mock).mockRejectedValue(mockError);
@@ -64,52 +61,48 @@ describe('episodesService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(episodesService.updateEpisodeWatchStatus(profileId, episodeId, status)).rejects.toThrow(
+      await expect(episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status)).rejects.toThrow(
         'Handled: Database error',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        `updateEpisodeWatchStatus(${profileId}, ${episodeId}, ${status})`,
+        `updateEpisodeWatchStatus(${accountId}, ${profileId}, ${episodeId}, ${status})`,
       );
     });
   });
 
   describe('updateNextEpisodeWatchStatus', () => {
     it('should update next episode watch status and related season/show statuses', async () => {
-      const profileId = '123';
-      const showId = 789;
-      const seasonId = 456;
-      const episodeId = 101;
-      const status = 'WATCHED';
       const mockNextUnwatchedEpisodes = [{ show_id: 789, episodes: [{ episode_id: 102 }] }];
 
       (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
       (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
 
-      const result = await episodesService.updateNextEpisodeWatchStatus(profileId, showId, seasonId, episodeId, status);
+      const result = await episodesService.updateNextEpisodeWatchStatus(
+        accountId,
+        profileId,
+        showId,
+        seasonId,
+        episodeId,
+        status,
+      );
 
       expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
       expect(seasonsDb.updateWatchStatusByEpisode).toHaveBeenCalledWith(profileId, seasonId);
       expect(showsDb.updateWatchStatusBySeason).toHaveBeenCalledWith(profileId, showId);
-      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(profileId);
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
       expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
-      expect(result).toEqual({ nextUnwatchedEpisodes: mockNextUnwatchedEpisodes });
+      expect(result).toEqual(mockNextUnwatchedEpisodes);
     });
 
     it('should throw BadRequestError when update fails', async () => {
-      const profileId = '123';
-      const showId = 789;
-      const seasonId = 456;
-      const episodeId = 101;
-      const status = 'WATCHED';
-
       (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
       (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw error;
       });
 
       await expect(
-        episodesService.updateNextEpisodeWatchStatus(profileId, showId, seasonId, episodeId, status),
+        episodesService.updateNextEpisodeWatchStatus(accountId, profileId, showId, seasonId, episodeId, status),
       ).rejects.toThrow(BadRequestError);
 
       expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
@@ -119,11 +112,6 @@ describe('episodesService', () => {
     });
 
     it('should handle database errors', async () => {
-      const profileId = '123';
-      const showId = 789;
-      const seasonId = 456;
-      const episodeId = 101;
-      const status = 'WATCHED';
       const mockError = new Error('Database error');
 
       (episodesDb.updateWatchStatus as jest.Mock).mockRejectedValue(mockError);
@@ -132,7 +120,7 @@ describe('episodesService', () => {
       });
 
       await expect(
-        episodesService.updateNextEpisodeWatchStatus(profileId, showId, seasonId, episodeId, status),
+        episodesService.updateNextEpisodeWatchStatus(accountId, profileId, showId, seasonId, episodeId, status),
       ).rejects.toThrow('Handled: Database error');
 
       expect(errorService.handleError).toHaveBeenCalledWith(
@@ -142,11 +130,6 @@ describe('episodesService', () => {
     });
 
     it('should handle errors in season status update', async () => {
-      const profileId = '123';
-      const showId = 789;
-      const seasonId = 456;
-      const episodeId = 101;
-      const status = 'WATCHED';
       const mockError = new Error('Season update error');
 
       (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
@@ -156,7 +139,7 @@ describe('episodesService', () => {
       });
 
       await expect(
-        episodesService.updateNextEpisodeWatchStatus(profileId, showId, seasonId, episodeId, status),
+        episodesService.updateNextEpisodeWatchStatus(accountId, profileId, showId, seasonId, episodeId, status),
       ).rejects.toThrow('Handled: Season update error');
 
       expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
@@ -167,8 +150,6 @@ describe('episodesService', () => {
 
   describe('getEpisodesForSeason', () => {
     it('should return episodes for the specified season', async () => {
-      const profileId = '123';
-      const seasonId = 456;
       const mockEpisodes = [
         { episode_id: 1, title: 'Episode 1', watch_status: 'WATCHED' },
         { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED' },
@@ -183,8 +164,6 @@ describe('episodesService', () => {
     });
 
     it('should handle database errors', async () => {
-      const profileId = '123';
-      const seasonId = 456;
       const mockError = new Error('Database error');
 
       (episodesDb.getEpisodesForSeason as jest.Mock).mockRejectedValue(mockError);
@@ -205,7 +184,6 @@ describe('episodesService', () => {
 
   describe('getUpcomingEpisodesForProfile', () => {
     it('should return upcoming episodes for the profile', async () => {
-      const profileId = '123';
       const mockUpcomingEpisodes = [
         { id: 1, title: 'Upcoming Episode 1', air_date: '2025-05-01' },
         { id: 2, title: 'Upcoming Episode 2', air_date: '2025-05-08' },
@@ -220,7 +198,6 @@ describe('episodesService', () => {
     });
 
     it('should handle database errors', async () => {
-      const profileId = '123';
       const mockError = new Error('Database error');
 
       (episodesDb.getUpcomingEpisodesForProfile as jest.Mock).mockRejectedValue(mockError);
@@ -236,7 +213,6 @@ describe('episodesService', () => {
 
   describe('getRecentEpisodesForProfile', () => {
     it('should return recent episodes for the profile', async () => {
-      const profileId = '123';
       const mockRecentEpisodes = [
         { id: 1, title: 'Recent Episode 1', air_date: '2025-04-10' },
         { id: 2, title: 'Recent Episode 2', air_date: '2025-04-12' },
@@ -251,7 +227,6 @@ describe('episodesService', () => {
     });
 
     it('should handle database errors', async () => {
-      const profileId = '123';
       const mockError = new Error('Database error');
 
       (episodesDb.getRecentEpisodesForProfile as jest.Mock).mockRejectedValue(mockError);
@@ -285,7 +260,7 @@ describe('episodesService', () => {
         still_image: '/path/to/image.jpg',
       };
 
-      const updatedEpisode = { ...episodeData, id: 500 };
+      const updatedEpisode = 500;
 
       jest.spyOn(episodesDb, 'updateEpisode').mockResolvedValue(updatedEpisode);
 
@@ -301,7 +276,13 @@ describe('episodesService', () => {
         show_id: 100,
         season_id: 200,
         episode_number: 1,
-        // Incomplete data
+        season_number: 1,
+        title: 'Episode 1',
+        episode_type: 'Regular',
+        air_date: '',
+        overview: 'Episode 1',
+        runtime: 5,
+        still_image: 'image.png',
       };
 
       const error = new Error('Database error');
@@ -322,9 +303,6 @@ describe('episodesService', () => {
     });
 
     it('should add an episode to favorites successfully', async () => {
-      const profileId = 123;
-      const episodeId = 456;
-
       jest.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
 
       await episodesService.addEpisodeToFavorites(profileId, episodeId);
@@ -333,9 +311,6 @@ describe('episodesService', () => {
     });
 
     it('should handle errors when adding an episode to favorites', async () => {
-      const profileId = 123;
-      const episodeId = 456;
-
       const error = new Error('Database error');
 
       jest.spyOn(episodesDb, 'saveFavorite').mockRejectedValue(error);

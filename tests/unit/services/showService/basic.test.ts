@@ -23,7 +23,7 @@ describe('ShowService - Basic Functionality', () => {
     it('should return shows from cache when available', async () => {
       mockCache.getOrSet.mockResolvedValue(mockShows);
 
-      const result = await service.getShowsForProfile('123');
+      const result = await service.getShowsForProfile(123);
 
       expect(mockCache.getOrSet).toHaveBeenCalledWith('profile_123_shows', expect.any(Function), 600);
       expect(result).toEqual(mockShows);
@@ -33,10 +33,10 @@ describe('ShowService - Basic Functionality', () => {
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
       (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockShows);
 
-      const result = await service.getShowsForProfile('123');
+      const result = await service.getShowsForProfile(123);
 
       expect(mockCache.getOrSet).toHaveBeenCalled();
-      expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith('123');
+      expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith(123);
       expect(result).toEqual(mockShows);
     });
 
@@ -45,7 +45,7 @@ describe('ShowService - Basic Functionality', () => {
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
       (showsDb.getAllShowsForProfile as jest.Mock).mockRejectedValue(error);
 
-      await expect(service.getShowsForProfile('123')).rejects.toThrow('Database error');
+      await expect(service.getShowsForProfile(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getShowsForProfile(123)');
     });
   });
@@ -60,7 +60,7 @@ describe('ShowService - Basic Functionality', () => {
     it('should return show details from cache when available', async () => {
       mockCache.getOrSet.mockResolvedValue(mockShowWithSeasons);
 
-      const result = await service.getShowDetailsForProfile('123', '1');
+      const result = await service.getShowDetailsForProfile(123, 1);
 
       expect(mockCache.getOrSet).toHaveBeenCalledWith('profile_123_show_details_1', expect.any(Function), 600);
       expect(result).toEqual(mockShowWithSeasons);
@@ -70,10 +70,10 @@ describe('ShowService - Basic Functionality', () => {
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
       (showsDb.getShowWithSeasonsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
 
-      const result = await service.getShowDetailsForProfile('123', '1');
+      const result = await service.getShowDetailsForProfile(123, 1);
 
       expect(mockCache.getOrSet).toHaveBeenCalled();
-      expect(showsDb.getShowWithSeasonsForProfile).toHaveBeenCalledWith('123', '1');
+      expect(showsDb.getShowWithSeasonsForProfile).toHaveBeenCalledWith(123, 1);
       expect(result).toEqual(mockShowWithSeasons);
     });
 
@@ -84,8 +84,8 @@ describe('ShowService - Basic Functionality', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.getShowDetailsForProfile('123', '999')).rejects.toThrow(NotFoundError);
-      expect(showsDb.getShowWithSeasonsForProfile).toHaveBeenCalledWith('123', '999');
+      await expect(service.getShowDetailsForProfile(123, 999)).rejects.toThrow(NotFoundError);
+      expect(showsDb.getShowWithSeasonsForProfile).toHaveBeenCalledWith(123, 999);
       expect(errorService.assertExists).toHaveBeenCalled();
     });
 
@@ -94,7 +94,7 @@ describe('ShowService - Basic Functionality', () => {
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
       (showsDb.getShowWithSeasonsForProfile as jest.Mock).mockRejectedValue(error);
 
-      await expect(service.getShowDetailsForProfile('123', '1')).rejects.toThrow('Database error');
+      await expect(service.getShowDetailsForProfile(123, 1)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getShowDetailsForProfile(123, 1)');
     });
   });

@@ -1,10 +1,9 @@
-import { WatchStatus } from '../../../src/types/watchStatusTypes';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { DatabaseError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { WatchStatusUtility } from '@utils/watchStatusUtility';
 
-// Mock dependencies
 jest.mock('@utils/db', () => ({
   getDbPool: jest.fn(),
 }));

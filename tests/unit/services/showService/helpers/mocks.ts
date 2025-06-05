@@ -123,28 +123,6 @@ export function setupDbMocks(
   } = {},
 ) {
   // Default showsDb implementations
-  (showsDb.createShow as jest.Mock).mockImplementation((...args) => ({
-    id: 123,
-    tmdb_id: args[0],
-    title: args[1],
-    description: args[2],
-    release_date: args[3],
-    poster_image: args[4],
-    backdrop_image: args[5],
-    user_rating: args[6],
-    content_rating: args[7],
-    season_count: args[10],
-    episode_count: args[11],
-    genreIds: args[12],
-    status: args[13],
-    type: args[14],
-    in_production: args[15],
-    last_air_date: args[16],
-    last_episode_to_air: args[17],
-    next_episode_to_air: args[18],
-    network: args[19],
-  }));
-
   (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
   (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
   (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue([1, 2, 3]);
@@ -152,62 +130,11 @@ export function setupDbMocks(
   (showsDb.updateAllWatchStatuses as jest.Mock).mockResolvedValue(true);
 
   // Default seasonsDb implementations
-  (seasonsDb.createSeason as jest.Mock).mockImplementation(
-    (showId, tmdbId, name, overview, seasonNumber, releaseDate, posterImage, numberOfEpisodes) => ({
-      id: 200 + seasonNumber,
-      show_id: showId,
-      tmdb_id: tmdbId,
-      name,
-      overview,
-      season_number: seasonNumber,
-      release_date: releaseDate,
-      poster_image: posterImage,
-      number_of_episodes: numberOfEpisodes,
-    }),
-  );
-
-  (seasonsDb.updateSeason as jest.Mock).mockImplementation((season) => ({
-    ...season,
-    id: season.id || 200 + (season.season_number || 1),
-  }));
-
+  (seasonsDb.updateSeason as jest.Mock).mockImplementation((season) => 200 + (season.season_number || 1));
   (seasonsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 
   // Default episodesDb implementations
-  (episodesDb.createEpisode as jest.Mock).mockImplementation(
-    (
-      tmdbId,
-      showId,
-      seasonId,
-      episodeNumber,
-      episodeType,
-      seasonNumber,
-      title,
-      overview,
-      airDate,
-      runtime,
-      stillImage,
-    ) => ({
-      id: 300 + (episodeNumber || 1),
-      tmdb_id: tmdbId,
-      show_id: showId,
-      season_id: seasonId,
-      episode_number: episodeNumber,
-      episode_type: episodeType,
-      season_number: seasonNumber,
-      title,
-      overview,
-      air_date: airDate,
-      runtime,
-      still_image: stillImage,
-    }),
-  );
-
-  (episodesDb.updateEpisode as jest.Mock).mockImplementation((episode) => ({
-    ...episode,
-    id: episode.id || 300 + (episode.episode_number || 1),
-  }));
-
+  (episodesDb.updateEpisode as jest.Mock).mockImplementation((episode) => 300 + (episode.episode_number || 1));
   (episodesDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 
   // Apply any overrides

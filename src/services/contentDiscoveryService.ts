@@ -1,11 +1,5 @@
 import { DISCOVER_KEYS, SEARCH_KEYS } from '../constants/cacheKeys';
-import {
-  DiscoverAndSearchResponse,
-  DiscoverAndSearchResult,
-  DiscoverChangesQuery,
-  DiscoverTopQuery,
-  DiscoverTrendingQuery,
-} from '../types/discoverAndSearchTypes';
+import { DiscoverChangesQuery, DiscoverTopQuery, DiscoverTrendingQuery } from '../schema/discoverSchema';
 import { getStreamingPremieredDate, getTMDBItemName, getTMDBPremieredDate, stripPrefix } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { buildTMDBImagePath } from '../utils/imageUtility';
@@ -13,11 +7,7 @@ import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { StreamingAvailabilityService } from './streamingAvailabilityService';
 import { getTMDBService } from './tmdbService';
-
-export enum MediaType {
-  SHOW = 'tv',
-  MOVIE = 'movie',
-}
+import { DiscoverAndSearchResponse, DiscoverAndSearchResult, MediaType } from '@ajgifford/keepwatching-types';
 
 export class ContentDiscoveryService {
   private cache: CacheService;
@@ -54,13 +44,14 @@ export class ContentDiscoveryService {
           };
         });
 
-        return {
+        const response: DiscoverAndSearchResponse = {
           message: `Found top ${showType} for ${service}`,
           results: contentItems,
-          total_results: contentItems.length,
-          total_pages: 1,
-          current_page: 1,
+          totalResults: contentItems.length,
+          totalPages: 1,
+          currentPage: 1,
         };
+        return response;
       });
       return topContent;
     } catch (error) {
@@ -103,13 +94,14 @@ export class ContentDiscoveryService {
           });
         }
 
-        return {
+        const response: DiscoverAndSearchResponse = {
           message: `Found ${changeType} ${showType} for ${service}`,
           results: contentItems,
-          total_results: contentItems.length,
-          total_pages: 1,
-          current_page: 1,
+          totalResults: contentItems.length,
+          totalPages: 1,
+          currentPage: 1,
         };
+        return response;
       });
       return changesContent;
     } catch (error) {
@@ -125,7 +117,7 @@ export class ContentDiscoveryService {
       const trendingContent = this.cache.getOrSet(DISCOVER_KEYS.trending(showType, page), async () => {
         const mediaType = showType === 'movie' ? 'movie' : 'tv';
         const tmdbService = getTMDBService();
-        const tmdbResponse = await tmdbService.getTrending(mediaType, page);
+        const tmdbResponse = await tmdbService.getTrending(mediaType, String(page));
 
         const apiResults: any[] = tmdbResponse.results;
         const usResults =
@@ -146,13 +138,14 @@ export class ContentDiscoveryService {
           };
         });
 
-        return {
+        const response: DiscoverAndSearchResponse = {
           message: `Found trending ${showType}`,
           results: contentItems,
-          total_results: tmdbResponse.total_results,
-          total_pages: tmdbResponse.total_pages,
-          current_page: page,
+          totalResults: tmdbResponse.total_results,
+          totalPages: tmdbResponse.total_pages,
+          currentPage: page,
         };
+        return response;
       });
       return trendingContent;
     } catch (error) {
@@ -160,14 +153,19 @@ export class ContentDiscoveryService {
     }
   }
 
-  public async searchMedia(mediaType: MediaType, searchString: string, year: string | undefined, page: string) {
+  public async searchMedia(
+    mediaType: MediaType,
+    searchString: string,
+    year: string | undefined,
+    page: number,
+  ): Promise<DiscoverAndSearchResponse> {
     try {
       const searchResults = this.cache.getOrSet(SEARCH_KEYS.results(mediaType, searchString, year, page), async () => {
         const tmdbService = getTMDBService();
         const response =
           mediaType === MediaType.SHOW
-            ? await tmdbService.searchShows(searchString, parseInt(page), year)
-            : await tmdbService.searchMovies(searchString, parseInt(page), year);
+            ? await tmdbService.searchShows(searchString, page, year)
+            : await tmdbService.searchMovies(searchString, page, year);
 
         const results: any[] = response.results;
         const searchResult = results.map((result) => {
@@ -183,12 +181,14 @@ export class ContentDiscoveryService {
           } as DiscoverAndSearchResult;
         });
 
-        return {
+        const searchResponse: DiscoverAndSearchResponse = {
+          message: `Search results for '${searchString}' of type: ${mediaType}`,
           results: searchResult,
-          total_pages: response.total_pages,
-          total_results: response.total_results,
-          current_page: page,
+          totalResults: response.total_results,
+          totalPages: response.total_pages,
+          currentPage: page,
         };
+        return searchResponse;
       });
       return searchResults;
     } catch (error) {

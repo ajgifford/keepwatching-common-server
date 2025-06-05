@@ -1,20 +1,22 @@
 import { NotFoundError } from '../../middleware/errorMiddleware';
-import { AdminMovie, AdminMovieRow } from '../../types';
+import { AdminMovieRow, transformAdminMovie } from '../../types/movieTypes';
+import { ContentProfilesRow, transformContentProfiles } from '../../types/profileTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
-import { RowDataPacket } from 'mysql2';
+import { AdminMovie, ContentProfiles } from '@ajgifford/keepwatching-types';
+import { ContentCountRow } from 'src/types/contentTypes';
 
-export async function getMoviesCount() {
+export async function getMoviesCount(): Promise<number> {
   try {
     const query = `SELECT COUNT(DISTINCT m.id) AS total FROM movies m`;
-    const [result] = await getDbPool().execute<(RowDataPacket & { total: number })[]>(query);
+    const [result] = await getDbPool().execute<ContentCountRow[]>(query);
     return result[0].total;
   } catch (error) {
     handleDatabaseError(error, 'getting the count of movies');
   }
 }
 
-export async function getAllMovies(limit: number = 50, offset: number = 0) {
+export async function getAllMovies(limit: number = 50, offset: number = 0): Promise<AdminMovie[]> {
   try {
     const query = `SELECT 
       m.id,
@@ -30,7 +32,7 @@ export async function getAllMovies(limit: number = 50, offset: number = 0) {
       m.created_at,
       m.updated_at,
       GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-	  GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+	    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
     FROM 
       movies m
     LEFT JOIN 
@@ -44,18 +46,18 @@ export async function getAllMovies(limit: number = 50, offset: number = 0) {
     GROUP BY 
       m.id
     ORDER BY
-        m.title
+      m.title
     LIMIT ${limit}
     OFFSET ${offset}`;
 
-    const [movies] = await getDbPool().execute<AdminMovieRow[]>(query);
-    return movies.map((movie) => transformAdminMovie(movie));
+    const [movieRows] = await getDbPool().execute<AdminMovieRow[]>(query);
+    return movieRows.map(transformAdminMovie);
   } catch (error) {
     handleDatabaseError(error, 'getting all movies');
   }
 }
 
-export async function getMovieDetails(movieId: number) {
+export async function getMovieDetails(movieId: number): Promise<AdminMovie> {
   try {
     const query = `SELECT 
       m.id,
@@ -71,7 +73,7 @@ export async function getMovieDetails(movieId: number) {
       m.created_at,
       m.updated_at,
       GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-	  GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+	    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
     FROM 
       movies m
     LEFT JOIN 
@@ -87,12 +89,12 @@ export async function getMovieDetails(movieId: number) {
     GROUP BY 
       m.id`;
 
-    const [movies] = await getDbPool().execute<AdminMovieRow[]>(query, [movieId]);
-    if (movies.length === 0) {
+    const [movieRows] = await getDbPool().execute<AdminMovieRow[]>(query, [movieId]);
+    if (movieRows.length === 0) {
       throw new NotFoundError(`Movie with ID ${movieId} not found`);
     }
 
-    return transformAdminMovie(movies[0]);
+    return transformAdminMovie(movieRows[0]);
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw error;
@@ -101,7 +103,7 @@ export async function getMovieDetails(movieId: number) {
   }
 }
 
-export async function getMovieProfiles(movieId: number) {
+export async function getMovieProfiles(movieId: number): Promise<ContentProfiles[]> {
   try {
     const query = `
       SELECT 
@@ -124,37 +126,9 @@ export async function getMovieProfiles(movieId: number) {
       ORDER BY 
         a.account_name, p.name`;
 
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [movieId]);
-
-    return rows.map((row) => ({
-      profileId: row.profile_id,
-      name: row.name,
-      image: row.image,
-      accountId: row.account_id,
-      accountName: row.account_name,
-      watchStatus: row.watch_status,
-      addedDate: row.added_date.toISOString(),
-      lastUpdated: row.status_updated_date.toISOString(),
-    }));
+    const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [movieId]);
+    return profileRows.map(transformContentProfiles);
   } catch (error) {
     handleDatabaseError(error, `getMovieProfiles(${movieId})`);
   }
-}
-
-function transformAdminMovie(movie: AdminMovieRow): AdminMovie {
-  return {
-    id: movie.id,
-    tmdbId: movie.tmdb_id,
-    title: movie.title,
-    description: movie.description,
-    releaseDate: movie.release_date,
-    runtime: movie.runtime,
-    posterImage: movie.poster_image,
-    backdropImage: movie.backdrop_image,
-    userRating: movie.user_rating,
-    mpaRating: movie.mpa_rating,
-    streamingServices: movie.streaming_services,
-    genres: movie.genres,
-    lastUpdated: movie.updated_at.toISOString(),
-  };
 }

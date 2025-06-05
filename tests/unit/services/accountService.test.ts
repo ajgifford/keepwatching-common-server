@@ -4,8 +4,9 @@ import { BadRequestError, ForbiddenError, NotFoundError } from '@middleware/erro
 import { accountService } from '@services/accountService';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
+import { profileService } from '@services/profileService';
 import { getFirebaseAdmin } from '@utils/firebaseUtil';
-import { getAccountImage } from '@utils/imageUtility';
+import { getAccountImage, getPhotoForGoogleAccount } from '@utils/imageUtility';
 import { UserRecord } from 'firebase-admin/auth';
 
 jest.mock('@logger/logger', () => ({
@@ -22,6 +23,7 @@ jest.mock('@logger/logger', () => ({
 jest.mock('@db/accountsDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
+jest.mock('@services/profileService');
 jest.mock('@utils/imageUtility');
 jest.mock('@utils/firebaseUtil');
 
@@ -64,7 +66,9 @@ function createMockUserRecord(data: Partial<MockUserRecord>): UserRecord {
 
 describe('AccountService', () => {
   const mockCacheService = {
+    getOrSet: jest.fn(),
     invalidateAccount: jest.fn(),
+    invalidateProfile: jest.fn(),
   };
 
   const mockAccount = {
@@ -72,8 +76,17 @@ describe('AccountService', () => {
     account_name: 'Test User',
     email: 'test@example.com',
     uid: 'test-uid-123',
+    image: 'image',
     default_profile_id: 101,
   };
+
+  const mockProfiles = [
+    {
+      id: 123,
+      accountId: 1,
+      name: 'Profile 1',
+    },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -99,40 +112,43 @@ describe('AccountService', () => {
       throw error;
     });
 
+    (profileService.getProfilesByAccountId as jest.Mock).mockReturnValue(mockProfiles);
     (getAccountImage as jest.Mock).mockReturnValue('account-image-url.jpg');
+    (getPhotoForGoogleAccount as jest.Mock).mockReturnValue('google-image-url.jpg');
   });
 
   describe('editAccount', () => {
-    const mockAccount = {
+    const dbAccount = {
       id: 123,
       name: 'Original Account',
       email: 'test@example.com',
       uid: 'uid123',
-      default_profile_id: 1,
+      defaultProfileId: 1,
     };
 
-    const mockUpdatedAccount = {
+    const updatedDBAccount = {
       id: 123,
       name: 'Updated Account',
       email: 'test@example.com',
       uid: 'uid123',
-      default_profile_id: 2,
+      defaultProfileId: 2,
     };
 
     it('should update an account successfully', async () => {
-      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
-      (accountsDb.editAccount as jest.Mock).mockResolvedValue(mockUpdatedAccount);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
+      (accountsDb.editAccount as jest.Mock).mockResolvedValue(updatedDBAccount);
 
       const result = await accountService.editAccount(123, 'Updated Account', 2);
 
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
-      expect(accountsDb.editAccount).toHaveBeenCalledWith(123, 'Updated Account', 2);
+      expect(accountsDb.editAccount).toHaveBeenCalledWith({ id: 123, name: 'Updated Account', defaultProfileId: 2 });
       expect(result).toEqual({
         id: 123,
+        uid: 'uid123',
         name: 'Updated Account',
         email: 'test@example.com',
         image: 'account-image-url.jpg',
-        default_profile_id: 2,
+        defaultProfileId: 2,
       });
     });
 
@@ -144,17 +160,17 @@ describe('AccountService', () => {
     });
 
     it('should throw BadRequestError when update fails', async () => {
-      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
       (accountsDb.editAccount as jest.Mock).mockResolvedValue(null);
 
       await expect(accountService.editAccount(123, 'Updated Account', 2)).rejects.toThrow(BadRequestError);
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
-      expect(accountsDb.editAccount).toHaveBeenCalledWith(123, 'Updated Account', 2);
+      expect(accountsDb.editAccount).toHaveBeenCalledWith({ id: 123, name: 'Updated Account', defaultProfileId: 2 });
     });
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
       (accountsDb.editAccount as jest.Mock).mockRejectedValue(error);
 
       await expect(accountService.editAccount(123, 'Updated Account', 2)).rejects.toThrow('Database error');
@@ -171,7 +187,14 @@ describe('AccountService', () => {
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('test-uid-123');
       expect(errorService.assertExists).toHaveBeenCalledWith(mockAccount, 'Account', 'test-uid-123');
       expect(appLogger.info).toHaveBeenCalledWith('User logged in: test@example.com', { userId: 'test-uid-123' });
-      expect(result).toEqual(mockAccount);
+      expect(result).toEqual({
+        account_id: 1,
+        account_name: 'Test User',
+        email: 'test@example.com',
+        uid: 'test-uid-123',
+        image: 'account-image-url.jpg',
+        default_profile_id: 101,
+      });
     });
 
     it('should throw error when user does not exist', async () => {
@@ -199,15 +222,29 @@ describe('AccountService', () => {
     it('should successfully register a new user', async () => {
       (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
       (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(null);
-      (accountsDb.createAccount as jest.Mock).mockResolvedValue(null);
+      (accountsDb.registerAccount as jest.Mock).mockResolvedValue({
+        account_id: 100,
+        account_name: 'Test User',
+        email: 'test@example.com',
+        uid: 'new-uid-123',
+        image: '',
+        default_profile_id: 1001,
+      });
 
       const result = await accountService.register('Test User', 'test@example.com', 'new-uid-123');
 
       expect(accountsDb.findAccountByEmail).toHaveBeenCalledWith('test@example.com');
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('new-uid-123');
-      expect(accountsDb.createAccount).toHaveBeenCalledWith('Test User', 'test@example.com', 'new-uid-123');
       expect(accountsDb.registerAccount).toHaveBeenCalled();
       expect(appLogger.info).toHaveBeenCalledWith('New user registered: test@example.com', { userId: 'new-uid-123' });
+      expect(result).toEqual({
+        account_id: 100,
+        account_name: 'Test User',
+        email: 'test@example.com',
+        uid: 'new-uid-123',
+        image: 'account-image-url.jpg',
+        default_profile_id: 1001,
+      });
     });
 
     it('should throw error when email already exists', async () => {
@@ -265,7 +302,7 @@ describe('AccountService', () => {
     it('should login existing user with Google credentials', async () => {
       (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(mockAccount);
 
-      const result = await accountService.googleLogin('Test User', 'test@example.com', 'test-uid-123');
+      const result = await accountService.googleLogin('Test User', 'test@example.com', 'test-uid-123', undefined);
 
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('test-uid-123');
       expect(accountsDb.findAccountByEmail).not.toHaveBeenCalled();
@@ -274,32 +311,46 @@ describe('AccountService', () => {
       });
 
       expect(result).toEqual({
-        account: mockAccount,
+        account: {
+          account_id: 1,
+          account_name: 'Test User',
+          email: 'test@example.com',
+          uid: 'test-uid-123',
+          image: 'google-image-url.jpg',
+          default_profile_id: 101,
+        },
         isNewAccount: false,
       });
     });
 
     it('should register new user with Google credentials', async () => {
       const mockNewAccount = {
+        id: 2,
         name: 'Google User',
         email: 'google@example.com',
         uid: 'new-google-uid',
+        default_profile_id: 102,
       };
 
       (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(null);
       (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
-      (accountsDb.createAccount as jest.Mock).mockReturnValue(mockNewAccount);
-      (accountsDb.registerAccount as jest.Mock).mockResolvedValue(null);
+      (accountsDb.registerAccount as jest.Mock).mockResolvedValue(mockNewAccount);
 
-      const result = await accountService.googleLogin('Google User', 'google@example.com', 'new-google-uid');
+      const result = await accountService.googleLogin('Google User', 'google@example.com', 'new-google-uid', undefined);
 
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('new-google-uid');
       expect(accountsDb.findAccountByEmail).toHaveBeenCalledWith('google@example.com');
-      expect(accountsDb.createAccount).toHaveBeenCalledWith('Google User', 'google@example.com', 'new-google-uid');
       expect(accountsDb.registerAccount).toHaveBeenCalled();
 
       expect(result).toEqual({
-        account: mockNewAccount,
+        account: {
+          id: 2,
+          name: 'Google User',
+          email: 'google@example.com',
+          uid: 'new-google-uid',
+          image: 'google-image-url.jpg',
+          default_profile_id: 102,
+        },
         isNewAccount: true,
       });
     });
@@ -311,22 +362,21 @@ describe('AccountService', () => {
         uid: 'different-auth-uid',
       });
 
-      await expect(accountService.googleLogin('Google User', 'test@example.com', 'google-uid-123')).rejects.toThrow(
-        ForbiddenError,
-      );
+      await expect(
+        accountService.googleLogin('Google User', 'test@example.com', 'google-uid-123', undefined),
+      ).rejects.toThrow(ForbiddenError);
 
       expect(accountsDb.findAccountByUID).toHaveBeenCalledWith('google-uid-123');
       expect(accountsDb.findAccountByEmail).toHaveBeenCalledWith('test@example.com');
-      expect(accountsDb.createAccount).not.toHaveBeenCalled();
     });
 
     it('should handle errors in Google login process', async () => {
       const dbError = new Error('Database error');
       (accountsDb.findAccountByUID as jest.Mock).mockRejectedValue(dbError);
 
-      await expect(accountService.googleLogin('Google User', 'google@example.com', 'google-uid-123')).rejects.toThrow(
-        'Database error',
-      );
+      await expect(
+        accountService.googleLogin('Google User', 'google@example.com', 'google-uid-123', undefined),
+      ).rejects.toThrow('Database error');
 
       expect(errorService.handleError).toHaveBeenCalledWith(
         dbError,
@@ -337,20 +387,10 @@ describe('AccountService', () => {
 
   describe('logout', () => {
     it('should invalidate account cache on logout', async () => {
-      await accountService.logout('1');
+      await accountService.logout(1);
 
-      expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith('1');
+      expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(1);
       expect(cliLogger.info).toHaveBeenCalledWith('User logged out: account ID 1');
-    });
-
-    it('should handle errors during logout', async () => {
-      const cacheError = new Error('Cache invalidation failed');
-      mockCacheService.invalidateAccount.mockImplementation(() => {
-        throw cacheError;
-      });
-
-      await expect(accountService.logout('1')).rejects.toThrow('Cache invalidation failed');
-      expect(errorService.handleError).toHaveBeenCalledWith(cacheError, 'logout(1)');
     });
   });
 
@@ -397,7 +437,7 @@ describe('AccountService', () => {
 
   describe('findAccountIdByProfileId', () => {
     it('should return account ID when profile exists', async () => {
-      const profileId = '42';
+      const profileId = 42;
       const accountId = 123;
 
       (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(accountId);
@@ -409,7 +449,7 @@ describe('AccountService', () => {
     });
 
     it('should return null when profile does not exist', async () => {
-      const profileId = '999';
+      const profileId = 999;
 
       (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(null);
 
@@ -420,7 +460,7 @@ describe('AccountService', () => {
     });
 
     it('should handle and transform errors using errorService', async () => {
-      const profileId = '42';
+      const profileId = 42;
       const dbError = new Error('Database error');
 
       (accountsDb.findAccountIdByProfileId as jest.Mock).mockRejectedValue(dbError);
@@ -432,15 +472,15 @@ describe('AccountService', () => {
 
   describe('updateAccountImage', () => {
     it('should update account image and return formatted account data', async () => {
-      const accountId = 1;
-      const imagePath = 'new-image.jpg';
+      const id = 1;
+      const image = 'new-image.jpg';
       const updatedAccount = {
-        id: accountId,
+        id: id,
         name: 'Test User',
         email: 'test@example.com',
         uid: 'test123',
-        image: imagePath,
-        default_profile_id: 5,
+        image: image,
+        defaultProfileId: 5,
       };
 
       (accountsDb.updateAccountImage as jest.Mock).mockResolvedValue(updatedAccount);
@@ -449,30 +489,30 @@ describe('AccountService', () => {
         return;
       });
 
-      const result = await accountService.updateAccountImage(accountId, imagePath);
+      const result = await accountService.updateAccountImage(id, image);
 
-      expect(accountsDb.updateAccountImage).toHaveBeenCalledWith(accountId, imagePath);
-      expect(getAccountImage).toHaveBeenCalledWith(imagePath, 'Test User');
-      expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(accountId);
+      expect(accountsDb.updateAccountImage).toHaveBeenCalledWith({ id, image });
+      expect(getAccountImage).toHaveBeenCalledWith(image, 'Test User');
       expect(result).toEqual({
-        id: accountId,
+        id: id,
+        uid: 'test123',
         name: 'Test User',
         email: 'test@example.com',
         image: 'account-image-url.jpg', // From the mock
-        default_profile_id: 5,
+        defaultProfileId: 5,
       });
     });
 
     it('should throw error when account image update fails', async () => {
-      const accountId = 1;
-      const imagePath = 'new-image.jpg';
+      const id = 1;
+      const image = 'new-image.jpg';
 
       (accountsDb.updateAccountImage as jest.Mock).mockResolvedValue(null);
 
-      await expect(accountService.updateAccountImage(accountId, imagePath)).rejects.toThrow(
+      await expect(accountService.updateAccountImage(id, image)).rejects.toThrow(
         'Failed to update image for account 1',
       );
-      expect(accountsDb.updateAccountImage).toHaveBeenCalledWith(accountId, imagePath);
+      expect(accountsDb.updateAccountImage).toHaveBeenCalledWith({ id, image });
       expect(mockCacheService.invalidateAccount).not.toHaveBeenCalled();
     });
 
@@ -573,11 +613,11 @@ describe('AccountService', () => {
           lastSignInTime: '2023-01-10',
           lastRefreshTime: '2023-01-10',
         },
-        account_id: 1,
-        account_name: 'User One',
-        default_profile_id: 101,
-        database_image: 'account-image-url.jpg',
-        database_created_at: mockDatabaseAccounts[0].created_at,
+        id: 1,
+        name: 'User One',
+        defaultProfileId: 101,
+        image: 'account-image-url.jpg',
+        databaseCreatedAt: mockDatabaseAccounts[0].created_at,
       });
       expect(result[1]).toEqual({
         uid: 'uid2',
@@ -591,11 +631,11 @@ describe('AccountService', () => {
           lastSignInTime: '2023-02-10',
           lastRefreshTime: null,
         },
-        account_id: 2,
-        account_name: 'User Two',
-        default_profile_id: 201,
-        database_image: 'account-image-url.jpg',
-        database_created_at: mockDatabaseAccounts[1].created_at,
+        id: 2,
+        name: 'User Two',
+        defaultProfileId: 201,
+        image: 'account-image-url.jpg',
+        databaseCreatedAt: mockDatabaseAccounts[1].created_at,
       });
     });
 

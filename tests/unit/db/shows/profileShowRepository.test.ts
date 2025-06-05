@@ -1,6 +1,5 @@
 import * as showsDb from '@db/showsDb';
 import { getDbPool } from '@utils/db';
-import { RowDataPacket } from 'mysql2';
 
 jest.mock('@utils/db', () => {
   const mockPool = {
@@ -62,26 +61,26 @@ describe('profileShowRepository', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockShows as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([mockShows]);
 
-      const shows = await showsDb.getAllShowsForProfile('123');
+      const shows = await showsDb.getAllShowsForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM profile_shows WHERE profile_id = ?', [123]);
       expect(shows).toHaveLength(2);
       expect(shows[0].title).toBe('Show 1');
-      expect(shows[0].last_episode).toEqual({
+      expect(shows[0].lastEpisode).toEqual({
         title: 'Last Episode',
-        air_date: '2023-01-01',
-        episode_number: 10,
-        season_number: 1,
+        airDate: '2023-01-01',
+        episodeNumber: 10,
+        seasonNumber: 1,
       });
-      expect(shows[1].last_episode).toBeNull();
+      expect(shows[1].lastEpisode).toBeNull();
     });
 
     it('should handle empty result set', async () => {
-      mockPool.execute.mockResolvedValueOnce([[] as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
-      const shows = await showsDb.getAllShowsForProfile('123');
+      const shows = await showsDb.getAllShowsForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM profile_shows WHERE profile_id = ?', [123]);
       expect(shows).toHaveLength(0);
@@ -91,7 +90,7 @@ describe('profileShowRepository', () => {
       const dbError = new Error('Database connection failed');
       mockPool.execute.mockRejectedValueOnce(dbError);
 
-      await expect(showsDb.getAllShowsForProfile('123')).rejects.toThrow('Database connection failed');
+      await expect(showsDb.getAllShowsForProfile(123)).rejects.toThrow('Database connection failed');
       expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM profile_shows WHERE profile_id = ?', [123]);
     });
   });
@@ -112,33 +111,33 @@ describe('profileShowRepository', () => {
         next_episode_season: 1,
       };
 
-      mockPool.execute.mockResolvedValueOnce([[mockShow] as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[mockShow]]);
 
-      const show = await showsDb.getShowForProfile('123', 1);
+      const show = await showsDb.getShowForProfile(123, 1);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = ?',
         [123, 1],
       );
       expect(show.title).toBe('Show 1');
-      expect(show.last_episode).toEqual({
+      expect(show.lastEpisode).toEqual({
         title: 'Last Episode',
-        air_date: '2023-01-01',
-        episode_number: 10,
-        season_number: 1,
+        airDate: '2023-01-01',
+        episodeNumber: 10,
+        seasonNumber: 1,
       });
-      expect(show.next_episode).toEqual({
+      expect(show.nextEpisode).toEqual({
         title: 'Next Episode',
-        air_date: '2023-01-08',
-        episode_number: 11,
-        season_number: 1,
+        airDate: '2023-01-08',
+        episodeNumber: 11,
+        seasonNumber: 1,
       });
     });
 
     it('should throw error when show does not exist', async () => {
-      mockPool.execute.mockResolvedValueOnce([[] as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
-      await expect(showsDb.getShowForProfile('123', 999)).rejects.toThrow();
+      await expect(showsDb.getShowForProfile(123, 999)).rejects.toThrow();
       expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = ?',
         [123, 999],
@@ -215,11 +214,11 @@ describe('profileShowRepository', () => {
       ];
 
       // Setup mock responses
-      mockPool.execute.mockResolvedValueOnce([[mockShow] as RowDataPacket[]]);
-      mockPool.execute.mockResolvedValueOnce([mockSeasons as RowDataPacket[]]);
-      mockPool.execute.mockResolvedValueOnce([mockEpisodes as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[mockShow]]);
+      mockPool.execute.mockResolvedValueOnce([mockSeasons]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
-      const result = await showsDb.getShowWithSeasonsForProfile('123', '1');
+      const result = await showsDb.getShowWithSeasonsForProfile(123, 1);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(3);
       expect(mockPool.execute).toHaveBeenNthCalledWith(
@@ -237,15 +236,15 @@ describe('profileShowRepository', () => {
       expect(result).not.toBeNull();
       expect(result!.title).toBe('Test Show');
       expect(result!.seasons).toHaveLength(2);
-      expect(result!.seasons![0].season_id).toBe(101);
+      expect(result!.seasons![0].id).toBe(101);
       expect(result!.seasons![0].episodes).toHaveLength(2);
       expect(result!.seasons![1].episodes).toHaveLength(1);
     });
 
     it('should return null when show does not exist', async () => {
-      mockPool.execute.mockResolvedValueOnce([[] as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
-      const result = await showsDb.getShowWithSeasonsForProfile('123', '999');
+      const result = await showsDb.getShowWithSeasonsForProfile(123, 999);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(result).toBeNull();
@@ -261,10 +260,10 @@ describe('profileShowRepository', () => {
         episode_count: 0,
       };
 
-      mockPool.execute.mockResolvedValueOnce([[mockShow] as RowDataPacket[]]);
-      mockPool.execute.mockResolvedValueOnce([[] as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[mockShow]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
-      const result = await showsDb.getShowWithSeasonsForProfile('123', '1');
+      const result = await showsDb.getShowWithSeasonsForProfile(123, 1);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(2);
       expect(result).not.toBeNull();
@@ -275,25 +274,23 @@ describe('profileShowRepository', () => {
 
   describe('getNextUnwatchedEpisodesForProfile', () => {
     it('should return next unwatched episodes for shows the profile is watching', async () => {
-      // Mock recent shows
       const mockRecentShows = [
         {
           show_id: 1,
           show_title: 'Test Show 1',
           poster_image: '/path/to/poster1.jpg',
-          last_watched_date: '2023-01-10',
+          last_watched_date: new Date('2023-01-10'),
           profile_id: 123,
         },
         {
           show_id: 2,
           show_title: 'Test Show 2',
           poster_image: '/path/to/poster2.jpg',
-          last_watched_date: '2023-01-05',
+          last_watched_date: new Date('2023-01-05'),
           profile_id: 123,
         },
       ];
 
-      // Mock next episodes for first show
       const mockShow1Episodes = [
         {
           episode_id: 101,
@@ -319,7 +316,6 @@ describe('profileShowRepository', () => {
         },
       ];
 
-      // Mock next episodes for second show
       const mockShow2Episodes = [
         {
           episode_id: 201,
@@ -334,33 +330,31 @@ describe('profileShowRepository', () => {
         },
       ];
 
-      // Setup mock responses
-      mockPool.execute.mockResolvedValueOnce([mockRecentShows as RowDataPacket[]]);
-      mockPool.execute.mockResolvedValueOnce([mockShow1Episodes as RowDataPacket[]]);
-      mockPool.execute.mockResolvedValueOnce([mockShow2Episodes as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([mockRecentShows]);
+      mockPool.execute.mockResolvedValueOnce([mockShow1Episodes]);
+      mockPool.execute.mockResolvedValueOnce([mockShow2Episodes]);
 
-      const result = await showsDb.getNextUnwatchedEpisodesForProfile('123');
+      const result = await showsDb.getNextUnwatchedEpisodesForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(3);
       expect(mockPool.execute).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining('SELECT * FROM profile_recent_shows_with_unwatched WHERE profile_id'),
-        ['123'],
+        [123],
       );
 
-      // Verify the structure of the result
       expect(result).toHaveLength(2);
-      expect(result[0].show_id).toBe(1);
-      expect(result[0].show_title).toBe('Test Show 1');
+      expect(result[0].showId).toBe(1);
+      expect(result[0].showTitle).toBe('Test Show 1');
       expect(result[0].episodes).toHaveLength(2);
-      expect(result[1].show_id).toBe(2);
+      expect(result[1].showId).toBe(2);
       expect(result[1].episodes).toHaveLength(1);
     });
 
     it('should return empty array when no shows are being watched', async () => {
-      mockPool.execute.mockResolvedValueOnce([[] as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
-      const result = await showsDb.getNextUnwatchedEpisodesForProfile('123');
+      const result = await showsDb.getNextUnwatchedEpisodesForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(0);
@@ -370,34 +364,44 @@ describe('profileShowRepository', () => {
       const dbError = new Error('Database query failed');
       mockPool.execute.mockRejectedValueOnce(dbError);
 
-      await expect(showsDb.getNextUnwatchedEpisodesForProfile('123')).rejects.toThrow('Database query failed');
+      await expect(showsDb.getNextUnwatchedEpisodesForProfile(123)).rejects.toThrow('Database query failed');
     });
   });
 
   describe('getProfilesForShow', () => {
     it('should return profiles that have added a show to their favorites', async () => {
-      const mockProfiles = [{ profile_id: 1 }, { profile_id: 2 }, { profile_id: 3 }];
+      const mockProfiles = [
+        { account_id: 1, profile_id: 1 },
+        { account_id: 1, profile_id: 2 },
+        { account_id: 2, profile_id: 3 },
+      ];
 
-      mockPool.execute.mockResolvedValueOnce([mockProfiles as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([mockProfiles]);
 
-      const profileIds = await showsDb.getProfilesForShow(123);
+      const profilesForShows = await showsDb.getProfilesForShow(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT profile_id FROM show_watch_status where show_id = ?', [
-        123,
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('profiles p ON sws.profile_id = p.profile_id'),
+        [123],
+      );
+      expect(profilesForShows.profileAccountMappings).toHaveLength(3);
+      expect(profilesForShows.profileAccountMappings).toEqual([
+        { accountId: 1, profileId: 1 },
+        { accountId: 1, profileId: 2 },
+        { accountId: 2, profileId: 3 },
       ]);
-      expect(profileIds).toHaveLength(3);
-      expect(profileIds).toEqual([1, 2, 3]);
     });
 
     it('should return empty array when no profiles have added the show', async () => {
-      mockPool.execute.mockResolvedValueOnce([[] as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
-      const profileIds = await showsDb.getProfilesForShow(999);
+      const profilesForShows = await showsDb.getProfilesForShow(999);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT profile_id FROM show_watch_status where show_id = ?', [
-        999,
-      ]);
-      expect(profileIds).toHaveLength(0);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('profiles p ON sws.profile_id = p.profile_id'),
+        [999],
+      );
+      expect(profilesForShows.profileAccountMappings).toHaveLength(0);
     });
   });
 });

@@ -13,6 +13,7 @@ import { seasonsService } from './seasonsService';
 import { showService } from './showService';
 import { socketService } from './socketService';
 import { getTMDBService } from './tmdbService';
+import { UpdateShowRequest } from '@ajgifford/keepwatching-types';
 
 /**
  * Service for handling admin-specific show operations
@@ -199,28 +200,28 @@ export class AdminShowService {
       const tmdbService = getTMDBService();
       const showDetails = await tmdbService.getShowDetails(tmdbId);
 
-      const updatedShow = showsDb.createShow(
-        showDetails.id,
-        showDetails.name,
-        showDetails.overview,
-        showDetails.first_air_date,
-        showDetails.poster_path,
-        showDetails.backdrop_path,
-        showDetails.vote_average,
-        getUSRating(showDetails.content_ratings),
-        showId,
-        getUSWatchProviders(showDetails, 9999),
-        showDetails.number_of_seasons,
-        showDetails.number_of_episodes,
-        showDetails.genres.map((genre: { id: any }) => genre.id),
-        showDetails.status,
-        showDetails.type,
-        getInProduction(showDetails),
-        showDetails.last_air_date,
-        getEpisodeToAirId(showDetails.last_episode_to_air),
-        getEpisodeToAirId(showDetails.next_episode_to_air),
-        getUSNetwork(showDetails.networks),
-      );
+      const updatedShow: UpdateShowRequest = {
+        id: showId,
+        tmdb_id: showDetails.id,
+        title: showDetails.name,
+        description: showDetails.overview,
+        release_date: showDetails.first_air_date,
+        poster_image: showDetails.poster_path,
+        backdrop_image: showDetails.backdrop_path,
+        user_rating: showDetails.vote_average,
+        content_rating: getUSRating(showDetails.content_ratings),
+        streaming_service_ids: getUSWatchProviders(showDetails, 9999),
+        season_count: showDetails.number_of_seasons,
+        episode_count: showDetails.number_of_episodes,
+        genre_ids: showDetails.genres.map((genre: { id: any }) => genre.id),
+        status: showDetails.status,
+        type: showDetails.type,
+        in_production: getInProduction(showDetails),
+        last_air_date: showDetails.last_air_date,
+        last_episode_to_air: getEpisodeToAirId(showDetails.last_episode_to_air),
+        next_episode_to_air: getEpisodeToAirId(showDetails.next_episode_to_air),
+        network: getUSNetwork(showDetails.networks),
+      };
 
       const showUpdated = await showsDb.updateShow(updatedShow);
       if (!showUpdated) {
@@ -233,7 +234,7 @@ export class AdminShowService {
         .sort((a: any, b: any) => b.season_number - a.season_number);
       const seasonsToUpdate = updateMode === 'latest' ? validSeasons.slice(0, 1) : validSeasons;
 
-      const profileIds = await showsDb.getProfilesForShow(showId);
+      const profileForShow = await showsDb.getProfilesForShow(showId);
 
       for (const responseSeason of seasonsToUpdate) {
         await sleep(500);
@@ -241,58 +242,53 @@ export class AdminShowService {
         try {
           const responseData = await tmdbService.getSeasonDetails(showDetails.id, responseSeason.season_number);
 
-          const season = await seasonsDb.updateSeason(
-            seasonsDb.createSeason(
-              showId,
-              responseSeason.id,
-              responseSeason.name,
-              responseSeason.overview,
-              responseSeason.season_number,
-              responseSeason.air_date,
-              responseSeason.poster_path,
-              responseSeason.episode_count,
-            ),
-          );
+          const seasonId = await seasonsDb.updateSeason({
+            show_id: showId,
+            tmdb_id: responseSeason.id,
+            name: responseSeason.name,
+            overview: responseSeason.overview,
+            season_number: responseSeason.season_number,
+            release_date: responseSeason.air_date,
+            poster_image: responseSeason.poster_path,
+            number_of_episodes: responseSeason.episode_count,
+          });
 
-          for (const profileId of profileIds) {
-            await seasonsDb.saveFavorite(profileId, season.id!);
+          for (const mapping of profileForShow.profileAccountMappings) {
+            await seasonsDb.saveFavorite(mapping.profileId, seasonId);
           }
 
           for (const responseEpisode of responseData.episodes) {
-            const episode = await episodesDb.updateEpisode(
-              episodesDb.createEpisode(
-                responseEpisode.id,
-                showId,
-                season.id!,
-                responseEpisode.episode_number,
-                responseEpisode.episode_type || 'standard',
-                responseEpisode.season_number,
-                responseEpisode.name,
-                responseEpisode.overview,
-                responseEpisode.air_date,
-                responseEpisode.runtime || 0,
-                responseEpisode.still_path,
-              ),
-            );
-            for (const profileId of profileIds) {
-              await episodesDb.saveFavorite(profileId, episode.id!);
+            const episodeId = await episodesDb.updateEpisode({
+              tmdb_id: responseEpisode.id,
+              show_id: showId,
+              season_id: seasonId,
+              episode_number: responseEpisode.episode_number,
+              episode_type: responseEpisode.episode_type,
+              season_number: responseEpisode.season_number,
+              title: responseEpisode.name,
+              overview: responseEpisode.overview,
+              air_date: responseEpisode.air_date,
+              runtime: responseEpisode.runtime,
+              still_image: responseEpisode.still_path,
+            });
+            for (const mapping of profileForShow.profileAccountMappings) {
+              await episodesDb.saveFavorite(mapping.profileId, episodeId);
             }
           }
 
-          for (const profileId of profileIds) {
-            await seasonsService.updateSeasonWatchStatusForNewEpisodes(String(profileId), season.id!);
+          for (const mapping of profileForShow.profileAccountMappings) {
+            await seasonsService.updateSeasonWatchStatusForNewEpisodes(mapping.profileId, seasonId);
           }
         } catch (error) {
           cliLogger.error(`Error updating season ${responseSeason.season_number} for show ${showId}`, error);
         }
       }
 
-      await showService.updateShowWatchStatusForNewContent(showId, profileIds);
+      await showService.updateShowWatchStatusForNewContent(showId, profileForShow.profileAccountMappings);
 
-      for (const profileId of profileIds) {
-        this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
-        this.cache.invalidate(PROFILE_KEYS.shows(profileId));
-        this.cache.invalidate(PROFILE_KEYS.nextUnwatchedEpisodes(profileId));
+      for (const mapping of profileForShow.profileAccountMappings) {
+        this.cache.invalidate(SHOW_KEYS.detailsForProfile(mapping.profileId, showId));
+        this.cache.invalidateProfileShows(mapping.accountId, mapping.profileId);
         this.cache.invalidatePattern('allShows_');
       }
 

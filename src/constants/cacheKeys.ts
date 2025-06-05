@@ -149,13 +149,13 @@ export const DISCOVER_KEYS = {
     `discover_changes_${showType}_${service}_${changeType}`,
 
   /** Gets the cache key for trending content discovery */
-  trending: (showType: string, page: string) => `discover_trending_${showType}_${page}`,
+  trending: (showType: string, page: number) => `discover_trending_${showType}_${page}`,
 };
 
 // Search keys
 export const SEARCH_KEYS = {
   /** Gets the cache key for search results */
-  results: (mediaType: string, searchString: string, year?: string, page: string = '1') =>
+  results: (mediaType: string, searchString: string, year?: string, page: number = 1) =>
     `${mediaType}_search_${searchString}_${year || ''}_${page}`,
 };
 

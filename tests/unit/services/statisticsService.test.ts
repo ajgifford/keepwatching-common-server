@@ -39,7 +39,7 @@ describe('statisticsService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockStats);
 
-      const result = await statisticsService.getProfileStatistics('123');
+      const result = await statisticsService.getProfileStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_statistics', expect.any(Function), 1800);
       expect(result).toEqual(mockStats);
@@ -59,13 +59,14 @@ describe('statisticsService', () => {
       (moviesService.getProfileMovieStatistics as jest.Mock).mockResolvedValue(mockMovieStats);
       (showService.getProfileWatchProgress as jest.Mock).mockResolvedValue(mockWatchProgress);
 
-      const result = await statisticsService.getProfileStatistics('123');
+      const result = await statisticsService.getProfileStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_statistics', expect.any(Function), 1800);
-      expect(showService.getProfileShowStatistics).toHaveBeenCalledWith('123');
-      expect(moviesService.getProfileMovieStatistics).toHaveBeenCalledWith('123');
-      expect(showService.getProfileWatchProgress).toHaveBeenCalledWith('123');
+      expect(showService.getProfileShowStatistics).toHaveBeenCalledWith(123);
+      expect(moviesService.getProfileMovieStatistics).toHaveBeenCalledWith(123);
+      expect(showService.getProfileWatchProgress).toHaveBeenCalledWith(123);
       expect(result).toEqual({
+        profileId: 123,
         showStatistics: mockShowStats,
         movieStatistics: mockMovieStats,
         episodeWatchProgress: mockWatchProgress,
@@ -80,7 +81,7 @@ describe('statisticsService', () => {
         throw new Error(`Handled: ${err.message}`);
       });
 
-      await expect(statisticsService.getProfileStatistics('123')).rejects.toThrow(
+      await expect(statisticsService.getProfileStatistics(123)).rejects.toThrow(
         'Handled: Failed to get show statistics',
       );
 
@@ -106,6 +107,7 @@ describe('statisticsService', () => {
           watchProgress: 50,
         },
         movieStatistics: {
+          movieReferences: [{ id: 1 }, { id: 2 }],
           total: 8,
           watchStatusCounts: { watched: 3, notWatched: 5 },
           genreDistribution: { Action: 3, Comedy: 5 },
@@ -133,6 +135,7 @@ describe('statisticsService', () => {
           watchProgress: 40,
         },
         movieStatistics: {
+          movieReferences: [{ id: 1 }, { id: 2 }],
           total: 3,
           watchStatusCounts: { watched: 1, notWatched: 2 },
           genreDistribution: { Drama: 1, Horror: 2 },

@@ -1,6 +1,6 @@
 import { cliLogger } from '../logger/logger';
-import { ProfileShow } from '../types/showTypes';
 import { accountService } from './accountService';
+import { ProfileShow } from '@ajgifford/keepwatching-types';
 import { Server, Socket } from 'socket.io';
 
 /**
@@ -104,10 +104,9 @@ export class SocketService {
   /**
    * Notifies a specific account that show data has been fully loaded
    * @param profileId ID of the profile that favorited the show
-   * @param showId ID of the show that was loaded
    * @param loadedShow Show data that was loaded
    */
-  public async notifyShowDataLoaded(profileId: string, showId: number, loadedShow: ProfileShow): Promise<void> {
+  public async notifyShowDataLoaded(profileId: number, loadedShow: ProfileShow): Promise<void> {
     try {
       if (!this.io) return;
 

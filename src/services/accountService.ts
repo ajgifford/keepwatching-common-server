@@ -1,12 +1,14 @@
 import * as accountsDb from '../db/accountsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../middleware/errorMiddleware';
-import { Account, CombinedUser, DatabaseAccount } from '../types/accountTypes';
+import { AccountRow } from '../types/accountTypes';
 import { getFirebaseAdmin } from '../utils/firebaseUtil';
-import { getAccountImage } from '../utils/imageUtility';
+import { getAccountImage, getPhotoForGoogleAccount } from '../utils/imageUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
+import { profileService } from './profileService';
 import { socketService } from './socketService';
+import { Account, CombinedAccount, CreateAccountRequest, UpdateAccountRequest } from '@ajgifford/keepwatching-types';
 import { UserRecord } from 'firebase-admin/auth';
 
 /**
@@ -28,6 +30,15 @@ export class AccountService {
     this.cache = CacheService.getInstance();
   }
 
+  public async invalidateAccountCache(accountId: number): Promise<void> {
+    this.cache.invalidateAccount(accountId);
+
+    const profiles = await profileService.getProfilesByAccountId(accountId);
+    for (const profile of profiles) {
+      this.cache.invalidateProfile(profile.id);
+    }
+  }
+
   /**
    * Authenticates a user by their UID
    *
@@ -43,7 +54,10 @@ export class AccountService {
       appLogger.info(`User logged in: ${account.email}`, { userId: account.uid });
       cliLogger.info(`User authenticated: ${account.email}`);
 
-      return account;
+      return {
+        ...account,
+        image: getAccountImage(account.image, account.name),
+      };
     } catch (error) {
       throw errorService.handleError(error, `login(${uid})`);
     }
@@ -66,13 +80,21 @@ export class AccountService {
       const existingAccountByUID = await accountsDb.findAccountByUID(uid);
       errorService.assertNotExists(existingAccountByUID, 'Account', 'uid', uid);
 
-      const account = accountsDb.createAccount(name, email, uid);
-      await accountsDb.registerAccount(account);
+      const accountData: CreateAccountRequest = {
+        name,
+        email,
+        uid,
+      };
+
+      const account = await accountsDb.registerAccount(accountData);
 
       appLogger.info(`New user registered: ${email}`, { userId: uid });
       cliLogger.info(`New account created: ${email}`);
 
-      return account;
+      return {
+        ...account,
+        image: getAccountImage(account.image, account.name),
+      };
     } catch (error) {
       throw errorService.handleError(error, `register(${name}, ${email}, ${uid})`);
     }
@@ -87,7 +109,12 @@ export class AccountService {
    * @param uid - Firebase user ID
    * @returns Object containing the account and whether it was newly created
    */
-  public async googleLogin(name: string, email: string, uid: string): Promise<GoogleLoginResponse> {
+  public async googleLogin(
+    name: string,
+    email: string,
+    uid: string,
+    photoURL: string | undefined,
+  ): Promise<GoogleLoginResponse> {
     try {
       const existingAccount = await accountsDb.findAccountByUID(uid);
 
@@ -96,7 +123,10 @@ export class AccountService {
         cliLogger.info(`Google authentication: existing user ${existingAccount.email}`);
 
         return {
-          account: existingAccount,
+          account: {
+            ...existingAccount,
+            image: getPhotoForGoogleAccount(existingAccount.name, photoURL, existingAccount.image),
+          },
           isNewAccount: false,
         };
       }
@@ -108,14 +138,19 @@ export class AccountService {
         );
       }
 
-      const newAccount = accountsDb.createAccount(name, email, uid);
-      await accountsDb.registerAccount(newAccount);
+      const accountData: CreateAccountRequest = {
+        name,
+        email,
+        uid,
+      };
+
+      const newAccount = await accountsDb.registerAccount(accountData);
 
       appLogger.info(`New user registered via Google: ${email}`, { userId: uid });
       cliLogger.info(`Google authentication: new account created for ${email}`);
 
       return {
-        account: newAccount,
+        account: { ...newAccount, image: getPhotoForGoogleAccount(newAccount.name, photoURL, newAccount.image) },
         isNewAccount: true,
       };
     } catch (error) {
@@ -128,21 +163,25 @@ export class AccountService {
    *
    * @param accountId - ID of the account being logged out
    */
-  public async logout(accountId: string): Promise<void> {
+  public async logout(accountId: number): Promise<void> {
     try {
-      this.cache.invalidateAccount(accountId);
-      const disconnectedCount = socketService.disconnectUserSockets(accountId);
+      this.invalidateAccountCache(accountId);
+      socketService.disconnectUserSockets(accountId);
       cliLogger.info(`User logged out: account ID ${accountId}`);
     } catch (error) {
       throw errorService.handleError(error, `logout(${accountId})`);
     }
   }
 
-  public async getAccounts(): Promise<CombinedUser[]> {
+  /**
+   * Get all accounts
+   * @returns all accounts
+   */
+  public async getAccounts(): Promise<CombinedAccount[]> {
     try {
       const users = await this.getAllUsers();
       const accounts = await accountsDb.getAccounts();
-      return await this.combineUserData(users, accounts);
+      return this.combineUserData(users, accounts);
     } catch (error) {
       throw errorService.handleError(error, `getAccounts()`);
     }
@@ -158,27 +197,61 @@ export class AccountService {
    * @throws {NotFoundError} If the account is not found
    * @throws {BadRequestError} If the account update fails
    */
-  public async editAccount(accountId: number, name: string, defaultProfileId: number) {
+  public async editAccount(accountId: number, name: string, defaultProfileId: number): Promise<Account> {
     try {
       const account = await accountsDb.findAccountById(accountId);
       if (!account) {
         throw new NotFoundError('Account not found');
       }
 
-      const updatedAccount = await accountsDb.editAccount(accountId, name, defaultProfileId);
+      const accountData: UpdateAccountRequest = {
+        id: accountId,
+        name,
+        defaultProfileId,
+      };
+
+      const updatedAccount = await accountsDb.editAccount(accountData);
       if (!updatedAccount) {
         throw new BadRequestError('Failed to update the account');
       }
 
       return {
-        id: updatedAccount.id,
-        name: updatedAccount.name,
-        email: updatedAccount.email,
+        ...updatedAccount,
         image: getAccountImage(updatedAccount.image, updatedAccount.name),
-        default_profile_id: updatedAccount.default_profile_id,
       };
     } catch (error) {
       throw errorService.handleError(error, `editAccount(${accountId})`);
+    }
+  }
+
+  /**
+   * Update an account's profile image
+   *
+   * @param id - ID of the account to update
+   * @param image - Path to the new image file
+   * @returns Updated account information
+   * @throws NotFoundError if account not found
+   * @throws BadRequestError if image update fails
+   * @throws Error for other database errors
+   */
+  public async updateAccountImage(id: number, image: string): Promise<Account> {
+    try {
+      const accountData: UpdateAccountRequest = {
+        id,
+        image,
+      };
+      const updatedAccount = await accountsDb.updateAccountImage(accountData);
+
+      if (!updatedAccount) {
+        throw new Error(`Failed to update image for account ${id}`);
+      }
+
+      return {
+        ...updatedAccount,
+        image: getAccountImage(updatedAccount.image, updatedAccount.name),
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `updateAccountImage(${id}, ${image})`);
     }
   }
 
@@ -218,8 +291,7 @@ export class AccountService {
         }
       }
 
-      // Invalidate cache for this account
-      this.cache.invalidateAccount(accountId);
+      this.invalidateAccountCache(accountId);
 
       appLogger.info(`Account deleted: ${account.email}`, { accountId });
       cliLogger.info(`Account deleted: ${account.email}`);
@@ -261,44 +333,11 @@ export class AccountService {
    * @returns Account ID if found, null otherwise
    * @throws Error if the database operation fails
    */
-  public async findAccountIdByProfileId(profileId: string): Promise<number | null> {
+  public async findAccountIdByProfileId(profileId: number): Promise<number | null> {
     try {
       return await accountsDb.findAccountIdByProfileId(profileId);
     } catch (error) {
       throw errorService.handleError(error, `findAccountIdByProfileId(${profileId})`);
-    }
-  }
-
-  /**
-   * Update an account's profile image
-   *
-   * @param accountId - ID of the account to update
-   * @param imagePath - Path to the new image file
-   * @returns Updated account information
-   * @throws NotFoundError if account not found
-   * @throws BadRequestError if image update fails
-   * @throws Error for other database errors
-   */
-  public async updateAccountImage(accountId: number, imagePath: string) {
-    try {
-      const updatedAccount = await accountsDb.updateAccountImage(accountId, imagePath);
-
-      if (!updatedAccount) {
-        throw new Error(`Failed to update image for account ${accountId}`);
-      }
-
-      // Invalidate cache if CacheService is used
-      this.cache.invalidateAccount(accountId);
-
-      return {
-        id: updatedAccount.id,
-        name: updatedAccount.name,
-        email: updatedAccount.email,
-        image: getAccountImage(updatedAccount.image, updatedAccount.name),
-        default_profile_id: updatedAccount.default_profile_id,
-      };
-    } catch (error) {
-      throw errorService.handleError(error, `updateAccountImage(${accountId}, ${imagePath})`);
     }
   }
 
@@ -319,10 +358,7 @@ export class AccountService {
     }
   }
 
-  private async combineUserData(
-    firebaseUsers: UserRecord[],
-    databaseAccounts: DatabaseAccount[],
-  ): Promise<CombinedUser[]> {
+  private combineUserData(firebaseUsers: UserRecord[], databaseAccounts: AccountRow[]): CombinedAccount[] {
     const accountMap = new Map(databaseAccounts.map((account) => [account.uid, account]));
     const combinedUsers = firebaseUsers
       .filter((firebaseUser) => accountMap.has(firebaseUser.uid))
@@ -341,11 +377,11 @@ export class AccountService {
             lastSignInTime: firebaseUser.metadata.lastSignInTime,
             lastRefreshTime: firebaseUser.metadata.lastRefreshTime || null,
           },
-          account_id: dbAccount.account_id,
-          account_name: dbAccount.account_name,
-          default_profile_id: dbAccount.default_profile_id,
-          database_image: getAccountImage(dbAccount.image, dbAccount.account_name),
-          database_created_at: dbAccount.created_at,
+          id: dbAccount.account_id,
+          name: dbAccount.account_name,
+          defaultProfileId: dbAccount.default_profile_id,
+          image: getAccountImage(dbAccount.image, dbAccount.account_name),
+          databaseCreatedAt: dbAccount.created_at,
         };
       });
 

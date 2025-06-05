@@ -1,10 +1,38 @@
 import { NotFoundError } from '../../middleware/errorMiddleware';
-import { AdminShow, AdminShowRow } from '../../types/showTypes';
+import { AdminEpisodeRow, transformAdminEpisode } from '../../types/episodeTypes';
+import {
+  AdminSeasonWatchProgressRow,
+  ContentProfilesRow,
+  ProfileShowStatusRow,
+  transformAdminSeasonWatchProgress,
+  transformContentProfiles,
+} from '../../types/profileTypes';
+import { AdminSeasonRow, transformAdminSeason, transformAdminSeasonWithEpisodes } from '../../types/seasonTypes';
+import { AdminShowRow, transformAdminShow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
-import { RowDataPacket } from 'mysql2';
+import {
+  AdminEpisode,
+  AdminProfileWatchProgress,
+  AdminSeason,
+  AdminSeasonWithEpisodes,
+  AdminShow,
+  AdminShowWatchProgressResult,
+  ContentProfiles,
+} from '@ajgifford/keepwatching-types';
+import { ContentCountRow } from 'src/types/contentTypes';
 
-export async function getAllShows(limit: number = 50, offset: number = 0) {
+export async function getShowsCount(): Promise<number> {
+  try {
+    const query = `SELECT COUNT(DISTINCT s.id) AS total FROM shows s`;
+    const [result] = await getDbPool().execute<ContentCountRow[]>(query);
+    return result[0].total;
+  } catch (error) {
+    handleDatabaseError(error, 'get a count of all shows');
+  }
+}
+
+export async function getAllShows(limit: number = 50, offset: number = 0): Promise<AdminShow[]> {
   try {
     const query = `SELECT 
       s.id,
@@ -23,7 +51,6 @@ export async function getAllShows(limit: number = 50, offset: number = 0) {
       s.type,
       s.in_production,
       s.last_air_date,
-      s.created_at,
       s.updated_at,
     GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
     GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
@@ -45,19 +72,9 @@ export async function getAllShows(limit: number = 50, offset: number = 0) {
     OFFSET ${offset}`;
 
     const [shows] = await getDbPool().execute<AdminShowRow[]>(query);
-    return shows.map((show) => transformAdminShow(show));
+    return shows.map(transformAdminShow);
   } catch (error) {
     handleDatabaseError(error, 'get all shows');
-  }
-}
-
-export async function getShowsCount() {
-  try {
-    const query = `SELECT COUNT(DISTINCT s.id) AS total FROM shows s`;
-    const [result] = await getDbPool().execute<(RowDataPacket & { total: number })[]>(query);
-    return result[0].total;
-  } catch (error) {
-    handleDatabaseError(error, 'get a count of all shows');
   }
 }
 
@@ -129,11 +146,12 @@ export async function getAdminShowDetails(showId: number): Promise<AdminShow> {
  * @returns Array of seasons belonging to the show
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getAdminShowSeasons(showId: number): Promise<any[]> {
+export async function getAdminShowSeasons(showId: number): Promise<AdminSeason[]> {
   try {
     const query = `
       SELECT 
-        id as season_id,
+        id,
+        show_id,
         tmdb_id,
         name,
         overview,
@@ -150,20 +168,8 @@ export async function getAdminShowSeasons(showId: number): Promise<any[]> {
       ORDER BY 
         season_number`;
 
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [showId]);
-
-    return rows.map((row) => ({
-      id: row.season_id,
-      tmdbId: row.tmdb_id,
-      name: row.name,
-      overview: row.overview,
-      seasonNumber: row.season_number,
-      releaseDate: row.release_date,
-      posterImage: row.poster_image,
-      episodeCount: row.number_of_episodes,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
-    }));
+    const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(query, [showId]);
+    return seasonRows.map(transformAdminSeason);
   } catch (error) {
     handleDatabaseError(error, `getAdminShowSeasons(${showId})`);
   }
@@ -176,20 +182,21 @@ export async function getAdminShowSeasons(showId: number): Promise<any[]> {
  * @returns Nested object with seasons and their episodes
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<any[]> {
+export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<AdminSeasonWithEpisodes[]> {
   try {
     const seasonsQuery = `
       SELECT 
-        id as season_id,
-        tmdb_id as season_tmdb_id,
-        name as season_name,
-        overview as season_overview,
+        id,
+        show_id,
+        tmdb_id,
+        name,
+        overview,
         season_number,
-        release_date as season_release_date,
-        poster_image as season_poster_image,
+        release_date,
+        poster_image,
         number_of_episodes,
-        created_at as season_created_at,
-        updated_at as season_updated_at
+        created_at,
+        updated_at
       FROM 
         seasons
       WHERE 
@@ -197,75 +204,49 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<a
       ORDER BY 
         season_number`;
 
-    const [seasonRows] = await getDbPool().execute<RowDataPacket[]>(seasonsQuery, [showId]);
+    const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(seasonsQuery, [showId]);
 
     if (seasonRows.length === 0) {
       return [];
     }
 
-    const seasonIds = seasonRows.map((row) => row.season_id);
+    const seasonIds = seasonRows.map((row) => row.id);
     const placeholders = seasonIds.map(() => '?').join(',');
     const episodesQuery = `
       SELECT 
-        e.id as episode_id,
-        e.tmdb_id as episode_tmdb_id,
-        e.season_id,
-        e.episode_number,
-        e.episode_type,
-        e.season_number,
-        e.title as episode_title,
-        e.overview as episode_overview,
-        e.air_date as episode_air_date,
-        e.runtime,
-        e.still_image,
-        e.created_at as episode_created_at,
-        e.updated_at as episode_updated_at
-      FROM 
-        episodes e
+        id,
+        tmdb_id,
+        season_id,
+        episode_number,
+        episode_type,
+        season_number,
+        title,
+        overview,
+        air_date,
+        runtime,
+        still_image,
+        created_at,
+        updated_at
+        FROM 
+        episodes
       WHERE 
-        e.season_id IN (${placeholders})
+        season_id IN (${placeholders})
       ORDER BY 
-        e.season_id, 
-        e.episode_number`;
+      season_id, 
+        episode_number`;
 
-    const [episodeRows] = await getDbPool().execute<RowDataPacket[]>(episodesQuery, seasonIds);
+    const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(episodesQuery, seasonIds);
 
     const episodesBySeason: Record<number, any[]> = {};
-    episodeRows.forEach((episode) => {
-      if (!episodesBySeason[episode.season_id]) {
-        episodesBySeason[episode.season_id] = [];
+    episodeRows.forEach((episodeRow) => {
+      if (!episodesBySeason[episodeRow.season_id]) {
+        episodesBySeason[episodeRow.season_id] = [];
       }
 
-      episodesBySeason[episode.season_id].push({
-        id: episode.episode_id,
-        tmdbId: episode.episode_tmdb_id,
-        seasonId: episode.season_id,
-        episodeNumber: episode.episode_number,
-        episodeType: episode.episode_type,
-        seasonNumber: episode.season_number,
-        title: episode.episode_title,
-        overview: episode.episode_overview,
-        airDate: episode.episode_air_date,
-        runtime: episode.runtime,
-        stillImage: episode.still_image,
-        createdAt: episode.episode_created_at?.toISOString(),
-        updatedAt: episode.episode_updated_at?.toISOString(),
-      });
+      episodesBySeason[episodeRow.season_id].push(transformAdminEpisode(episodeRow));
     });
 
-    return seasonRows.map((season) => ({
-      id: season.season_id,
-      tmdbId: season.season_tmdb_id,
-      name: season.season_name,
-      overview: season.season_overview,
-      seasonNumber: season.season_number,
-      releaseDate: season.season_release_date,
-      posterImage: season.season_poster_image,
-      episodeCount: season.number_of_episodes,
-      createdAt: season.season_created_at?.toISOString(),
-      updatedAt: season.season_updated_at?.toISOString(),
-      episodes: episodesBySeason[season.season_id] || [],
-    }));
+    return seasonRows.map((season) => transformAdminSeasonWithEpisodes(season, episodesBySeason));
   } catch (error) {
     handleDatabaseError(error, `getAdminShowSeasonsWithEpisodes(${showId})`);
   }
@@ -278,11 +259,11 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<a
  * @returns Array of episodes belonging to the season
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getAdminSeasonEpisodes(seasonId: number): Promise<any[]> {
+export async function getAdminSeasonEpisodes(seasonId: number): Promise<AdminEpisode[]> {
   try {
     const query = `
       SELECT 
-        id as episode_id,
+        id,
         tmdb_id,
         season_id,
         show_id,
@@ -303,24 +284,8 @@ export async function getAdminSeasonEpisodes(seasonId: number): Promise<any[]> {
       ORDER BY 
         episode_number`;
 
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [seasonId]);
-
-    return rows.map((row) => ({
-      id: row.episode_id,
-      tmdbId: row.tmdb_id,
-      seasonId: row.season_id,
-      showId: row.show_id,
-      episodeNumber: row.episode_number,
-      episodeType: row.episode_type,
-      seasonNumber: row.season_number,
-      title: row.title,
-      overview: row.overview,
-      airDate: row.air_date,
-      runtime: row.runtime,
-      stillImage: row.still_image,
-      createdAt: row.created_at.toISOString(),
-      updatedAt: row.updated_at.toISOString(),
-    }));
+    const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(query, [seasonId]);
+    return episodeRows.map(transformAdminEpisode);
   } catch (error) {
     handleDatabaseError(error, `getAdminSeasonEpisodes(${seasonId})`);
   }
@@ -333,7 +298,7 @@ export async function getAdminSeasonEpisodes(seasonId: number): Promise<any[]> {
  * @returns Array of profiles watching the show
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getAdminShowProfiles(showId: number): Promise<any[]> {
+export async function getAdminShowProfiles(showId: number): Promise<ContentProfiles[]> {
   try {
     const query = `
       SELECT 
@@ -356,18 +321,8 @@ export async function getAdminShowProfiles(showId: number): Promise<any[]> {
       ORDER BY 
         a.account_name, p.name`;
 
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [showId]);
-
-    return rows.map((row) => ({
-      profileId: row.profile_id,
-      name: row.name,
-      image: row.image,
-      accountId: row.account_id,
-      accountName: row.account_name,
-      watchStatus: row.watch_status,
-      addedDate: row.added_date.toISOString(),
-      lastUpdated: row.status_updated_date.toISOString(),
-    }));
+    const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [showId]);
+    return profileRows.map(transformContentProfiles);
   } catch (error) {
     handleDatabaseError(error, `getAdminShowProfiles(${showId})`);
   }
@@ -380,9 +335,8 @@ export async function getAdminShowProfiles(showId: number): Promise<any[]> {
  * @returns Object with detailed watch progress by profile
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getAdminShowWatchProgress(showId: number): Promise<any[]> {
+export async function getAdminShowWatchProgress(showId: number): Promise<AdminShowWatchProgressResult> {
   try {
-    // First get all profiles watching this show
     const profilesQuery = `
       SELECT 
         p.profile_id,
@@ -395,19 +349,17 @@ export async function getAdminShowWatchProgress(showId: number): Promise<any[]> 
       WHERE 
         sws.show_id = ?`;
 
-    const [profileRows] = await getDbPool().execute<RowDataPacket[]>(profilesQuery, [showId]);
+    const [profileRows] = await getDbPool().execute<ProfileShowStatusRow[]>(profilesQuery, [showId]);
 
     if (profileRows.length === 0) {
       return [];
     }
 
-    // For each profile, get detailed watch progress
     const results = await Promise.all(
       profileRows.map(async (profile) => {
-        // Get season stats
         const seasonQuery = `
         SELECT 
-          s.id as season_id,
+          s.id,
           s.name,
           s.season_number,
           s.number_of_episodes,
@@ -427,32 +379,16 @@ export async function getAdminShowWatchProgress(showId: number): Promise<any[]> 
         ORDER BY 
           s.season_number`;
 
-        const [seasonRows] = await getDbPool().execute<RowDataPacket[]>(seasonQuery, [
+        const [seasonRows] = await getDbPool().execute<AdminSeasonWatchProgressRow[]>(seasonQuery, [
           profile.profile_id,
           profile.profile_id,
           showId,
         ]);
 
-        // Calculate overall stats
+        const seasons = seasonRows.map(transformAdminSeasonWatchProgress);
         const totalEpisodes = seasonRows.reduce((sum, season) => sum + season.number_of_episodes, 0);
         const watchedEpisodes = seasonRows.reduce((sum, season) => sum + season.watched_episodes, 0);
         const percentComplete = totalEpisodes > 0 ? Math.round((watchedEpisodes / totalEpisodes) * 100) : 0;
-
-        // Format seasons with their progress
-        const seasons = seasonRows.map((season) => {
-          const seasonPercentComplete =
-            season.number_of_episodes > 0 ? Math.round((season.watched_episodes / season.number_of_episodes) * 100) : 0;
-
-          return {
-            seasonId: season.season_id,
-            seasonNumber: season.season_number,
-            name: season.name,
-            status: season.season_status,
-            episodeCount: season.number_of_episodes,
-            watchedEpisodes: season.watched_episodes,
-            percentComplete: seasonPercentComplete,
-          };
-        });
 
         return {
           profileId: profile.profile_id,
@@ -462,7 +398,7 @@ export async function getAdminShowWatchProgress(showId: number): Promise<any[]> 
           watchedEpisodes,
           percentComplete,
           seasons,
-        };
+        } as AdminProfileWatchProgress;
       }),
     );
 
@@ -470,31 +406,4 @@ export async function getAdminShowWatchProgress(showId: number): Promise<any[]> 
   } catch (error) {
     handleDatabaseError(error, `getAdminShowWatchProgress(${showId})`);
   }
-}
-
-/**
- * Transforms a database row into an AdminShow object
- */
-function transformAdminShow(show: AdminShowRow): AdminShow {
-  return {
-    id: show.id,
-    tmdbId: show.tmdb_id,
-    title: show.title,
-    description: show.description,
-    releaseDate: show.release_date,
-    posterImage: show.poster_image,
-    backdropImage: show.backdrop_image,
-    network: show.network,
-    seasonCount: show.season_count,
-    episodeCount: show.episode_count,
-    userRating: show.user_rating,
-    contentRating: show.content_rating,
-    status: show.status,
-    type: show.type,
-    inProduction: Boolean(show.in_production),
-    lastAirDate: show.last_air_date,
-    lastUpdated: show.updated_at.toISOString(),
-    streamingServices: show.streaming_services,
-    genres: show.genres,
-  };
 }

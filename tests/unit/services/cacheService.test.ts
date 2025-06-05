@@ -17,6 +17,9 @@ describe('CacheService', () => {
   let cacheService: CacheService;
   let mockNodeCache: jest.Mocked<NodeCache>;
 
+  const accountId = 1;
+  const profileId = 123;
+
   beforeEach(() => {
     // Reset singleton instance for each test
     Object.defineProperty(CacheService, 'instance', { value: null, writable: true });
@@ -271,8 +274,6 @@ describe('CacheService', () => {
 
   describe('invalidateProfileStatistics', () => {
     it('should invalidate all profile statistics cache keys', () => {
-      const profileId = '123';
-
       cacheService.invalidateProfileStatistics(profileId);
 
       expect(mockNodeCache.del).toHaveBeenCalledTimes(4);
@@ -285,8 +286,6 @@ describe('CacheService', () => {
 
   describe('invalidateAccountStatistics', () => {
     it('should invalidate account statistics cache key', () => {
-      const accountId = '123';
-
       cacheService.invalidateAccountStatistics(accountId);
 
       expect(mockNodeCache.del).toHaveBeenCalledTimes(1);
@@ -296,7 +295,6 @@ describe('CacheService', () => {
 
   describe('invalidateProfile', () => {
     it('should invalidate all profile-related cache keys', () => {
-      const profileId = '123';
       const pattern = INVALIDATION_PATTERNS.allProfileData(profileId);
 
       // Spy on the invalidatePattern method
@@ -310,13 +308,11 @@ describe('CacheService', () => {
 
   describe('invalidateProfileShows', () => {
     it('should invalidate all profile show-related cache keys', () => {
-      const profileId = '123';
-
       // Spy on methods that get called inside this function
       jest.spyOn(cacheService, 'invalidateProfileStatistics').mockImplementation(() => {});
       jest.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
 
-      cacheService.invalidateProfileShows(profileId);
+      cacheService.invalidateProfileShows(accountId, profileId);
 
       // Check direct invalidations
       expect(mockNodeCache.del).toHaveBeenCalledWith(PROFILE_KEYS.shows(profileId));
@@ -335,8 +331,6 @@ describe('CacheService', () => {
 
   describe('invalidateProfileMovies', () => {
     it('should invalidate all profile movie-related cache keys', () => {
-      const profileId = '123';
-
       // Spy on methods that get called inside this function
       jest.spyOn(cacheService, 'invalidateProfileStatistics').mockImplementation(() => {});
       jest.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
@@ -358,8 +352,6 @@ describe('CacheService', () => {
 
   describe('invalidateAccount', () => {
     it('should invalidate all account-related cache keys', () => {
-      const accountId = '123';
-
       // Spy on methods that get called inside this function
       jest.spyOn(cacheService, 'invalidateAccountStatistics').mockImplementation(() => {});
       jest.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);

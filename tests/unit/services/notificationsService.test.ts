@@ -1,4 +1,6 @@
+import { UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
 import * as notificationsDb from '@db/notificationsDb';
+import { NoAffectedRowsError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
 import { notificationsService } from '@services/notificationsService';
 
@@ -8,16 +10,16 @@ jest.mock('@services/errorService');
 describe('notificationsService', () => {
   const mockAccountNotifications = [
     {
-      notification_id: 1,
+      id: 1,
       message: 'Test notification 1',
-      start_date: new Date('2025-04-01'),
-      end_date: new Date('2025-04-30'),
+      startDate: new Date('2025-04-01'),
+      endDate: new Date('2025-04-30'),
     },
     {
-      notification_id: 2,
+      id: 2,
       message: 'Test notification 2',
-      start_date: new Date('2025-04-05'),
-      end_date: new Date('2025-04-25'),
+      startDate: new Date('2025-04-05'),
+      endDate: new Date('2025-04-25'),
     },
   ];
 
@@ -87,10 +89,21 @@ describe('notificationsService', () => {
   describe('dismissNotification', () => {
     it('should dismiss a notification successfully', async () => {
       (notificationsDb.dismissNotification as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
-      await notificationsService.dismissNotification(1, 123);
+      const result = await notificationsService.dismissNotification(1, 123);
 
       expect(notificationsDb.dismissNotification).toHaveBeenCalledWith(1, 123);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123);
+      expect(result).toEqual(mockAccountNotifications);
+    });
+
+    it('should fail to dismiss a notification', async () => {
+      (notificationsDb.dismissNotification as jest.Mock).mockResolvedValue(false);
+      const mockError = new NoAffectedRowsError('No notification was dismissed');
+
+      await expect(notificationsService.dismissNotification(1, 123)).rejects.toThrow('No notification was dismissed');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123)');
     });
 
     it('should propagate database errors through errorService', async () => {
@@ -149,18 +162,18 @@ describe('notificationsService', () => {
         account_id: null,
       };
 
+      const date = new Date('2025-04-05');
+
       notificationsDb.addNotification as jest.Mock;
-      (notificationsDb.createAdminNotification as jest.Mock).mockResolvedValue(mockNotification);
 
-      await notificationsService.addNotification('message', '2025-04-01', '2025-05-01', true, null);
+      await notificationsService.addNotification({
+        message: 'message',
+        startDate: '2025-04-01',
+        endDate: '2025-05-01',
+        sendToAll: true,
+        accountId: null,
+      });
 
-      expect(notificationsDb.createAdminNotification).toHaveBeenCalledWith(
-        'message',
-        '2025-04-01',
-        '2025-05-01',
-        true,
-        null,
-      );
       expect(notificationsDb.addNotification).toHaveBeenCalled();
     });
 
@@ -173,17 +186,15 @@ describe('notificationsService', () => {
         account_id: 1,
       };
       notificationsDb.addNotification as jest.Mock;
-      (notificationsDb.createAdminNotification as jest.Mock).mockResolvedValue(mockNotification);
 
-      await notificationsService.addNotification('message', '2025-04-01', '2025-05-01', false, 1);
+      await notificationsService.addNotification({
+        message: 'message',
+        startDate: '2025-04-01',
+        endDate: '2025-05-01',
+        sendToAll: false,
+        accountId: 1,
+      });
 
-      expect(notificationsDb.createAdminNotification).toHaveBeenCalledWith(
-        'message',
-        '2025-04-01',
-        '2025-05-01',
-        false,
-        1,
-      );
       expect(notificationsDb.addNotification).toHaveBeenCalled();
     });
 
@@ -192,48 +203,37 @@ describe('notificationsService', () => {
       (notificationsDb.addNotification as jest.Mock).mockRejectedValue(mockError);
 
       await expect(
-        notificationsService.addNotification('message', '2025-04-01', '2025-05-01', true, null),
+        notificationsService.addNotification({
+          message: 'message',
+          startDate: '2025-04-01',
+          endDate: '2025-05-01',
+          sendToAll: true,
+          accountId: null,
+        }),
       ).rejects.toThrow('Database error during add');
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'addNotification(message,2025-04-01,2025-05-01,true,null)',
+        'addNotification({\"message\":\"message\",\"startDate\":\"2025-04-01\",\"endDate\":\"2025-05-01\",\"sendToAll\":true,\"accountId\":null})',
       );
     });
   });
 
   describe('updateNotification', () => {
     it('should update a notification for all accounts successfully', async () => {
-      const mockNotification = {
+      const mockNotification: UpdateNotificationRequest = {
         message: 'Test notification 13',
-        start_date: new Date('2025-04-05'),
-        end_date: new Date('2025-04-25'),
-        send_to_all: true,
-        account_id: null,
-        notification_id: 13,
+        startDate: '2025-04-05',
+        endDate: '2025-04-25',
+        sendToAll: true,
+        accountId: null,
+        id: 13,
       };
 
       (notificationsDb.updateNotification as jest.Mock).mockResolvedValue(mockNotification);
-      (notificationsDb.createAdminNotification as jest.Mock).mockResolvedValue(mockNotification);
 
-      const updatedNotification = await notificationsService.updateNotification(
-        'message',
-        '2025-04-01',
-        '2025-05-01',
-        true,
-        null,
-        13,
-      );
+      await notificationsService.updateNotification(mockNotification);
 
-      expect(notificationsDb.createAdminNotification).toHaveBeenCalledWith(
-        'message',
-        '2025-04-01',
-        '2025-05-01',
-        true,
-        null,
-        13,
-      );
       expect(notificationsDb.updateNotification).toHaveBeenCalled();
-      expect(mockNotification).toEqual(updatedNotification);
     });
 
     it('should update a notification for a single account successfully', async () => {
@@ -247,39 +247,38 @@ describe('notificationsService', () => {
       };
 
       (notificationsDb.updateNotification as jest.Mock).mockResolvedValue(mockNotification);
-      (notificationsDb.createAdminNotification as jest.Mock).mockResolvedValue(mockNotification);
 
-      const updatedNotification = await notificationsService.updateNotification(
-        'message',
-        '2025-04-01',
-        '2025-05-01',
-        false,
-        1,
-        13,
-      );
+      const updateRequest: UpdateNotificationRequest = {
+        message: 'Test notification 13',
+        startDate: '2025-04-05',
+        endDate: '2025-04-25',
+        sendToAll: true,
+        accountId: null,
+        id: 13,
+      };
+      await notificationsService.updateNotification(updateRequest);
 
-      expect(notificationsDb.createAdminNotification).toHaveBeenCalledWith(
-        'message',
-        '2025-04-01',
-        '2025-05-01',
-        false,
-        1,
-        13,
-      );
       expect(notificationsDb.updateNotification).toHaveBeenCalled();
-      expect(mockNotification).toEqual(updatedNotification);
     });
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during update');
       (notificationsDb.updateNotification as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(
-        notificationsService.updateNotification('message', '2025-04-01', '2025-05-01', true, null, 13),
-      ).rejects.toThrow('Database error during update');
+      const updateRequest: UpdateNotificationRequest = {
+        message: 'message',
+        startDate: '2025-04-05',
+        endDate: '2025-04-25',
+        sendToAll: true,
+        accountId: null,
+        id: 13,
+      };
+      await expect(notificationsService.updateNotification(updateRequest)).rejects.toThrow(
+        'Database error during update',
+      );
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'updateNotification(message,2025-04-01,2025-05-01,true,null,13)',
+        'updateNotification({\"message\":\"message\",\"startDate\":\"2025-04-05\",\"endDate\":\"2025-04-25\",\"sendToAll\":true,\"accountId\":null,\"id\":13})',
       );
     });
   });

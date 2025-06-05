@@ -5,6 +5,7 @@ import { checkSeasonForEpisodeChanges } from './episodeChangesService';
 import { episodesService } from './episodesService';
 import { seasonsService } from './seasonsService';
 import { getTMDBService } from './tmdbService';
+import { ProfileAccountMapping } from '@ajgifford/keepwatching-types';
 
 /**
  * Process season changes for a show
@@ -19,20 +20,20 @@ export async function processSeasonChanges(
   changes: ChangeItem[],
   responseShow: any,
   content: ContentUpdates,
-  profileIds: number[],
+  profileAccountMappings: ProfileAccountMapping[],
   pastDate: string,
   currentDate: string,
-) {
+): Promise<void> {
   const tmdbService = getTMDBService();
   const uniqueSeasonIds = filterUniqueSeasonIds(changes);
   const responseShowSeasons = responseShow.seasons || [];
 
-  for (const seasonId of uniqueSeasonIds) {
+  for (const uniqueSeasonId of uniqueSeasonIds) {
     try {
       await sleep(500); // Rate limiting
 
       // Find the season in the show data
-      const seasonInfo = responseShowSeasons.find((season: { id: number }) => season.id === seasonId);
+      const seasonInfo = responseShowSeasons.find((season: { id: number }) => season.id === uniqueSeasonId);
 
       // Skip "season 0" (specials) and missing seasons
       if (!seasonInfo || seasonInfo.season_number === 0) {
@@ -52,11 +53,18 @@ export async function processSeasonChanges(
       };
 
       // Update the season through the service layer
-      const seasonResult = await seasonsService.updateSeason(updatedSeason);
+      const seasonId = await seasonsService.updateSeason(updatedSeason);
 
       // Add this season to all profiles that have the show
-      for (const profileId of profileIds) {
-        await seasonsService.addSeasonToFavorites(profileId, seasonResult.id!);
+      for (const mapping of profileAccountMappings) {
+        await seasonsService.addSeasonToFavorites(mapping.profileId, seasonId);
+
+        await seasonsService.setNewSeasonWatchStatus(
+          mapping.profileId,
+          seasonId,
+          seasonInfo.air_date,
+          seasonInfo.episode_count > 0,
+        );
       }
 
       // Check if there are episode changes for this season
@@ -72,7 +80,7 @@ export async function processSeasonChanges(
           const episodeToUpdate = {
             tmdb_id: episodeData.id,
             show_id: content.id,
-            season_id: seasonResult.id!,
+            season_id: seasonId,
             episode_number: episodeData.episode_number,
             episode_type: episodeData.episode_type || 'standard',
             season_number: episodeData.season_number,
@@ -83,22 +91,22 @@ export async function processSeasonChanges(
             still_image: episodeData.still_path,
           };
 
-          const episode = await episodesService.updateEpisode(episodeToUpdate);
+          const episodeId = await episodesService.updateEpisode(episodeToUpdate);
 
           // Add this episode to all profiles that have the show
-          for (const profileId of profileIds) {
-            await episodesService.addEpisodeToFavorites(profileId, episode.id!);
+          for (const mapping of profileAccountMappings) {
+            await episodesService.addEpisodeToFavorites(mapping.profileId, episodeId);
           }
         }
 
         // Update watch status for all affected profiles
-        for (const profileId of profileIds) {
-          await seasonsService.updateSeasonWatchStatusForNewEpisodes(String(profileId), seasonResult.id!);
+        for (const mapping of profileAccountMappings) {
+          await seasonsService.updateSeasonWatchStatusForNewEpisodes(mapping.profileId, seasonId);
         }
       }
     } catch (error) {
       // Log error but continue with next season
-      cliLogger.error(`Error processing season ID ${seasonId} for show ${content.id}`, error);
+      cliLogger.error(`Error processing season ID ${uniqueSeasonId} for show ${content.id}`, error);
     }
   }
 }

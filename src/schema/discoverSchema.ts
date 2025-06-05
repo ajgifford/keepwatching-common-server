@@ -27,7 +27,7 @@ export const discoverTrendingQuerySchema = z.object({
   showType: z.enum(['movie', 'series'], {
     errorMap: (_issue, ctx) => ({ message: `Show type must be either "movie" or "series", received "${ctx.data}"` }),
   }),
-  page: z.string().regex(/^\d+$/, { message: 'Page must be a positive number' }).optional().default('1'),
+  page: z.coerce.number().int().positive().default(1),
 });
 
 export const discoverSimilarContentSchema = z.object({

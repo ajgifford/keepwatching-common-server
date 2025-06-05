@@ -1,8 +1,9 @@
+import { createPositiveIntegerSchema } from './schemaUtil';
 import { z } from 'zod';
 
 export const dismissParamSchema = z.object({
-  accountId: z.string().regex(/^\d+$/, 'Account ID must be numeric'),
-  notificationId: z.string().regex(/^\d+$/, 'Notification ID must be numeric'),
+  accountId: createPositiveIntegerSchema('Account ID'),
+  notificationId: createPositiveIntegerSchema('Notification ID'),
 });
 
 export type DismissParams = z.infer<typeof dismissParamSchema>;

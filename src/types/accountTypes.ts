@@ -1,37 +1,24 @@
-export interface Account {
-  id?: number;
-  name: string;
-  email: string;
-  uid: string;
-  image?: string;
-  default_profile_id?: number;
-}
+import { Account } from '@ajgifford/keepwatching-types';
+import { RowDataPacket } from 'mysql2';
 
-export interface DatabaseAccount {
+export interface AccountRow extends RowDataPacket {
   account_id: number;
   account_name: string;
   email: string;
-  image: string | undefined;
-  default_profile_id: number | null;
   uid: string;
+  image: string;
+  default_profile_id: number;
   created_at: Date;
+  updated_at: Date;
 }
 
-export interface CombinedUser {
-  uid: string;
-  email: string | null;
-  emailVerified: boolean;
-  displayName: string | null;
-  photoURL: string | null;
-  disabled: boolean;
-  metadata: {
-    creationTime: string;
-    lastSignInTime: string;
-    lastRefreshTime: string | null;
+export function transformAccountRow(row: AccountRow): Account {
+  return {
+    id: row.account_id,
+    name: row.account_name,
+    email: row.email,
+    uid: row.uid,
+    image: row.image ?? '',
+    defaultProfileId: row.default_profile_id,
   };
-  account_id: number;
-  account_name: string;
-  default_profile_id: number | null;
-  database_image: string | null;
-  database_created_at: Date;
 }

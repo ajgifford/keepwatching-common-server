@@ -1,6 +1,5 @@
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
-import { RowDataPacket } from 'mysql2';
 
 jest.mock('@utils/db', () => {
   const mockPool = {
@@ -26,7 +25,7 @@ describe('adminMovieRepository', () => {
 
   describe('getMoviesCount', () => {
     it('should return the total count of movies', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ total: 42 }] as RowDataPacket[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 42 }]]);
 
       const count = await moviesDb.getMoviesCount();
 

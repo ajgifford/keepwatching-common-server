@@ -6,7 +6,6 @@ export {
   getShowsForUpdates,
   saveShowGenre,
   saveShowStreamingService,
-  createShow,
 } from './shows/showRepository';
 
 export {

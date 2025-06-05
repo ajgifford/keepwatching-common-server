@@ -2,7 +2,7 @@ import { createMockCache, setupMocks } from './helpers/mocks';
 import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
-import { BadRequestError, NotFoundError } from '@middleware/errorMiddleware';
+import { NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { ShowService, showService } from '@services/showService';
@@ -11,6 +11,11 @@ import { getTMDBService } from '@services/tmdbService';
 describe('ShowService - Favorites', () => {
   let service: ShowService;
   let mockCache: jest.Mocked<CacheService>;
+
+  const accountId = 1;
+  const profileId = 456;
+  const showTMDBId = 123;
+  const showId = 1;
 
   beforeEach(() => {
     setupMocks();
@@ -23,8 +28,8 @@ describe('ShowService - Favorites', () => {
 
   describe('addShowToFavorites', () => {
     const mockExistingShow = {
-      id: 1,
-      tmdb_id: 123,
+      id: showId,
+      tmdb_id: showTMDBId,
       title: 'Existing Show',
       description: 'A show description',
       release_date: '2023-01-01',
@@ -35,8 +40,8 @@ describe('ShowService - Favorites', () => {
     };
 
     const mockProfileShow = {
-      show_id: 1,
-      profile_id: 456,
+      show_id: showId,
+      profile_id: profileId,
       title: 'Existing Show',
       watch_status: 'NOT_WATCHED',
     };
@@ -53,14 +58,14 @@ describe('ShowService - Favorites', () => {
       };
       service.getEpisodesForProfile = jest.fn().mockResolvedValue(episodeData);
 
-      const result = await service.addShowToFavorites('456', 123);
+      const result = await service.addShowToFavorites(accountId, profileId, showTMDBId);
 
       expect(showsDb.findShowByTMDBId).toHaveBeenCalledWith(123);
-      expect(showsDb.saveFavorite).toHaveBeenCalledWith('456', 1, true);
-      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('456');
+      expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, showId, true);
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(result).toEqual({
         favoritedShow: mockProfileShow,
-        ...episodeData,
+        episodes: episodeData,
       });
     });
 
@@ -68,7 +73,7 @@ describe('ShowService - Favorites', () => {
       (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(null);
 
       const mockTMDBShow = {
-        id: 123,
+        id: showTMDBId,
         name: 'New Show',
         overview: 'A new show description',
         first_air_date: '2023-01-01',
@@ -169,9 +174,7 @@ describe('ShowService - Favorites', () => {
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
-      const newShow = { ...mockTMDBShow, id: 999 };
-      (showsDb.createShow as jest.Mock).mockReturnValue(newShow);
-      (showsDb.saveShow as jest.Mock).mockResolvedValue(true);
+      (showsDb.saveShow as jest.Mock).mockResolvedValue(999);
 
       const mockSavedSeason1 = {
         id: 201,
@@ -197,19 +200,6 @@ describe('ShowService - Favorites', () => {
         number_of_episodes: 6,
       };
 
-      (seasonsDb.createSeason as jest.Mock).mockImplementation(
-        (showId, tmdbId, name, overview, seasonNumber, releaseDate, posterImage, numberOfEpisodes) => ({
-          show_id: showId,
-          tmdb_id: tmdbId,
-          name,
-          overview,
-          season_number: seasonNumber,
-          release_date: releaseDate,
-          poster_image: posterImage,
-          number_of_episodes: numberOfEpisodes,
-        }),
-      );
-
       (seasonsDb.saveSeason as jest.Mock)
         .mockResolvedValueOnce(mockSavedSeason1)
         .mockResolvedValueOnce(mockSavedSeason2);
@@ -219,12 +209,6 @@ describe('ShowService - Favorites', () => {
       const mockSavedEpisode1 = { id: 301, tmdb_id: 1001, show_id: 999, season_id: 201 };
       const mockSavedEpisode2 = { id: 302, tmdb_id: 1002, show_id: 999, season_id: 201 };
       const mockSavedEpisode3 = { id: 303, tmdb_id: 2001, show_id: 999, season_id: 202 };
-
-      (episodesDb.createEpisode as jest.Mock).mockImplementation((tmdbId, showId, seasonId) => ({
-        tmdb_id: tmdbId,
-        show_id: showId,
-        season_id: seasonId,
-      }));
 
       (episodesDb.saveEpisode as jest.Mock)
         .mockResolvedValueOnce(mockSavedEpisode1)
@@ -238,71 +222,34 @@ describe('ShowService - Favorites', () => {
         return {} as NodeJS.Timeout;
       });
 
-      const result = await service.addShowToFavorites('456', 123);
+      const result = await service.addShowToFavorites(accountId, profileId, showTMDBId);
 
       expect(showsDb.findShowByTMDBId).toHaveBeenCalledWith(123);
       expect(getTMDBService).toHaveBeenCalled();
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(123);
-      expect(showsDb.createShow).toHaveBeenCalled();
       expect(showsDb.saveShow).toHaveBeenCalled();
-      expect(showsDb.saveFavorite).toHaveBeenCalledWith('456', 999, false);
-      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('456');
-      expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledWith(123, 1);
+      expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, 999, false);
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
+      expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledWith(showTMDBId, 1);
       expect(result).toHaveProperty('favoritedShow');
       expect(result.favoritedShow).toEqual(mockProfileShow);
-    });
-
-    it('should throw BadRequestError when saving new show fails', async () => {
-      (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(null);
-
-      const mockTMDBShow = {
-        id: 123,
-        name: 'New Show',
-        overview: 'A new show description',
-        first_air_date: '2023-01-01',
-        poster_path: '/poster.jpg',
-        backdrop_path: '/backdrop.jpg',
-        vote_average: 8.5,
-        content_ratings: { results: [{ iso_3166_1: 'US', rating: 'TV-MA' }] },
-        'watch/providers': { results: { US: { flatrate: [] } } },
-        networks: [],
-        number_of_seasons: 2,
-        number_of_episodes: 16,
-        genres: [{ id: 18 }, { id: 10765 }],
-        status: 'Returning Series',
-        type: 'Scripted',
-        in_production: 1,
-      };
-
-      const mockTMDBService = {
-        getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
-      };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
-
-      const newShow = { ...mockTMDBShow, id: 999 };
-      (showsDb.createShow as jest.Mock).mockReturnValue(newShow);
-      (showsDb.saveShow as jest.Mock).mockResolvedValue(false);
-
-      await expect(service.addShowToFavorites('456', 123)).rejects.toThrow(BadRequestError);
-      expect(showsDb.findShowByTMDBId).toHaveBeenCalledWith(123);
-      expect(showsDb.saveShow).toHaveBeenCalled();
-      expect(showsDb.saveFavorite).not.toHaveBeenCalled();
     });
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       (showsDb.findShowByTMDBId as jest.Mock).mockRejectedValue(error);
 
-      await expect(service.addShowToFavorites('456', 123)).rejects.toThrow('Database error');
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'addShowToFavorites(456, 123)');
+      await expect(service.addShowToFavorites(accountId, profileId, 123)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        error,
+        `addShowToFavorites(${accountId}, ${profileId}, ${showTMDBId})`,
+      );
     });
   });
 
   describe('removeShowFromFavorites', () => {
     const mockShow = {
-      id: 1,
       tmdb_id: 123,
-      title: 'Test Show',
     };
 
     it('should remove a show from favorites successfully', async () => {
@@ -317,14 +264,14 @@ describe('ShowService - Favorites', () => {
       };
       service.getEpisodesForProfile = jest.fn().mockResolvedValue(mockEpisodeData);
 
-      const result = await service.removeShowFromFavorites('123', 1);
+      const result = await service.removeShowFromFavorites(accountId, profileId, showId);
 
-      expect(showsDb.findShowById).toHaveBeenCalledWith(1);
-      expect(showsDb.removeFavorite).toHaveBeenCalledWith('123', 1);
-      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('123');
+      expect(showsDb.findShowById).toHaveBeenCalledWith(showId);
+      expect(showsDb.removeFavorite).toHaveBeenCalledWith(profileId, showId);
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(result).toEqual({
         removedShow: mockShow,
-        ...mockEpisodeData,
+        episodes: mockEpisodeData,
       });
     });
 
@@ -334,7 +281,7 @@ describe('ShowService - Favorites', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.removeShowFromFavorites('123', 999)).rejects.toThrow(NotFoundError);
+      await expect(service.removeShowFromFavorites(accountId, profileId, 999)).rejects.toThrow(NotFoundError);
       expect(showsDb.findShowById).toHaveBeenCalledWith(999);
       expect(showsDb.removeFavorite).not.toHaveBeenCalled();
     });
@@ -343,8 +290,11 @@ describe('ShowService - Favorites', () => {
       const error = new Error('Database error');
       (showsDb.findShowById as jest.Mock).mockRejectedValue(error);
 
-      await expect(service.removeShowFromFavorites('123', 1)).rejects.toThrow('Database error');
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'removeShowFromFavorites(123, 1)');
+      await expect(service.removeShowFromFavorites(accountId, profileId, showId)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        error,
+        `removeShowFromFavorites(${accountId}, ${profileId}, ${showId})`,
+      );
     });
   });
 });

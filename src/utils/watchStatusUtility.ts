@@ -1,6 +1,6 @@
-import { WatchStatus } from '../types/watchStatusTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 /**

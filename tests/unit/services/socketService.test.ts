@@ -166,9 +166,9 @@ describe('SocketService', () => {
       service.initialize(mockServer as Server);
 
       const mockShow = { show_id: 456, title: 'Test Show' };
-      await service.notifyShowDataLoaded('profile-123', 456, mockShow as any);
+      await service.notifyShowDataLoaded(123, mockShow as any);
 
-      expect(accountService.findAccountIdByProfileId).toHaveBeenCalledWith('profile-123');
+      expect(accountService.findAccountIdByProfileId).toHaveBeenCalledWith(123);
       expect(mockSocket.emit).toHaveBeenCalledWith('updateShowFavorite', {
         message: 'Show data has been fully loaded',
         show: mockShow,
@@ -182,7 +182,7 @@ describe('SocketService', () => {
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);
 
-      await service.notifyShowDataLoaded('profile-123', 456, {} as any);
+      await service.notifyShowDataLoaded(123, {} as any);
 
       expect(cliLogger.error).toHaveBeenCalledWith('Error notifying show data loaded:', error);
     });
@@ -193,7 +193,7 @@ describe('SocketService', () => {
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);
 
-      await service.notifyShowDataLoaded('profile-123', 456, {} as any);
+      await service.notifyShowDataLoaded(123, {} as any);
 
       expect(mockSocket.emit).not.toHaveBeenCalled();
     });

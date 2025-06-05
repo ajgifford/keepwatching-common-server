@@ -1,7 +1,9 @@
+import { NotificationRow } from '../../../src/types/notificationTypes';
+import { CreateNotificationRequest, UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
 import * as notificationsDb from '@db/notificationsDb';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { ResultSetHeader } from 'mysql2';
 
 jest.mock('@utils/db', () => {
   const mockConnection = {
@@ -44,12 +46,19 @@ describe('notificationDb', () => {
 
   describe('getNotificationsForAccount()', () => {
     it('should get three notifications for account 1', async () => {
-      const mockRows = [
-        { notification_id: 1, message: 'Test 1', start_date: new Date(), end_date: new Date() },
-        { notification_id: 2, message: 'Test 2', start_date: new Date(), end_date: new Date() },
-        { notification_id: 3, message: 'Test 3', start_date: new Date(), end_date: new Date() },
+      const date = new Date();
+      const dbNotifications = [
+        { notification_id: 1, message: 'Test 1', start_date: date, end_date: date },
+        { notification_id: 2, message: 'Test 2', start_date: date, end_date: date },
+        { notification_id: 3, message: 'Test 3', start_date: date, end_date: date },
       ];
-      mockPool.execute.mockResolvedValue([mockRows]);
+      mockPool.execute.mockResolvedValue([dbNotifications]);
+
+      const expectedNotifications = [
+        { id: 1, message: 'Test 1', startDate: date, endDate: date },
+        { id: 2, message: 'Test 2', startDate: date, endDate: date },
+        { id: 3, message: 'Test 3', startDate: date, endDate: date },
+      ];
 
       const notifications = await notificationsDb.getNotificationsForAccount(1);
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
@@ -58,7 +67,7 @@ describe('notificationDb', () => {
         [1],
       );
       expect(notifications).toHaveLength(3);
-      expect(notifications).toEqual(mockRows);
+      expect(notifications).toEqual(expectedNotifications);
     });
 
     it('should get no notifications for account 2', async () => {
@@ -146,12 +155,12 @@ describe('notificationDb', () => {
     });
 
     it('should successfully save a notification for all accounts', async () => {
-      const notification = {
+      const notification: CreateNotificationRequest = {
         message: 'Test notification',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: true,
-        account_id: null,
+        startDate: '2025-05-01',
+        endDate: '2025-05-31',
+        sendToAll: true,
+        accountId: null,
       };
 
       const mockAccounts = [{ account_id: 1 }, { account_id: 2 }];
@@ -189,12 +198,12 @@ describe('notificationDb', () => {
     });
 
     it('should successfully save a notification for a specific account', async () => {
-      const notification = {
+      const notification: CreateNotificationRequest = {
         message: 'Test notification',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: false,
-        account_id: 5,
+        startDate: '2025-05-01',
+        endDate: '2025-05-31',
+        sendToAll: false,
+        accountId: 5,
       };
 
       const notificationInsertResult: [ResultSetHeader, any] = [
@@ -221,12 +230,12 @@ describe('notificationDb', () => {
     });
 
     it('should throw an error when no accounts found for all-account notification', async () => {
-      const notification = {
+      const notification: CreateNotificationRequest = {
         message: 'Test notification',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: true,
-        account_id: null,
+        startDate: '2025-05-01',
+        endDate: '2025-05-31',
+        sendToAll: true,
+        accountId: null,
       };
 
       mockConnection.execute.mockResolvedValueOnce([{ insertId: 123 }]);
@@ -239,12 +248,12 @@ describe('notificationDb', () => {
     });
 
     it('should handle database errors correctly', async () => {
-      const notification = {
+      const notification: CreateNotificationRequest = {
         message: 'Test notification',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: false,
-        account_id: 5,
+        startDate: '2025-05-01',
+        endDate: '2025-05-31',
+        sendToAll: false,
+        accountId: 5,
       };
 
       const error = new Error('Database error');
@@ -259,35 +268,33 @@ describe('notificationDb', () => {
 
   describe('updateNotification()', () => {
     it('should successfully update a notification', async () => {
-      const notification = {
-        notification_id: 123,
+      const notification: UpdateNotificationRequest = {
+        id: 123,
         message: 'Updated message',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: true,
-        account_id: null,
+        startDate: '2025-05-01',
+        endDate: '2025-05-31',
+        sendToAll: true,
+        accountId: null,
       };
 
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
-      const result = await notificationsDb.updateNotification(notification);
+      await notificationsDb.updateNotification(notification);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
         ['Updated message', '2025-05-01', '2025-05-31', true, null, 123],
       );
-
-      expect(result).toEqual(notification);
     });
 
     it('should throw a NoAffectedRowsError when a notification not found', async () => {
-      const notification = {
-        notification_id: 999,
+      const notification: UpdateNotificationRequest = {
+        id: 999,
         message: 'Updated message',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: true,
-        account_id: null,
+        startDate: '2025-05-01',
+        endDate: '2025-05-31',
+        sendToAll: true,
+        accountId: null,
       };
 
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
@@ -298,13 +305,13 @@ describe('notificationDb', () => {
     });
 
     it('should handle database errors correctly', async () => {
-      const notification = {
-        notification_id: 123,
+      const notification: UpdateNotificationRequest = {
+        id: 123,
         message: 'Updated message',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: true,
-        account_id: null,
+        startDate: '2025-05-01',
+        endDate: '2025-05-31',
+        sendToAll: true,
+        accountId: null,
       };
 
       const error = new Error('Database error');
@@ -322,12 +329,12 @@ describe('notificationDb', () => {
         {
           notification_id: 1,
           message: 'Active notification',
-          start_date: '2025-04-01',
-          end_date: '2025-04-30',
+          start_date: new Date('2025-04-01'),
+          end_date: new Date('2025-04-30'),
           send_to_all: 1,
           account_id: null,
         },
-      ] as RowDataPacket[];
+      ] as NotificationRow[];
 
       mockPool.execute.mockResolvedValueOnce([mockNotifications]);
 
@@ -339,12 +346,12 @@ describe('notificationDb', () => {
 
       expect(result).toEqual([
         {
-          notification_id: 1,
+          id: 1,
           message: 'Active notification',
-          start_date: '2025-04-01',
-          end_date: '2025-04-30',
-          send_to_all: true,
-          account_id: null,
+          startDate: new Date('2025-04-01'),
+          endDate: new Date('2025-04-30'),
+          sendToAll: true,
+          accountId: null,
         },
       ]);
     });
@@ -354,20 +361,20 @@ describe('notificationDb', () => {
         {
           notification_id: 1,
           message: 'Active notification',
-          start_date: '2025-04-01',
-          end_date: '2025-04-30',
+          start_date: new Date('2025-04-01'),
+          end_date: new Date('2025-04-30'),
           send_to_all: 1,
           account_id: null,
         },
         {
           notification_id: 2,
           message: 'Expired notification',
-          start_date: '2025-03-01',
-          end_date: '2025-03-31',
+          start_date: new Date('2025-03-01'),
+          end_date: new Date('2025-03-31'),
           send_to_all: 0,
           account_id: 5,
         },
-      ] as RowDataPacket[];
+      ] as NotificationRow[];
 
       mockPool.execute.mockResolvedValueOnce([mockNotifications]);
 
@@ -377,20 +384,20 @@ describe('notificationDb', () => {
 
       expect(result).toEqual([
         {
-          notification_id: 1,
+          id: 1,
           message: 'Active notification',
-          start_date: '2025-04-01',
-          end_date: '2025-04-30',
-          send_to_all: true,
-          account_id: null,
+          startDate: new Date('2025-04-01'),
+          endDate: new Date('2025-04-30'),
+          sendToAll: true,
+          accountId: null,
         },
         {
-          notification_id: 2,
+          id: 2,
           message: 'Expired notification',
-          start_date: '2025-03-01',
-          end_date: '2025-03-31',
-          send_to_all: false,
-          account_id: 5,
+          startDate: new Date('2025-03-01'),
+          endDate: new Date('2025-03-31'),
+          sendToAll: false,
+          accountId: 5,
         },
       ]);
     });
@@ -427,34 +434,6 @@ describe('notificationDb', () => {
       await expect(notificationsDb.deleteNotification(123)).rejects.toThrow(
         'Database error deleting a notification: Database error',
       );
-    });
-  });
-
-  describe('createAdminNotification()', () => {
-    it('should create a notification object with required fields', () => {
-      const result = notificationsDb.createAdminNotification('Test message', '2025-05-01', '2025-05-31', true, null);
-
-      expect(result).toEqual({
-        message: 'Test message',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: true,
-        account_id: null,
-        notification_id: undefined,
-      });
-    });
-
-    it('should include notification_id when provided', () => {
-      const result = notificationsDb.createAdminNotification('Test message', '2025-05-01', '2025-05-31', false, 5, 123);
-
-      expect(result).toEqual({
-        message: 'Test message',
-        start_date: '2025-05-01',
-        end_date: '2025-05-31',
-        send_to_all: false,
-        account_id: 5,
-        notification_id: 123,
-      });
     });
   });
 });

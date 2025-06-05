@@ -1,4 +1,4 @@
-import { mockShows, mockTMDBResponses } from './helpers/fixtures';
+import { mockShowTMDBReferences, mockTMDBResponses } from './helpers/fixtures';
 import { setupShowService } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
@@ -16,10 +16,10 @@ describe('ShowService - Recommendations', () => {
   });
 
   describe('getShowRecommendations', () => {
-    const mockShow = mockShows[0];
+    const mockShowTMDBReference = mockShowTMDBReferences[0];
     const mockUserShows = [
-      { tmdb_id: 123, title: 'Test Show' },
-      { tmdb_id: 456, title: 'Already Favorited Show' },
+      { tmdbId: 123, title: 'Test Show' },
+      { tmdbId: 456, title: 'Already Favorited Show' },
     ];
 
     it('should return recommendations from cache when available', async () => {
@@ -36,10 +36,10 @@ describe('ShowService - Recommendations', () => {
         },
       ];
 
-      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
       mockCache.getOrSet.mockResolvedValue(mockRecommendations);
 
-      const result = await service.getShowRecommendations('123', 1);
+      const result = await service.getShowRecommendations(123, 1);
 
       expect(showsDb.findShowById).toHaveBeenCalledWith(1);
       expect(mockCache.getOrSet).toHaveBeenCalledWith('recommendations_1', expect.any(Function), 86400);
@@ -47,19 +47,19 @@ describe('ShowService - Recommendations', () => {
     });
 
     it('should fetch recommendations from TMDB when not in cache', async () => {
-      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
       (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockUserShows);
 
-      mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
 
       const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getShowRecommendations.mockResolvedValue(mockTMDBResponses.showRecommendations);
 
-      const result = await service.getShowRecommendations('123', 1);
+      const result = await service.getShowRecommendations(123, 1);
 
       expect(showsDb.findShowById).toHaveBeenCalledWith(1);
-      expect(mockTMDBService.getShowRecommendations).toHaveBeenCalledWith(mockShow.tmdb_id);
-      expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith('123');
+      expect(mockTMDBService.getShowRecommendations).toHaveBeenCalledWith(mockShowTMDBReference.tmdbId);
+      expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith(123);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toHaveProperty('id', 456);
@@ -74,7 +74,7 @@ describe('ShowService - Recommendations', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.getShowRecommendations('123', 999)).rejects.toThrow(NotFoundError);
+      await expect(service.getShowRecommendations(123, 999)).rejects.toThrow(NotFoundError);
       expect(showsDb.findShowById).toHaveBeenCalledWith(999);
     });
 
@@ -82,16 +82,16 @@ describe('ShowService - Recommendations', () => {
       const error = new Error('Database error');
       (showsDb.findShowById as jest.Mock).mockRejectedValue(error);
 
-      await expect(service.getShowRecommendations('123', 1)).rejects.toThrow('Database error');
+      await expect(service.getShowRecommendations(123, 1)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getShowRecommendations(123, 1)');
     });
   });
 
   describe('getSimilarShows', () => {
-    const mockShow = mockShows[0];
+    const mockShowTMDBReference = mockShowTMDBReferences[0];
     const mockUserShows = [
-      { tmdb_id: 123, title: 'Test Show' },
-      { tmdb_id: 456, title: 'Already Favorited Show' },
+      { tmdbId: 123, title: 'Test Show' },
+      { tmdbId: 456, title: 'Already Favorited Show' },
     ];
 
     it('should return similar shows from cache when available', async () => {
@@ -108,10 +108,10 @@ describe('ShowService - Recommendations', () => {
         },
       ];
 
-      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
       mockCache.getOrSet.mockResolvedValue(mockSimilarShows);
 
-      const result = await service.getSimilarShows('123', 1);
+      const result = await service.getSimilarShows(123, 1);
 
       expect(showsDb.findShowById).toHaveBeenCalledWith(1);
       expect(mockCache.getOrSet).toHaveBeenCalledWith('similar_1', expect.any(Function), 86400);
@@ -119,19 +119,19 @@ describe('ShowService - Recommendations', () => {
     });
 
     it('should fetch similar shows from TMDB when not in cache', async () => {
-      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
       (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockUserShows);
 
-      mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
 
       const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getSimilarShows.mockResolvedValue(mockTMDBResponses.similarShows);
 
-      const result = await service.getSimilarShows('123', 1);
+      const result = await service.getSimilarShows(123, 1);
 
       expect(showsDb.findShowById).toHaveBeenCalledWith(1);
-      expect(mockTMDBService.getSimilarShows).toHaveBeenCalledWith(mockShow.tmdb_id);
-      expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith('123');
+      expect(mockTMDBService.getSimilarShows).toHaveBeenCalledWith(mockShowTMDBReference.tmdbId);
+      expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith(123);
 
       expect(result).toHaveLength(2);
       expect(result[0]).toHaveProperty('id', 456);
@@ -146,7 +146,7 @@ describe('ShowService - Recommendations', () => {
         throw new NotFoundError('Show not found');
       });
 
-      await expect(service.getSimilarShows('123', 999)).rejects.toThrow(NotFoundError);
+      await expect(service.getSimilarShows(123, 999)).rejects.toThrow(NotFoundError);
       expect(showsDb.findShowById).toHaveBeenCalledWith(999);
     });
 
@@ -154,7 +154,7 @@ describe('ShowService - Recommendations', () => {
       const error = new Error('Database error');
       (showsDb.findShowById as jest.Mock).mockRejectedValue(error);
 
-      await expect(service.getSimilarShows('123', 1)).rejects.toThrow('Database error');
+      await expect(service.getSimilarShows(123, 1)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getSimilarShows(123, 1)');
     });
   });

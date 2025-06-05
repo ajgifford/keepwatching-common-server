@@ -1,21 +1,22 @@
+import { createPositiveIntegerSchema } from './schemaUtil';
 import { z } from 'zod';
 
-export const accountSchema = z.object({
+export const registerAccountBodySchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters').max(50, 'Name must be less than 50 characters').trim(),
   email: z.string().email('Invalid email format'),
   uid: z.string().min(1, 'UID cannot be empty'),
 });
 
-export const accountUpdateSchema = z.object({
+export const updateAccountBodySchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters').max(50, 'Name must be less than 50 characters').trim(),
-  defaultProfileId: z.number().int().positive('Default profile ID must be a positive integer'),
+  defaultProfileId: z.number().int().positive('Default Profile ID must be a positive integer'),
 });
 
-export const loginSchema = z.object({
+export const accountLoginBodySchema = z.object({
   uid: z.string().min(1, 'UID cannot be empty'),
 });
 
-export const googleLoginSchema = z.object({
+export const googleLoginBodySchema = z.object({
   name: z.string().min(1, 'Name cannot be empty'),
   email: z.string().email('Invalid email format'),
   uid: z.string().min(1, 'UID cannot be empty'),
@@ -23,22 +24,27 @@ export const googleLoginSchema = z.object({
 });
 
 export const accountIdParamSchema = z.object({
-  accountId: z.string().regex(/^\d+$/, 'Account ID must be a number'),
+  accountId: createPositiveIntegerSchema('Account ID'),
+});
+
+export const accountIdBodySchema = z.object({
+  accountId: z.number().int().positive('Account ID must be a positive integer'),
 });
 
 export const accountAndProfileIdsParamSchema = z.object({
-  accountId: z.string().regex(/^\d+$/, 'Account ID must be a number'),
-  profileId: z.string().regex(/^\d+$/, 'Profile ID must be a number'),
+  accountId: createPositiveIntegerSchema('Account ID'),
+  profileId: createPositiveIntegerSchema('Profile ID'),
 });
 
-export const profileNameSchema = z.object({
+export const profileNameBodySchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters').max(50, 'Name must be less than 50 characters').trim(),
 });
 
-export type AccountParams = z.infer<typeof accountSchema>;
-export type AccountUpdateParams = z.infer<typeof accountUpdateSchema>;
-export type LoginParam = z.infer<typeof loginSchema>;
-export type GoogleLoginParams = z.infer<typeof googleLoginSchema>;
+export type RegisterAccountBody = z.infer<typeof registerAccountBodySchema>;
+export type UpdateAccountBody = z.infer<typeof updateAccountBodySchema>;
+export type AccountLoginBody = z.infer<typeof accountLoginBodySchema>;
+export type GoogleLoginBody = z.infer<typeof googleLoginBodySchema>;
 export type AccountIdParam = z.infer<typeof accountIdParamSchema>;
+export type AccountIdBody = z.infer<typeof accountIdBodySchema>;
 export type AccountAndProfileIdsParams = z.infer<typeof accountAndProfileIdsParamSchema>;
-export type ProfileNameParam = z.infer<typeof profileNameSchema>;
+export type ProfileNameBody = z.infer<typeof profileNameBodySchema>;

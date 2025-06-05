@@ -1,5 +1,22 @@
-import { ContentDetails } from '../types/contentTypes';
 import pool from './db';
+
+interface ProviderInfo {
+  link: string;
+  flatrate: {
+    logo_path: string;
+    provider_id: number;
+    provider_name: string;
+    display_priority: number;
+  }[];
+}
+
+interface WatchProviders {
+  results: Record<string, ProviderInfo>;
+}
+
+interface ContentDetails {
+  'watch/providers': WatchProviders;
+}
 
 let cachedStreamingServiceIds: number[] = [];
 export const getCachedStreamingServiceIds = (): number[] => cachedStreamingServiceIds;

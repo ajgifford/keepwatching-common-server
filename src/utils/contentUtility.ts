@@ -1,4 +1,29 @@
-import { ContentRatings, Network, Release, ReleaseDates } from '../types/contentTypes';
+interface ReleaseDateInfo {
+  certification: string;
+  descriptors: string[];
+  iso_639_1: string;
+  note: string;
+  release_date: Date;
+  type: number;
+}
+
+interface ReleaseDates {
+  results: {
+    iso_3166_1: string;
+    release_dates: ReleaseDateInfo[];
+  }[];
+}
+
+interface ContentRatings {
+  results: { descriptors: string[]; iso_3166_1: string; rating: string }[];
+}
+
+interface Network {
+  id: string;
+  logo_path: string;
+  name: string;
+  origin_country: string;
+}
 
 export function getUSNetwork(networks: Network[]): string | null {
   for (const network of networks) {
@@ -32,7 +57,7 @@ export function getEpisodeToAirId(episode: { id: number } | null) {
 export function getUSMPARating(releaseDates: ReleaseDates): string {
   for (const releaseDate of releaseDates.results) {
     if (releaseDate.iso_3166_1 === 'US') {
-      const release: Release = releaseDate.release_dates[0];
+      const release: ReleaseDateInfo = releaseDate.release_dates[0];
       return release.certification;
     }
   }
@@ -65,4 +90,24 @@ export function getTMDBItemName(searchType: string, result: { name?: any; title?
   } else {
     return result.name;
   }
+}
+
+export function isFutureSeason(seasonAirDate: string | null, episodeCount: number): boolean {
+  // If no air date is set, assume it's future content
+  if (!seasonAirDate) {
+    return true;
+  }
+
+  // If air date is in the future, it's future content
+  if (new Date(seasonAirDate) > new Date()) {
+    return true;
+  }
+
+  // If no episodes exist yet, treat as future content even if air date has passed
+  // (This handles cases where TMDB has placeholder seasons)
+  if (episodeCount === 0) {
+    return true;
+  }
+
+  return false;
 }

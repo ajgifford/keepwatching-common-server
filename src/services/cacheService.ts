@@ -140,7 +140,7 @@ export class CacheService {
    * Invalidates profile statistics cache
    * @param profileId - ID of the profile to invalidate statistics for
    */
-  public invalidateProfileStatistics(profileId: string | number): void {
+  public invalidateProfileStatistics(profileId: number): void {
     this.invalidate(PROFILE_KEYS.statistics(profileId));
     this.invalidate(PROFILE_KEYS.showStatistics(profileId));
     this.invalidate(PROFILE_KEYS.movieStatistics(profileId));
@@ -151,7 +151,7 @@ export class CacheService {
    * Invalidates account statistics cache
    * @param accountId - ID of the account to invalidate statistics for
    */
-  public invalidateAccountStatistics(accountId: string | number): void {
+  public invalidateAccountStatistics(accountId: number): void {
     this.invalidate(ACCOUNT_KEYS.statistics(accountId));
   }
 
@@ -161,7 +161,7 @@ export class CacheService {
    * @param profileId - ID of the profile to invalidate
    * @returns Number of keys invalidated
    */
-  public invalidateProfile(profileId: string | number): number {
+  public invalidateProfile(profileId: number): number {
     return this.invalidatePattern(INVALIDATION_PATTERNS.allProfileData(profileId));
   }
 
@@ -170,7 +170,7 @@ export class CacheService {
    * @param profileId - ID of the profile to invalidate
    * @returns Number of keys invalidated
    */
-  public invalidateProfileShows(profileId: string | number): number {
+  public invalidateProfileShows(accountId: number, profileId: number): number {
     // Invalidate shows list
     this.invalidate(PROFILE_KEYS.shows(profileId));
 
@@ -180,8 +180,9 @@ export class CacheService {
     this.invalidate(PROFILE_KEYS.recentEpisodes(profileId));
     this.invalidate(PROFILE_KEYS.upcomingEpisodes(profileId));
 
-    // Invalidate all profile statistics since they're affected by show changes
+    // Invalidate profile adn account statistics since they're affected by show changes
     this.invalidateProfileStatistics(profileId);
+    this.invalidateAccountStatistics(accountId);
 
     // Invalidate all remaining show patterns (details, etc)
     return this.invalidatePattern(INVALIDATION_PATTERNS.profileShowData(profileId));
@@ -192,7 +193,7 @@ export class CacheService {
    * @param profileId - ID of the profile to invalidate
    * @returns Number of keys invalidated
    */
-  public invalidateProfileMovies(profileId: string | number): number {
+  public invalidateProfileMovies(profileId: number): number {
     // Invalidate movies list
     this.invalidate(PROFILE_KEYS.movies(profileId));
 
@@ -212,7 +213,7 @@ export class CacheService {
    * @param accountId - ID of the account to invalidate
    * @returns Number of keys invalidated
    */
-  public invalidateAccount(accountId: string | number): number {
+  public invalidateAccount(accountId: number): number {
     // Invalidate account profiles
     this.invalidate(ACCOUNT_KEYS.profiles(accountId));
 

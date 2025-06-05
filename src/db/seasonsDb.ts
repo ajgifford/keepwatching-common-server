@@ -1,21 +1,23 @@
 import { DatabaseError } from '../middleware/errorMiddleware';
-import { ProfileEpisode, ProfileSeason } from '../types/showTypes';
+import { ProfileEpisodeRow, transformProfileEpisode } from '../types/episodeTypes';
+import {
+  ProfileSeasonRow,
+  SeasonEpisodeCountReferenceRow,
+  SeasonShowReferenceRow,
+  SeasonStatusReferenceRow,
+  transformProfileSeason,
+} from '../types/seasonTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
-
-export interface Season {
-  id?: number;
-  show_id: number;
-  tmdb_id: number;
-  name: string;
-  overview: string;
-  season_number: number;
-  release_date: string;
-  poster_image: string;
-  number_of_episodes: number;
-}
+import {
+  CreateSeasonRequest,
+  FullWatchStatusType,
+  ProfileEpisode,
+  ProfileSeason,
+  UpdateSeasonRequest,
+} from '@ajgifford/keepwatching-types';
+import { ResultSetHeader } from 'mysql2';
 
 /**
  * Saves a new season to the database
@@ -24,7 +26,7 @@ export interface Season {
  * @returns The saved season with its new ID
  * @throws {DatabaseError} If a database error occurs
  */
-export async function saveSeason(season: Season): Promise<Season> {
+export async function saveSeason(season: CreateSeasonRequest): Promise<number> {
   try {
     const query = `
       INSERT INTO seasons (
@@ -44,10 +46,7 @@ export async function saveSeason(season: Season): Promise<Season> {
       season.number_of_episodes,
     ]);
 
-    return {
-      ...season,
-      id: result.insertId,
-    };
+    return result.insertId;
   } catch (error) {
     handleDatabaseError(error, 'saving a season');
   }
@@ -60,7 +59,7 @@ export async function saveSeason(season: Season): Promise<Season> {
  * @returns The updated season with its ID
  * @throws {DatabaseError} If a database error occurs
  */
-export async function updateSeason(season: Season): Promise<Season> {
+export async function updateSeason(season: UpdateSeasonRequest): Promise<number> {
   try {
     const query = `
       INSERT INTO seasons (
@@ -96,10 +95,7 @@ export async function updateSeason(season: Season): Promise<Season> {
       season.number_of_episodes,
     ]);
 
-    return {
-      ...season,
-      id: result.insertId,
-    };
+    return result.insertId;
   } catch (error) {
     handleDatabaseError(error, 'updating a season');
   }
@@ -134,7 +130,7 @@ export async function saveFavorite(profileId: number, seasonId: number): Promise
  * @returns True if the watch status was updated, false if no rows affected
  * @throws {DatabaseError} If a database error occurs
  */
-export async function updateWatchStatus(profileId: string, seasonId: number, status: string): Promise<boolean> {
+export async function updateWatchStatus(profileId: number, seasonId: number, status: string): Promise<boolean> {
   if (!profileId || !seasonId || !status) {
     throw new DatabaseError('Invalid parameters: profileId, seasonId and status are required', null);
   }
@@ -163,7 +159,7 @@ export async function updateWatchStatus(profileId: string, seasonId: number, sta
  * @param seasonId - ID of the season to update
  * @throws {DatabaseError} If a database error occurs
  */
-export async function updateWatchStatusByEpisode(profileId: string, seasonId: number): Promise<void> {
+export async function updateWatchStatusByEpisode(profileId: number, seasonId: number): Promise<void> {
   if (!profileId || !seasonId) {
     throw new DatabaseError('Invalid parameters: profileId and seasonId are required', null);
   }
@@ -184,10 +180,14 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
         WHERE e.season_id = ? AND ews.profile_id = ?
       `;
 
-      const [episodeStatus] = await connection.execute<RowDataPacket[]>(episodeStatusQuery, [seasonId, profileId]);
-      if (!episodeStatus.length) return;
+      const [seasonEpisodeCountRows] = await connection.execute<SeasonEpisodeCountReferenceRow[]>(episodeStatusQuery, [
+        seasonId,
+        profileId,
+      ]);
+      if (!seasonEpisodeCountRows.length) return;
 
-      if (episodeStatus[0].total_episodes === 0) {
+      const seasonEpisodeCounts = seasonEpisodeCountRows[0];
+      if (seasonEpisodeCounts.total_episodes === 0) {
         await connection.execute('UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?', [
           'NOT_WATCHED',
           profileId,
@@ -196,16 +196,18 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
         return;
       }
 
-      const status = episodeStatus[0];
       let seasonStatus = 'NOT_WATCHED';
 
-      if (status.watched_aired_episodes === status.aired_episodes) {
-        if (status.future_episodes > 0) {
+      if (seasonEpisodeCounts.watched_aired_episodes === seasonEpisodeCounts.aired_episodes) {
+        if (seasonEpisodeCounts.future_episodes > 0) {
           seasonStatus = 'UP_TO_DATE';
         } else {
           seasonStatus = 'WATCHED';
         }
-      } else if (status.watched_episodes > 0 && status.watched_episodes < status.total_episodes) {
+      } else if (
+        seasonEpisodeCounts.watched_episodes > 0 &&
+        seasonEpisodeCounts.watched_episodes < seasonEpisodeCounts.total_episodes
+      ) {
         seasonStatus = 'WATCHING';
       }
 
@@ -235,7 +237,7 @@ export async function updateWatchStatusByEpisode(profileId: string, seasonId: nu
  * @returns True if the update was successful, false otherwise
  * @throws {DatabaseError} If a database error occurs
  */
-export async function updateAllWatchStatuses(profileId: string, seasonId: number, status: string): Promise<boolean> {
+export async function updateAllWatchStatuses(profileId: number, seasonId: number, status: string): Promise<boolean> {
   if (!profileId || !seasonId || !status) {
     throw new DatabaseError('Invalid parameters: profileId, seasonId and status are required', null);
   }
@@ -308,14 +310,14 @@ export async function updateAllWatchStatuses(profileId: string, seasonId: number
  * @returns Array of seasons with their episodes
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getSeasonsForShow(profileId: string, showId: string): Promise<ProfileSeason[]> {
+export async function getSeasonsForShow(profileId: number, showId: number): Promise<ProfileSeason[]> {
   if (!profileId || !showId) {
     throw new DatabaseError('Invalid parameters: profileId and showId are required', null);
   }
 
   try {
-    const profileIdNum = Number(profileId);
-    const showIdNum = Number(showId);
+    const profileIdNum = profileId;
+    const showIdNum = showId;
 
     // First get the seasons
     const seasonQuery = `
@@ -324,7 +326,7 @@ export async function getSeasonsForShow(profileId: string, showId: string): Prom
       ORDER BY season_number
     `;
 
-    const [seasonRows] = await getDbPool().execute<RowDataPacket[]>(seasonQuery, [profileIdNum, showIdNum]);
+    const [seasonRows] = await getDbPool().execute<ProfileSeasonRow[]>(seasonQuery, [profileIdNum, showIdNum]);
 
     if (seasonRows.length === 0) return [];
 
@@ -338,22 +340,21 @@ export async function getSeasonsForShow(profileId: string, showId: string): Prom
       ORDER BY season_id, episode_number
     `;
 
-    const [episodeRows] = await getDbPool().execute<RowDataPacket[]>(episodeQuery, [profileIdNum, ...seasonIds]);
+    const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(episodeQuery, [profileIdNum, ...seasonIds]);
 
     // Group episodes by season
     const episodesBySeasonId: Record<number, ProfileEpisode[]> = {};
-    episodeRows.forEach((episode) => {
-      if (!episodesBySeasonId[episode.season_id]) {
-        episodesBySeasonId[episode.season_id] = [];
+    episodeRows.forEach((episodeRow) => {
+      if (!episodesBySeasonId[episodeRow.season_id]) {
+        episodesBySeasonId[episodeRow.season_id] = [];
       }
-      episodesBySeasonId[episode.season_id].push(episode as ProfileEpisode);
+      episodesBySeasonId[episodeRow.season_id].push(transformProfileEpisode(episodeRow));
     });
 
     // Build the final result
-    return seasonRows.map((season) => ({
-      ...season,
-      episodes: episodesBySeasonId[season.season_id] || [],
-    })) as ProfileSeason[];
+    return seasonRows.map((seasonRow) =>
+      transformProfileSeason(seasonRow, episodesBySeasonId[seasonRow.season_id] || []),
+    );
   } catch (error) {
     handleDatabaseError(error, 'getting all seasons for a show');
   }
@@ -373,8 +374,7 @@ export async function getShowIdForSeason(seasonId: number): Promise<number | nul
 
   try {
     const query = 'SELECT show_id FROM seasons WHERE id = ?';
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [seasonId]);
-
+    const [rows] = await getDbPool().execute<SeasonShowReferenceRow[]>(query, [seasonId]);
     if (rows.length === 0) return null;
     return rows[0].show_id;
   } catch (error) {
@@ -390,56 +390,18 @@ export async function getShowIdForSeason(seasonId: number): Promise<number | nul
  * @returns Current watch status or null if not found
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getWatchStatus(profileId: string, seasonId: number): Promise<string | null> {
+export async function getWatchStatus(profileId: number, seasonId: number): Promise<FullWatchStatusType | null> {
   if (!profileId || !seasonId) {
     throw new DatabaseError('Invalid parameters: profileId and seasonId are required', null);
   }
 
   try {
     const query = 'SELECT status FROM season_watch_status WHERE profile_id = ? AND season_id = ?';
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [profileId, seasonId]);
+    const [rows] = await getDbPool().execute<SeasonStatusReferenceRow[]>(query, [profileId, seasonId]);
 
     if (rows.length === 0) return null;
     return rows[0].status;
   } catch (error) {
     handleDatabaseError(error, 'getting a seasons watch status');
   }
-}
-
-/**
- * Creates a new Season object with the provided properties
- *
- * @param showId - ID of the show this season belongs to
- * @param tmdbId - TMDB API identifier for the season
- * @param name - Name of the season
- * @param overview - Synopsis/description of the season
- * @param seasonNumber - Season number
- * @param releaseDate - Release date of the season
- * @param posterImage - Path to the season's poster image
- * @param numberOfEpisodes - Number of episodes in the season
- * @param id - Optional database ID for an existing season
- * @returns A new Season object
- */
-export function createSeason(
-  showId: number,
-  tmdbId: number,
-  name: string,
-  overview: string,
-  seasonNumber: number,
-  releaseDate: string,
-  posterImage: string,
-  numberOfEpisodes: number,
-  id?: number,
-): Season {
-  return {
-    show_id: showId,
-    tmdb_id: tmdbId,
-    name: name,
-    overview: overview,
-    season_number: seasonNumber,
-    release_date: releaseDate,
-    poster_image: posterImage,
-    number_of_episodes: numberOfEpisodes,
-    ...(id ? { id } : {}),
-  };
 }

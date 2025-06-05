@@ -1,31 +1,27 @@
-import { ProfileEpisode } from '../types/showTypes';
+import {
+  ProfileEpisodeRow,
+  RecentUpcomingEpisodeRow,
+  transformProfileEpisode,
+  transformRecentUpcomingEpisode,
+} from '../types/episodeTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
-
-export interface Episode {
-  id?: number;
-  tmdb_id: number;
-  show_id: number;
-  season_id: number;
-  episode_number: number;
-  episode_type: string;
-  season_number: number;
-  title: string;
-  overview: string;
-  air_date: string;
-  runtime: number;
-  still_image: string;
-}
+import {
+  CreateEpisodeRequest,
+  ProfileEpisode,
+  RecentUpcomingEpisode,
+  UpdateEpisodeRequest,
+} from '@ajgifford/keepwatching-types';
+import { ResultSetHeader } from 'mysql2';
 
 /**
  * Saves a new episode to the database
  *
  * This function inserts a new episode record with all associated metadata.
- * After successful insertion, it returns a new episode object with updated ID.
+ * After successful insertion, it returns a the id of the new episode object.
  *
  * @param episode - The episode data to save
- * @returns A promise that resolves to the saved episode with its new ID
+ * @returns A promise that resolves to the id of the saved episode
  * @throws {DatabaseError} If a database error occurs during the operation
  *
  * @example
@@ -46,7 +42,7 @@ export interface Episode {
  * const savedEpisode = await saveEpisode(episode);
  * console.log(`Episode saved with ID: ${savedEpisode.id}`);
  */
-export async function saveEpisode(episode: Episode): Promise<Episode> {
+export async function saveEpisode(episode: CreateEpisodeRequest): Promise<number> {
   try {
     const query =
       'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?)';
@@ -64,11 +60,7 @@ export async function saveEpisode(episode: Episode): Promise<Episode> {
       episode.still_image,
     ]);
 
-    // Return a new episode object with the ID
-    return {
-      ...episode,
-      id: result.insertId,
-    };
+    return result.insertId;
   } catch (error) {
     handleDatabaseError(error, 'saving an episode');
   }
@@ -82,7 +74,7 @@ export async function saveEpisode(episode: Episode): Promise<Episode> {
  * based on the TMDB ID.
  *
  * @param episode - The episode data to update or insert
- * @returns A promise that resolves to the updated episode with its ID
+ * @returns A id of the episode that was either inserted or updated
  * @throws {DatabaseError} If a database error occurs during the operation
  *
  * @example
@@ -104,7 +96,7 @@ export async function saveEpisode(episode: Episode): Promise<Episode> {
  * const updatedEpisode = await updateEpisode(episode);
  * console.log('Episode updated successfully with ID: ' + updatedEpisode.id);
  */
-export async function updateEpisode(episode: Episode): Promise<Episode> {
+export async function updateEpisode(episode: UpdateEpisodeRequest): Promise<number> {
   try {
     const query =
       'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), episode_number = ?, episode_type = ?, season_number = ?, title = ?, overview = ?, air_date = ?, runtime = ?, still_image = ?';
@@ -132,11 +124,7 @@ export async function updateEpisode(episode: Episode): Promise<Episode> {
       episode.still_image,
     ]);
 
-    // Return a new episode object with the ID
-    return {
-      ...episode,
-      id: result.insertId,
-    };
+    return result.insertId;
   } catch (error) {
     handleDatabaseError(error, 'updating an episode');
   }
@@ -178,10 +166,10 @@ export async function saveFavorite(profileId: number, episodeId: number): Promis
  * // Remove episode with ID 789 from profile 456's favorites
  * await removeFavorite('456', 789);
  */
-export async function removeFavorite(profileId: string, episodeId: number): Promise<void> {
+export async function removeFavorite(profileId: number, episodeId: number): Promise<void> {
   try {
     const query = 'DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id = ?';
-    await getDbPool().execute(query, [Number(profileId), episodeId]);
+    await getDbPool().execute(query, [profileId, episodeId]);
   } catch (error) {
     handleDatabaseError(error, 'removing an episode as a favorite');
   }
@@ -208,7 +196,7 @@ export async function removeFavorite(profileId: string, episodeId: number): Prom
  *   console.log('No update occurred - episode might not be in favorites');
  * }
  */
-export async function updateWatchStatus(profileId: string, episodeId: number, status: string): Promise<boolean> {
+export async function updateWatchStatus(profileId: number, episodeId: number, status: string): Promise<boolean> {
   try {
     const query = 'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id = ?';
     const [result] = await getDbPool().execute<ResultSetHeader>(query, [status, profileId, episodeId]);
@@ -244,11 +232,11 @@ export async function updateWatchStatus(profileId: string, episodeId: number, st
  *   console.error('Error fetching episodes:', error);
  * }
  */
-export async function getEpisodesForSeason(profileId: string, seasonId: number): Promise<ProfileEpisode[]> {
+export async function getEpisodesForSeason(profileId: number, seasonId: number): Promise<ProfileEpisode[]> {
   try {
     const query = 'SELECT * FROM profile_episodes where profile_id = ? and season_id = ? ORDER BY episode_number';
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [Number(profileId), seasonId]);
-    return rows as ProfileEpisode[];
+    const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(query, [Number(profileId), seasonId]);
+    return episodeRows.map(transformProfileEpisode);
   } catch (error) {
     handleDatabaseError(error, 'getting episodes for a season');
   }
@@ -269,11 +257,11 @@ export async function getEpisodesForSeason(profileId: string, seasonId: number):
  * const upcomingEpisodes = await getUpcomingEpisodesForProfile('456');
  * console.log(`${upcomingEpisodes.length} upcoming episodes in your watchlist`);
  */
-export async function getUpcomingEpisodesForProfile(profileId: string) {
+export async function getUpcomingEpisodesForProfile(profileId: number): Promise<RecentUpcomingEpisode[]> {
   try {
     const query = 'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6';
-    const [rows] = await getDbPool().execute(query, [Number(profileId)]);
-    return rows;
+    const [episodeRows] = await getDbPool().execute<RecentUpcomingEpisodeRow[]>(query, [Number(profileId)]);
+    return episodeRows.map(transformRecentUpcomingEpisode);
   } catch (error) {
     handleDatabaseError(error, 'getting upcoming episodes for a profile');
   }
@@ -294,61 +282,12 @@ export async function getUpcomingEpisodesForProfile(profileId: string) {
  * const recentEpisodes = await Episode.getRecentEpisodesForProfile('456');
  * console.log(`${recentEpisodes.length} recent episodes in your watchlist`);
  */
-export async function getRecentEpisodesForProfile(profileId: string) {
+export async function getRecentEpisodesForProfile(profileId: number): Promise<RecentUpcomingEpisode[]> {
   try {
     const query = 'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6';
-    const [rows] = await getDbPool().execute(query, [Number(profileId)]);
-    return rows;
+    const [episodeRows] = await getDbPool().execute<RecentUpcomingEpisodeRow[]>(query, [Number(profileId)]);
+    return episodeRows.map(transformRecentUpcomingEpisode);
   } catch (error) {
     handleDatabaseError(error, 'getting recent episodes for a profile');
   }
-}
-
-/**
- * Creates a new episode object with the given properties
- *
- * This is a helper function to create a new episode object with the given properties.
- *
- * @param tmdbId - TMDB API identifier for the episode
- * @param showId - ID of the show this episode belongs to
- * @param seasonId - ID of the season this episode belongs to
- * @param episodeNumber - Episode number within its season
- * @param episodeType - Type of episode (e.g., "standard", "mid_season_finale")
- * @param seasonNumber - Season number this episode belongs to
- * @param title - Title of the episode
- * @param overview - Synopsis/description of the episode
- * @param airDate - Original air date of the episode (YYYY-MM-DD format)
- * @param runtime - Runtime of the episode in minutes
- * @param stillImage - Path to the episode's still image
- * @param id - Optional database ID for an existing episode
- * @returns A new episode object
- */
-export function createEpisode(
-  tmdbId: number,
-  showId: number,
-  seasonId: number,
-  episodeNumber: number,
-  episodeType: string,
-  seasonNumber: number,
-  title: string,
-  overview: string,
-  airDate: string,
-  runtime: number,
-  stillImage: string,
-  id?: number,
-): Episode {
-  return {
-    tmdb_id: tmdbId,
-    show_id: showId,
-    season_id: seasonId,
-    episode_number: episodeNumber,
-    episode_type: episodeType,
-    season_number: seasonNumber,
-    title: title,
-    overview: overview,
-    air_date: airDate,
-    runtime: runtime,
-    still_image: stillImage,
-    ...(id ? { id } : {}),
-  };
 }

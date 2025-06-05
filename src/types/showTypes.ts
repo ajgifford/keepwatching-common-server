@@ -1,164 +1,148 @@
+import {
+  AdminShow,
+  FullWatchStatusType,
+  ProfileShow,
+  ShowReference,
+  ShowTMDBReference,
+  WatchStatusType,
+} from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
-export interface Show {
-  id?: number;
+export interface ShowReferenceRow extends RowDataPacket {
+  id: number;
+}
+
+export interface ProfileShowReferenceRow extends RowDataPacket {
+  show_id: number;
+}
+
+export function transformProfileShowReferenceRow(show: ProfileShowReferenceRow): ShowReference {
+  return {
+    id: show.show_id,
+  };
+}
+
+export interface ShowTMDBReferenceRow extends RowDataPacket {
+  id: number;
+  tmdb_id: number;
+  title: string;
+}
+
+export function transformShowTMDBReferenceRow(show: ShowTMDBReferenceRow): ShowTMDBReference {
+  return {
+    id: show.id,
+    tmdbId: show.tmdb_id,
+    title: show.title,
+  };
+}
+
+export interface ShowSeasonStatusRow extends RowDataPacket {
+  total_seasons: number;
+  watched_seasons: number;
+  watching_seasons: number;
+  not_watched_seasons: number;
+  up_to_date_seasons: number;
+}
+
+export interface ProfileShowStatusRow extends RowDataPacket {
+  profile_id: number;
+  account_id: number;
+}
+
+export interface WatchStatusRow extends RowDataPacket {
+  status: WatchStatusType;
+}
+
+interface BaseShowRow extends RowDataPacket {
   tmdb_id: number;
   title: string;
   description: string;
   release_date: string;
   poster_image: string;
   backdrop_image: string;
-  user_rating: number;
-  content_rating: string;
-  streaming_services?: number[];
-  season_count?: number;
-  episode_count?: number;
-  genreIds?: number[];
-  status?: string;
-  type?: string;
-  in_production?: 0 | 1;
-  last_air_date?: string | null;
-  last_episode_to_air?: number | null;
-  next_episode_to_air?: number | null;
-  network?: string | null;
-}
-
-export interface ProfileEpisode {
-  profile_id: number;
-  episode_id: number;
-  tmdb_id: number;
-  season_id: number;
-  show_id: number;
-  episode_number: number;
-  episode_type: string;
-  season_number: number;
-  title: string;
-  overview: string;
-  runtime: number;
-  air_date: string;
-  still_image: string;
-  watch_status: 'WATCHED' | 'NOT_WATCHED' | 'WATCHING';
-}
-
-export interface ProfileSeason {
-  profile_id: number;
-  season_id: number;
-  show_id: number;
-  tmdb_id: number;
-  name: string;
-  overview: string;
-  season_number: number;
-  release_date: string;
-  poster_image: string;
-  number_of_episodes: number;
-  watch_status: 'WATCHED' | 'NOT_WATCHED' | 'WATCHING' | 'UP_TO_DATE';
-  episodes: ProfileEpisode[];
-}
-
-export interface ProfileShow {
-  profile_id: number;
-  show_id: number;
-  tmdb_id: number;
-  title: string;
-  description: string;
-  release_date: string;
-  poster_image: string;
-  backdrop_image: string;
-  user_rating: number;
-  content_rating: string;
   season_count: number;
   episode_count: number;
-  watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED' | 'UP_TO_DATE';
+  user_rating: number;
+  content_rating: string;
   status: string;
   type: string;
   in_production: 0 | 1;
-  genres: string;
-  streaming_services: string;
-  network: string | null;
-  last_episode?: {
-    title: string;
-    air_date: string;
-    episode_number: number;
-    season_number: number;
-  } | null;
-  next_episode?: {
-    title: string;
-    air_date: string;
-    episode_number: number;
-    season_number: number;
-  } | null;
-}
-
-export interface ProfileShowWithSeasons extends ProfileShow {
-  seasons?: ProfileSeason[];
-}
-
-export interface NextEpisode {
-  episode_id: number;
-  episode_title: string;
-  overview: string;
-  episode_number: number;
-  season_number: number;
-  episode_still_image: string;
-  air_date: string;
-  show_id: number;
-  show_name: string;
-  season_id: number;
-  poster_image: string;
-  network: string;
-  streaming_services: string;
-  profile_id: number;
-}
-
-export interface ContinueWatchingShow {
-  show_id: number;
-  show_title: string;
-  poster_image: string;
-  last_watched: string;
-  episodes: NextEpisode[];
-}
-
-export interface AdminShow {
-  id: number;
-  tmdbId: number;
-  title: string;
-  description: string;
-  releaseDate: string;
-  posterImage: string;
-  backdropImage: string;
-  network: string;
-  seasonCount: number;
-  episodeCount: number;
-  userRating: number;
-  contentRating: string;
-  streamingServices: string;
-  genres: string;
-  status: string;
-  type: string;
-  inProduction: boolean;
-  lastAirDate: string;
-  lastUpdated: string;
-}
-
-export interface AdminShowRow extends RowDataPacket {
-  id: number;
-  tmdb_id: number;
-  title: string;
-  description: string;
-  release_date: string;
-  poster_image: string;
-  backdrop_image: string;
-  network: string;
-  season_count: number;
-  episode_count: number;
-  user_rating: number;
-  content_rating: string;
-  status: string;
-  type: string;
-  in_production: number;
   last_air_date: string;
-  created_at: Date;
-  updated_at: Date;
+  network: string;
   genres: string;
   streaming_services: string;
+}
+
+export interface AdminShowRow extends BaseShowRow {
+  id: number;
+  updated_at: Date;
+}
+
+export interface ProfileShowRow extends BaseShowRow {
+  profile_id: number;
+  show_id: number;
+  watch_status: FullWatchStatusType;
+  last_episode_title: string;
+  last_episode_air_date: string;
+  last_episode_number: number;
+  last_episode_season: number;
+  next_episode_title: string;
+  next_episode_air_date: string;
+  next_episode_number: number;
+  next_episode_season: number;
+}
+
+function transformBaseShowRow(show: BaseShowRow) {
+  return {
+    tmdbId: show.tmdb_id,
+    title: show.title,
+    description: show.description,
+    releaseDate: show.release_date,
+    posterImage: show.poster_image,
+    backdropImage: show.backdrop_image,
+    network: show.network,
+    seasonCount: show.season_count,
+    episodeCount: show.episode_count,
+    userRating: show.user_rating,
+    contentRating: show.content_rating,
+    status: show.status,
+    type: show.type,
+    inProduction: Boolean(show.in_production),
+    lastAirDate: show.last_air_date,
+    streamingServices: show.streaming_services,
+    genres: show.genres,
+  };
+}
+
+export function transformProfileShow(show: ProfileShowRow): ProfileShow {
+  return {
+    ...transformBaseShowRow(show),
+    profileId: show.profile_id,
+    id: show.show_id,
+    lastEpisode: show.last_episode_title
+      ? {
+          title: show.last_episode_title,
+          airDate: show.last_episode_air_date,
+          seasonNumber: show.last_episode_season,
+          episodeNumber: show.last_episode_number,
+        }
+      : null,
+    nextEpisode: show.next_episode_title
+      ? {
+          title: show.next_episode_title,
+          airDate: show.next_episode_air_date,
+          seasonNumber: show.next_episode_season,
+          episodeNumber: show.next_episode_number,
+        }
+      : null,
+    watchStatus: show.watch_status,
+  };
+}
+
+export function transformAdminShow(show: AdminShowRow): AdminShow {
+  return {
+    ...transformBaseShowRow(show),
+    id: show.id,
+    lastUpdated: show.updated_at.toISOString(),
+  };
 }

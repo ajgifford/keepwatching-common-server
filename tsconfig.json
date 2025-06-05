@@ -28,7 +28,6 @@
     "src/**/*",
     "src/services.ts",
     "src/utils.ts",
-    "src/types.ts",
     "src/logger.ts",
     "src/schema.ts",
     "src/migrateWatchStatus.ts"

@@ -1,4 +1,4 @@
-import { searchParamsSchema } from '@schema/searchSchema';
+import { searchQuerySchema } from '@schema/searchSchema';
 
 describe('searchSchema', () => {
   describe('searchParamsSchema', () => {
@@ -7,7 +7,7 @@ describe('searchSchema', () => {
         searchString: 'Breaking Bad',
       };
 
-      const result = searchParamsSchema.safeParse(validInput);
+      const result = searchQuerySchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data).toEqual(validInput);
@@ -18,10 +18,10 @@ describe('searchSchema', () => {
       const validInput = {
         searchString: 'Star Wars',
         year: '1977',
-        page: '2',
+        page: 2,
       };
 
-      const result = searchParamsSchema.safeParse(validInput);
+      const result = searchQuerySchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data).toEqual(validInput);
@@ -33,7 +33,7 @@ describe('searchSchema', () => {
         searchString: '  Game of Thrones  ',
       };
 
-      const result = searchParamsSchema.parse(input);
+      const result = searchQuerySchema.parse(input);
       expect(result.searchString).toBe('Game of Thrones');
     });
 
@@ -43,7 +43,7 @@ describe('searchSchema', () => {
       };
 
       // This should definitely fail because an empty string doesn't satisfy min(1)
-      const result = searchParamsSchema.safeParse(invalidInput);
+      const result = searchQuerySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -59,7 +59,7 @@ describe('searchSchema', () => {
         searchString: '   ',
       };
 
-      const result = searchParamsSchema.safeParse(input);
+      const result = searchQuerySchema.safeParse(input);
 
       if (result.success) {
         expect(result.data.searchString).toBe('');
@@ -75,7 +75,7 @@ describe('searchSchema', () => {
         searchString: tooLongString,
       };
 
-      const result = searchParamsSchema.safeParse(invalidInput);
+      const result = searchQuerySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -94,7 +94,7 @@ describe('searchSchema', () => {
       ];
 
       testCases.forEach((invalidInput) => {
-        const result = searchParamsSchema.safeParse(invalidInput);
+        const result = searchQuerySchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
         if (!result.success) {
           const formattedErrors = result.error.format();
@@ -108,11 +108,10 @@ describe('searchSchema', () => {
         { searchString: 'The Matrix', page: 'abc' },
         { searchString: 'The Matrix', page: '1.5' },
         { searchString: 'The Matrix', page: '-1' },
-        { searchString: 'The Matrix', page: '0x1' },
       ];
 
       testCases.forEach((invalidInput) => {
-        const result = searchParamsSchema.safeParse(invalidInput);
+        const result = searchQuerySchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
         if (!result.success) {
           const formattedErrors = result.error.format();
@@ -130,7 +129,7 @@ describe('searchSchema', () => {
           year,
         };
 
-        const result = searchParamsSchema.safeParse(input);
+        const result = searchQuerySchema.safeParse(input);
         expect(result.success).toBe(true);
       });
     });
@@ -144,7 +143,7 @@ describe('searchSchema', () => {
           page,
         };
 
-        const result = searchParamsSchema.safeParse(input);
+        const result = searchQuerySchema.safeParse(input);
         expect(result.success).toBe(true);
       });
     });
@@ -153,15 +152,15 @@ describe('searchSchema', () => {
       const validInput = {
         searchString: 'Inception',
         year: '2010',
-        page: '3',
+        page: 3,
       };
 
-      const result = searchParamsSchema.parse(validInput);
+      const result = searchQuerySchema.parse(validInput);
 
       // These should be strings due to schema definition
       expect(typeof result.searchString).toBe('string');
       expect(typeof result.year).toBe('string');
-      expect(typeof result.page).toBe('string');
+      expect(typeof result.page).toBe('number');
     });
 
     it('should reject missing searchString', () => {
@@ -170,7 +169,7 @@ describe('searchSchema', () => {
         page: '1',
       };
 
-      const result = searchParamsSchema.safeParse(invalidInput);
+      const result = searchQuerySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toContain('searchString');

@@ -1,6 +1,8 @@
+import { RecentUpcomingEpisodeRow } from '../../../src/types/episodeTypes';
+import { CreateEpisodeRequest, UpdateEpisodeRequest } from '@ajgifford/keepwatching-types';
 import * as episodeModule from '@db/episodesDb';
 import { getDbPool } from '@utils/db';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { ResultSetHeader } from 'mysql2';
 
 jest.mock('@utils/db', () => {
   const mockPool = {
@@ -23,7 +25,7 @@ describe('Episode Module', () => {
     it('should insert episode into DB', async () => {
       mockPool.execute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
 
-      const episode: episodeModule.Episode = {
+      const episode: CreateEpisodeRequest = {
         tmdb_id: 98765,
         show_id: 42,
         season_id: 15,
@@ -37,7 +39,7 @@ describe('Episode Module', () => {
         still_image: '/path/to/still.jpg',
       };
 
-      const savedEpisode = await episodeModule.saveEpisode(episode);
+      const savedEpisodeId = await episodeModule.saveEpisode(episode);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(mockPool.execute).toHaveBeenCalledWith(
@@ -56,14 +58,14 @@ describe('Episode Module', () => {
           '/path/to/still.jpg',
         ],
       );
-      expect(savedEpisode.id).toBe(5);
+      expect(savedEpisodeId).toBe(5);
     });
 
     it('should throw error when saving fails', async () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      const episode: episodeModule.Episode = {
+      const episode: CreateEpisodeRequest = {
         tmdb_id: 98765,
         show_id: 42,
         season_id: 15,
@@ -83,7 +85,7 @@ describe('Episode Module', () => {
     it('should throw error with default message when saving fails without error message', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      const episode: episodeModule.Episode = {
+      const episode: CreateEpisodeRequest = {
         tmdb_id: 98765,
         show_id: 42,
         season_id: 15,
@@ -105,7 +107,7 @@ describe('Episode Module', () => {
     it('should update episode in DB', async () => {
       mockPool.execute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
 
-      const episode: episodeModule.Episode = {
+      const episode: UpdateEpisodeRequest = {
         tmdb_id: 98765,
         show_id: 42,
         season_id: 15,
@@ -153,7 +155,7 @@ describe('Episode Module', () => {
     it('should throw error with default message when updating fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      const episode: episodeModule.Episode = {
+      const episode: UpdateEpisodeRequest = {
         tmdb_id: 98765,
         show_id: 42,
         season_id: 15,
@@ -203,7 +205,7 @@ describe('Episode Module', () => {
     it('should remove episode from favorites', async () => {
       mockPool.execute.mockResolvedValueOnce([{} as ResultSetHeader]);
 
-      await episodeModule.removeFavorite('123', 5);
+      await episodeModule.removeFavorite(123, 5);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id = ?',
@@ -215,13 +217,13 @@ describe('Episode Module', () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      await expect(episodeModule.removeFavorite('123', 5)).rejects.toThrow('DB connection failed');
+      await expect(episodeModule.removeFavorite(123, 5)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when removing favorite fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      await expect(episodeModule.removeFavorite('123', 5)).rejects.toThrow(
+      await expect(episodeModule.removeFavorite(123, 5)).rejects.toThrow(
         'Unknown database error removing an episode as a favorite',
       );
     });
@@ -231,11 +233,11 @@ describe('Episode Module', () => {
     it('should update watch status', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
-      const result = await episodeModule.updateWatchStatus('123', 5, 'WATCHED');
+      const result = await episodeModule.updateWatchStatus(123, 5, 'WATCHED');
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id = ?',
-        ['WATCHED', '123', 5],
+        ['WATCHED', 123, 5],
       );
       expect(result).toBe(true);
     });
@@ -243,7 +245,7 @@ describe('Episode Module', () => {
     it('should return false if no rows affected', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
-      const result = await episodeModule.updateWatchStatus('123', 5, 'WATCHED');
+      const result = await episodeModule.updateWatchStatus(123, 5, 'WATCHED');
 
       expect(result).toBe(false);
     });
@@ -252,13 +254,13 @@ describe('Episode Module', () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      await expect(episodeModule.updateWatchStatus('123', 5, 'WATCHED')).rejects.toThrow('DB connection failed');
+      await expect(episodeModule.updateWatchStatus(123, 5, 'WATCHED')).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when updating watch status fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      await expect(episodeModule.updateWatchStatus('123', 5, 'WATCHED')).rejects.toThrow(
+      await expect(episodeModule.updateWatchStatus(123, 5, 'WATCHED')).rejects.toThrow(
         'Unknown database error updating an episode watch status',
       );
     });
@@ -271,28 +273,33 @@ describe('Episode Module', () => {
         { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED' },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockEpisodes as RowDataPacket[]]);
+      const expectedEpisodes = [
+        { id: 1, title: 'Episode 1', watchStatus: 'WATCHED' },
+        { id: 2, title: 'Episode 2', watchStatus: 'NOT_WATCHED' },
+      ];
 
-      const episodes = await episodeModule.getEpisodesForSeason('123', 5);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
+
+      const episodes = await episodeModule.getEpisodesForSeason(123, 5);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * FROM profile_episodes where profile_id = ? and season_id = ? ORDER BY episode_number',
         [123, 5],
       );
-      expect(episodes).toEqual(mockEpisodes);
+      expect(episodes).toEqual(expectedEpisodes);
     });
 
     it('should throw error when getting episodes for season fails', async () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      await expect(episodeModule.getEpisodesForSeason('123', 5)).rejects.toThrow('DB connection failed');
+      await expect(episodeModule.getEpisodesForSeason(123, 5)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting episodes for season fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      await expect(episodeModule.getEpisodesForSeason('123', 5)).rejects.toThrow(
+      await expect(episodeModule.getEpisodesForSeason(123, 5)).rejects.toThrow(
         'Unknown database error getting episodes for a season',
       );
     });
@@ -302,36 +309,73 @@ describe('Episode Module', () => {
     it('should return upcoming episodes for profile', async () => {
       const mockUpcomingEpisodes = [
         {
-          episode_id: 101,
-          title: 'Upcoming Episode 1',
-          air_date: '2025-04-20',
+          profile_id: 1,
           show_id: 42,
           show_name: 'Test Show',
+          streaming_services: 'Netflix',
+          network: 'Netflix',
+          episode_title: 'Episode 1',
+          air_date: '2025-04-20',
+          episode_number: 1,
+          season_number: 1,
+          episode_still_image: 'image.png',
         },
         {
-          episode_id: 102,
-          title: 'Upcoming Episode 2',
-          air_date: '2025-04-25',
+          profile_id: 1,
           show_id: 42,
           show_name: 'Test Show',
+          streaming_services: 'Netflix',
+          network: 'Netflix',
+          episode_title: 'Episode 2',
+          air_date: '2025-04-25',
+          episode_number: 2,
+          season_number: 1,
+          episode_still_image: 'image.png',
+        },
+      ] as RecentUpcomingEpisodeRow[];
+
+      const expectedEpisodes = [
+        {
+          profileId: 1,
+          showId: 42,
+          showName: 'Test Show',
+          streamingServices: 'Netflix',
+          network: 'Netflix',
+          episodeTitle: 'Episode 1',
+          airDate: '2025-04-20',
+          episodeNumber: 1,
+          seasonNumber: 1,
+          episodeStillImage: 'image.png',
+        },
+        {
+          profileId: 1,
+          showId: 42,
+          showName: 'Test Show',
+          streamingServices: 'Netflix',
+          network: 'Netflix',
+          episodeTitle: 'Episode 2',
+          airDate: '2025-04-25',
+          episodeNumber: 2,
+          seasonNumber: 1,
+          episodeStillImage: 'image.png',
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockUpcomingEpisodes as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([mockUpcomingEpisodes]);
 
-      const result = await episodeModule.getUpcomingEpisodesForProfile('123');
+      const result = await episodeModule.getUpcomingEpisodesForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6',
         [123],
       );
-      expect(result).toEqual(mockUpcomingEpisodes);
+      expect(result).toEqual(expectedEpisodes);
     });
 
     it('should return empty array when no upcoming episodes exist', async () => {
       mockPool.execute.mockResolvedValueOnce([[]]);
 
-      const result = await episodeModule.getUpcomingEpisodesForProfile('123');
+      const result = await episodeModule.getUpcomingEpisodesForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6',
@@ -344,13 +388,13 @@ describe('Episode Module', () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      await expect(episodeModule.getUpcomingEpisodesForProfile('123')).rejects.toThrow('DB connection failed');
+      await expect(episodeModule.getUpcomingEpisodesForProfile(123)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting upcoming episodes fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      await expect(episodeModule.getUpcomingEpisodesForProfile('123')).rejects.toThrow(
+      await expect(episodeModule.getUpcomingEpisodesForProfile(123)).rejects.toThrow(
         'Unknown database error getting upcoming episodes for a profile',
       );
     });
@@ -360,36 +404,73 @@ describe('Episode Module', () => {
     it('should return recent episodes for profile', async () => {
       const mockRecentEpisodes = [
         {
-          episode_id: 201,
-          title: 'Recent Episode 1',
-          air_date: '2025-04-10',
+          profile_id: 1,
           show_id: 42,
           show_name: 'Test Show',
+          streaming_services: 'Netflix',
+          network: 'Netflix',
+          episode_title: 'Episode 1',
+          air_date: '2025-04-20',
+          episode_number: 1,
+          season_number: 1,
+          episode_still_image: 'image.png',
         },
         {
-          episode_id: 202,
-          title: 'Recent Episode 2',
-          air_date: '2025-04-12',
+          profile_id: 1,
           show_id: 42,
           show_name: 'Test Show',
+          streaming_services: 'Netflix',
+          network: 'Netflix',
+          episode_title: 'Episode 2',
+          air_date: '2025-04-25',
+          episode_number: 2,
+          season_number: 1,
+          episode_still_image: 'image.png',
+        },
+      ] as RecentUpcomingEpisodeRow[];
+
+      const expectedEpisodes = [
+        {
+          profileId: 1,
+          showId: 42,
+          showName: 'Test Show',
+          streamingServices: 'Netflix',
+          network: 'Netflix',
+          episodeTitle: 'Episode 1',
+          airDate: '2025-04-20',
+          episodeNumber: 1,
+          seasonNumber: 1,
+          episodeStillImage: 'image.png',
+        },
+        {
+          profileId: 1,
+          showId: 42,
+          showName: 'Test Show',
+          streamingServices: 'Netflix',
+          network: 'Netflix',
+          episodeTitle: 'Episode 2',
+          airDate: '2025-04-25',
+          episodeNumber: 2,
+          seasonNumber: 1,
+          episodeStillImage: 'image.png',
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockRecentEpisodes as RowDataPacket[]]);
+      mockPool.execute.mockResolvedValueOnce([mockRecentEpisodes]);
 
-      const result = await episodeModule.getRecentEpisodesForProfile('123');
+      const result = await episodeModule.getRecentEpisodesForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6',
         [123],
       );
-      expect(result).toEqual(mockRecentEpisodes);
+      expect(result).toEqual(expectedEpisodes);
     });
 
     it('should return empty array when no recent episodes exist', async () => {
       mockPool.execute.mockResolvedValueOnce([[]]);
 
-      const result = await episodeModule.getRecentEpisodesForProfile('123');
+      const result = await episodeModule.getRecentEpisodesForProfile(123);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6',
@@ -402,80 +483,15 @@ describe('Episode Module', () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      await expect(episodeModule.getRecentEpisodesForProfile('123')).rejects.toThrow('DB connection failed');
+      await expect(episodeModule.getRecentEpisodesForProfile(123)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting recent episodes fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      await expect(episodeModule.getRecentEpisodesForProfile('123')).rejects.toThrow(
+      await expect(episodeModule.getRecentEpisodesForProfile(123)).rejects.toThrow(
         'Unknown database error getting recent episodes for a profile',
       );
-    });
-  });
-
-  describe('createEpisode', () => {
-    it('should create episode object without ID', () => {
-      const episode = episodeModule.createEpisode(
-        98765,
-        42,
-        15,
-        3,
-        'standard',
-        2,
-        'Test Episode',
-        'Overview',
-        '2023-05-15',
-        45,
-        '/path/to/still.jpg',
-      );
-
-      expect(episode).toEqual({
-        tmdb_id: 98765,
-        show_id: 42,
-        season_id: 15,
-        episode_number: 3,
-        episode_type: 'standard',
-        season_number: 2,
-        title: 'Test Episode',
-        overview: 'Overview',
-        air_date: '2023-05-15',
-        runtime: 45,
-        still_image: '/path/to/still.jpg',
-      });
-      expect(episode.id).toBeUndefined();
-    });
-
-    it('should create episode object with ID', () => {
-      const episode = episodeModule.createEpisode(
-        98765,
-        42,
-        15,
-        3,
-        'standard',
-        2,
-        'Test Episode',
-        'Overview',
-        '2023-05-15',
-        45,
-        '/path/to/still.jpg',
-        5,
-      );
-
-      expect(episode).toEqual({
-        id: 5,
-        tmdb_id: 98765,
-        show_id: 42,
-        season_id: 15,
-        episode_number: 3,
-        episode_type: 'standard',
-        season_number: 2,
-        title: 'Test Episode',
-        overview: 'Overview',
-        air_date: '2023-05-15',
-        runtime: 45,
-        still_image: '/path/to/still.jpg',
-      });
     });
   });
 });

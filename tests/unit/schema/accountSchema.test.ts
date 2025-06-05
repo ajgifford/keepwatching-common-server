@@ -1,11 +1,11 @@
 import {
   accountAndProfileIdsParamSchema,
   accountIdParamSchema,
-  accountSchema,
-  accountUpdateSchema,
-  googleLoginSchema,
-  loginSchema,
-  profileNameSchema,
+  accountLoginBodySchema,
+  googleLoginBodySchema,
+  profileNameBodySchema,
+  registerAccountBodySchema,
+  updateAccountBodySchema,
 } from '@schema/accountSchema';
 
 describe('accountSchema', () => {
@@ -17,7 +17,7 @@ describe('accountSchema', () => {
         uid: 'test-uid-123',
       };
 
-      const result = accountSchema.safeParse(validAccount);
+      const result = registerAccountBodySchema.safeParse(validAccount);
       expect(result.success).toBe(true);
     });
 
@@ -28,7 +28,7 @@ describe('accountSchema', () => {
         uid: 'test-uid-123',
       };
 
-      const result = accountSchema.safeParse(invalidAccount);
+      const result = registerAccountBodySchema.safeParse(invalidAccount);
       expect(result.success).toBe(false);
 
       if (!result.success) {
@@ -45,7 +45,7 @@ describe('accountSchema', () => {
         uid: 'test-uid-123',
       };
 
-      const result = accountSchema.safeParse(invalidAccount);
+      const result = registerAccountBodySchema.safeParse(invalidAccount);
       expect(result.success).toBe(false);
 
       if (!result.success) {
@@ -61,7 +61,7 @@ describe('accountSchema', () => {
         uid: 'test-uid-123',
       };
 
-      const result = accountSchema.safeParse(invalidAccount);
+      const result = registerAccountBodySchema.safeParse(invalidAccount);
       expect(result.success).toBe(false);
 
       if (!result.success) {
@@ -77,7 +77,7 @@ describe('accountSchema', () => {
         uid: '',
       };
 
-      const result = accountSchema.safeParse(invalidAccount);
+      const result = registerAccountBodySchema.safeParse(invalidAccount);
       expect(result.success).toBe(false);
 
       if (!result.success) {
@@ -93,7 +93,7 @@ describe('accountSchema', () => {
         uid: 'test-uid-123',
       };
 
-      const result = accountSchema.parse(accountWithWhitespace);
+      const result = registerAccountBodySchema.parse(accountWithWhitespace);
       expect(result.name).toBe('Test User');
     });
   });
@@ -105,7 +105,7 @@ describe('accountSchema', () => {
         defaultProfileId: 123,
       };
 
-      const result = accountUpdateSchema.safeParse(validUpdate);
+      const result = updateAccountBodySchema.safeParse(validUpdate);
       expect(result.success).toBe(true);
     });
 
@@ -115,12 +115,12 @@ describe('accountSchema', () => {
         defaultProfileId: -1,
       };
 
-      const result = accountUpdateSchema.safeParse(invalidUpdate);
+      const result = updateAccountBodySchema.safeParse(invalidUpdate);
       expect(result.success).toBe(false);
 
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.defaultProfileId?._errors).toContain('Default profile ID must be a positive integer');
+        expect(formattedErrors.defaultProfileId?._errors).toContain('Default Profile ID must be a positive integer');
       }
     });
   });
@@ -131,7 +131,7 @@ describe('accountSchema', () => {
         uid: 'test-uid-123',
       };
 
-      const result = loginSchema.safeParse(validLogin);
+      const result = accountLoginBodySchema.safeParse(validLogin);
       expect(result.success).toBe(true);
     });
 
@@ -140,7 +140,7 @@ describe('accountSchema', () => {
         uid: '',
       };
 
-      const result = loginSchema.safeParse(invalidLogin);
+      const result = accountLoginBodySchema.safeParse(invalidLogin);
       expect(result.success).toBe(false);
 
       if (!result.success) {
@@ -159,7 +159,7 @@ describe('accountSchema', () => {
         photoURL: 'https://example.com/photo.jpg',
       };
 
-      const result = googleLoginSchema.safeParse(validGoogleLogin);
+      const result = googleLoginBodySchema.safeParse(validGoogleLogin);
       expect(result.success).toBe(true);
     });
 
@@ -170,7 +170,7 @@ describe('accountSchema', () => {
         uid: 'google-uid-123',
       };
 
-      const result = googleLoginSchema.safeParse(validGoogleLogin);
+      const result = googleLoginBodySchema.safeParse(validGoogleLogin);
       expect(result.success).toBe(true);
     });
 
@@ -181,7 +181,7 @@ describe('accountSchema', () => {
         uid: 'google-uid-123',
       };
 
-      const result = googleLoginSchema.safeParse(invalidGoogleLogin);
+      const result = googleLoginBodySchema.safeParse(invalidGoogleLogin);
       expect(result.success).toBe(false);
 
       if (!result.success) {
@@ -194,7 +194,7 @@ describe('accountSchema', () => {
   describe('accountIdParamSchema', () => {
     it('should validate a valid account ID', () => {
       const validParams = {
-        accountId: '123',
+        accountId: '456',
       };
 
       const result = accountIdParamSchema.safeParse(validParams);
@@ -250,7 +250,7 @@ describe('accountSchema', () => {
         name: 'Valid Profile Name',
       };
 
-      const result = profileNameSchema.safeParse(validName);
+      const result = profileNameBodySchema.safeParse(validName);
       expect(result.success).toBe(true);
     });
 
@@ -259,7 +259,7 @@ describe('accountSchema', () => {
         name: 'Ab',
       };
 
-      const result = profileNameSchema.safeParse(invalidName);
+      const result = profileNameBodySchema.safeParse(invalidName);
       expect(result.success).toBe(false);
 
       if (!result.success) {
@@ -273,7 +273,7 @@ describe('accountSchema', () => {
         name: '  Profile Name  ',
       };
 
-      const result = profileNameSchema.parse(nameWithWhitespace);
+      const result = profileNameBodySchema.parse(nameWithWhitespace);
       expect(result.name).toBe('Profile Name');
     });
   });

@@ -80,7 +80,7 @@ describe('Cache Keys Module', () => {
     it('should generate correct keys for discover functionality', () => {
       expect(DISCOVER_KEYS.top('movie', 'netflix')).toBe('discover_top_movie_netflix');
       expect(DISCOVER_KEYS.changes('series', 'hbo', 'new')).toBe('discover_changes_series_hbo_new');
-      expect(DISCOVER_KEYS.trending('movie', '1')).toBe('discover_trending_movie_1');
+      expect(DISCOVER_KEYS.trending('movie', 1)).toBe('discover_trending_movie_1');
     });
   });
 
@@ -88,7 +88,7 @@ describe('Cache Keys Module', () => {
     it('should generate correct keys for search functionality', () => {
       expect(SEARCH_KEYS.results('movie', 'star wars')).toBe('movie_search_star wars__1');
       expect(SEARCH_KEYS.results('tv', 'office', '2005')).toBe('tv_search_office_2005_1');
-      expect(SEARCH_KEYS.results('movie', 'avengers', undefined, '2')).toBe('movie_search_avengers__2');
+      expect(SEARCH_KEYS.results('movie', 'avengers', undefined, 2)).toBe('movie_search_avengers__2');
     });
   });
 

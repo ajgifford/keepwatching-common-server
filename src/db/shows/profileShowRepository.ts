@@ -1,13 +1,21 @@
 import {
-  ContinueWatchingShow,
-  NextEpisode,
-  ProfileSeason,
-  ProfileShow,
-  ProfileShowWithSeasons,
-} from '../../types/showTypes';
+  NextUnwatchedEpisodesRow,
+  ProfileEpisodeRow,
+  transformNextUnwatchedEpisodes,
+  transformProfileEpisode,
+} from '../../types/episodeTypes';
+import { RecentShowsWithUnwatchedRow } from '../../types/profileTypes';
+import { ProfileSeasonRow, transformProfileSeason } from '../../types/seasonTypes';
+import { ProfileShowRow, ProfileShowStatusRow, transformProfileShow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
-import { RowDataPacket } from 'mysql2';
+import {
+  KeepWatchingShow,
+  ProfileEpisode,
+  ProfileShow,
+  ProfileShowWithSeasons,
+  ProfilesForShowResponse,
+} from '@ajgifford/keepwatching-types';
 
 /**
  * Retrieves all shows for a specific profile with their watch status
@@ -19,12 +27,11 @@ import { RowDataPacket } from 'mysql2';
  * @returns Array of shows with their details and watch status
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getAllShowsForProfile(profileId: string): Promise<ProfileShow[]> {
+export async function getAllShowsForProfile(profileId: number): Promise<ProfileShow[]> {
   try {
     const query = 'SELECT * FROM profile_shows WHERE profile_id = ?';
-    const [shows] = await getDbPool().execute<RowDataPacket[]>(query, [Number(profileId)]);
-    const transformedRows = shows.map(transformRow);
-    return transformedRows;
+    const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId]);
+    return shows.map(transformProfileShow);
   } catch (error) {
     handleDatabaseError(error, 'getting all shows for a profile');
   }
@@ -41,13 +48,11 @@ export async function getAllShowsForProfile(profileId: string): Promise<ProfileS
  * @returns Show with watch status information
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getShowForProfile(profileId: string, showId: number): Promise<ProfileShow> {
+export async function getShowForProfile(profileId: number, showId: number): Promise<ProfileShow> {
   try {
     const query = 'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = ?';
-    const [shows] = await getDbPool().execute<RowDataPacket[]>(query, [Number(profileId), showId]);
-    const result = transformRow(shows[0]);
-
-    return result;
+    const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
+    return transformProfileShow(shows[0]);
   } catch (error) {
     handleDatabaseError(error, 'getting a show for a profile');
   }
@@ -66,19 +71,19 @@ export async function getShowForProfile(profileId: string, showId: number): Prom
  * @throws {DatabaseError} If a database error occurs during the operation
  */
 export async function getShowWithSeasonsForProfile(
-  profileId: string,
-  showId: string,
+  profileId: number,
+  showId: number,
 ): Promise<ProfileShowWithSeasons | null> {
   try {
     const query = 'SELECT * FROM profile_shows where profile_id = ? AND show_id = ?';
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [Number(profileId), Number(showId)]);
+    const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
     if (rows.length === 0) {
       return null;
     }
 
-    const show = transformRow(rows[0]) as ProfileShowWithSeasons;
+    const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
     const seasonQuery = 'SELECT * FROM profile_seasons WHERE profile_id = ? AND show_id = ? ORDER BY season_number';
-    const [seasonRows] = await getDbPool().execute<RowDataPacket[]>(seasonQuery, [Number(profileId), Number(showId)]);
+    const [seasonRows] = await getDbPool().execute<ProfileSeasonRow[]>(seasonQuery, [profileId, showId]);
 
     if (seasonRows.length > 0) {
       const seasonIds = seasonRows.map((season) => season.season_id);
@@ -90,46 +95,18 @@ export async function getShowWithSeasonsForProfile(
             ORDER BY season_id, episode_number
           `;
 
-      const [episodeRows] = await getDbPool().execute<RowDataPacket[]>(episodeQuery, [Number(profileId), ...seasonIds]);
+      const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(episodeQuery, [profileId, ...seasonIds]);
 
-      const episodesBySeasonId: Record<number, any[]> = {};
+      const episodesBySeasonId: Record<number, ProfileEpisode[]> = {};
       episodeRows.forEach((episode) => {
         if (!episodesBySeasonId[episode.season_id]) {
           episodesBySeasonId[episode.season_id] = [];
         }
-        episodesBySeasonId[episode.season_id].push({
-          profile_id: episode.profile_id,
-          episode_id: episode.episode_id,
-          tmdb_id: episode.tmdb_id,
-          season_id: episode.season_id,
-          show_id: episode.show_id,
-          episode_number: episode.episode_number,
-          episode_type: episode.episode_type,
-          season_number: episode.season_number,
-          title: episode.title,
-          overview: episode.overview,
-          runtime: episode.runtime,
-          air_date: episode.air_date,
-          still_image: episode.still_image,
-          watch_status: episode.watch_status,
-        });
+        episodesBySeasonId[episode.season_id].push(transformProfileEpisode(episode));
       });
 
-      show.seasons = seasonRows.map(
-        (season): ProfileSeason => ({
-          profile_id: season.profile_id,
-          season_id: season.season_id,
-          show_id: season.show_id,
-          tmdb_id: season.tmdb_id,
-          name: season.name,
-          overview: season.overview,
-          season_number: season.season_number,
-          release_date: season.release_date,
-          poster_image: season.poster_image,
-          number_of_episodes: season.number_of_episodes,
-          watch_status: season.watch_status,
-          episodes: episodesBySeasonId[season.season_id] || [],
-        }),
+      show.seasons = seasonRows.map((season) =>
+        transformProfileSeason(season, episodesBySeasonId[season.season_id] || []),
       );
     } else {
       show.seasons = [];
@@ -153,11 +130,11 @@ export async function getShowWithSeasonsForProfile(
  * @returns Array of shows with their next unwatched episodes, ordered by most recently watched
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getNextUnwatchedEpisodesForProfile(profileId: string): Promise<ContinueWatchingShow[]> {
+export async function getNextUnwatchedEpisodesForProfile(profileId: number): Promise<KeepWatchingShow[]> {
   try {
     const pool = getDbPool();
     const recentShowsQuery = `SELECT * FROM profile_recent_shows_with_unwatched WHERE profile_id = ? ORDER BY last_watched_date DESC LIMIT 6`;
-    const [recentShows] = await pool.execute<RowDataPacket[]>(recentShowsQuery, [profileId]);
+    const [recentShows] = await pool.execute<RecentShowsWithUnwatchedRow[]>(recentShowsQuery, [profileId]);
 
     if (recentShows.length === 0) {
       return [];
@@ -166,15 +143,15 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: string): Pro
     const results = await Promise.all(
       recentShows.map(async (show) => {
         const nextEpisodesQuery = `SELECT * FROM profile_next_unwatched_episodes WHERE profile_id = ? AND show_id = ? AND episode_rank <= 2 ORDER BY season_number ASC, episode_number ASC`;
-        const [episodes] = await pool.execute<RowDataPacket[]>(nextEpisodesQuery, [profileId, show.show_id]);
+        const [episodes] = await pool.execute<NextUnwatchedEpisodesRow[]>(nextEpisodesQuery, [profileId, show.show_id]);
 
         return {
-          show_id: show.show_id,
-          show_title: show.show_title,
-          poster_image: show.poster_image,
-          last_watched: show.last_watched_date,
-          episodes: episodes as NextEpisode[],
-        };
+          showId: show.show_id,
+          showTitle: show.show_title,
+          posterImage: show.poster_image,
+          lastWatched: show.last_watched_date.toISOString(),
+          episodes: episodes.map(transformNextUnwatchedEpisodes),
+        } as KeepWatchingShow;
       }),
     );
 
@@ -194,92 +171,34 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: string): Pro
  * @returns Array of profile IDs that have this show as a favorite
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getProfilesForShow(showId: number): Promise<number[]> {
+export async function getProfilesForShow(showId: number): Promise<ProfilesForShowResponse> {
   try {
-    const query = 'SELECT profile_id FROM show_watch_status where show_id = ?';
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [showId]);
-    const profileIds = rows.map((row) => {
-      return row.profile_id;
-    });
-    return profileIds;
+    const query = `SELECT 
+        sws.profile_id,
+        p.account_id
+      FROM 
+        show_watch_status sws
+      JOIN 
+        profiles p ON sws.profile_id = p.profile_id
+      WHERE 
+        sws.show_id = ?
+      ORDER BY 
+        p.account_id, sws.profile_id`;
+
+    const [rows] = await getDbPool().execute<ProfileShowStatusRow[]>(query, [showId]);
+
+    const profileAccountMappings = rows.map((row) => ({
+      profileId: row.profile_id,
+      accountId: row.account_id,
+    }));
+
+    const profileIds = rows.map((row) => row.profile_id);
+    return {
+      showId,
+      profileAccountMappings,
+      totalCount: profileIds.length,
+    };
   } catch (error) {
     handleDatabaseError(error, 'getting the profiles that have favorited a show');
   }
-}
-
-/**
- * Transforms a raw database row into a ProfileShow object
- */
-function transformRow(row: RowDataPacket): ProfileShow {
-  if (!row) {
-    throw new Error('Cannot transform undefined or null row');
-  }
-
-  const {
-    profile_id,
-    show_id,
-    tmdb_id,
-    title,
-    description,
-    release_date,
-    poster_image,
-    backdrop_image,
-    user_rating,
-    content_rating,
-    season_count,
-    episode_count,
-    watch_status,
-    status,
-    type,
-    in_production,
-    genres,
-    streaming_services,
-    last_episode_title,
-    last_episode_air_date,
-    last_episode_number,
-    last_episode_season,
-    next_episode_title,
-    next_episode_air_date,
-    next_episode_number,
-    next_episode_season,
-    network,
-  } = row;
-
-  return {
-    profile_id,
-    show_id,
-    tmdb_id,
-    title,
-    description,
-    release_date,
-    poster_image,
-    backdrop_image,
-    user_rating,
-    content_rating,
-    season_count,
-    episode_count,
-    watch_status,
-    status,
-    type,
-    in_production,
-    genres,
-    streaming_services,
-    network,
-    last_episode: last_episode_title
-      ? {
-          title: last_episode_title,
-          air_date: last_episode_air_date,
-          episode_number: last_episode_number,
-          season_number: last_episode_season,
-        }
-      : null,
-    next_episode: next_episode_title
-      ? {
-          title: next_episode_title,
-          air_date: next_episode_air_date,
-          episode_number: next_episode_number,
-          season_number: next_episode_season,
-        }
-      : null,
-  };
 }

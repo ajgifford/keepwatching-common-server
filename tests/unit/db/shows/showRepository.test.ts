@@ -1,8 +1,10 @@
-import { Show } from '../../../../src/types/showTypes';
+import { ShowTMDBReferenceRow } from '../../../../src/types/showTypes';
+import { CreateShowRequest, UpdateShowRequest } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
 import { DatabaseError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { ShowReferenceRow } from 'dist/types';
+import { ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 
 jest.mock('@utils/db', () => {
@@ -40,28 +42,27 @@ describe('showRepository', () => {
         { insertId: 5, affectedRows: 1 } as ResultSetHeader,
       ]);
 
-      const show: Show = showsDb.createShow(
-        12345, // tmdbId
-        'Test Show', // title
-        'Test description', // description
-        '2023-01-01', // releaseDate
-        '/path/to/poster.jpg', // posterImage
-        '/path/to/backdrop.jpg', // backdropImage
-        8.5, // userRating
-        'TV-MA', // contentRating
-        undefined, // id
-        [1, 2], // streamingServices
-        10, // seasonCount
-        20, // episodeCount
-        [28, 18], // genreIds
-        'Running', // status
-        'Scripted', // type
-        1, // inProduction
-        '2023-12-01', // lastAirDate
-        1001, // lastEpisodeToAir
-        1002, // nextEpisodeToAir
-        'Test Network', // network
-      );
+      const show: CreateShowRequest = {
+        tmdb_id: 12345,
+        title: 'Test Show',
+        description: 'Test description',
+        release_date: '2023-01-01',
+        poster_image: '/path/to/poster.jpg',
+        backdrop_image: '/path/to/backdrop.jpg',
+        user_rating: 8.5,
+        content_rating: 'TV-MA',
+        streaming_service_ids: [8, 9],
+        season_count: 10,
+        episode_count: 20,
+        genre_ids: [28, 18],
+        status: 'Running',
+        type: 'Scripted',
+        in_production: 1,
+        last_air_date: '2023-12-01',
+        last_episode_to_air: 1001,
+        next_episode_to_air: 1002,
+        network: 'Test Network',
+      };
 
       const result = await showsDb.saveShow(show);
 
@@ -89,36 +90,8 @@ describe('showRepository', () => {
         ]),
       );
       expect(mockConnection.commit).toHaveBeenCalled();
-      expect(result).toBe(true);
-      expect(show.id).toBe(5);
-    });
+      expect(result).toBe(5);
 
-    it('should save genres when provided', async () => {
-      (mockConnection.execute as jest.Mock)
-        .mockResolvedValueOnce([{ insertId: 5, affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
-
-      const show: Show = showsDb.createShow(
-        12345,
-        'Test Show',
-        'Test description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-        undefined,
-        undefined,
-        5,
-        10,
-        [28, 18], // genreIds
-      );
-
-      await showsDb.saveShow(show);
-
-      // We expect the genre values to have been saved
-      expect(mockConnection.execute).toHaveBeenCalledTimes(3);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
         'INSERT IGNORE INTO show_genres (show_id, genre_id) VALUES (?,?)',
@@ -129,38 +102,13 @@ describe('showRepository', () => {
         'INSERT IGNORE INTO show_genres (show_id, genre_id) VALUES (?,?)',
         [5, 18],
       );
-    });
-
-    it('should save streaming services when provided', async () => {
-      (mockConnection.execute as jest.Mock)
-        .mockResolvedValueOnce([{ insertId: 5, affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
-
-      const show: Show = showsDb.createShow(
-        12345,
-        'Test Show',
-        'Test description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-        undefined,
-        [8, 9], // streamingServices
-      );
-
-      await showsDb.saveShow(show);
-
-      // We expect the streaming service values to have been saved
-      expect(mockConnection.execute).toHaveBeenCalledTimes(3);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        2,
+        4,
         'INSERT IGNORE INTO show_services (show_id, streaming_service_id) VALUES (?, ?)',
         [5, 8],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        3,
+        5,
         'INSERT IGNORE INTO show_services (show_id, streaming_service_id) VALUES (?, ?)',
         [5, 9],
       );
@@ -170,16 +118,27 @@ describe('showRepository', () => {
       const mockError = new Error('Database error');
       (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
-      const show: Show = showsDb.createShow(
-        12345,
-        'Test Show',
-        'Test description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-      );
+      const show: CreateShowRequest = {
+        tmdb_id: 12345,
+        title: 'Test Show',
+        description: 'Test description',
+        release_date: '2023-01-01',
+        poster_image: '/path/to/poster.jpg',
+        backdrop_image: '/path/to/backdrop.jpg',
+        user_rating: 8.5,
+        content_rating: 'TV-MA',
+        streaming_service_ids: [8, 9],
+        season_count: 10,
+        episode_count: 20,
+        genre_ids: [28, 18],
+        status: 'Running',
+        type: 'Scripted',
+        in_production: 1,
+        last_air_date: '2023-12-01',
+        last_episode_to_air: 1001,
+        next_episode_to_air: 1002,
+        network: 'Test Network',
+      };
 
       await expect(showsDb.saveShow(show)).rejects.toThrow(DatabaseError);
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
@@ -192,19 +151,30 @@ describe('showRepository', () => {
         { insertId: 0, affectedRows: 0 } as ResultSetHeader,
       ]);
 
-      const show: Show = showsDb.createShow(
-        12345,
-        'Test Show',
-        'Test description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-      );
+      const show: CreateShowRequest = {
+        tmdb_id: 12345,
+        title: 'Test Show',
+        description: 'Test description',
+        release_date: '2023-01-01',
+        poster_image: '/path/to/poster.jpg',
+        backdrop_image: '/path/to/backdrop.jpg',
+        user_rating: 8.5,
+        content_rating: 'TV-MA',
+        streaming_service_ids: [8, 9],
+        season_count: 10,
+        episode_count: 20,
+        genre_ids: [28, 18],
+        status: 'Running',
+        type: 'Scripted',
+        in_production: 1,
+        last_air_date: '2023-12-01',
+        last_episode_to_air: 1001,
+        next_episode_to_air: 1002,
+        network: 'Test Network',
+      };
 
       const result = await showsDb.saveShow(show);
-      expect(result).toBe(false);
+      expect(result).toBe(0);
     });
   });
 
@@ -212,20 +182,28 @@ describe('showRepository', () => {
     it('should update show in DB with transaction', async () => {
       (mockConnection.execute as jest.Mock).mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
-      const show: Show = showsDb.createShow(
-        12345,
-        'Updated Show',
-        'Updated description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-        5, // id
-        [1, 2], // streamingServices
-        10, // seasonCount
-        20, // episodeCount
-      );
+      const show: UpdateShowRequest = {
+        id: 5,
+        tmdb_id: 12345,
+        title: 'Updated Show',
+        description: 'Updated description',
+        release_date: '2023-01-01',
+        poster_image: '/path/to/poster.jpg',
+        backdrop_image: '/path/to/backdrop.jpg',
+        user_rating: 8.5,
+        content_rating: 'TV-MA',
+        streaming_service_ids: [8, 9],
+        season_count: 10,
+        episode_count: 20,
+        genre_ids: [28, 18],
+        status: 'Running',
+        type: 'Scripted',
+        in_production: 1,
+        last_air_date: '2023-12-01',
+        last_episode_to_air: 1001,
+        next_episode_to_air: 1002,
+        network: 'Test Network',
+      };
 
       const result = await showsDb.updateShow(show);
 
@@ -247,34 +225,7 @@ describe('showRepository', () => {
       );
       expect(mockConnection.commit).toHaveBeenCalled();
       expect(result).toBe(true);
-    });
 
-    it('should update genres when provided', async () => {
-      (mockConnection.execute as jest.Mock)
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
-
-      const show: Show = showsDb.createShow(
-        12345,
-        'Updated Show',
-        'Updated description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-        5, // id
-        undefined,
-        10,
-        20,
-        [28, 18], // genreIds
-      );
-
-      await showsDb.updateShow(show);
-
-      // We expect the genre values to have been saved
-      expect(mockConnection.execute).toHaveBeenCalledTimes(3);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
         'INSERT IGNORE INTO show_genres (show_id, genre_id) VALUES (?,?)',
@@ -285,38 +236,13 @@ describe('showRepository', () => {
         'INSERT IGNORE INTO show_genres (show_id, genre_id) VALUES (?,?)',
         [5, 18],
       );
-    });
-
-    it('should update streaming services when provided', async () => {
-      (mockConnection.execute as jest.Mock)
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
-
-      const show: Show = showsDb.createShow(
-        12345,
-        'Updated Show',
-        'Updated description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-        5, // id
-        [8, 9], // streamingServices
-      );
-
-      await showsDb.updateShow(show);
-
-      // We expect the streaming service values to have been saved
-      expect(mockConnection.execute).toHaveBeenCalledTimes(3);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        2,
+        4,
         'INSERT IGNORE INTO show_services (show_id, streaming_service_id) VALUES (?, ?)',
         [5, 8],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        3,
+        5,
         'INSERT IGNORE INTO show_services (show_id, streaming_service_id) VALUES (?, ?)',
         [5, 9],
       );
@@ -325,17 +251,28 @@ describe('showRepository', () => {
     it('should return false when no rows are affected', async () => {
       (mockConnection.execute as jest.Mock).mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
-      const show: Show = showsDb.createShow(
-        99999,
-        'Nonexistent Show',
-        'Description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-        5, // id
-      );
+      const show: UpdateShowRequest = {
+        id: 5,
+        tmdb_id: 12345,
+        title: 'Updated Show',
+        description: 'Updated description',
+        release_date: '2023-01-01',
+        poster_image: '/path/to/poster.jpg',
+        backdrop_image: '/path/to/backdrop.jpg',
+        user_rating: 8.5,
+        content_rating: 'TV-MA',
+        streaming_service_ids: [8, 9],
+        season_count: 10,
+        episode_count: 20,
+        genre_ids: [28, 18],
+        status: 'Running',
+        type: 'Scripted',
+        in_production: 1,
+        last_air_date: '2023-12-01',
+        last_episode_to_air: 1001,
+        next_episode_to_air: 1002,
+        network: 'Test Network',
+      };
 
       const result = await showsDb.updateShow(show);
       expect(result).toBe(false);
@@ -345,17 +282,28 @@ describe('showRepository', () => {
       const mockError = new Error('Database error');
       (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
-      const show: Show = showsDb.createShow(
-        12345,
-        'Test Show',
-        'Test description',
-        '2023-01-01',
-        '/path/to/poster.jpg',
-        '/path/to/backdrop.jpg',
-        8.5,
-        'TV-MA',
-        5, // id
-      );
+      const show: UpdateShowRequest = {
+        id: 5,
+        tmdb_id: 12345,
+        title: 'Updated Show',
+        description: 'Updated description',
+        release_date: '2023-01-01',
+        poster_image: '/path/to/poster.jpg',
+        backdrop_image: '/path/to/backdrop.jpg',
+        user_rating: 8.5,
+        content_rating: 'TV-MA',
+        streaming_service_ids: [8, 9],
+        season_count: 10,
+        episode_count: 20,
+        genre_ids: [28, 18],
+        status: 'Running',
+        type: 'Scripted',
+        in_production: 1,
+        last_air_date: '2023-12-01',
+        last_episode_to_air: 1001,
+        next_episode_to_air: 1002,
+        network: 'Test Network',
+      };
 
       await expect(showsDb.updateShow(show)).rejects.toThrow(DatabaseError);
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
@@ -411,41 +359,24 @@ describe('showRepository', () => {
       const mockShow = {
         id: 5,
         tmdb_id: 12345,
-        title: 'Test Show',
-        description: 'Test description',
-        release_date: '2023-01-01',
-        poster_image: '/path/to/poster.jpg',
-        backdrop_path: '/path/to/backdrop.jpg',
-        user_rating: 8.5,
-        content_rating: 'TV-MA',
-        season_count: 2,
-        episode_count: 10,
-        status: 'Running',
-        type: 'Scripted',
-        in_production: 1,
-        last_air_date: '2023-12-01',
-        last_episode_to_air: 1001,
-        next_episode_to_air: 1002,
-        network: 'Test Network',
+        title: 'Show',
       };
 
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[mockShow] as RowDataPacket[]]);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[mockShow]]);
 
-      const show = await showsDb.findShowById(5);
+      const showTMDBReference = await showsDb.findShowById(5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM shows WHERE id = ?', [5]);
-      expect(show).not.toBeNull();
-      expect(show?.id).toBe(5);
-      expect(show?.title).toBe('Test Show');
-      expect(show?.tmdb_id).toBe(12345);
-      expect(show?.description).toBe('Test description');
-      expect(show?.release_date).toBe('2023-01-01');
-      expect(show?.status).toBe('Running');
-      expect(show?.network).toBe('Test Network');
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title FROM shows WHERE id = ?', [5]);
+      expect(showTMDBReference).not.toBeNull();
+      expect(showTMDBReference).toEqual({
+        id: 5,
+        tmdbId: 12345,
+        title: 'Show',
+      });
     });
 
     it('should return null when show not found', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as RowDataPacket[]]);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as ShowTMDBReferenceRow[]]);
       const show = await showsDb.findShowById(999);
       expect(show).toBeNull();
     });
@@ -462,31 +393,19 @@ describe('showRepository', () => {
     it('should return a show when found', async () => {
       const mockShow = {
         id: 5,
-        tmdb_id: 12345,
-        title: 'Test Show',
-        description: 'Test description',
-        release_date: '2023-01-01',
-        poster_image: '/path/to/poster.jpg',
-        backdrop_path: '/path/to/backdrop.jpg',
-        user_rating: 8.5,
-        content_rating: 'TV-MA',
-        season_count: 2,
-        episode_count: 10,
       };
 
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[mockShow] as RowDataPacket[]]);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[mockShow] as ShowReferenceRow[]]);
 
       const show = await showsDb.findShowByTMDBId(12345);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM shows WHERE tmdb_id = ?', [12345]);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id FROM shows WHERE tmdb_id = ?', [12345]);
       expect(show).not.toBeNull();
-      expect(show?.id).toBe(5);
-      expect(show?.tmdb_id).toBe(12345);
-      expect(show?.title).toBe('Test Show');
+      expect(show!.id).toBe(5);
     });
 
     it('should return null when show not found', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as RowDataPacket[]]);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as ShowReferenceRow[]]);
       const show = await showsDb.findShowByTMDBId(99999);
       expect(show).toBeNull();
     });
@@ -518,26 +437,26 @@ describe('showRepository', () => {
         },
       ];
 
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShows as RowDataPacket[]]);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShows]);
 
-      const shows = await showsDb.getShowsForUpdates();
+      const showUpdates = await showsDb.getShowsForUpdates();
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         expect.stringContaining('SELECT id, title, tmdb_id, created_at, updated_at from shows where in_production = 1'),
       );
-      expect(shows).toHaveLength(2);
-      expect(shows[0].id).toBe(1);
-      expect(shows[0].title).toBe('Show 1');
-      expect(shows[0].tmdb_id).toBe(101);
-      expect(shows[1].id).toBe(2);
-      expect(shows[1].title).toBe('Show 2');
-      expect(shows[1].tmdb_id).toBe(102);
+      expect(showUpdates).toHaveLength(2);
+      expect(showUpdates[0].id).toBe(1);
+      expect(showUpdates[0].title).toBe('Show 1');
+      expect(showUpdates[0].tmdb_id).toBe(101);
+      expect(showUpdates[1].id).toBe(2);
+      expect(showUpdates[1].title).toBe('Show 2');
+      expect(showUpdates[1].tmdb_id).toBe(102);
     });
 
     it('should return empty array when no shows need updates', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as RowDataPacket[]]);
-      const shows = await showsDb.getShowsForUpdates();
-      expect(shows).toHaveLength(0);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[]]);
+      const showUpdates = await showsDb.getShowsForUpdates();
+      expect(showUpdates).toHaveLength(0);
     });
 
     it('should throw DatabaseError on error', async () => {
@@ -545,88 +464,6 @@ describe('showRepository', () => {
       (mockPool.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
       await expect(showsDb.getShowsForUpdates()).rejects.toThrow(DatabaseError);
-    });
-  });
-
-  describe('createShow', () => {
-    it('should create a properly structured Show object with all fields', () => {
-      const show = showsDb.createShow(
-        12345, // tmdbId
-        'Test Show', // title
-        'Test description', // description
-        '2023-01-01', // releaseDate
-        '/path/to/poster.jpg', // posterImage
-        '/path/to/backdrop.jpg', // backdropImage
-        8.5, // userRating
-        'TV-MA', // contentRating
-        5, // id
-        [1, 2], // streamingServices
-        10, // seasonCount
-        20, // episodeCount
-        [28, 18], // genreIds
-        'Running', // status
-        'Scripted', // type
-        1, // inProduction
-        '2023-12-01', // lastAirDate
-        1001, // lastEpisodeToAir
-        1002, // nextEpisodeToAir
-        'Test Network', // network
-      );
-
-      expect(show.id).toBe(5);
-      expect(show.tmdb_id).toBe(12345);
-      expect(show.title).toBe('Test Show');
-      expect(show.description).toBe('Test description');
-      expect(show.release_date).toBe('2023-01-01');
-      expect(show.poster_image).toBe('/path/to/poster.jpg');
-      expect(show.backdrop_image).toBe('/path/to/backdrop.jpg');
-      expect(show.user_rating).toBe(8.5);
-      expect(show.content_rating).toBe('TV-MA');
-      expect(show.streaming_services).toEqual([1, 2]);
-      expect(show.season_count).toBe(10);
-      expect(show.episode_count).toBe(20);
-      expect(show.genreIds).toEqual([28, 18]);
-      expect(show.status).toBe('Running');
-      expect(show.type).toBe('Scripted');
-      expect(show.in_production).toBe(1);
-      expect(show.last_air_date).toBe('2023-12-01');
-      expect(show.last_episode_to_air).toBe(1001);
-      expect(show.next_episode_to_air).toBe(1002);
-      expect(show.network).toBe('Test Network');
-    });
-
-    it('should create a Show object with only required fields', () => {
-      const show = showsDb.createShow(
-        12345, // tmdbId
-        'Test Show', // title
-        'Test description', // description
-        '2023-01-01', // releaseDate
-        '/path/to/poster.jpg', // posterImage
-        '/path/to/backdrop.jpg', // backdropImage
-        8.5, // userRating
-        'TV-MA', // contentRating
-      );
-
-      expect(show.id).toBeUndefined();
-      expect(show.tmdb_id).toBe(12345);
-      expect(show.title).toBe('Test Show');
-      expect(show.description).toBe('Test description');
-      expect(show.release_date).toBe('2023-01-01');
-      expect(show.poster_image).toBe('/path/to/poster.jpg');
-      expect(show.backdrop_image).toBe('/path/to/backdrop.jpg');
-      expect(show.user_rating).toBe(8.5);
-      expect(show.content_rating).toBe('TV-MA');
-      expect(show.streaming_services).toBeUndefined();
-      expect(show.season_count).toBeUndefined();
-      expect(show.episode_count).toBeUndefined();
-      expect(show.genreIds).toBeUndefined();
-      expect(show.status).toBeUndefined();
-      expect(show.type).toBeUndefined();
-      expect(show.in_production).toBeUndefined();
-      expect(show.last_air_date).toBeUndefined();
-      expect(show.last_episode_to_air).toBeUndefined();
-      expect(show.next_episode_to_air).toBeUndefined();
-      expect(show.network).toBeUndefined();
     });
   });
 });

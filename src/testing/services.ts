@@ -34,7 +34,7 @@ export const accountService = createTypedServiceMock<MockAccountService>([
 
 export const profileService = createTypedServiceMock<MockProfileService>([
   'getProfilesByAccountId',
-  'getProfile',
+  'getProfileWithContent',
   'findProfileById',
   'createProfile',
   'updateProfileName',

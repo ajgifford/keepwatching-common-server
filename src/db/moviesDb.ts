@@ -11,7 +11,6 @@ export {
   getRecentMovieReleasesForProfile,
   getUpcomingMovieReleasesForProfile,
   getMoviesForUpdates,
-  createMovie,
 } from './movies/movieRepository';
 
 export { getAllMovies, getMoviesCount, getMovieDetails, getMovieProfiles } from './movies/adminMovieRepository';

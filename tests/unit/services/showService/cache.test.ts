@@ -19,9 +19,9 @@ describe('ShowService - Cache Functionality', () => {
 
   describe('invalidateProfileCache', () => {
     it('should invalidate profile shows cache', () => {
-      service.invalidateProfileCache('123');
+      service.invalidateProfileCache(1, 123);
 
-      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('123');
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(1, 123);
     });
   });
 
@@ -36,8 +36,8 @@ describe('ShowService - Cache Functionality', () => {
       await service.invalidateAccountCache(123);
 
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
-      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('1');
-      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith('2');
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(123, 1);
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(123, 2);
       expect(mockCache.invalidateAccount).toHaveBeenCalledWith(123);
     });
 

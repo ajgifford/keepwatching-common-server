@@ -20,14 +20,13 @@ describe('seasonsService', () => {
       (seasonsDb.getShowIdForSeason as jest.Mock).mockResolvedValue(123);
       (showService.invalidateProfileCache as jest.Mock).mockImplementation(() => {});
 
-      const result = await seasonsService.updateSeasonWatchStatus('456', 789, 'WATCHED');
+      const result = await seasonsService.updateSeasonWatchStatus(1, 456, 789, 'WATCHED');
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('456', 789, 'WATCHED');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(456, 789, 'WATCHED');
       expect(seasonsDb.updateAllWatchStatuses).not.toHaveBeenCalled();
       expect(seasonsDb.getShowIdForSeason).toHaveBeenCalledWith(789);
-      expect(showsDb.updateWatchStatusBySeason).toHaveBeenCalledWith('456', 123);
-      expect(showService.invalidateProfileCache).toHaveBeenCalledWith('456');
-      expect(result).toBe(true);
+      expect(showsDb.updateWatchStatusBySeason).toHaveBeenCalledWith(456, 123);
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(1, 456);
     });
 
     it('should update season watch status with recursion', async () => {
@@ -35,14 +34,13 @@ describe('seasonsService', () => {
       (seasonsDb.getShowIdForSeason as jest.Mock).mockResolvedValue(123);
       (showService.invalidateProfileCache as jest.Mock).mockImplementation(() => {});
 
-      const result = await seasonsService.updateSeasonWatchStatus('456', 789, 'WATCHED', true);
+      const result = await seasonsService.updateSeasonWatchStatus(1, 456, 789, 'WATCHED', true);
 
-      expect(seasonsDb.updateAllWatchStatuses).toHaveBeenCalledWith('456', 789, 'WATCHED');
+      expect(seasonsDb.updateAllWatchStatuses).toHaveBeenCalledWith(456, 789, 'WATCHED');
       expect(seasonsDb.updateWatchStatus).not.toHaveBeenCalled();
       expect(seasonsDb.getShowIdForSeason).toHaveBeenCalledWith(789);
-      expect(showsDb.updateWatchStatusBySeason).toHaveBeenCalledWith('456', 123);
-      expect(showService.invalidateProfileCache).toHaveBeenCalledWith('456');
-      expect(result).toBe(true);
+      expect(showsDb.updateWatchStatusBySeason).toHaveBeenCalledWith(456, 123);
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(1, 456);
     });
 
     it('should throw BadRequestError when update fails', async () => {
@@ -51,11 +49,11 @@ describe('seasonsService', () => {
         throw error;
       });
 
-      await expect(seasonsService.updateSeasonWatchStatus('456', 789, 'WATCHED')).rejects.toThrow(
+      await expect(seasonsService.updateSeasonWatchStatus(1, 456, 789, 'WATCHED')).rejects.toThrow(
         'No season watch status was updated',
       );
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('456', 789, 'WATCHED');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(456, 789, 'WATCHED');
       expect(seasonsDb.getShowIdForSeason).not.toHaveBeenCalled();
       expect(showsDb.updateWatchStatusBySeason).not.toHaveBeenCalled();
       expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
@@ -68,7 +66,7 @@ describe('seasonsService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(seasonsService.updateSeasonWatchStatus('456', 789, 'WATCHED')).rejects.toThrow(
+      await expect(seasonsService.updateSeasonWatchStatus(1, 456, 789, 'WATCHED')).rejects.toThrow(
         'Handled: Update failed',
       );
 
@@ -82,13 +80,12 @@ describe('seasonsService', () => {
       (seasonsDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
       (seasonsDb.getShowIdForSeason as jest.Mock).mockResolvedValue(null);
 
-      const result = await seasonsService.updateSeasonWatchStatus('456', 789, 'WATCHED');
+      const result = await seasonsService.updateSeasonWatchStatus(1, 456, 789, 'WATCHED');
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('456', 789, 'WATCHED');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(456, 789, 'WATCHED');
       expect(seasonsDb.getShowIdForSeason).toHaveBeenCalledWith(789);
       expect(showsDb.updateWatchStatusBySeason).not.toHaveBeenCalled();
       expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
-      expect(result).toBe(true);
     });
   });
 
@@ -101,9 +98,9 @@ describe('seasonsService', () => {
 
       (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValue(mockSeasons);
 
-      const result = await seasonsService.getSeasonsForShow('456', '123');
+      const result = await seasonsService.getSeasonsForShow(456, 123);
 
-      expect(seasonsDb.getSeasonsForShow).toHaveBeenCalledWith('456', '123');
+      expect(seasonsDb.getSeasonsForShow).toHaveBeenCalledWith(456, 123);
       expect(result).toEqual(mockSeasons);
     });
 
@@ -114,7 +111,7 @@ describe('seasonsService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(seasonsService.getSeasonsForShow('456', '123')).rejects.toThrow('Handled: Database error');
+      await expect(seasonsService.getSeasonsForShow(456, 123)).rejects.toThrow('Handled: Database error');
 
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getSeasonsForShow(456, 123)');
     });
@@ -126,11 +123,11 @@ describe('seasonsService', () => {
       (seasonsDb.getShowIdForSeason as jest.Mock).mockResolvedValue(456);
       (showsDb.getWatchStatus as jest.Mock).mockResolvedValue('WATCHED');
 
-      await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
+      await seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789);
 
-      expect(seasonsDb.getWatchStatus).toHaveBeenCalledWith('123', 789);
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('123', 456, 'UP_TO_DATE');
+      expect(seasonsDb.getWatchStatus).toHaveBeenCalledWith(123, 789);
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(123, 789, 'UP_TO_DATE');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(123, 456, 'UP_TO_DATE');
     });
 
     it('should update only season status when show status is already WATCHING', async () => {
@@ -138,18 +135,18 @@ describe('seasonsService', () => {
       (seasonsDb.getShowIdForSeason as jest.Mock).mockResolvedValue(456);
       (showsDb.getWatchStatus as jest.Mock).mockResolvedValue('WATCHING');
 
-      await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
+      await seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789);
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(123, 789, 'UP_TO_DATE');
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
     });
 
     it('should not update season status if already set to something other than WATCHED', async () => {
       (seasonsDb.getWatchStatus as jest.Mock).mockResolvedValue('WATCHING');
 
-      await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
+      await seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789);
 
-      expect(seasonsDb.getWatchStatus).toHaveBeenCalledWith('123', 789);
+      expect(seasonsDb.getWatchStatus).toHaveBeenCalledWith(123, 789);
       expect(seasonsDb.updateWatchStatus).not.toHaveBeenCalled();
       expect(seasonsDb.getShowIdForSeason).not.toHaveBeenCalled();
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
@@ -158,7 +155,7 @@ describe('seasonsService', () => {
     it('should do nothing if season has no watch status record', async () => {
       (seasonsDb.getWatchStatus as jest.Mock).mockResolvedValue(null);
 
-      await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
+      await seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789);
 
       expect(seasonsDb.updateWatchStatus).not.toHaveBeenCalled();
       expect(seasonsDb.getShowIdForSeason).not.toHaveBeenCalled();
@@ -169,9 +166,9 @@ describe('seasonsService', () => {
       (seasonsDb.getWatchStatus as jest.Mock).mockResolvedValue('WATCHED');
       (seasonsDb.getShowIdForSeason as jest.Mock).mockResolvedValue(null);
 
-      await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
+      await seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789);
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(123, 789, 'UP_TO_DATE');
       expect(seasonsDb.getShowIdForSeason).toHaveBeenCalledWith(789);
       expect(showsDb.getWatchStatus).not.toHaveBeenCalled();
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
@@ -182,10 +179,10 @@ describe('seasonsService', () => {
       (seasonsDb.getShowIdForSeason as jest.Mock).mockResolvedValue(456);
       (showsDb.getWatchStatus as jest.Mock).mockResolvedValue('NOT_WATCHED');
 
-      await seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789);
+      await seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789);
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
-      expect(showsDb.getWatchStatus).toHaveBeenCalledWith('123', 456);
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(123, 789, 'UP_TO_DATE');
+      expect(showsDb.getWatchStatus).toHaveBeenCalledWith(123, 456);
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
     });
 
@@ -196,7 +193,7 @@ describe('seasonsService', () => {
         throw error;
       });
 
-      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789)).rejects.toThrow('Database error');
+      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789)).rejects.toThrow('Database error');
 
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
@@ -213,7 +210,7 @@ describe('seasonsService', () => {
         throw error;
       });
 
-      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789)).rejects.toThrow('Update failed');
+      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789)).rejects.toThrow('Update failed');
 
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
@@ -230,7 +227,7 @@ describe('seasonsService', () => {
         throw error;
       });
 
-      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789)).rejects.toThrow(
+      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789)).rejects.toThrow(
         'Show ID lookup failed',
       );
 
@@ -251,11 +248,11 @@ describe('seasonsService', () => {
         throw error;
       });
 
-      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes('123', 789)).rejects.toThrow(
+      await expect(seasonsService.updateSeasonWatchStatusForNewEpisodes(123, 789)).rejects.toThrow(
         'Show update failed',
       );
 
-      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith('123', 789, 'UP_TO_DATE');
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(123, 789, 'UP_TO_DATE');
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
         'updateSeasonWatchStatusForNewEpisodes(123, 789)',
@@ -280,7 +277,7 @@ describe('seasonsService', () => {
         number_of_episodes: 10,
       };
 
-      const updatedSeason = { ...seasonData, id: 500 };
+      const updatedSeason = 500;
 
       jest.spyOn(seasonsDb, 'updateSeason').mockResolvedValue(updatedSeason);
 
@@ -295,7 +292,11 @@ describe('seasonsService', () => {
         show_id: 100,
         tmdb_id: 12345,
         name: 'Season 1',
-        // Incomplete data
+        overview: 'Season 1',
+        season_number: 1,
+        number_of_episodes: 10,
+        release_date: '',
+        poster_image: 'image.png',
       };
 
       const error = new Error('Database error');

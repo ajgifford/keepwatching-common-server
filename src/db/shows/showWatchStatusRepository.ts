@@ -1,7 +1,10 @@
+import { ShowSeasonStatusRow, WatchStatusRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { FullWatchStatusType, WatchStatus, isFullWatchStatus } from '@ajgifford/keepwatching-types';
+import { ResultSetHeader } from 'mysql2';
+import { SeasonReferenceRow } from 'src/types/seasonTypes';
 
 /**
  * Adds a show to a user's favorites/watchlist
@@ -15,29 +18,29 @@ import { ResultSetHeader, RowDataPacket } from 'mysql2';
  * @returns  A promise that resolves when the favorite has been added
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function saveFavorite(profileId: string, showId: number, saveChildren: boolean): Promise<void> {
+export async function saveFavorite(profileId: number, showId: number, saveChildren: boolean): Promise<void> {
   const transactionHelper = new TransactionHelper();
 
   try {
     await transactionHelper.executeInTransaction(async (connection) => {
       const query = 'INSERT IGNORE INTO show_watch_status (profile_id, show_id) VALUES (?,?)';
-      await connection.execute<ResultSetHeader>(query, [Number(profileId), showId]);
+      await connection.execute<ResultSetHeader>(query, [profileId, showId]);
 
       if (saveChildren) {
         const seasonQuery = 'SELECT id FROM seasons WHERE show_id = ?';
-        const [rows] = await connection.execute<RowDataPacket[]>(seasonQuery, [showId]);
+        const [rows] = await connection.execute<SeasonReferenceRow[]>(seasonQuery, [showId]);
         const seasonIds = rows.map((row) => row.id);
 
         if (seasonIds.length > 0) {
           const seasonPlaceholders = seasonIds.map(() => '(?,?)').join(',');
-          const seasonParams = seasonIds.flatMap((id) => [Number(profileId), id]);
+          const seasonParams = seasonIds.flatMap((id) => [profileId, id]);
           const seasonBatchQuery = `INSERT IGNORE INTO season_watch_status (profile_id, season_id) VALUES ${seasonPlaceholders}`;
           await connection.execute(seasonBatchQuery, seasonParams);
 
           if (seasonIds.length > 0) {
             const seasonParamsStr = seasonIds.map(() => '?').join(',');
             const episodesBatchQuery = `INSERT IGNORE INTO episode_watch_status (profile_id, episode_id) SELECT ?, id FROM episodes WHERE season_id IN (${seasonParamsStr})`;
-            await connection.execute(episodesBatchQuery, [Number(profileId), ...seasonIds]);
+            await connection.execute(episodesBatchQuery, [profileId, ...seasonIds]);
           }
         }
       }
@@ -57,22 +60,22 @@ export async function saveFavorite(profileId: string, showId: number, saveChildr
  * @returns A promise that resolves when the show, seasons and episodes have been removed from favorites
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function removeFavorite(profileId: string, showId: number): Promise<void> {
+export async function removeFavorite(profileId: number, showId: number): Promise<void> {
   const transactionHelper = new TransactionHelper();
 
   try {
     await transactionHelper.executeInTransaction(async (connection) => {
       const seasonQuery = 'SELECT id FROM seasons WHERE show_id = ?';
-      const [rows] = await connection.execute<RowDataPacket[]>(seasonQuery, [showId]);
+      const [rows] = await connection.execute<SeasonReferenceRow[]>(seasonQuery, [showId]);
       const seasonIds = rows.map((row) => row.id);
 
       if (seasonIds.length > 0) {
         const seasonPlaceholders = seasonIds.map(() => '?').join(',');
         const episodeDeleteQuery = `DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (${seasonPlaceholders}))`;
-        await connection.execute(episodeDeleteQuery, [Number(profileId), ...seasonIds]);
+        await connection.execute(episodeDeleteQuery, [profileId, ...seasonIds]);
 
         const seasonDeleteQuery = `DELETE FROM season_watch_status WHERE profile_id = ? AND season_id IN (${seasonPlaceholders})`;
-        await connection.execute(seasonDeleteQuery, [Number(profileId), ...seasonIds]);
+        await connection.execute(seasonDeleteQuery, [profileId, ...seasonIds]);
       }
 
       const showDeleteQuery = 'DELETE FROM show_watch_status WHERE profile_id = ? AND show_id = ?';
@@ -95,7 +98,7 @@ export async function removeFavorite(profileId: string, showId: number): Promise
  * @returns `True` if the status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function updateWatchStatus(profileId: string, showId: number, status: string): Promise<boolean> {
+export async function updateWatchStatus(profileId: number, showId: number, status: string): Promise<boolean> {
   try {
     const showQuery = 'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?';
     const [result] = await getDbPool().execute<ResultSetHeader>(showQuery, [status, profileId, showId]);
@@ -121,7 +124,7 @@ export async function updateWatchStatus(profileId: string, showId: number, statu
  * @returns A promise that resolves when the update is complete
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function updateWatchStatusBySeason(profileId: string, showId: number): Promise<void> {
+export async function updateWatchStatusBySeason(profileId: number, showId: number): Promise<void> {
   try {
     const pool = getDbPool();
 
@@ -137,10 +140,11 @@ export async function updateWatchStatusBySeason(profileId: string, showId: numbe
       WHERE s.show_id = ? AND sws.profile_id = ?
     `;
 
-    const [statusResult] = await pool.execute<RowDataPacket[]>(seasonStatusQuery, [showId, profileId]);
-    if (!statusResult.length) return;
+    const [seasonStatusRows] = await pool.execute<ShowSeasonStatusRow[]>(seasonStatusQuery, [showId, profileId]);
+    if (!seasonStatusRows.length) return;
 
-    if (statusResult[0].total_seasons === 0) {
+    const seasonStatus = seasonStatusRows[0];
+    if (seasonStatus.total_seasons === 0) {
       await pool.execute('UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?', [
         'NOT_WATCHED',
         profileId,
@@ -149,17 +153,18 @@ export async function updateWatchStatusBySeason(profileId: string, showId: numbe
       return;
     }
 
-    const status = statusResult[0];
     let showStatus = 'NOT_WATCHED';
-
-    if (status.watched_seasons === status.total_seasons) {
+    if (seasonStatus.watched_seasons === seasonStatus.total_seasons) {
       showStatus = 'WATCHED';
     } else if (
-      status.watched_seasons + status.up_to_date_seasons === status.total_seasons &&
-      status.up_to_date_seasons > 0
+      seasonStatus.watched_seasons + seasonStatus.up_to_date_seasons === seasonStatus.total_seasons &&
+      seasonStatus.up_to_date_seasons > 0
     ) {
       showStatus = 'UP_TO_DATE';
-    } else if (status.watching_seasons > 0 || (status.watched_seasons > 0 && status.not_watched_seasons > 0)) {
+    } else if (
+      seasonStatus.watching_seasons > 0 ||
+      (seasonStatus.watched_seasons > 0 && seasonStatus.not_watched_seasons > 0)
+    ) {
       showStatus = 'WATCHING';
     }
 
@@ -185,7 +190,7 @@ export async function updateWatchStatusBySeason(profileId: string, showId: numbe
  * @returns `True` if the watch status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function updateAllWatchStatuses(profileId: string, showId: number, status: string): Promise<boolean> {
+export async function updateAllWatchStatuses(profileId: number, showId: number, status: string): Promise<boolean> {
   const transactionHelper = new TransactionHelper();
 
   try {
@@ -221,14 +226,19 @@ export async function updateAllWatchStatuses(profileId: string, showId: number, 
  * @returns The watch status of the show or null if not found
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getWatchStatus(profileId: string, showId: number): Promise<string | null> {
+export async function getWatchStatus(profileId: number, showId: number): Promise<FullWatchStatusType | null> {
   try {
     const query = 'SELECT status FROM show_watch_status WHERE profile_id = ? AND show_id = ?';
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [profileId, showId]);
+    const [rows] = await getDbPool().execute<WatchStatusRow[]>(query, [profileId, showId]);
 
     if (rows.length === 0) return null;
 
-    return rows[0].status;
+    const status = rows[0].status;
+    if (isFullWatchStatus(status)) {
+      return status;
+    } else {
+      return WatchStatus.NOT_WATCHED;
+    }
   } catch (error) {
     handleDatabaseError(error, 'getting the watch status of a show');
   }

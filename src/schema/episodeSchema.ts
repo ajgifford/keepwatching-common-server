@@ -1,20 +1,17 @@
+import { binaryWatchStatusSchema } from './watchStatusSchema';
 import { z } from 'zod';
 
-export const episodeWatchStatusSchema = z.object({
+export const episodeWatchStatusBodySchema = z.object({
   episodeId: z.number().int().positive('Episode ID must be a positive integer'),
-  status: z.enum(['WATCHED', 'WATCHING', 'NOT_WATCHED'], {
-    errorMap: () => ({ message: 'Status must be one of: WATCHED, WATCHING, or NOT_WATCHED' }),
-  }),
+  status: binaryWatchStatusSchema,
 });
 
-export const nextEpisodeWatchStatusSchema = z.object({
+export const nextEpisodeWatchStatusBodySchema = z.object({
   showId: z.number().int().positive('Show ID must be a positive integer'),
   seasonId: z.number().int().positive('Season ID must be a positive integer'),
   episodeId: z.number().int().positive('Episode ID must be a positive integer'),
-  status: z.enum(['WATCHED', 'WATCHING', 'NOT_WATCHED'], {
-    errorMap: () => ({ message: 'Status must be one of: WATCHED, WATCHING, or NOT_WATCHED' }),
-  }),
+  status: binaryWatchStatusSchema,
 });
 
-export type EpisodeWatchStatusParams = z.infer<typeof episodeWatchStatusSchema>;
-export type NextEpisodeWatchStatusParams = z.infer<typeof nextEpisodeWatchStatusSchema>;
+export type EpisodeWatchStatusBody = z.infer<typeof episodeWatchStatusBodySchema>;
+export type NextEpisodeWatchStatusBody = z.infer<typeof nextEpisodeWatchStatusBodySchema>;

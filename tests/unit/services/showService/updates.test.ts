@@ -76,28 +76,15 @@ describe('ShowService - Content Updates', () => {
       });
 
       (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
-      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue([1, 2, 3]);
-      (showsDb.createShow as jest.Mock).mockImplementation((...args) => ({
-        id: 123,
-        tmdb_id: args[0],
-        title: args[1],
-        description: args[2],
-        release_date: args[3],
-        poster_image: args[4],
-        backdrop_image: args[5],
-        user_rating: args[6],
-        content_rating: args[7],
-        season_count: args[10],
-        episode_count: args[11],
-        genreIds: args[12],
-        status: args[13],
-        type: args[14],
-        in_production: args[15],
-        last_air_date: args[16],
-        last_episode_to_air: args[17],
-        next_episode_to_air: args[18],
-        network: args[19],
-      }));
+      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
+        showId: '1',
+        profileAccountMappings: [
+          { accountId: 1, profileId: 1 },
+          { accountId: 1, profileId: 2 },
+          { accountId: 2, profileId: 3 },
+        ],
+        totalCount: 3,
+      });
     });
 
     it('should do nothing when no changes are detected', async () => {
@@ -107,7 +94,6 @@ describe('ShowService - Content Updates', () => {
 
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getShowDetails).not.toHaveBeenCalled();
-      expect(showsDb.createShow).not.toHaveBeenCalled();
       expect(showsDb.updateShow).not.toHaveBeenCalled();
     });
 
@@ -135,7 +121,6 @@ describe('ShowService - Content Updates', () => {
 
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getShowDetails).not.toHaveBeenCalled();
-      expect(showsDb.createShow).not.toHaveBeenCalled();
       expect(showsDb.updateShow).not.toHaveBeenCalled();
     });
 
@@ -163,28 +148,6 @@ describe('ShowService - Content Updates', () => {
 
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(456);
-      expect(showsDb.createShow).toHaveBeenCalledWith(
-        456,
-        'Updated Show Title',
-        'New overview',
-        '2023-02-01',
-        '/new-poster.jpg',
-        '/new-backdrop.jpg',
-        8.5,
-        'TV-14',
-        123,
-        [8, 9],
-        1,
-        10,
-        [28, 12],
-        'Returning Series',
-        'Scripted',
-        1,
-        '2023-01-15',
-        null,
-        null,
-        'HBO',
-      );
       expect(showsDb.updateShow).toHaveBeenCalled();
     });
 
@@ -219,13 +182,17 @@ describe('ShowService - Content Updates', () => {
         seasonChanges[0].items,
         expect.any(Object),
         mockShowContent,
-        [1, 2, 3],
+        [
+          { accountId: 1, profileId: 1 },
+          { accountId: 1, profileId: 2 },
+          { accountId: 2, profileId: 3 },
+        ],
         pastDate,
         currentDate,
       );
-      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(1, '1', 123);
-      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(2, '2', 123);
-      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(3, '3', 123);
+      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(1, 1, 123);
+      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(2, 2, 123);
+      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(3, 3, 123);
     });
 
     it('should handle errors from getShowChanges API', async () => {
@@ -312,7 +279,6 @@ describe('ShowService - Content Updates', () => {
 
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(456);
-      expect(showsDb.createShow).toHaveBeenCalledTimes(1);
       expect(showsDb.updateShow).toHaveBeenCalled();
     });
 
@@ -323,7 +289,6 @@ describe('ShowService - Content Updates', () => {
 
       expect(mockTMDBService.getShowChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getShowDetails).not.toHaveBeenCalled();
-      expect(showsDb.createShow).not.toHaveBeenCalled();
     });
 
     it('should handle errors from showsDb.updateShow', async () => {

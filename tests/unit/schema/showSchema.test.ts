@@ -1,49 +1,53 @@
-import { addShowFavoriteSchema, showParamsSchema, showWatchStatusSchema } from '@schema/showSchema';
+import { addShowFavoriteBodySchema, showParamsSchema, showWatchStatusBodySchema } from '@schema/showSchema';
 
 describe('showSchema', () => {
   describe('addShowFavoriteSchema', () => {
     it('should validate valid show favorite object', () => {
       const validInput = {
-        showId: 456,
+        showTMDBId: 456,
       };
 
-      const result = addShowFavoriteSchema.safeParse(validInput);
+      const expectedOutput = {
+        showTMDBId: 456,
+      };
+
+      const result = addShowFavoriteBodySchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data).toEqual(validInput);
+        expect(result.data).toEqual(expectedOutput);
       }
     });
 
     it('should reject non-positive show ID', () => {
       const invalidInput = {
-        showId: 0,
+        showTMDBId: 0,
       };
 
-      const result = addShowFavoriteSchema.safeParse(invalidInput);
+      const result = addShowFavoriteBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Show ID must be a positive integer');
+        expect(result.error.issues[0].message).toContain('Show TMDB ID must be a positive integer');
       }
     });
 
     it('should reject non-integer show ID', () => {
       const invalidInput = {
-        showId: 456.7,
+        showTMDBId: 456.7,
       };
 
-      const result = addShowFavoriteSchema.safeParse(invalidInput);
+      const result = addShowFavoriteBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.showId?._errors).toContain('Expected integer, received float');
+        expect(formattedErrors.showTMDBId?._errors).toContain('Expected integer, received float');
       }
     });
 
     it('should reject missing show ID', () => {
-      const result = addShowFavoriteSchema.safeParse({});
+      const result = addShowFavoriteBodySchema.safeParse({});
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toContain('showId');
+        expect(result.error.issues[0].path).toContain('showTMDBId');
       }
     });
   });
@@ -56,10 +60,16 @@ describe('showSchema', () => {
         showId: '456',
       };
 
+      const expectedOutput = {
+        accountId: 1,
+        profileId: 123,
+        showId: 456,
+      };
+
       const result = showParamsSchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data).toEqual(validInput);
+        expect(result.data).toEqual(expectedOutput);
       }
     });
 
@@ -67,7 +77,7 @@ describe('showSchema', () => {
       const testCases = [
         { field: 'accountId', value: 'abc' },
         { field: 'profileId', value: 'xyz' },
-        { field: 'showId', value: 'notanumber' },
+        { field: 'showId', value: 'notANumber' },
       ];
 
       testCases.forEach(({ field, value }) => {
@@ -124,7 +134,7 @@ describe('showSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = showWatchStatusSchema.safeParse(validInput);
+      const result = showWatchStatusBodySchema.safeParse(validInput);
       expect(result.success).toBe(true);
     });
 
@@ -137,19 +147,19 @@ describe('showSchema', () => {
           status,
         };
 
-        const result = showWatchStatusSchema.safeParse(input);
+        const result = showWatchStatusBodySchema.safeParse(input);
         expect(result.success).toBe(true);
       });
     });
 
     it('should handle optional recursive flag', () => {
-      let result = showWatchStatusSchema.safeParse({
+      let result = showWatchStatusBodySchema.safeParse({
         showId: 456,
         status: 'WATCHED',
       });
       expect(result.success).toBe(true);
 
-      result = showWatchStatusSchema.safeParse({
+      result = showWatchStatusBodySchema.safeParse({
         showId: 456,
         status: 'WATCHED',
         recursive: true,
@@ -166,7 +176,7 @@ describe('showSchema', () => {
         status: 'FINISHED',
       };
 
-      const result = showWatchStatusSchema.safeParse(invalidInput);
+      const result = showWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -182,7 +192,7 @@ describe('showSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = showWatchStatusSchema.safeParse(invalidInput);
+      const result = showWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -196,7 +206,7 @@ describe('showSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = showWatchStatusSchema.safeParse(invalidInput);
+      const result = showWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -211,7 +221,7 @@ describe('showSchema', () => {
         recursive: 'true',
       };
 
-      const result = showWatchStatusSchema.safeParse(invalidInput);
+      const result = showWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toContain('recursive');
@@ -219,12 +229,12 @@ describe('showSchema', () => {
     });
 
     it('should reject missing required fields', () => {
-      let result = showWatchStatusSchema.safeParse({
+      let result = showWatchStatusBodySchema.safeParse({
         status: 'WATCHED',
       });
       expect(result.success).toBe(false);
 
-      result = showWatchStatusSchema.safeParse({
+      result = showWatchStatusBodySchema.safeParse({
         showId: 456,
       });
       expect(result.success).toBe(false);

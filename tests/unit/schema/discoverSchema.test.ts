@@ -98,7 +98,7 @@ describe('discoverSchema', () => {
         expect(formattedErrors.showType?._errors).toContain(
           'Show type must be either "movie" or "series", received "episode"',
         );
-        expect(formattedErrors.page?._errors).toContain('Page must be a positive number');
+        expect(formattedErrors.page?._errors).toContain('Expected number, received nan');
       }
     });
   });

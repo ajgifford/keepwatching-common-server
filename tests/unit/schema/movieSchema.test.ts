@@ -1,54 +1,57 @@
 import {
-  addMovieFavoriteSchema,
-  movieWatchStatusSchema,
-  removeMovieFavoriteParamSchema
+  addMovieFavoriteBodySchema,
+  movieWatchStatusBodySchema,
+  removeMovieFavoriteParamSchema,
 } from '@schema/movieSchema';
 
 describe('movieSchema', () => {
   describe('addMovieFavoriteSchema', () => {
     it('should validate valid movie favorite object', () => {
       const validInput = {
-        movieId: 123,
+        movieTMDBId: 123,
+      };
+      const expectedOutput = {
+        movieTMDBId: 123,
       };
 
-      const result = addMovieFavoriteSchema.safeParse(validInput);
+      const result = addMovieFavoriteBodySchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data).toEqual(validInput);
+        expect(result.data).toEqual(expectedOutput);
       }
     });
 
-    it('should reject non-positive movie ID', () => {
+    it('should reject non-positive movie TMDB ID', () => {
       const invalidInput = {
-        movieId: 0,
+        movieTMDBId: 0,
       };
 
-      const result = addMovieFavoriteSchema.safeParse(invalidInput);
+      const result = addMovieFavoriteBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Movie ID must be a positive integer');
+        expect(result.error.issues[0].message).toContain('Movie TMDB ID must be a positive integer');
       }
     });
 
-    it('should reject non-integer movie ID', () => {
+    it('should reject non-integer movie TMDB ID', () => {
       const invalidInput = {
-        movieId: 123.45,
+        movieTMDBId: 123.45,
       };
 
-      const result = addMovieFavoriteSchema.safeParse(invalidInput);
+      const result = addMovieFavoriteBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].message).toContain('Expected integer, received float');
       }
     });
 
-    it('should reject missing movie ID', () => {
+    it('should reject missing movie TMDB ID', () => {
       const invalidInput = {};
 
-      const result = addMovieFavoriteSchema.safeParse(invalidInput);
+      const result = addMovieFavoriteBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toContain('movieId');
+        expect(result.error.issues[0].path).toContain('movieTMDBId');
       }
     });
   });
@@ -61,10 +64,16 @@ describe('movieSchema', () => {
         movieId: '789',
       };
 
+      const expectedOutput = {
+        accountId: 1,
+        profileId: 42,
+        movieId: 789,
+      };
+
       const result = removeMovieFavoriteParamSchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data).toEqual(validInput);
+        expect(result.data).toEqual(expectedOutput);
       }
     });
 
@@ -117,7 +126,7 @@ describe('movieSchema', () => {
         { profileId: '42', movieId: '789' },
       ];
 
-      testCases.forEach(invalidInput => {
+      testCases.forEach((invalidInput) => {
         const result = removeMovieFavoriteParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
@@ -131,23 +140,28 @@ describe('movieSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = movieWatchStatusSchema.safeParse(validInput);
+      const expectedOutput = {
+        movieId: 123,
+        status: 'WATCHED',
+      };
+
+      const result = movieWatchStatusBodySchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data).toEqual(validInput);
+        expect(result.data).toEqual(expectedOutput);
       }
     });
 
     it('should validate all valid status values', () => {
-      const statuses = ['WATCHED', 'WATCHING', 'NOT_WATCHED'];
+      const statuses = ['WATCHED', 'NOT_WATCHED'];
 
-      statuses.forEach(status => {
+      statuses.forEach((status) => {
         const input = {
           movieId: 123,
           status,
         };
 
-        const result = movieWatchStatusSchema.safeParse(input);
+        const result = movieWatchStatusBodySchema.safeParse(input);
         expect(result.success).toBe(true);
       });
     });
@@ -158,10 +172,10 @@ describe('movieSchema', () => {
         status: 'INVALID_STATUS',
       };
 
-      const result = movieWatchStatusSchema.safeParse(invalidInput);
+      const result = movieWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Status must be one of: WATCHED, WATCHING, or NOT_WATCHED');
+        expect(result.error.issues[0].message).toContain('Status must be either NOT_WATCHED or WATCHED');
       }
     });
 
@@ -171,7 +185,7 @@ describe('movieSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = movieWatchStatusSchema.safeParse(invalidInput);
+      const result = movieWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].message).toContain('Movie ID must be a positive integer');
@@ -184,7 +198,7 @@ describe('movieSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = movieWatchStatusSchema.safeParse(invalidInput);
+      const result = movieWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].message).toContain('Expected integer, received float');
@@ -192,14 +206,10 @@ describe('movieSchema', () => {
     });
 
     it('should reject missing fields', () => {
-      const testCases = [
-        { movieId: 123 },
-        { status: 'WATCHED' },
-        {},
-      ];
+      const testCases = [{ movieId: 123 }, { status: 'WATCHED' }, {}];
 
-      testCases.forEach(invalidInput => {
-        const result = movieWatchStatusSchema.safeParse(invalidInput);
+      testCases.forEach((invalidInput) => {
+        const result = movieWatchStatusBodySchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
     });

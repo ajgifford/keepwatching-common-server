@@ -1,75 +1,68 @@
+import { AdminMovie, BinaryWatchStatusType, MovieReference, ProfileMovie } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
-/**
- * Represents a movie associated with a user profile, including watch status
- * This interface is used when retrieving movies with their watch status for a specific profile
- */
-export interface ProfileMovie {
-  /** ID of the profile this movie is associated with */
+export interface MovieReferenceRow extends RowDataPacket {
+  id: number;
+  tmdb_id: number;
+  title: string;
+}
+
+export function transformMovieReferenceRow(movie: MovieReferenceRow): MovieReference {
+  return {
+    id: movie.id,
+    title: movie.title,
+    tmdbId: movie.tmdb_id,
+  };
+}
+
+export interface ProfileMovieReferenceRow extends RowDataPacket {
+  movie_id: number;
+  title: string;
+  tmdb_id: number;
+}
+
+export function transformProfileMovieReferenceRow(movie: ProfileMovieReferenceRow): MovieReference {
+  return {
+    id: movie.movie_id,
+    title: movie.title,
+    tmdbId: movie.tmdb_id,
+  };
+}
+
+export interface ProfileMovieRow extends RowDataPacket {
   profile_id: number;
-  /** ID of the movie in the database */
   movie_id: number;
-  /** TMDB API identifier for the movie */
   tmdb_id: number;
-  /** Title of the movie */
   title: string;
-  /** Synopsis/description of the movie */
   description: string;
-  /** Release date of the movie (YYYY-MM-DD format) */
   release_date: string;
-  /** Path to the movie's poster image */
-  poster_image: string;
-  /** Path to the movie's backdrop image */
-  backdrop_image: string;
-  /** Runtime of the movie in minutes */
   runtime: number;
-  /** User/critical rating of the movie (typically on a scale of 0-10) */
+  poster_image: string;
+  backdrop_image: string;
   user_rating: number;
-  /** MPAA rating or equivalent content rating (e.g., "PG", "PG-13", "R") */
   mpa_rating: string;
-  /** Watch status of the movie ('WATCHED', 'WATCHING', or 'NOT_WATCHED') */
-  watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED';
-  /** Array of genre names associated with the movie */
   genres: string;
-  /** Array of streaming service names where the movie is available */
   streaming_services: string;
+  watch_status: BinaryWatchStatusType;
 }
 
-/**
- * Represents a movie with recent release date from a profile's watchlist
- */
-export interface RecentMovie {
-  movie_id: number;
-  title: string;
-  release_date: string;
-  poster_image: string;
-  watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED';
-}
-
-/**
- * Represents a movie with upcoming release date from a profile's watchlist
- */
-export interface UpcomingMovie {
-  movie_id: number;
-  title: string;
-  release_date: string;
-  poster_image: string;
-  watch_status: 'WATCHED' | 'WATCHING' | 'NOT_WATCHED';
-}
-
-export interface Movie {
-  id?: number;
-  tmdb_id: number;
-  title: string;
-  description: string;
-  release_date: string;
-  runtime: number;
-  poster_image: string;
-  backdrop_image: string;
-  user_rating: number;
-  mpa_rating: string;
-  streaming_services?: number[];
-  genreIds?: number[];
+export function transformProfileMovie(movie: ProfileMovieRow): ProfileMovie {
+  return {
+    profileId: movie.profile_id,
+    id: movie.movie_id,
+    tmdbId: movie.tmdb_id,
+    title: movie.title,
+    description: movie.description,
+    releaseDate: movie.release_date,
+    runtime: movie.runtime,
+    posterImage: movie.poster_image,
+    backdropImage: movie.backdrop_image,
+    userRating: movie.user_rating,
+    mpaRating: movie.mpa_rating,
+    genres: movie.genres,
+    streamingServices: movie.streaming_services,
+    watchStatus: movie.watch_status,
+  };
 }
 
 export interface AdminMovieRow extends RowDataPacket {
@@ -89,18 +82,20 @@ export interface AdminMovieRow extends RowDataPacket {
   streaming_services: string;
 }
 
-export interface AdminMovie {
-  id: number;
-  tmdbId: number;
-  title: string;
-  description: string;
-  releaseDate: string;
-  runtime: number;
-  posterImage: string;
-  backdropImage: string;
-  userRating: number;
-  mpaRating: string;
-  streamingServices: string;
-  genres: string;
-  lastUpdated: string;
+export function transformAdminMovie(movie: AdminMovieRow): AdminMovie {
+  return {
+    id: movie.id,
+    tmdbId: movie.tmdb_id,
+    title: movie.title,
+    description: movie.description,
+    releaseDate: movie.release_date,
+    runtime: movie.runtime,
+    posterImage: movie.poster_image,
+    backdropImage: movie.backdrop_image,
+    userRating: movie.user_rating,
+    mpaRating: movie.mpa_rating,
+    streamingServices: movie.streaming_services,
+    genres: movie.genres,
+    lastUpdated: movie.updated_at.toISOString(),
+  };
 }

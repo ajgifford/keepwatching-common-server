@@ -4,6 +4,12 @@ import * as showsDb from '../db/showsDb';
 import { BadRequestError } from '../middleware/errorMiddleware';
 import { errorService } from './errorService';
 import { showService } from './showService';
+import {
+  KeepWatchingShow,
+  ProfileEpisode,
+  RecentUpcomingEpisode,
+  UpdateEpisodeRequest,
+} from '@ajgifford/keepwatching-types';
 
 /**
  * Service class for handling episode-related business logic
@@ -18,7 +24,12 @@ export class EpisodesService {
    * @returns Object containing next unwatched episodes after the update
    * @throws {BadRequestError} If no episode watch status was updated
    */
-  public async updateEpisodeWatchStatus(profileId: string, episodeId: number, status: string) {
+  public async updateEpisodeWatchStatus(
+    accountId: number,
+    profileId: number,
+    episodeId: number,
+    status: string,
+  ): Promise<KeepWatchingShow[]> {
     try {
       const success = await episodesDb.updateWatchStatus(profileId, episodeId, status);
       if (!success) {
@@ -26,13 +37,16 @@ export class EpisodesService {
       }
 
       // Invalidate cache for the profile to ensure fresh data
-      showService.invalidateProfileCache(profileId);
+      showService.invalidateProfileCache(accountId, profileId);
 
       // Get fresh data for next unwatched episodes
       const nextUnwatchedEpisodes = await showsDb.getNextUnwatchedEpisodesForProfile(profileId);
-      return { nextUnwatchedEpisodes };
+      return nextUnwatchedEpisodes;
     } catch (error) {
-      throw errorService.handleError(error, `updateEpisodeWatchStatus(${profileId}, ${episodeId}, ${status})`);
+      throw errorService.handleError(
+        error,
+        `updateEpisodeWatchStatus(${accountId}, ${profileId}, ${episodeId}, ${status})`,
+      );
     }
   }
 
@@ -48,12 +62,13 @@ export class EpisodesService {
    * @throws {BadRequestError} If no episode watch status was updated
    */
   public async updateNextEpisodeWatchStatus(
-    profileId: string,
+    accountId: number,
+    profileId: number,
     showId: number,
     seasonId: number,
     episodeId: number,
     status: string,
-  ) {
+  ): Promise<KeepWatchingShow[]> {
     try {
       const success = await episodesDb.updateWatchStatus(profileId, episodeId, status);
       if (!success) {
@@ -65,11 +80,11 @@ export class EpisodesService {
       await showsDb.updateWatchStatusBySeason(profileId, showId);
 
       // Invalidate cache for the profile to ensure fresh data
-      showService.invalidateProfileCache(profileId);
+      showService.invalidateProfileCache(accountId, profileId);
 
       // Get fresh data for next unwatched episodes
       const nextUnwatchedEpisodes = await showsDb.getNextUnwatchedEpisodesForProfile(profileId);
-      return { nextUnwatchedEpisodes };
+      return nextUnwatchedEpisodes;
     } catch (error) {
       throw errorService.handleError(
         error,
@@ -85,7 +100,7 @@ export class EpisodesService {
    * @param seasonId - ID of the season to get episodes for
    * @returns Array of episodes for the season with watch status
    */
-  public async getEpisodesForSeason(profileId: string, seasonId: number) {
+  public async getEpisodesForSeason(profileId: number, seasonId: number): Promise<ProfileEpisode[]> {
     try {
       return await episodesDb.getEpisodesForSeason(profileId, seasonId);
     } catch (error) {
@@ -99,7 +114,7 @@ export class EpisodesService {
    * @param profileId - ID of the profile to get upcoming episodes for
    * @returns Array of upcoming episodes
    */
-  public async getUpcomingEpisodesForProfile(profileId: string) {
+  public async getUpcomingEpisodesForProfile(profileId: number): Promise<RecentUpcomingEpisode[]> {
     try {
       return await episodesDb.getUpcomingEpisodesForProfile(profileId);
     } catch (error) {
@@ -113,7 +128,7 @@ export class EpisodesService {
    * @param profileId - ID of the profile to get recent episodes for
    * @returns Array of recent episodes
    */
-  public async getRecentEpisodesForProfile(profileId: string) {
+  public async getRecentEpisodesForProfile(profileId: number): Promise<RecentUpcomingEpisode[]> {
     try {
       return await episodesDb.getRecentEpisodesForProfile(profileId);
     } catch (error) {
@@ -127,7 +142,7 @@ export class EpisodesService {
    * @param episodeData - Episode data to update or create
    * @returns The updated or created episode
    */
-  public async updateEpisode(episodeData: any) {
+  public async updateEpisode(episodeData: UpdateEpisodeRequest): Promise<number> {
     try {
       return await episodesDb.updateEpisode(episodeData);
     } catch (error) {
@@ -141,7 +156,7 @@ export class EpisodesService {
    * @param profileId - ID of the profile
    * @param episodeId - ID of the episode
    */
-  public async addEpisodeToFavorites(profileId: number, episodeId: number) {
+  public async addEpisodeToFavorites(profileId: number, episodeId: number): Promise<void> {
     try {
       await episodesDb.saveFavorite(profileId, episodeId);
     } catch (error) {

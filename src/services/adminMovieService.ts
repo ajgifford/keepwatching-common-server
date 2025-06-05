@@ -7,6 +7,7 @@ import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
+import { UpdateMovieRequest } from '@ajgifford/keepwatching-types';
 
 export class AdminMovieService {
   private cache: CacheService;
@@ -91,22 +92,22 @@ export class AdminMovieService {
       const tmdbService = getTMDBService();
       const movieDetails = await tmdbService.getMovieDetails(tmdbId);
 
-      const movie = moviesDb.createMovie(
-        movieDetails.id,
-        movieDetails.title,
-        movieDetails.overview,
-        movieDetails.release_date,
-        movieDetails.runtime,
-        movieDetails.poster_path,
-        movieDetails.backdrop_path,
-        movieDetails.vote_average,
-        getUSMPARating(movieDetails.release_dates),
-        movieId,
-        getUSWatchProviders(movieDetails, 9998),
-        movieDetails.genres.map((genre: { id: any }) => genre.id),
-      );
+      const updateMovieRequest: UpdateMovieRequest = {
+        id: movieId,
+        tmdb_id: movieDetails.id,
+        title: movieDetails.title,
+        description: movieDetails.overview,
+        release_date: movieDetails.release_date,
+        runtime: movieDetails.runtime,
+        poster_image: movieDetails.poster_path,
+        backdrop_image: movieDetails.backdrop_path,
+        user_rating: movieDetails.vote_average,
+        mpa_rating: getUSMPARating(movieDetails.release_dates),
+        streaming_service_ids: getUSWatchProviders(movieDetails, 9998),
+        genre_ids: movieDetails.genres.map((genre: { id: any }) => genre.id),
+      };
 
-      const updated = await moviesDb.updateMovie(movie);
+      const updated = await moviesDb.updateMovie(updateMovieRequest);
       return updated;
     } catch (error) {
       appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });

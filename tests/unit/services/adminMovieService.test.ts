@@ -322,8 +322,8 @@ describe('AdminMovieService', () => {
       backdrop_image: '/backdrop.jpg',
       user_rating: 8.5,
       mpa_rating: 'PG-13',
-      genreIds: [28, 12],
-      streaming_services: [8, 9],
+      genre_ids: [28, 12],
+      streaming_service_ids: [8, 9],
     };
 
     it('should update a movie successfully', async () => {
@@ -335,7 +335,6 @@ describe('AdminMovieService', () => {
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
 
-      (moviesDb.createMovie as jest.Mock).mockReturnValue(mockUpdatedMovie);
       (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
 
       const result = await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
@@ -343,20 +342,6 @@ describe('AdminMovieService', () => {
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(mockTMDBId);
       expect(getUSMPARating).toHaveBeenCalledWith(mockTMDBMovie.release_dates);
       expect(getUSWatchProviders).toHaveBeenCalledWith(mockTMDBMovie, 9998);
-      expect(moviesDb.createMovie).toHaveBeenCalledWith(
-        mockTMDBId,
-        'Updated Movie Title',
-        'New overview',
-        '2023-01-15',
-        120,
-        '/poster.jpg',
-        '/backdrop.jpg',
-        8.5,
-        'PG-13',
-        mockMovieId,
-        [8, 9],
-        [28, 12],
-      );
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
       expect(result).toBe(true);
     });
@@ -385,8 +370,6 @@ describe('AdminMovieService', () => {
 
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
-
-      (moviesDb.createMovie as jest.Mock).mockReturnValue(mockUpdatedMovie);
 
       const mockError = new Error('Database error');
       (moviesDb.updateMovie as jest.Mock).mockRejectedValue(mockError);

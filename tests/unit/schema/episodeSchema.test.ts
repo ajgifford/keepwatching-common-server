@@ -1,19 +1,19 @@
-import { episodeWatchStatusSchema, nextEpisodeWatchStatusSchema } from '@schema/episodeSchema';
+import { episodeWatchStatusBodySchema, nextEpisodeWatchStatusBodySchema } from '@schema/episodeSchema';
 
 describe('episodeSchema', () => {
-  describe('episodeWatchStatusSchema', () => {
+  describe('episodeWatchStatusBodySchema', () => {
     it('should validate valid episode watch status object', () => {
       const validInput = {
         episodeId: 123,
         status: 'WATCHED',
       };
 
-      const result = episodeWatchStatusSchema.safeParse(validInput);
+      const result = episodeWatchStatusBodySchema.safeParse(validInput);
       expect(result.success).toBe(true);
     });
 
     it('should validate all valid status values', () => {
-      const statuses = ['WATCHED', 'WATCHING', 'NOT_WATCHED'];
+      const statuses = ['WATCHED', 'NOT_WATCHED'];
 
       statuses.forEach((status) => {
         const input = {
@@ -21,7 +21,7 @@ describe('episodeSchema', () => {
           status,
         };
 
-        const result = episodeWatchStatusSchema.safeParse(input);
+        const result = episodeWatchStatusBodySchema.safeParse(input);
         expect(result.success).toBe(true);
       });
     });
@@ -32,11 +32,11 @@ describe('episodeSchema', () => {
         status: 'INVALID_STATUS',
       };
 
-      const result = episodeWatchStatusSchema.safeParse(invalidInput);
+      const result = episodeWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.status?._errors).toContain('Status must be one of: WATCHED, WATCHING, or NOT_WATCHED');
+        expect(formattedErrors.status?._errors).toContain('Status must be either NOT_WATCHED or WATCHED');
       }
     });
 
@@ -46,7 +46,7 @@ describe('episodeSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = episodeWatchStatusSchema.safeParse(invalidInput);
+      const result = episodeWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -60,7 +60,7 @@ describe('episodeSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = episodeWatchStatusSchema.safeParse(invalidInput);
+      const result = episodeWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -69,19 +69,19 @@ describe('episodeSchema', () => {
     });
 
     it('should reject missing fields', () => {
-      let result = episodeWatchStatusSchema.safeParse({
+      let result = episodeWatchStatusBodySchema.safeParse({
         status: 'WATCHED',
       });
       expect(result.success).toBe(false);
 
-      result = episodeWatchStatusSchema.safeParse({
+      result = episodeWatchStatusBodySchema.safeParse({
         episodeId: 123,
       });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('nextEpisodeWatchStatusSchema', () => {
+  describe('nextEpisodeWatchStatusBodySchema', () => {
     it('should validate valid next episode watch status object', () => {
       const validInput = {
         showId: 456,
@@ -90,12 +90,12 @@ describe('episodeSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = nextEpisodeWatchStatusSchema.safeParse(validInput);
+      const result = nextEpisodeWatchStatusBodySchema.safeParse(validInput);
       expect(result.success).toBe(true);
     });
 
     it('should validate all valid status values', () => {
-      const statuses = ['WATCHED', 'WATCHING', 'NOT_WATCHED'];
+      const statuses = ['WATCHED', 'NOT_WATCHED'];
 
       statuses.forEach((status) => {
         const input = {
@@ -105,24 +105,24 @@ describe('episodeSchema', () => {
           status,
         };
 
-        const result = nextEpisodeWatchStatusSchema.safeParse(input);
+        const result = nextEpisodeWatchStatusBodySchema.safeParse(input);
         expect(result.success).toBe(true);
       });
     });
 
     it('should reject invalid status values', () => {
       const invalidInput = {
-        showId: 456,
-        seasonId: 789,
-        episodeId: 123,
+        showId: '456',
+        seasonId: '789',
+        episodeId: '123',
         status: 'INVALID_STATUS',
       };
 
-      const result = nextEpisodeWatchStatusSchema.safeParse(invalidInput);
+      const result = nextEpisodeWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.status?._errors).toContain('Status must be one of: WATCHED, WATCHING, or NOT_WATCHED');
+        expect(formattedErrors.status?._errors).toContain('Status must be either NOT_WATCHED or WATCHED');
       }
     });
 
@@ -142,7 +142,7 @@ describe('episodeSchema', () => {
           [field]: value,
         };
 
-        const result = nextEpisodeWatchStatusSchema.safeParse(input);
+        const result = nextEpisodeWatchStatusBodySchema.safeParse(input);
         expect(result.success).toBe(false);
         if (!result.success) {
           const errorMessage = result.error.issues[0].message;
@@ -167,7 +167,7 @@ describe('episodeSchema', () => {
           [field]: value,
         };
 
-        const result = nextEpisodeWatchStatusSchema.safeParse(input);
+        const result = nextEpisodeWatchStatusBodySchema.safeParse(input);
         expect(result.success).toBe(false);
         if (!result.success) {
           const errorMessage = result.error.issues[0].message;
@@ -190,7 +190,7 @@ describe('episodeSchema', () => {
         const incompleteInput: Record<string, any> = { ...validInput };
         delete incompleteInput[field];
 
-        const result = nextEpisodeWatchStatusSchema.safeParse(incompleteInput);
+        const result = nextEpisodeWatchStatusBodySchema.safeParse(incompleteInput);
         expect(result.success).toBe(false);
       });
     });

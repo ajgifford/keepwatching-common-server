@@ -1,11 +1,18 @@
+import { createPositiveIntegerSchema } from './schemaUtil';
+import { fullWatchStatusSchema } from './watchStatusSchema';
 import { z } from 'zod';
 
-export const seasonWatchStatusSchema = z.object({
+export const seasonWatchStatusBodySchema = z.object({
   seasonId: z.number().int().positive('Season ID must be a positive integer'),
-  status: z.enum(['NOT_WATCHED', 'WATCHING', 'WATCHED', 'UP_TO_DATE'], {
-    errorMap: () => ({ message: 'Status must be one of: NOT_WATCHED, WATCHING, WATCHED, or UP_TO_DATE' }),
-  }),
+  status: fullWatchStatusSchema,
   recursive: z.boolean().default(false).optional(),
 });
 
-export type SeasonWatchStatusParams = z.infer<typeof seasonWatchStatusSchema>;
+export const profileSeasonIdsParamSchema = z.object({
+  accountId: createPositiveIntegerSchema('Account ID'),
+  profileId: createPositiveIntegerSchema('Profile ID'),
+  seasonId: createPositiveIntegerSchema('Season ID'),
+});
+
+export type SeasonWatchStatusBody = z.infer<typeof seasonWatchStatusBodySchema>;
+export type ProfileSeasonIdsParams = z.infer<typeof profileSeasonIdsParamSchema>;

@@ -7,6 +7,13 @@ import {
 } from '../middleware/errorMiddleware';
 import { AxiosError } from 'axios';
 
+type ErrorContextString = string;
+type ErrorContextObject = {
+  method: string;
+  params: Record<string, any>;
+};
+type ErrorContext = ErrorContextString | ErrorContextObject;
+
 interface TMDBErrorResponse {
   message?: string;
   status_message?: string;
@@ -22,24 +29,45 @@ export class ErrorService {
    * @param context Additional context information
    * @returns A consistent CustomError object
    */
-  public handleError(error: unknown, context: string): CustomError {
+  public handleError(error: unknown, context: ErrorContext): CustomError {
     if (error instanceof CustomError) {
       return error;
     }
 
+    const formattedContext = this.formatErrorContext(context);
+
     if (error instanceof AxiosError) {
-      return this.handleAxiosError(error, context);
+      return this.handleAxiosError(error, formattedContext);
     }
 
     if (error instanceof Error) {
       if (error.message.includes('database') || error.message.includes('sql') || error.message.includes('query')) {
-        return new DatabaseError(`Database error in ${context}: ${error.message}`, error);
+        return new DatabaseError(`Database error in ${formattedContext}: ${error.message}`, error);
       }
 
-      return new BadRequestError(`Error in ${context}: ${error.message}`);
+      return new BadRequestError(`Error in ${formattedContext}: ${error.message}`);
     }
 
-    return new BadRequestError(`Unknown error in ${context}`);
+    return new BadRequestError(`Unknown error in ${formattedContext}`);
+  }
+
+  private formatErrorContext(context: ErrorContext): string {
+    if (typeof context === 'string') {
+      return context;
+    }
+
+    // Format object context
+    const { method, params } = context;
+    const formattedParams = Object.entries(params)
+      .map(([key, value]) => {
+        if (value === null) return `${key}: null`;
+        if (value === undefined) return `${key}: undefined`;
+        if (typeof value === 'object') return `${key}: ${JSON.stringify(value)}`;
+        return `${key}: ${value}`;
+      })
+      .join(', ');
+
+    return `${method}(${formattedParams})`;
   }
 
   /**

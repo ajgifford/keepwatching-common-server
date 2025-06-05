@@ -1,3 +1,4 @@
+import { mockNextUnwatchedEpisodes } from './helpers/fixtures';
 import { createMockCache, setupMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { BadRequestError } from '@middleware/errorMiddleware';
@@ -8,6 +9,10 @@ import { ShowService, showService } from '@services/showService';
 describe('ShowService - Watch Status', () => {
   let service: ShowService;
   let mockCache: jest.Mocked<CacheService>;
+
+  const accountId = 1;
+  const profileId = 123;
+  const showId = 1;
 
   beforeEach(() => {
     setupMocks();
@@ -21,33 +26,33 @@ describe('ShowService - Watch Status', () => {
   describe('updateShowWatchStatus', () => {
     it('should update watch status successfully', async () => {
       (showsDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
+      mockCache.getOrSet.mockResolvedValue(mockNextUnwatchedEpisodes);
 
-      const result = await service.updateShowWatchStatus('123', 1, 'WATCHED');
+      const result = await service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED');
 
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('123', 1, 'WATCHED');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(profileId, showId, 'WATCHED');
       expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_show_details_1');
-      expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_shows');
-      expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_unwatched_episodes');
-      expect(result).toBe(true);
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
+      expect(result).toEqual(mockNextUnwatchedEpisodes);
     });
 
     it('should update all watch statuses recursively when requested', async () => {
       (showsDb.updateAllWatchStatuses as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.updateShowWatchStatus('123', 1, 'WATCHED', true);
+      const result = await service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED', true);
 
-      expect(showsDb.updateAllWatchStatuses).toHaveBeenCalledWith('123', 1, 'WATCHED');
+      expect(showsDb.updateAllWatchStatuses).toHaveBeenCalledWith(profileId, showId, 'WATCHED');
       expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_show_details_1');
-      expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_shows');
-      expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_unwatched_episodes');
-      expect(result).toBe(true);
+      expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
     });
 
     it('should throw BadRequestError when update fails', async () => {
       (showsDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
 
-      await expect(service.updateShowWatchStatus('123', 1, 'WATCHED')).rejects.toThrow(BadRequestError);
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('123', 1, 'WATCHED');
+      await expect(service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED')).rejects.toThrow(
+        BadRequestError,
+      );
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(profileId, showId, 'WATCHED');
     });
   });
 
@@ -55,19 +60,25 @@ describe('ShowService - Watch Status', () => {
     it('should update show status from WATCHED to WATCHING for profiles with new content', async () => {
       (showsDb.getWatchStatus as jest.Mock).mockResolvedValue('WATCHED');
 
-      await service.updateShowWatchStatusForNewContent(123, [1, 2]);
+      await service.updateShowWatchStatusForNewContent(showId, [
+        { accountId: 1, profileId: 123 },
+        { accountId: 1, profileId: 456 },
+      ]);
 
       expect(showsDb.getWatchStatus).toHaveBeenCalledTimes(2);
       expect(showsDb.updateWatchStatus).toHaveBeenCalledTimes(2);
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('1', 123, 'UP_TO_DATE');
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith('2', 123, 'UP_TO_DATE');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(123, showId, 'UP_TO_DATE');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(456, showId, 'UP_TO_DATE');
     });
 
     it('should not update show status if already set to something other than WATCHED', async () => {
       (showsDb.getWatchStatus as jest.Mock).mockResolvedValueOnce('WATCHING');
       (showsDb.getWatchStatus as jest.Mock).mockResolvedValueOnce('NOT_WATCHED');
 
-      await service.updateShowWatchStatusForNewContent(123, [1, 2]);
+      await service.updateShowWatchStatusForNewContent(showId, [
+        { accountId: 1, profileId: 123 },
+        { accountId: 1, profileId: 456 },
+      ]);
 
       expect(showsDb.getWatchStatus).toHaveBeenCalledTimes(2);
       expect(showsDb.updateWatchStatus).not.toHaveBeenCalled();
@@ -77,11 +88,14 @@ describe('ShowService - Watch Status', () => {
       const mockError = new Error('Get show watch status failed');
       (showsDb.getWatchStatus as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(service.updateShowWatchStatusForNewContent(123, [1])).rejects.toThrow(
-        'Get show watch status failed',
-      );
+      await expect(
+        service.updateShowWatchStatusForNewContent(showId, [{ accountId: 1, profileId: 123 }]),
+      ).rejects.toThrow('Get show watch status failed');
 
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'updateShowWatchStatusForNewContent(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        'updateShowWatchStatusForNewContent(1, profileAccountMappings...)',
+      );
     });
   });
 });

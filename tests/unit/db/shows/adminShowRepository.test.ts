@@ -1,9 +1,7 @@
 import * as adminShowRepository from '@db/shows/adminShowRepository';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
-import { RowDataPacket } from 'mysql2';
 
-// Mock the database connection
 jest.mock('@utils/db', () => ({
   getDbPool: jest.fn(),
 }));
@@ -137,7 +135,7 @@ describe('adminShowRepository', () => {
 
   describe('getShowsCount', () => {
     it('should return the total count of shows', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ total: 42 }] as RowDataPacket[], []]);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ total: 42 }]]);
 
       const count = await adminShowRepository.getShowsCount();
 
@@ -231,7 +229,8 @@ describe('adminShowRepository', () => {
     const mockShowId = 123;
     const mockSeasonsRows = [
       {
-        season_id: 1,
+        id: 1,
+        show_id: 20,
         tmdb_id: 100001,
         name: 'Season 1',
         overview: 'First season overview',
@@ -243,7 +242,8 @@ describe('adminShowRepository', () => {
         updated_at: new Date('2023-01-31T00:00:00Z'),
       },
       {
-        season_id: 2,
+        id: 2,
+        show_id: 20,
         tmdb_id: 100002,
         name: 'Season 2',
         overview: 'Second season overview',
@@ -257,7 +257,7 @@ describe('adminShowRepository', () => {
     ];
 
     it('should return all seasons for a show', async () => {
-      mockExecute.mockResolvedValue([mockSeasonsRows, []]);
+      mockExecute.mockResolvedValue([mockSeasonsRows]);
 
       const result = await adminShowRepository.getAdminShowSeasons(mockShowId);
 
@@ -265,13 +265,14 @@ describe('adminShowRepository', () => {
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
         id: 1,
+        showId: 20,
         tmdbId: 100001,
         name: 'Season 1',
         overview: 'First season overview',
         seasonNumber: 1,
         releaseDate: '2023-01-01',
         posterImage: '/season1.jpg',
-        episodeCount: 10,
+        numberOfEpisodes: 10,
         createdAt: mockSeasonsRows[0].created_at.toISOString(),
         updatedAt: mockSeasonsRows[0].updated_at.toISOString(),
       });
@@ -299,103 +300,101 @@ describe('adminShowRepository', () => {
     const mockShowId = 123;
     const mockSeasonsRows = [
       {
-        season_id: 1,
-        season_tmdb_id: 100001,
-        season_name: 'Season 1',
-        season_overview: 'First season overview',
+        id: 1,
+        show_id: 20,
+        tmdb_id: 100001,
+        name: 'Season 1',
+        overview: 'First season overview',
         season_number: 1,
-        season_release_date: '2023-01-01',
-        season_poster_image: '/season1.jpg',
+        release_date: '2023-01-01',
+        poster_image: '/season1.jpg',
         number_of_episodes: 10,
-        season_created_at: new Date('2023-01-01T00:00:00Z'),
-        season_updated_at: new Date('2023-01-31T00:00:00Z'),
+        created_at: new Date('2023-01-01T00:00:00Z'),
+        updated_at: new Date('2023-01-31T00:00:00Z'),
       },
       {
-        season_id: 2,
-        season_tmdb_id: 100002,
-        season_name: 'Season 2',
-        season_overview: 'Second season overview',
+        id: 2,
+        show_id: 20,
+        tmdb_id: 100002,
+        name: 'Season 2',
+        overview: 'Second season overview',
         season_number: 2,
-        season_release_date: '2023-06-01',
-        season_poster_image: '/season2.jpg',
+        release_date: '2023-06-01',
+        poster_image: '/season2.jpg',
         number_of_episodes: 12,
-        season_created_at: new Date('2023-06-01T00:00:00Z'),
-        season_updated_at: new Date('2023-06-30T00:00:00Z'),
+        created_at: new Date('2023-06-01T00:00:00Z'),
+        updated_at: new Date('2023-06-30T00:00:00Z'),
       },
     ];
 
     const mockEpisodesRows = [
       {
-        episode_id: 101,
-        episode_tmdb_id: 200001,
+        id: 101,
+        tmdb_id: 200001,
         season_id: 1,
         episode_number: 1,
         episode_type: 'standard',
         season_number: 1,
-        episode_title: 'Pilot',
-        episode_overview: 'First episode',
-        episode_air_date: '2023-01-01',
+        title: 'Pilot',
+        overview: 'First episode',
+        air_date: '2023-01-01',
         runtime: 45,
         still_image: '/ep1.jpg',
-        episode_created_at: new Date('2023-01-01T00:00:00Z'),
-        episode_updated_at: new Date('2023-01-01T00:00:00Z'),
+        created_at: new Date('2023-01-01T00:00:00Z'),
+        updated_at: new Date('2023-01-01T00:00:00Z'),
       },
       {
-        episode_id: 102,
-        episode_tmdb_id: 200002,
+        id: 102,
+        tmdb_id: 200002,
         season_id: 1,
         episode_number: 2,
         episode_type: 'standard',
         season_number: 1,
-        episode_title: 'Episode 2',
-        episode_overview: 'Second episode',
-        episode_air_date: '2023-01-08',
+        title: 'Episode 2',
+        overview: 'Second episode',
+        air_date: '2023-01-08',
         runtime: 42,
         still_image: '/ep2.jpg',
-        episode_created_at: new Date('2023-01-08T00:00:00Z'),
-        episode_updated_at: new Date('2023-01-08T00:00:00Z'),
+        created_at: new Date('2023-01-08T00:00:00Z'),
+        updated_at: new Date('2023-01-08T00:00:00Z'),
       },
       {
-        episode_id: 201,
-        episode_tmdb_id: 200003,
+        id: 201,
+        tmdb_id: 200003,
         season_id: 2,
         episode_number: 1,
         episode_type: 'standard',
         season_number: 2,
-        episode_title: 'Season 2 Premiere',
-        episode_overview: 'Season 2 starts',
-        episode_air_date: '2023-06-01',
+        title: 'Season 2 Premiere',
+        overview: 'Season 2 starts',
+        air_date: '2023-06-01',
         runtime: 48,
         still_image: '/s2ep1.jpg',
-        episode_created_at: new Date('2023-06-01T00:00:00Z'),
-        episode_updated_at: new Date('2023-06-01T00:00:00Z'),
+        created_at: new Date('2023-06-01T00:00:00Z'),
+        updated_at: new Date('2023-06-01T00:00:00Z'),
       },
     ];
 
     it('should return all seasons with their episodes', async () => {
-      // Mock the first query to return seasons
-      mockExecute.mockResolvedValueOnce([mockSeasonsRows, []]);
-
-      // Mock the second query to return episodes
-      mockExecute.mockResolvedValueOnce([mockEpisodesRows, []]);
+      mockExecute.mockResolvedValueOnce([mockSeasonsRows]);
+      mockExecute.mockResolvedValueOnce([mockEpisodesRows]);
 
       const result = await adminShowRepository.getAdminShowSeasonsWithEpisodes(mockShowId);
 
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(result).toHaveLength(2);
-
-      // Check the first season structure
       expect(result[0]).toEqual({
         id: 1,
+        showId: 20,
         tmdbId: 100001,
         name: 'Season 1',
         overview: 'First season overview',
         seasonNumber: 1,
         releaseDate: '2023-01-01',
         posterImage: '/season1.jpg',
-        episodeCount: 10,
-        createdAt: mockSeasonsRows[0].season_created_at.toISOString(),
-        updatedAt: mockSeasonsRows[0].season_updated_at.toISOString(),
+        numberOfEpisodes: 10,
+        createdAt: mockSeasonsRows[0].created_at.toISOString(),
+        updatedAt: mockSeasonsRows[0].updated_at.toISOString(),
         episodes: [
           {
             id: 101,
@@ -409,8 +408,8 @@ describe('adminShowRepository', () => {
             airDate: '2023-01-01',
             runtime: 45,
             stillImage: '/ep1.jpg',
-            createdAt: mockEpisodesRows[0].episode_created_at.toISOString(),
-            updatedAt: mockEpisodesRows[0].episode_updated_at.toISOString(),
+            createdAt: mockEpisodesRows[0].created_at.toISOString(),
+            updatedAt: mockEpisodesRows[0].updated_at.toISOString(),
           },
           {
             id: 102,
@@ -424,24 +423,23 @@ describe('adminShowRepository', () => {
             airDate: '2023-01-08',
             runtime: 42,
             stillImage: '/ep2.jpg',
-            createdAt: mockEpisodesRows[1].episode_created_at.toISOString(),
-            updatedAt: mockEpisodesRows[1].episode_updated_at.toISOString(),
+            createdAt: mockEpisodesRows[1].created_at.toISOString(),
+            updatedAt: mockEpisodesRows[1].updated_at.toISOString(),
           },
         ],
       });
-
-      // Check the second season structure
       expect(result[1]).toEqual({
         id: 2,
+        showId: 20,
         tmdbId: 100002,
         name: 'Season 2',
         overview: 'Second season overview',
         seasonNumber: 2,
         releaseDate: '2023-06-01',
         posterImage: '/season2.jpg',
-        episodeCount: 12,
-        createdAt: mockSeasonsRows[1].season_created_at.toISOString(),
-        updatedAt: mockSeasonsRows[1].season_updated_at.toISOString(),
+        numberOfEpisodes: 12,
+        createdAt: mockSeasonsRows[1].created_at.toISOString(),
+        updatedAt: mockSeasonsRows[1].updated_at.toISOString(),
         episodes: [
           {
             id: 201,
@@ -455,8 +453,8 @@ describe('adminShowRepository', () => {
             airDate: '2023-06-01',
             runtime: 48,
             stillImage: '/s2ep1.jpg',
-            createdAt: mockEpisodesRows[2].episode_created_at.toISOString(),
-            updatedAt: mockEpisodesRows[2].episode_updated_at.toISOString(),
+            createdAt: mockEpisodesRows[2].created_at.toISOString(),
+            updatedAt: mockEpisodesRows[2].updated_at.toISOString(),
           },
         ],
       });
@@ -513,7 +511,7 @@ describe('adminShowRepository', () => {
     const mockSeasonId = 1;
     const mockEpisodesRows = [
       {
-        episode_id: 101,
+        id: 101,
         tmdb_id: 200001,
         season_id: mockSeasonId,
         show_id: 123,
@@ -529,7 +527,7 @@ describe('adminShowRepository', () => {
         updated_at: new Date('2023-01-01T00:00:00Z'),
       },
       {
-        episode_id: 102,
+        id: 102,
         tmdb_id: 200002,
         season_id: mockSeasonId,
         show_id: 123,

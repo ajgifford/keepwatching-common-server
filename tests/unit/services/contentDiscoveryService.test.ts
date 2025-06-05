@@ -1,5 +1,6 @@
+import { MediaType } from '@ajgifford/keepwatching-types';
 import { CacheService } from '@services/cacheService';
-import { MediaType, contentDiscoveryService } from '@services/contentDiscoveryService';
+import { contentDiscoveryService } from '@services/contentDiscoveryService';
 import { errorService } from '@services/errorService';
 import { StreamingAvailabilityService } from '@services/streamingAvailabilityService';
 import { getTMDBService } from '@services/tmdbService';
@@ -126,7 +127,7 @@ describe('ContentDiscoveryService', () => {
         },
       ];
 
-      mockCacheService.getOrSet.mockImplementation(async (key, fn) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockStreamingAvailabilityClient.showsApi.getTopShows.mockResolvedValue(mockStreamingResponse);
 
       const result = await contentDiscoveryService.discoverTopContent('series', 'netflix');
@@ -149,9 +150,9 @@ describe('ContentDiscoveryService', () => {
             rating: 8.5,
           }),
         ]),
-        total_results: 1,
-        total_pages: 1,
-        current_page: 1,
+        totalResults: 1,
+        totalPages: 1,
+        currentPage: 1,
       });
     });
   });
@@ -193,7 +194,7 @@ describe('ContentDiscoveryService', () => {
         },
       };
 
-      mockCacheService.getOrSet.mockImplementation(async (key, fn) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockStreamingAvailabilityClient.changesApi.getChanges.mockResolvedValue(mockChangesResponse);
 
       const result = await contentDiscoveryService.discoverChangesContent('series', 'netflix', 'new');
@@ -220,16 +221,16 @@ describe('ContentDiscoveryService', () => {
             rating: 7.5,
           }),
         ]),
-        total_results: 1,
-        total_pages: 1,
-        current_page: 1,
+        totalResults: 1,
+        totalPages: 1,
+        currentPage: 1,
       });
     });
 
     it('should handle empty shows data in changes response', async () => {
       const mockChangesResponse = { shows: {} };
 
-      mockCacheService.getOrSet.mockImplementation(async (key, fn) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockStreamingAvailabilityClient.changesApi.getChanges.mockResolvedValue(mockChangesResponse);
 
       const result = await contentDiscoveryService.discoverChangesContent('series', 'netflix', 'new');
@@ -237,9 +238,9 @@ describe('ContentDiscoveryService', () => {
       expect(result).toEqual({
         message: 'Found new series for netflix',
         results: [],
-        total_results: 0,
-        total_pages: 1,
-        current_page: 1,
+        totalResults: 0,
+        totalPages: 1,
+        currentPage: 1,
       });
     });
   });
@@ -251,12 +252,12 @@ describe('ContentDiscoveryService', () => {
         results: [{ id: '789', title: 'Trending Movie' }],
         total_results: 20,
         total_pages: 2,
-        current_page: '1',
+        current_page: 1,
       };
 
       mockCacheService.getOrSet.mockResolvedValue(mockTrendingContent);
 
-      const result = await contentDiscoveryService.discoverTrendingContent('movie', '1');
+      const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('discover_trending_movie_1', expect.any(Function));
       expect(result).toEqual(mockTrendingContent);
@@ -282,10 +283,10 @@ describe('ContentDiscoveryService', () => {
         total_pages: 2,
       };
 
-      mockCacheService.getOrSet.mockImplementation(async (key, fn) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.discoverTrendingContent('movie', '1');
+      const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
 
       expect(mockTMDBService.getTrending).toHaveBeenCalledWith('movie', '1');
 
@@ -302,9 +303,9 @@ describe('ContentDiscoveryService', () => {
             popularity: 1500,
           }),
         ]),
-        total_results: 20,
-        total_pages: 2,
-        current_page: '1',
+        totalResults: 20,
+        totalPages: 2,
+        currentPage: 1,
       });
     });
 
@@ -338,10 +339,10 @@ describe('ContentDiscoveryService', () => {
         total_pages: 2,
       };
 
-      mockCacheService.getOrSet.mockImplementation(async (key, fn) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.discoverTrendingContent('series', '1');
+      const result = await contentDiscoveryService.discoverTrendingContent('series', 1);
 
       expect(mockTMDBService.getTrending).toHaveBeenCalledWith('tv', '1');
 
@@ -357,12 +358,12 @@ describe('ContentDiscoveryService', () => {
         results: [{ id: 123, title: 'Search Result' }],
         total_pages: 2,
         total_results: 20,
-        current_page: '1',
+        current_page: 1,
       };
 
       mockCacheService.getOrSet.mockResolvedValue(mockSearchResults);
 
-      const result = await contentDiscoveryService.searchMedia(MediaType.SHOW, 'test query', '2023', '1');
+      const result = await contentDiscoveryService.searchMedia(MediaType.SHOW, 'test query', '2023', 1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('tv_search_test query_2023_1', expect.any(Function));
       expect(result).toEqual(mockSearchResults);
@@ -387,14 +388,15 @@ describe('ContentDiscoveryService', () => {
         total_pages: 2,
       };
 
-      mockCacheService.getOrSet.mockImplementation(async (key, fn) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.searchShows.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.searchMedia(MediaType.SHOW, 'test query', '2023', '1');
+      const result = await contentDiscoveryService.searchMedia(MediaType.SHOW, 'test query', '2023', 1);
 
       expect(mockTMDBService.searchShows).toHaveBeenCalledWith('test query', 1, '2023');
 
       expect(result).toEqual({
+        message: `Search results for 'test query' of type: tv`,
         results: expect.arrayContaining([
           expect.objectContaining({
             id: 123,
@@ -406,9 +408,9 @@ describe('ContentDiscoveryService', () => {
             popularity: 1500,
           }),
         ]),
-        total_pages: 2,
-        total_results: 20,
-        current_page: '1',
+        totalPages: 2,
+        totalResults: 20,
+        currentPage: 1,
       });
     });
 
@@ -430,14 +432,15 @@ describe('ContentDiscoveryService', () => {
         total_pages: 2,
       };
 
-      mockCacheService.getOrSet.mockImplementation(async (key, fn) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.searchMovies.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.searchMedia(MediaType.MOVIE, 'test query', undefined, '1');
+      const result = await contentDiscoveryService.searchMedia(MediaType.MOVIE, 'test query', undefined, 1);
 
       expect(mockTMDBService.searchMovies).toHaveBeenCalledWith('test query', 1, undefined);
 
       expect(result).toEqual({
+        message: `Search results for 'test query' of type: movie`,
         results: expect.arrayContaining([
           expect.objectContaining({
             id: 456,
@@ -449,9 +452,9 @@ describe('ContentDiscoveryService', () => {
             popularity: 1200,
           }),
         ]),
-        total_pages: 2,
-        total_results: 15,
-        current_page: '1',
+        totalPages: 2,
+        totalResults: 15,
+        currentPage: 1,
       });
     });
   });

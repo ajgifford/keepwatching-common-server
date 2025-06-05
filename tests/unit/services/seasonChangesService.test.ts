@@ -1,4 +1,4 @@
-import { ChangeItem, ContentUpdates } from '../../../src/types';
+import { ChangeItem, ContentUpdates } from '../../../src/types/contentTypes';
 import { cliLogger } from '@logger/logger';
 import { checkSeasonForEpisodeChanges } from '@services/episodeChangesService';
 import { episodesService } from '@services/episodesService';
@@ -73,7 +73,10 @@ describe('processSeasonChanges', () => {
     created_at: '',
     updated_at: '',
   };
-  const mockProfileIds = [101, 202];
+  const mockProfileAccountMappings = [
+    { accountId: 1, profileId: 101 },
+    { accountId: 1, profileId: 202 },
+  ];
   const mockDates = { pastDate: '2024-01-01', currentDate: '2024-06-01' };
 
   const mockTmdbService = {
@@ -87,7 +90,7 @@ describe('processSeasonChanges', () => {
     (sleep as jest.Mock).mockResolvedValue(undefined);
     (getTMDBService as jest.Mock).mockReturnValue(mockTmdbService);
 
-    const mockUpdatedSeason = { id: 500, show_id: 100, tmdb_id: 123 };
+    const mockUpdatedSeason = 500;
     (seasonsService.updateSeason as jest.Mock).mockResolvedValue(mockUpdatedSeason);
     (seasonsService.addSeasonToFavorites as jest.Mock).mockResolvedValue(undefined);
 
@@ -133,7 +136,7 @@ describe('processSeasonChanges', () => {
       mockChanges,
       mockResponseShow,
       mockContent,
-      mockProfileIds,
+      mockProfileAccountMappings,
       mockDates.pastDate,
       mockDates.currentDate,
     );
@@ -167,7 +170,7 @@ describe('processSeasonChanges', () => {
       mockChanges,
       mockResponseShow,
       mockContent,
-      mockProfileIds,
+      mockProfileAccountMappings,
       mockDates.pastDate,
       mockDates.currentDate,
     );
@@ -183,14 +186,14 @@ describe('processSeasonChanges', () => {
       if (seasonData.tmdb_id === 123) {
         throw new Error('Test error');
       }
-      return { id: 501, show_id: 100, tmdb_id: 456 };
+      return 501;
     });
 
     await processSeasonChanges(
       mockChanges,
       mockResponseShow,
       mockContent,
-      mockProfileIds,
+      mockProfileAccountMappings,
       mockDates.pastDate,
       mockDates.currentDate,
     );
@@ -211,7 +214,7 @@ describe('processSeasonChanges', () => {
       mockChanges,
       mockResponseShow,
       mockContent,
-      mockProfileIds,
+      mockProfileAccountMappings,
       mockDates.pastDate,
       mockDates.currentDate,
     );

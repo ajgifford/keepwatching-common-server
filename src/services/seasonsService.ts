@@ -1,9 +1,9 @@
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { BadRequestError } from '../middleware/errorMiddleware';
-import { WatchStatus } from '../types/watchStatusTypes';
 import { errorService } from './errorService';
 import { showService } from './showService';
+import { ProfileSeason, UpdateSeasonRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 
 /**
  * Service class for handling season-related business logic
@@ -16,15 +16,15 @@ export class SeasonsService {
    * @param seasonId - ID of the season to update
    * @param status - New watch status ('NOT_WATCHED', 'WATCHING', 'WATCHED', or 'UP_TO_DATE')
    * @param recursive - Whether to update all episodes as well
-   * @returns Success state of the update operation
    * @throws {BadRequestError} If no season watch status was updated
    */
   public async updateSeasonWatchStatus(
-    profileId: string,
+    accountId: number,
+    profileId: number,
     seasonId: number,
     status: string,
     recursive: boolean = false,
-  ) {
+  ): Promise<void> {
     try {
       // Validate status is a valid watch status
       if (!Object.values(WatchStatus).includes(status as WatchStatus)) {
@@ -42,11 +42,8 @@ export class SeasonsService {
       const showId = await seasonsDb.getShowIdForSeason(seasonId);
       if (showId) {
         await showsDb.updateWatchStatusBySeason(profileId, showId);
-
-        showService.invalidateProfileCache(profileId);
+        showService.invalidateProfileCache(accountId, profileId);
       }
-
-      return success;
     } catch (error) {
       throw errorService.handleError(
         error,
@@ -62,11 +59,45 @@ export class SeasonsService {
    * @param showId - ID of the show to get seasons for
    * @returns Array of seasons with watch status and their episodes
    */
-  public async getSeasonsForShow(profileId: string, showId: string) {
+  public async getSeasonsForShow(profileId: number, showId: number): Promise<ProfileSeason[]> {
     try {
       return await seasonsDb.getSeasonsForShow(profileId, showId);
     } catch (error) {
       throw errorService.handleError(error, `getSeasonsForShow(${profileId}, ${showId})`);
+    }
+  }
+
+  /**
+   * Sets the appropriate watch status for a newly added season
+   *
+   * @param profileId ID of the profile
+   * @param seasonId ID of the season in the database
+   * @param seasonAirDate Air date of the season (null if unknown)
+   * @param hasEpisodes Whether the season currently has any episodes
+   */
+  public async setNewSeasonWatchStatus(
+    profileId: number,
+    seasonId: number,
+    seasonAirDate: string | null,
+    hasEpisodes: boolean,
+  ): Promise<void> {
+    try {
+      let initialStatus: WatchStatus;
+
+      if (!hasEpisodes) {
+        // No episodes exist yet - this is a future season announcement
+        initialStatus = WatchStatus.UP_TO_DATE;
+      } else if (seasonAirDate && new Date(seasonAirDate) > new Date()) {
+        // Season has episodes but hasn't aired yet
+        initialStatus = WatchStatus.UP_TO_DATE;
+      } else {
+        // Season has aired episodes - user needs to watch them
+        initialStatus = WatchStatus.NOT_WATCHED;
+      }
+
+      await seasonsDb.updateWatchStatus(profileId, seasonId, initialStatus);
+    } catch (error) {
+      throw errorService.handleError(error, `setNewSeasonWatchStatus(${profileId}, ${seasonId})`);
     }
   }
 
@@ -78,7 +109,7 @@ export class SeasonsService {
    * @param profileId ID of the profile
    * @param seasonId ID of the season in the database
    */
-  public async updateSeasonWatchStatusForNewEpisodes(profileId: string, seasonId: number): Promise<void> {
+  public async updateSeasonWatchStatusForNewEpisodes(profileId: number, seasonId: number): Promise<void> {
     try {
       const seasonWatchStatus = await seasonsDb.getWatchStatus(profileId, seasonId);
 
@@ -104,7 +135,7 @@ export class SeasonsService {
    * @param seasonData - Season data to update or create
    * @returns The updated or created season
    */
-  public async updateSeason(seasonData: any) {
+  public async updateSeason(seasonData: UpdateSeasonRequest): Promise<number> {
     try {
       return await seasonsDb.updateSeason(seasonData);
     } catch (error) {
@@ -118,7 +149,7 @@ export class SeasonsService {
    * @param profileId - ID of the profile
    * @param seasonId - ID of the season
    */
-  public async addSeasonToFavorites(profileId: number, seasonId: number) {
+  public async addSeasonToFavorites(profileId: number, seasonId: number): Promise<void> {
     try {
       await seasonsDb.saveFavorite(profileId, seasonId);
     } catch (error) {

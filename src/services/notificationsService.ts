@@ -1,6 +1,12 @@
 import * as notificationsDb from '../db/notificationsDb';
-import { AccountNotification, AdminNotification } from '../types/notificationTypes';
+import { NoAffectedRowsError } from '../middleware/errorMiddleware';
 import { errorService } from './errorService';
+import {
+  AccountNotification,
+  AdminNotification,
+  CreateNotificationRequest,
+  UpdateNotificationRequest,
+} from '@ajgifford/keepwatching-types';
 
 export class NotificationsService {
   public async getNotifications(accountId: number): Promise<AccountNotification[]> {
@@ -11,9 +17,13 @@ export class NotificationsService {
     }
   }
 
-  public async dismissNotification(notificationId: number, accountId: number) {
+  public async dismissNotification(notificationId: number, accountId: number): Promise<AccountNotification[]> {
     try {
-      return await notificationsDb.dismissNotification(notificationId, accountId);
+      const dismissed = await notificationsDb.dismissNotification(notificationId, accountId);
+      if (!dismissed) {
+        throw new NoAffectedRowsError('No notification was dismissed');
+      }
+      return await notificationsDb.getNotificationsForAccount(accountId);
     } catch (error) {
       throw errorService.handleError(error, `dismissNotification(${notificationId}, ${accountId})`);
     }
@@ -27,42 +37,19 @@ export class NotificationsService {
     }
   }
 
-  public async addNotification(
-    message: string,
-    startDate: string,
-    endDate: string,
-    sendToAll: boolean,
-    accountId: number | null,
-  ): Promise<void> {
+  public async addNotification(createNotificationRequest: CreateNotificationRequest): Promise<void> {
     try {
-      await notificationsDb.addNotification(
-        notificationsDb.createAdminNotification(message, startDate, endDate, sendToAll, accountId),
-      );
+      await notificationsDb.addNotification(createNotificationRequest);
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `addNotification(${message},${startDate},${endDate},${sendToAll},${accountId})`,
-      );
+      throw errorService.handleError(error, `addNotification(${JSON.stringify(createNotificationRequest)})`);
     }
   }
 
-  public async updateNotification(
-    message: string,
-    startDate: string,
-    endDate: string,
-    sendToAll: boolean,
-    accountId: number | null,
-    notificationId: number,
-  ): Promise<AdminNotification> {
+  public async updateNotification(updateNotificationRequest: UpdateNotificationRequest) {
     try {
-      return await notificationsDb.updateNotification(
-        notificationsDb.createAdminNotification(message, startDate, endDate, sendToAll, accountId, notificationId),
-      );
+      await notificationsDb.updateNotification(updateNotificationRequest);
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `updateNotification(${message},${startDate},${endDate},${sendToAll},${accountId},${notificationId})`,
-      );
+      throw errorService.handleError(error, `updateNotification(${JSON.stringify(updateNotificationRequest)})`);
     }
   }
 

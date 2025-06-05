@@ -61,7 +61,7 @@ describe('MoviesService', () => {
       const mockMovies = [{ movie_id: 1, title: 'Test Movie' }];
       mockCacheService.getOrSet.mockResolvedValue(mockMovies);
 
-      const result = await moviesService.getMoviesForProfile('123');
+      const result = await moviesService.getMoviesForProfile(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_movies', expect.any(Function), 600);
       expect(result).toEqual(mockMovies);
@@ -72,10 +72,10 @@ describe('MoviesService', () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
       (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue(mockMovies);
 
-      const result = await moviesService.getMoviesForProfile('123');
+      const result = await moviesService.getMoviesForProfile(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalled();
-      expect(moviesDb.getAllMoviesForProfile).toHaveBeenCalledWith('123');
+      expect(moviesDb.getAllMoviesForProfile).toHaveBeenCalledWith(123);
       expect(result).toEqual(mockMovies);
     });
 
@@ -87,7 +87,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.getMoviesForProfile('123')).rejects.toThrow('Database error');
+      await expect(moviesService.getMoviesForProfile(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getMoviesForProfile(123)');
     });
   });
@@ -99,10 +99,10 @@ describe('MoviesService', () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
       (moviesDb.getRecentMovieReleasesForProfile as jest.Mock).mockResolvedValue(mockRecentMovies);
 
-      const result = await moviesService.getRecentMoviesForProfile('123');
+      const result = await moviesService.getRecentMoviesForProfile(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_recent_movies', expect.any(Function), 300);
-      expect(moviesDb.getRecentMovieReleasesForProfile).toHaveBeenCalledWith('123');
+      expect(moviesDb.getRecentMovieReleasesForProfile).toHaveBeenCalledWith(123);
       expect(result).toEqual(mockRecentMovies);
     });
 
@@ -114,7 +114,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.getRecentMoviesForProfile('123')).rejects.toThrow('Database error');
+      await expect(moviesService.getRecentMoviesForProfile(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getRecentMoviesForProfile(123)');
     });
   });
@@ -126,10 +126,10 @@ describe('MoviesService', () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
       (moviesDb.getUpcomingMovieReleasesForProfile as jest.Mock).mockResolvedValue(mockUpcomingMovies);
 
-      const result = await moviesService.getUpcomingMoviesForProfile('123');
+      const result = await moviesService.getUpcomingMoviesForProfile(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_upcoming_movies', expect.any(Function), 300);
-      expect(moviesDb.getUpcomingMovieReleasesForProfile).toHaveBeenCalledWith('123');
+      expect(moviesDb.getUpcomingMovieReleasesForProfile).toHaveBeenCalledWith(123);
       expect(result).toEqual(mockUpcomingMovies);
     });
 
@@ -141,7 +141,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.getUpcomingMoviesForProfile('123')).rejects.toThrow('Database error');
+      await expect(moviesService.getUpcomingMoviesForProfile(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getUpcomingMoviesForProfile(123)');
     });
   });
@@ -165,15 +165,14 @@ describe('MoviesService', () => {
       (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(mockMovie);
       (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
 
-      const result = await moviesService.addMovieToFavorites('123', 12345);
+      const result = await moviesService.addMovieToFavorites(123, 12345);
 
       expect(moviesDb.findMovieByTMDBId).toHaveBeenCalledWith(12345);
-      expect(moviesDb.saveFavorite).toHaveBeenCalledWith('123', 5);
-      expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledWith('123');
+      expect(moviesDb.saveFavorite).toHaveBeenCalledWith(123, 5);
+      expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledWith(123);
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
-        recentMovies: mockRecentMovies,
-        upcomingMovies: mockUpcomingMovies,
+        recentUpcomingMovies: { recentMovies: mockRecentMovies, upcomingMovies: mockUpcomingMovies },
       });
     });
 
@@ -191,11 +190,29 @@ describe('MoviesService', () => {
         genres: [{ id: 28 }, { id: 12 }],
       };
 
-      const mockMovieForProfile = { movie_id: 5, title: 'New Movie' };
+      const mockMovieForProfile = { id: 5, title: 'New Movie' };
       const mockRecentMovies = [{ movie_id: 1 }];
       const mockUpcomingMovies = [{ movie_id: 2 }];
 
-      const mockMovie = {
+      const mockTMDBService = { getMovieDetails: jest.fn().mockResolvedValue(mockTMDBResponse) };
+      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(null);
+      (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
+      (moviesDb.saveMovie as jest.Mock).mockImplementation((movie) => {
+        return 5;
+      });
+      (moviesDb.saveFavorite as jest.Mock).mockReturnValue(true);
+      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
+      (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+      mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
+      mockCacheService.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
+
+      const result = await moviesService.addMovieToFavorites(123, 12345);
+
+      expect(moviesDb.findMovieByTMDBId).toHaveBeenCalledWith(12345);
+      expect(getTMDBService).toHaveBeenCalled();
+      expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(12345);
+      expect(moviesDb.saveMovie).toHaveBeenCalledWith({
         tmdb_id: 12345,
         title: 'New Movie',
         description: 'Description',
@@ -205,55 +222,18 @@ describe('MoviesService', () => {
         backdrop_image: '/backdrop.jpg',
         user_rating: 8.5,
         mpa_rating: 'PG-13',
-        streaming_services: [8, 9],
-        genreIds: [28, 12],
-      };
-      const newMovie = { ...mockMovie, id: 999 };
-
-      const mockTMDBService = { getMovieDetails: jest.fn().mockResolvedValue(mockTMDBResponse) };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
-      (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(null);
-      (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
-      (moviesDb.createMovie as jest.Mock).mockResolvedValue(newMovie);
-      (moviesDb.saveMovie as jest.Mock).mockImplementation((movie) => {
-        movie.id = 999; // Modify the passed movie object to add the ID
-        return true;
+        genre_ids: [28, 12],
+        streaming_service_ids: [8, 9],
       });
-      (moviesDb.saveFavorite as jest.Mock).mockReturnValue(true);
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
-      mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
-      mockCacheService.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
-
-      const result = await moviesService.addMovieToFavorites('123', 12345);
-
-      expect(moviesDb.findMovieByTMDBId).toHaveBeenCalledWith(12345);
-      expect(getTMDBService).toHaveBeenCalled();
-      expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(12345);
-      expect(moviesDb.createMovie).toHaveBeenCalledWith(
-        12345,
-        'New Movie',
-        'Description',
-        '2023-01-01',
-        120,
-        '/poster.jpg',
-        '/backdrop.jpg',
-        8.5,
-        'PG-13',
-        undefined,
-        [8, 9],
-        [28, 12],
-      );
       expect(moviesDb.saveMovie).toHaveBeenCalled();
-      expect(moviesDb.saveFavorite).toHaveBeenCalledWith('123', 999);
+      expect(moviesDb.saveFavorite).toHaveBeenCalledWith(123, 5);
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
-        recentMovies: mockRecentMovies,
-        upcomingMovies: mockUpcomingMovies,
+        recentUpcomingMovies: { recentMovies: mockRecentMovies, upcomingMovies: mockUpcomingMovies },
       });
     });
 
-    it('should throw error when movie save fails', async () => {
+    it('should throw error when save favorite for movie fails', async () => {
       const mockTMDBResponse = {
         id: 12345,
         title: 'New Movie',
@@ -270,14 +250,16 @@ describe('MoviesService', () => {
       const mockTMDBService = { getMovieDetails: jest.fn().mockResolvedValue(mockTMDBResponse) };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
       (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(null);
-      (moviesDb.saveMovie as jest.Mock).mockReturnValue(false);
+      (moviesDb.saveFavorite as jest.Mock).mockReturnValue(false);
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
       (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 
-      await expect(moviesService.addMovieToFavorites('123', 12345)).rejects.toThrow('Failed to save movie information');
+      await expect(moviesService.addMovieToFavorites(123, 12345)).rejects.toThrow(
+        'Failed to save a movie as a favorite',
+      );
       expect(moviesDb.saveMovie).toHaveBeenCalled();
     });
 
@@ -290,7 +272,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.addMovieToFavorites('123', 12345)).rejects.toThrow('TMDB API error');
+      await expect(moviesService.addMovieToFavorites(123, 12345)).rejects.toThrow('TMDB API error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'addMovieToFavorites(123, 12345)');
     });
   });
@@ -309,20 +291,19 @@ describe('MoviesService', () => {
       mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
 
-      const result = await moviesService.removeMovieFromFavorites('123', 5);
+      const result = await moviesService.removeMovieFromFavorites(123, 5);
 
       expect(moviesDb.findMovieById).toHaveBeenCalledWith(5);
-      expect(moviesDb.removeFavorite).toHaveBeenCalledWith('123', 5);
-      expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledWith('123');
+      expect(moviesDb.removeFavorite).toHaveBeenCalledWith(123, 5);
+      expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledWith(123);
       expect(result).toEqual({
         removedMovie: mockMovie,
-        recentMovies: mockRecentMovies,
-        upcomingMovies: mockUpcomingMovies,
+        recentUpcomingMovies: { recentMovies: mockRecentMovies, upcomingMovies: mockUpcomingMovies },
       });
     });
 
     it('should throw NotFoundError when movie does not exist', async () => {
-      const profileId = '123';
+      const profileId = 123;
       const movieId = 999;
       const notFoundError = new NotFoundError(`Movie with ID ${movieId} not found`);
 
@@ -355,7 +336,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.removeMovieFromFavorites('123', 5)).rejects.toThrow('Database error');
+      await expect(moviesService.removeMovieFromFavorites(123, 5)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'removeMovieFromFavorites(123, 5)');
     });
   });
@@ -364,9 +345,9 @@ describe('MoviesService', () => {
     it('should update movie watch status successfully', async () => {
       (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
 
-      const result = await moviesService.updateMovieWatchStatus('123', 5, 'WATCHED');
+      const result = await moviesService.updateMovieWatchStatus(123, 5, 'WATCHED');
 
-      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith('123', 5, 'WATCHED');
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, 'WATCHED');
       expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledTimes(1);
       expect(result).toBe(true);
     });
@@ -377,10 +358,10 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.updateMovieWatchStatus('123', 5, 'WATCHED')).rejects.toThrow(
+      await expect(moviesService.updateMovieWatchStatus(123, 5, 'WATCHED')).rejects.toThrow(
         'Failed to update watch status. Ensure the movie (ID: 5) exists in your favorites.',
       );
-      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith('123', 5, 'WATCHED');
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, 'WATCHED');
     });
 
     it('should handle database errors', async () => {
@@ -390,7 +371,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.updateMovieWatchStatus('123', 5, 'WATCHED')).rejects.toThrow('Database error');
+      await expect(moviesService.updateMovieWatchStatus(123, 5, 'WATCHED')).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'updateMovieWatchStatus(123, 5, WATCHED)');
     });
   });
@@ -438,7 +419,6 @@ describe('MoviesService', () => {
 
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getMovieDetails).not.toHaveBeenCalled();
-      expect(moviesDb.createMovie).not.toHaveBeenCalled();
     });
 
     it('should do nothing when only unsupported changes are detected', async () => {
@@ -465,7 +445,6 @@ describe('MoviesService', () => {
 
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getMovieDetails).not.toHaveBeenCalled();
-      expect(moviesDb.createMovie).not.toHaveBeenCalled();
     });
 
     it('should update movie when supported changes are detected', async () => {
@@ -492,22 +471,20 @@ describe('MoviesService', () => {
 
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(456);
-      expect(moviesDb.createMovie).toHaveBeenCalledWith(
-        456,
-        'Updated Movie Title',
-        'New overview',
-        '2023-02-01',
-        120,
-        '/new-poster.jpg',
-        '/new-backdrop.jpg',
-        8.5,
-        'PG-13',
-        123,
-        [8, 9],
-        [28, 12],
-      );
-
-      expect(moviesDb.updateMovie).toHaveBeenCalled();
+      expect(moviesDb.updateMovie).toHaveBeenCalledWith({
+        tmdb_id: 456,
+        title: 'Updated Movie Title',
+        description: 'New overview',
+        release_date: '2023-02-01',
+        runtime: 120,
+        poster_image: '/new-poster.jpg',
+        backdrop_image: '/new-backdrop.jpg',
+        user_rating: 8.5,
+        mpa_rating: 'PG-13',
+        id: 123,
+        streaming_service_ids: [8, 9],
+        genre_ids: [28, 12],
+      });
     });
 
     it('should handle errors from getMovieChanges API', async () => {
@@ -598,7 +575,6 @@ describe('MoviesService', () => {
 
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(456);
-      expect(moviesDb.createMovie).toHaveBeenCalledTimes(1);
       expect(moviesDb.updateMovie).toHaveBeenCalled();
     });
 
@@ -609,7 +585,6 @@ describe('MoviesService', () => {
 
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(mockTMDBService.getMovieDetails).not.toHaveBeenCalled();
-      expect(moviesDb.createMovie).not.toHaveBeenCalled();
     });
 
     it('should handle errors from moviesDb.updateMovie()', async () => {
@@ -661,7 +636,7 @@ describe('MoviesService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockStats);
 
-      const result = await moviesService.getProfileMovieStatistics('123');
+      const result = await moviesService.getProfileMovieStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_movie_stats', expect.any(Function), 1800);
       expect(result).toEqual(mockStats);
@@ -670,25 +645,28 @@ describe('MoviesService', () => {
     it('should calculate statistics from movies when not in cache', async () => {
       const mockMovies = [
         {
-          watch_status: 'WATCHED',
+          id: 1,
+          watchStatus: 'WATCHED',
           genres: 'Action, Adventure',
-          streaming_services: 'Netflix, Disney+',
+          streamingServices: 'Netflix, Disney+',
         },
         {
-          watch_status: 'NOT_WATCHED',
+          id: 2,
+          watchStatus: 'NOT_WATCHED',
           genres: 'Comedy',
-          streaming_services: 'Prime',
+          streamingServices: 'Prime',
         },
       ];
 
-      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
       (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue(mockMovies);
 
-      const result = await moviesService.getProfileMovieStatistics('123');
+      const result = await moviesService.getProfileMovieStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalled();
-      expect(moviesDb.getAllMoviesForProfile).toHaveBeenCalledWith('123');
+      expect(moviesDb.getAllMoviesForProfile).toHaveBeenCalledWith(123);
       expect(result).toEqual({
+        movieReferences: [{ id: 1 }, { id: 2 }],
         total: 2,
         watchStatusCounts: { watched: 1, notWatched: 1 },
         genreDistribution: { Action: 1, Adventure: 1, Comedy: 1 },
@@ -701,9 +679,10 @@ describe('MoviesService', () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
       (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue([]);
 
-      const result = await moviesService.getProfileMovieStatistics('123');
+      const result = await moviesService.getProfileMovieStatistics(123);
 
       expect(result).toEqual({
+        movieReferences: [],
         total: 0,
         watchStatusCounts: { watched: 0, notWatched: 0 },
         genreDistribution: {},
@@ -720,7 +699,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.getProfileMovieStatistics('123')).rejects.toThrow('Database error');
+      await expect(moviesService.getProfileMovieStatistics(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getProfileMovieStatistics(123)');
     });
   });
@@ -738,8 +717,8 @@ describe('MoviesService', () => {
 
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
       expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledTimes(2);
-      expect(mockCacheService.invalidateProfileMovies).toHaveBeenNthCalledWith(1, '1');
-      expect(mockCacheService.invalidateProfileMovies).toHaveBeenNthCalledWith(2, '2');
+      expect(mockCacheService.invalidateProfileMovies).toHaveBeenNthCalledWith(1, 1);
+      expect(mockCacheService.invalidateProfileMovies).toHaveBeenNthCalledWith(2, 2);
       expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(123);
     });
 

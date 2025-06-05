@@ -59,6 +59,7 @@ describe('AdminShowService', () => {
       getOrSet: jest.fn(),
       invalidate: jest.fn(),
       invalidatePattern: jest.fn(),
+      invalidateProfileShows: jest.fn(),
     };
 
     jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
@@ -99,6 +100,146 @@ describe('AdminShowService', () => {
     // Set up Socket service mock with default implementation
     (socketService.notifyShowsUpdate as jest.Mock).mockImplementation(() => {});
     (socketService.notifyShowDataLoaded as jest.Mock).mockImplementation(() => {});
+  });
+
+  describe('getAllShows', () => {
+    let mockCacheService: jest.Mocked<any>;
+
+    const mockShows = [
+      { id: 1, title: 'Show 1', releaseDate: '2023-01-01', genres: 'Action, Drama', tmdbId: 1001 },
+      { id: 2, title: 'Show 2', releaseDate: '2023-02-01', genres: 'Comedy, Romance', tmdbId: 1002 },
+    ];
+
+    const mockPaginationResult = {
+      shows: mockShows,
+      pagination: {
+        totalCount: 10,
+        totalPages: 5,
+        currentPage: 1,
+        limit: 2,
+        hasNextPage: true,
+        hasPrevPage: false,
+      },
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      mockCacheService = {
+        getOrSet: jest.fn(),
+        invalidate: jest.fn(),
+      };
+
+      jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
+
+      Object.defineProperty(adminShowService, 'cache', {
+        value: mockCacheService,
+        writable: true,
+      });
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw error;
+      });
+
+      // Set up default mocks
+      (showsDb.getAllShows as jest.Mock).mockResolvedValue(mockShows);
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(10);
+    });
+
+    it('should return shows with pagination from cache when available', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockPaginationResult);
+
+      const result = await adminShowService.getAllShows(1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith('allShows_1_0_2', expect.any(Function));
+      expect(result).toEqual(mockPaginationResult);
+      expect(showsDb.getAllShows).not.toHaveBeenCalled();
+      expect(showsDb.getShowsCount).not.toHaveBeenCalled();
+    });
+
+    it('should fetch shows with pagination from database when not in cache', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+
+      const result = await adminShowService.getAllShows(1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(showsDb.getShowsCount).toHaveBeenCalled();
+      expect(showsDb.getAllShows).toHaveBeenCalledWith(2, 0);
+
+      expect(result).toEqual({
+        shows: mockShows,
+        pagination: {
+          totalCount: 10,
+          totalPages: 5,
+          currentPage: 1,
+          limit: 2,
+          hasNextPage: true,
+          hasPrevPage: false,
+        },
+      });
+    });
+
+    it('should calculate pagination correctly', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(21);
+
+      const result = await adminShowService.getAllShows(2, 5, 5);
+
+      expect(result.pagination).toEqual({
+        totalCount: 21,
+        totalPages: 5, // 21 / 5 = 4.2, ceil = 5
+        currentPage: 2,
+        limit: 5,
+        hasNextPage: true, // currentPage 2 < totalPages 5
+        hasPrevPage: true, // currentPage 2 > 1
+      });
+    });
+
+    it('should handle pagination for the last page correctly', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(20);
+
+      const result = await adminShowService.getAllShows(4, 15, 5);
+
+      expect(result.pagination).toEqual({
+        totalCount: 20,
+        totalPages: 4, // 20 / 5 = 4
+        currentPage: 4,
+        limit: 5,
+        hasNextPage: false, // currentPage 4 = totalPages 4
+        hasPrevPage: true, // currentPage 4 > 1
+      });
+    });
+
+    it('should handle edge case with zero shows', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(0);
+      (showsDb.getAllShows as jest.Mock).mockResolvedValue([]);
+
+      const result = await adminShowService.getAllShows(1, 0, 10);
+
+      expect(result).toEqual({
+        shows: [],
+        pagination: {
+          totalCount: 0,
+          totalPages: 0,
+          currentPage: 1,
+          limit: 10,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
+    });
+
+    it('should handle different pagination parameters', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(100);
+
+      await adminShowService.getAllShows(3, 40, 20);
+
+      expect(showsDb.getAllShows).toHaveBeenCalledWith(20, 40);
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith('allShows_3_40_20', expect.any(Function));
+    });
   });
 
   describe('getShowDetails', () => {
@@ -426,13 +567,15 @@ describe('AdminShowService', () => {
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('Netflix');
       (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([9999]);
 
-      (showsDb.createShow as jest.Mock).mockReturnValue({
-        id: showId,
-        tmdb_id: tmdbId,
-        title: 'Test Show',
-      });
       (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
-      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue([1, 2]);
+      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
+        showId: '1',
+        profileAccountMappings: [
+          { accountId: 1, profileId: 1 },
+          { accountId: 1, profileId: 2 },
+        ],
+        totalCount: 2,
+      });
 
       const mockSeason = {
         id: 201,
@@ -440,7 +583,7 @@ describe('AdminShowService', () => {
         name: 'Season 2',
         show_id: showId,
       };
-      (seasonsDb.createSeason as jest.Mock).mockReturnValue(mockSeason);
+
       (seasonsDb.updateSeason as jest.Mock).mockResolvedValue(mockSeason);
       (seasonsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 
@@ -450,7 +593,7 @@ describe('AdminShowService', () => {
         show_id: showId,
         season_id: 201,
       };
-      (episodesDb.createEpisode as jest.Mock).mockReturnValue(mockEpisode);
+
       (episodesDb.updateEpisode as jest.Mock).mockResolvedValue(mockEpisode);
       (episodesDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 
@@ -464,7 +607,6 @@ describe('AdminShowService', () => {
       expect(contentUtility.getUSNetwork).toHaveBeenCalledWith(mockTMDBShow.networks);
       expect(watchProvidersUtility.getUSWatchProviders).toHaveBeenCalledWith(mockTMDBShow, 9999);
 
-      expect(showsDb.createShow).toHaveBeenCalled();
       expect(showsDb.updateShow).toHaveBeenCalled();
       expect(showsDb.getProfilesForShow).toHaveBeenCalledWith(showId);
 
@@ -494,13 +636,16 @@ describe('AdminShowService', () => {
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('Netflix');
       (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([9999]);
 
-      (showsDb.createShow as jest.Mock).mockReturnValue({
-        id: showId,
-        tmdb_id: tmdbId,
-        title: 'Test Show',
-      });
       (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
-      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue([1]);
+      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
+        showId: '1',
+        profileAccountMappings: [
+          { accountId: 1, profileId: 1 },
+          { accountId: 1, profileId: 2 },
+          { accountId: 2, profileId: 3 },
+        ],
+        totalCount: 1,
+      });
 
       const mockSeason = {
         id: 201,
@@ -508,7 +653,7 @@ describe('AdminShowService', () => {
         name: 'Season 2',
         show_id: showId,
       };
-      (seasonsDb.createSeason as jest.Mock).mockReturnValue(mockSeason);
+
       (seasonsDb.updateSeason as jest.Mock).mockResolvedValue(mockSeason);
 
       const mockEpisode = {
@@ -517,7 +662,7 @@ describe('AdminShowService', () => {
         show_id: showId,
         season_id: 201,
       };
-      (episodesDb.createEpisode as jest.Mock).mockReturnValue(mockEpisode);
+
       (episodesDb.updateEpisode as jest.Mock).mockResolvedValue(mockEpisode);
 
       await adminShowService.updateShowById(showId, tmdbId, 'all');
@@ -556,13 +701,12 @@ describe('AdminShowService', () => {
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('Netflix');
       (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([9999]);
 
-      (showsDb.createShow as jest.Mock).mockReturnValue({
-        id: showId,
-        tmdb_id: tmdbId,
-        title: 'Test Show',
-      });
       (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
-      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue([1]);
+      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
+        showId: '1',
+        profileAccountMappings: [{ accountId: 1, profileId: 1 }],
+        totalCount: 1,
+      });
 
       const mockError = new Error('Season update error');
       (seasonsDb.updateSeason as jest.Mock).mockRejectedValue(mockError);

@@ -1,22 +1,20 @@
 import { NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
-import { AccountNotification, AdminNotification } from '../types/notificationTypes';
+import {
+  AccountRow,
+  NotificationRow,
+  transformAccountNotificationRow,
+  transformAdminNotificationRow,
+} from '../types/notificationTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
-
-interface NotificationRow extends RowDataPacket {
-  notification_id: number;
-  message: string;
-  start_date: Date;
-  end_date: Date;
-  send_to_all: number;
-  account_id: number | null;
-}
-
-interface AccountRow extends RowDataPacket {
-  account_id: number;
-}
+import {
+  AccountNotification,
+  AdminNotification,
+  CreateNotificationRequest,
+  UpdateNotificationRequest,
+} from '@ajgifford/keepwatching-types';
+import { ResultSetHeader } from 'mysql2';
 
 /**
  * Retrieves all active notifications for a specific account
@@ -45,16 +43,9 @@ interface AccountRow extends RowDataPacket {
 export async function getNotificationsForAccount(accountId: number): Promise<AccountNotification[]> {
   try {
     const query = `SELECT n.notification_id, n.message, n.start_date, n.end_date FROM notifications n JOIN account_notifications an ON n.notification_id = an.notification_id WHERE an.account_id = ? AND an.dismissed = 0 AND NOW() BETWEEN n.start_date AND n.end_date;`;
-    const [rows] = await getDbPool().execute<RowDataPacket[]>(query, [accountId]);
+    const [notifications] = await getDbPool().execute<NotificationRow[]>(query, [accountId]);
 
-    return rows.map((row) => {
-      return {
-        notification_id: row.notification_id,
-        message: row.message,
-        start_date: row.start_date,
-        end_date: row.end_date,
-      };
-    });
+    return notifications.map(transformAccountNotificationRow);
   } catch (error) {
     handleDatabaseError(error, 'getting notifications for an account');
   }
@@ -85,7 +76,7 @@ export async function getNotificationsForAccount(accountId: number): Promise<Acc
  *   console.error('Error dismissing notification:', error);
  * }
  */
-export async function dismissNotification(notificationId: number, accountId: number) {
+export async function dismissNotification(notificationId: number, accountId: number): Promise<boolean> {
   try {
     const query = `UPDATE account_notifications SET dismissed = 1 WHERE notification_id = ? AND account_id = ?;`;
     const [result] = await getDbPool().execute<ResultSetHeader>(query, [notificationId, accountId]);
@@ -97,22 +88,22 @@ export async function dismissNotification(notificationId: number, accountId: num
   }
 }
 
-export async function addNotification(notification: AdminNotification) {
+export async function addNotification(notificationRequest: CreateNotificationRequest): Promise<void> {
   const transactionHelper = new TransactionHelper();
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
       const notificationQuery =
         'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)';
       const [result] = await connection.execute<ResultSetHeader>(notificationQuery, [
-        notification.message,
-        notification.start_date,
-        notification.end_date,
-        notification.send_to_all,
-        notification.account_id,
+        notificationRequest.message,
+        notificationRequest.startDate,
+        notificationRequest.endDate,
+        notificationRequest.sendToAll,
+        notificationRequest.accountId,
       ]);
       const notificationId = result.insertId;
 
-      if (notification.send_to_all) {
+      if (notificationRequest.sendToAll) {
         const [accounts] = await connection.query<AccountRow[]>('SELECT account_id FROM accounts');
 
         if (accounts.length === 0) {
@@ -127,7 +118,7 @@ export async function addNotification(notification: AdminNotification) {
       } else {
         await connection.execute(
           'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES (?,?,?)',
-          [notificationId, notification.account_id, false],
+          [notificationId, notificationRequest.accountId, false],
         );
       }
     });
@@ -136,25 +127,23 @@ export async function addNotification(notification: AdminNotification) {
   }
 }
 
-export async function updateNotification(notification: AdminNotification) {
+export async function updateNotification(notificationRequest: UpdateNotificationRequest): Promise<void> {
   try {
     const [result] = await getDbPool().execute<ResultSetHeader>(
       'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
       [
-        notification.message,
-        notification.start_date,
-        notification.end_date,
-        notification.send_to_all,
-        notification.account_id,
-        notification.notification_id,
+        notificationRequest.message,
+        notificationRequest.startDate,
+        notificationRequest.endDate,
+        notificationRequest.sendToAll,
+        notificationRequest.accountId,
+        notificationRequest.id,
       ],
     );
 
     if (result.affectedRows === 0) {
-      throw new NoAffectedRowsError(`No notification found with ID ${notification.notification_id}`);
+      throw new NoAffectedRowsError(`No notification found with ID ${notificationRequest.id}`);
     }
-
-    return notification;
   } catch (error) {
     handleDatabaseError(error, 'updating a notification');
   }
@@ -167,7 +156,7 @@ export async function getAllNotifications(expired: boolean): Promise<AdminNotifi
       : 'SELECT * FROM notifications WHERE NOW() BETWEEN start_date AND end_date';
 
     const [notifications] = await getDbPool().execute<NotificationRow[]>(query);
-    return notifications.map(transformRow);
+    return notifications.map(transformAdminNotificationRow);
   } catch (error) {
     handleDatabaseError(error, 'getting all notifications');
   }
@@ -185,30 +174,4 @@ export async function deleteNotification(notification_id: number): Promise<void>
   } catch (error) {
     handleDatabaseError(error, 'deleting a notification');
   }
-}
-
-export function createAdminNotification(
-  message: string,
-  start_date: string,
-  end_date: string,
-  send_to_all: boolean,
-  account_id: number | null,
-  notification_id?: number,
-): AdminNotification {
-  return { message, start_date, end_date, send_to_all, account_id, notification_id };
-}
-
-function transformRow(row: RowDataPacket): AdminNotification {
-  if (!row) {
-    throw new Error('Cannot transform undefined or null row');
-  }
-
-  return {
-    message: row.message,
-    start_date: row.start_date,
-    end_date: row.end_date,
-    send_to_all: Boolean(row.send_to_all),
-    account_id: row.account_id,
-    notification_id: row.notification_id,
-  };
 }

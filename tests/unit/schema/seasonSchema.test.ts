@@ -1,4 +1,4 @@
-import { seasonWatchStatusSchema } from '@schema/seasonSchema';
+import { seasonWatchStatusBodySchema } from '@schema/seasonSchema';
 
 describe('seasonSchema', () => {
   describe('seasonWatchStatusSchema', () => {
@@ -8,7 +8,7 @@ describe('seasonSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = seasonWatchStatusSchema.safeParse(validInput);
+      const result = seasonWatchStatusBodySchema.safeParse(validInput);
       expect(result.success).toBe(true);
     });
 
@@ -21,19 +21,19 @@ describe('seasonSchema', () => {
           status,
         };
 
-        const result = seasonWatchStatusSchema.safeParse(input);
+        const result = seasonWatchStatusBodySchema.safeParse(input);
         expect(result.success).toBe(true);
       });
     });
 
     it('should handle optional recursive flag', () => {
-      let result = seasonWatchStatusSchema.safeParse({
+      let result = seasonWatchStatusBodySchema.safeParse({
         seasonId: 789,
         status: 'WATCHED',
       });
       expect(result.success).toBe(true);
 
-      result = seasonWatchStatusSchema.safeParse({
+      result = seasonWatchStatusBodySchema.safeParse({
         seasonId: 789,
         status: 'WATCHED',
         recursive: true,
@@ -50,7 +50,7 @@ describe('seasonSchema', () => {
         status: 'COMPLETED',
       };
 
-      const result = seasonWatchStatusSchema.safeParse(invalidInput);
+      const result = seasonWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -66,7 +66,7 @@ describe('seasonSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = seasonWatchStatusSchema.safeParse(invalidInput);
+      const result = seasonWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -80,7 +80,7 @@ describe('seasonSchema', () => {
         status: 'WATCHED',
       };
 
-      const result = seasonWatchStatusSchema.safeParse(invalidInput);
+      const result = seasonWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].message).toContain('Expected integer, received float');
@@ -94,7 +94,7 @@ describe('seasonSchema', () => {
         recursive: 'yes',
       };
 
-      const result = seasonWatchStatusSchema.safeParse(invalidInput);
+      const result = seasonWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toContain('recursive');
@@ -102,12 +102,12 @@ describe('seasonSchema', () => {
     });
 
     it('should reject missing required fields', () => {
-      let result = seasonWatchStatusSchema.safeParse({
+      let result = seasonWatchStatusBodySchema.safeParse({
         status: 'WATCHED',
       });
       expect(result.success).toBe(false);
 
-      result = seasonWatchStatusSchema.safeParse({
+      result = seasonWatchStatusBodySchema.safeParse({
         seasonId: 789,
       });
       expect(result.success).toBe(false);

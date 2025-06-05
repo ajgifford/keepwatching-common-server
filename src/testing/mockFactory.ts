@@ -29,7 +29,7 @@ export interface MockAccountService {
 
 export interface MockProfileService {
   getProfilesByAccountId: jest.Mock;
-  getProfile: jest.Mock;
+  getProfileWithContent: jest.Mock;
   findProfileById: jest.Mock;
   createProfile: jest.Mock;
   updateProfileName: jest.Mock;

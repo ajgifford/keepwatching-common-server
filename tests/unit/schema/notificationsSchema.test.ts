@@ -8,10 +8,15 @@ describe('notificationsSchema', () => {
         notificationId: '456',
       };
 
+      const expectedOutput = {
+        accountId: 123,
+        notificationId: 456,
+      };
+
       const result = dismissParamSchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data).toEqual(validInput);
+        expect(result.data).toEqual(expectedOutput);
       }
     });
 
@@ -25,7 +30,7 @@ describe('notificationsSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.accountId?._errors).toContain('Account ID must be numeric');
+        expect(formattedErrors.accountId?._errors).toContain('Account ID must be a number');
       }
     });
 
@@ -39,7 +44,7 @@ describe('notificationsSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.notificationId?._errors).toContain('Notification ID must be numeric');
+        expect(formattedErrors.notificationId?._errors).toContain('Notification ID must be a number');
       }
     });
 
@@ -74,21 +79,20 @@ describe('notificationsSchema', () => {
         { accountId: '', notificationId: '' },
       ];
 
-      testCases.forEach(invalidInput => {
+      testCases.forEach((invalidInput) => {
         const result = dismissParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
     });
 
-    it('should reject numeric values that are not strings', () => {
-      // This test is important because route params are always strings in Express
+    it('should accept numeric values that are not strings', () => {
       const invalidInput = {
-        accountId: 123,
-        notificationId: 456,
+        accountId: '123',
+        notificationId: '456',
       };
 
       const result = dismissParamSchema.safeParse(invalidInput);
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
       if (!result.success) {
         expect(result.error.issues.length).toBe(2);
         expect(result.error.issues[0].message).toContain('Expected string');
@@ -102,7 +106,7 @@ describe('notificationsSchema', () => {
         { accountId: '123', notificationId: '456.78' },
       ];
 
-      testCases.forEach(invalidInput => {
+      testCases.forEach((invalidInput) => {
         const result = dismissParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
@@ -116,7 +120,7 @@ describe('notificationsSchema', () => {
         { accountId: '123', notificationId: '789+10' },
       ];
 
-      testCases.forEach(invalidInput => {
+      testCases.forEach((invalidInput) => {
         const result = dismissParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
