@@ -35,3 +35,5 @@ export {
   getAdminShowProfiles,
   getAdminShowWatchProgress,
 } from './shows/adminShowRepository';
+
+export { getTrendingShows, getNewlyAddedShows, getTopRatedShows } from './shows/digestShowRepository';

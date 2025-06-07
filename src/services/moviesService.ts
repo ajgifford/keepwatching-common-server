@@ -268,6 +268,39 @@ export class MoviesService {
   }
 
   /**
+   * Get trending movies for discovery emails
+   */
+  public async getTrendingMovies(limit: number = 10): Promise<MovieReference[]> {
+    try {
+      return await moviesDb.getTrendingMovies(limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getTrendingMovies(${limit})`);
+    }
+  }
+
+  /**
+   * Get recently released movies
+   */
+  public async getRecentlyReleasedMovies(limit: number = 10): Promise<MovieReference[]> {
+    try {
+      return await moviesDb.getRecentlyReleasedMovies(limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getRecentlyReleasedMovies(${limit})`);
+    }
+  }
+
+  /**
+   * Get top rated movies
+   */
+  public async getTopRatedMovies(limit: number = 10): Promise<MovieReference[]> {
+    try {
+      return await moviesDb.getTopRatedMovies(limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getTopRatedMovies(${limit})`);
+    }
+  }
+
+  /**
    * Check for changes to a specific movie and updates if necessary
    * @param content Movie to check for changes
    * @param pastDate Date past date used as the start of the change window

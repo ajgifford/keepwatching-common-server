@@ -12,6 +12,7 @@ A comprehensive TypeScript library providing shared services, utilities, and mid
 - **Logging**: Winston-based structured logging with rotation
 - **Real-time Updates**: Socket.IO service for live notifications
 - **Background Jobs**: Cron-based scheduled content updates
+- **Email Notifications**: Weekly digest emails with upcoming shows and movies
 - **Testing Utilities**: Mock factories and test helpers
 
 ## 📦 Installation
@@ -28,6 +29,7 @@ yarn add @ajgifford/keepwatching-common-server
 - TypeScript 5+
 - MySQL 8+
 - Yarn package manager
+- SMTP email service (Gmail, Outlook, etc.)
 
 ### Environment Configuration
 
@@ -42,6 +44,33 @@ Key environment variables:
 - `TMDB_TOKEN`: The Movie Database API token
 - `STREAMING_API_KEY`: Streaming Availability API key
 - `SERVICE_ACCOUNT_PATH`: Firebase service account path
+- `EMAIL_*`: Email service configuration
+
+### Email Configuration
+
+Add these environment variables for email functionality:
+
+```bash
+# Email Configuration
+EMAIL_ENABLED=true
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_FROM=KeepWatching <your-email@gmail.com>
+
+# Email Schedule (CRON format)
+# Every Sunday at 9:00 AM
+EMAIL_SCHEDULE=0 9 * * 0
+```
+
+#### Gmail Setup
+
+For Gmail, you'll need to:
+1. Enable 2-factor authentication
+2. Generate an App Password
+3. Use the App Password as `EMAIL_PASSWORD`
 
 ### Installation
 
@@ -63,8 +92,8 @@ yarn test:coverage
 
 ```
 src/
-├── config/           # Configuration management
-├── constants/        # Application constants and cache keys
+├── config/          # Configuration management (including email)
+├── constants/       # Application constants and cache keys
 ├── db/              # Database repositories and operations
 ├── logger/          # Winston logging setup and utilities
 ├── middleware/      # Express middleware (validation, error handling)
@@ -107,6 +136,47 @@ app.post('/api/accounts',
 // Error handling
 app.use(errorHandler);
 ```
+
+### Email Service Usage
+
+```typescript
+import { 
+  initializeEmailService,
+  getEmailService
+} from '@ajgifford/keepwatching-common-server';
+import { getEmailConfig } from '@ajgifford/keepwatching-common-server/config';
+
+// Initialize email service
+const emailConfig = getEmailConfig();
+const emailService = initializeEmailService(emailConfig);
+
+// Verify connection
+const isConnected = await emailService.verifyConnection();
+
+// Send test email
+await emailService.sendTestEmail('test@example.com');
+
+// Send weekly digests (usually called by scheduled job)
+await emailService.sendWeeklyDigests();
+```
+
+### Scheduled Jobs with Email
+
+```typescript
+import { 
+  initScheduledJobs,
+  runEmailDigestJob 
+} from '@ajgifford/keepwatching-common-server';
+
+// Initialize all scheduled jobs including email
+initScheduledJobs(
+  () => console.log('Shows updated'),
+  () => console.log('Movies updated'),
+  () => console.log('Email digest sent')
+);
+
+// Manually trigger email digest
+await runEmailDigestJob();
 
 ### Database Operations
 
@@ -165,6 +235,11 @@ app.put('/shows/:id/status',
 - `episodesService` - Episode tracking and progress
 - `seasonsService` - Season management
 
+### Communication Services
+- `emailService` - Email notifications and weekly digests
+- `socketService` - Real-time WebSocket communication
+- `notificationsService` - User notifications
+
 ### Admin Services
 - `adminShowService` - Administrative show operations
 - `adminMovieService` - Administrative movie operations
@@ -172,9 +247,52 @@ app.put('/shows/:id/status',
 
 ### Utility Services
 - `contentDiscoveryService` - Content search and discovery
-- `notificationsService` - User notifications
-- `socketService` - Real-time WebSocket communication
-- `scheduledUpdatesService` - Background content updates
+- `scheduledUpdatesService` - Background content updates and email jobs
+
+## 📧 Email Features
+
+### Weekly Digest Emails
+
+The system automatically sends weekly digest emails containing:
+
+- **Upcoming Episodes**: New episodes airing in the next week for shows in user's watchlist
+- **Upcoming Movies**: Movies releasing in the next week from user's watchlist
+- **Continue Watching**: Shows that users have partially watched with next episode information
+
+### Email Content
+
+- **HTML Format**: Rich, mobile-friendly email templates with proper styling
+- **Plain Text**: Fallback plain text version for all email clients
+- **Profile-based**: Separate sections for each profile under an account
+- **Conditional Content**: Only sends emails when there's relevant content
+
+### Email Configuration Options
+
+- **Multiple Providers**: Supports Gmail, Outlook, Yahoo, and custom SMTP
+- **Flexible Scheduling**: Configurable send times via CRON expressions
+- **Environment Controls**: Easy enable/disable via environment variables
+- **Testing Support**: Built-in test email functionality for development
+
+### Production Deployment (Raspberry Pi 5)
+
+For production deployment on Raspberry Pi 5:
+
+```bash
+# Install dependencies
+yarn install --production
+
+# Set production environment
+export NODE_ENV=production
+
+# Configure email for production
+export EMAIL_ENABLED=true
+export EMAIL_HOST=your-smtp-host
+export EMAIL_USER=your-email@domain.com
+export EMAIL_PASSWORD=your-password
+
+# Start with PM2
+pm2 start ecosystem.config.js
+```
 
 ## 🗄️ Database Integration
 
@@ -198,7 +316,7 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-## 🔍 Testing
+## 🧪 Testing
 
 ### Using Test Utilities
 
@@ -235,6 +353,23 @@ yarn test src/services/accountService.test.ts
 # Watch mode
 yarn test --watch
 ```
+
+### Email Testing
+
+```typescript
+// Test email service
+import { EmailService } from '@ajgifford/keepwatching-common-server';
+
+const emailService = new EmailService(testConfig);
+await emailService.sendTestEmail('test@example.com');
+```
+
+### Development Endpoints
+
+In development mode, the following endpoints are available:
+
+- `POST /api/admin/test-email` - Send a test email
+- `POST /api/admin/trigger-email-digest` - Manually trigger weekly digest
 
 ## 🚀 Deployment
 

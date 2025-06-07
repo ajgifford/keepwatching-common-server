@@ -341,6 +341,63 @@ export class AccountService {
     }
   }
 
+  /**
+   * Get account by email address
+   */
+  public async getAccountByEmail(email: string): Promise<Account | null> {
+    try {
+      const account = await accountsDb.findAccountByEmail(email);
+
+      if (!account) {
+        return null;
+      }
+
+      return {
+        ...account,
+        image: getAccountImage(account.image, account.name),
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `getAccountByEmail(${email})`);
+    }
+  }
+
+  /**
+   * Get account by email address
+   */
+  public async getCombinedAccountByEmail(email: string): Promise<CombinedAccount | null> {
+    try {
+      const dbAccount = await accountsDb.findAccountByEmail(email);
+
+      if (!dbAccount) {
+        return null;
+      }
+
+      const admin = getFirebaseAdmin();
+      const firebaseUser = await admin.auth().getUserByEmail(email);
+
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || null,
+        emailVerified: firebaseUser.emailVerified,
+        displayName: firebaseUser.displayName || null,
+        photoURL: firebaseUser.photoURL || null,
+        disabled: firebaseUser.disabled,
+        metadata: {
+          creationTime: firebaseUser.metadata.creationTime,
+          lastSignInTime: firebaseUser.metadata.lastSignInTime,
+          lastRefreshTime: firebaseUser.metadata.lastRefreshTime || null,
+        },
+        id: dbAccount.id,
+        name: dbAccount.name,
+        defaultProfileId: dbAccount.defaultProfileId,
+        image: getAccountImage(dbAccount.image, dbAccount.name),
+        databaseCreatedAt: new Date(),
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `getCombinedAccountByEmail(${email})`);
+    }
+  }
+
   private async getAllUsers(): Promise<any[]> {
     let nextPageToken: string | undefined;
     let allUsers: UserRecord[] = [];

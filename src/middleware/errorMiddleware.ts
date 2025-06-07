@@ -140,3 +140,10 @@ export class DatabaseError extends CustomError {
     Object.setPrototypeOf(this, DatabaseError.prototype);
   }
 }
+
+export class NotVerifiedError extends CustomError {
+  constructor() {
+    super('Email not verified', 400, 'EMAIL_NOT_VERIFIED');
+    Object.setPrototypeOf(this, NotVerifiedError.prototype);
+  }
+}

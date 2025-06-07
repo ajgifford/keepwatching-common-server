@@ -30,6 +30,7 @@ import {
   RemoveShowFavorite,
   ShowReference,
   ShowStatisticsResponse,
+  ShowTMDBReference,
   SimilarOrRecommendedShow,
   UpdateShowRequest,
   WatchStatus,
@@ -565,6 +566,39 @@ export class ShowService {
       language: rec.original_language,
       inFavorites: userShowIds.has(rec.id),
     }));
+  }
+
+  /**
+   * Get trending shows for discovery emails
+   */
+  public async getTrendingShows(limit: number = 10): Promise<ShowTMDBReference[]> {
+    try {
+      return await showsDb.getTrendingShows(limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getTrendingShows(${limit})`);
+    }
+  }
+
+  /**
+   * Get newly added shows
+   */
+  public async getNewlyAddedShows(limit: number = 10): Promise<ShowTMDBReference[]> {
+    try {
+      return await showsDb.getNewlyAddedShows(limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getNewlyAddedShows(${limit})`);
+    }
+  }
+
+  /**
+   * Get top rated shows
+   */
+  public async getTopRatedShows(limit: number = 10): Promise<ShowTMDBReference[]> {
+    try {
+      return await showsDb.getTopRatedShows(limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getTopRatedShows(${limit})`);
+    }
   }
 
   /**

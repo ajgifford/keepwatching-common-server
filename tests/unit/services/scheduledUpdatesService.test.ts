@@ -28,6 +28,8 @@ jest.mock('@logger/logger', () => ({
 jest.mock('@config/config', () => ({
   getShowsUpdateSchedule: jest.fn().mockReturnValue('0 2 * * *'),
   getMoviesUpdateSchedule: jest.fn().mockReturnValue('0 1 7,14,21,28 * *'),
+  getEmailSchedule: jest.fn().mockReturnValue('0 9 * * 0'),
+  isEmailEnabled: jest.fn().mockReturnValue(true),
 }));
 
 jest.mock('@services/contentUpdatesService', () => ({
@@ -51,9 +53,15 @@ jest.mock('cron-parser', () => ({
   }),
 }));
 
+jest.mock('@services/emailService', () => ({
+  getEmailService: jest.fn(),
+  sendWeeklyDigests: jest.fn(),
+}));
+
 describe('scheduledUpdatesService', () => {
   let mockNotifyShowUpdates: jest.Mock;
   let mockNotifyMovieUpdates: jest.Mock;
+  let mockNotifyEmailDigest: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -61,6 +69,7 @@ describe('scheduledUpdatesService', () => {
 
     mockNotifyShowUpdates = jest.fn();
     mockNotifyMovieUpdates = jest.fn();
+    mockNotifyEmailDigest = jest.fn();
   });
 
   afterEach(() => {
@@ -69,14 +78,16 @@ describe('scheduledUpdatesService', () => {
 
   describe('initScheduledJobs', () => {
     it('should initialize scheduled jobs with correct patterns', () => {
-      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
 
-      expect(CronJob.schedule).toHaveBeenCalledTimes(2);
+      expect(CronJob.schedule).toHaveBeenCalledTimes(3);
       expect(CronJob.schedule).toHaveBeenCalledWith('0 2 * * *', expect.any(Function));
       expect(CronJob.schedule).toHaveBeenCalledWith('0 1 7,14,21,28 * *', expect.any(Function));
+      expect(CronJob.schedule).toHaveBeenCalledWith('0 9 * * 0', expect.any(Function));
 
       expect(CronJob.schedule('0 2 * * *', expect.any(Function)).start).toHaveBeenCalled();
       expect(CronJob.schedule('0 1 7,14,21,28 * *', expect.any(Function)).start).toHaveBeenCalled();
+      expect(CronJob.schedule('0 9 * * 0', expect.any(Function)).start).toHaveBeenCalled();
 
       expect(cliLogger.info).toHaveBeenCalledWith('Job Scheduler Initialized');
     });
@@ -84,18 +95,20 @@ describe('scheduledUpdatesService', () => {
     it('should use custom cron schedules from environment variables', () => {
       (config.getShowsUpdateSchedule as jest.Mock).mockReturnValueOnce('0 4 * * *');
       (config.getMoviesUpdateSchedule as jest.Mock).mockReturnValueOnce('0 3 1,15 * *');
+      (config.getEmailSchedule as jest.Mock).mockReturnValueOnce('0 8 * * 0');
 
-      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
 
       expect(CronJob.schedule).toHaveBeenCalledWith('0 4 * * *', expect.any(Function));
       expect(CronJob.schedule).toHaveBeenCalledWith('0 3 1,15 * *', expect.any(Function));
+      expect(CronJob.schedule).toHaveBeenCalledWith('0 8 * * 0', expect.any(Function));
     });
 
     it('should throw error if show cron expression is invalid', () => {
       (CronJob.validate as jest.Mock).mockImplementationOnce(() => false);
 
       expect(() => {
-        initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
+        initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
       }).toThrow();
     });
 
@@ -105,7 +118,7 @@ describe('scheduledUpdatesService', () => {
         .mockImplementationOnce(() => false); // For movies
 
       expect(() => {
-        initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
+        initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
       }).toThrow();
     });
   });
@@ -114,7 +127,7 @@ describe('scheduledUpdatesService', () => {
     it('should run shows update job successfully', async () => {
       (updateShows as jest.Mock).mockResolvedValueOnce(undefined);
 
-      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
       const result = await runShowsUpdateJob();
 
       expect(result).toBe(true);
@@ -155,7 +168,7 @@ describe('scheduledUpdatesService', () => {
     it('should run movies update job successfully', async () => {
       (updateMovies as jest.Mock).mockResolvedValueOnce(undefined);
 
-      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
       const result = await runMoviesUpdateJob();
 
       expect(result).toBe(true);
@@ -198,6 +211,7 @@ describe('scheduledUpdatesService', () => {
 
       expect(status).toHaveProperty('showsUpdate');
       expect(status).toHaveProperty('moviesUpdate');
+      expect(status).toHaveProperty('emailDigest');
 
       expect(status.showsUpdate).toHaveProperty('lastRunTime');
       expect(status.showsUpdate).toHaveProperty('lastRunStatus');
@@ -211,7 +225,13 @@ describe('scheduledUpdatesService', () => {
       expect(status.moviesUpdate).toHaveProperty('nextRunTime');
       expect(status.moviesUpdate).toHaveProperty('cronExpression');
 
-      expect(parser.parse).toHaveBeenCalledTimes(2);
+      expect(status.emailDigest).toHaveProperty('lastRunTime');
+      expect(status.emailDigest).toHaveProperty('lastRunStatus');
+      expect(status.emailDigest).toHaveProperty('isRunning');
+      expect(status.emailDigest).toHaveProperty('nextRunTime');
+      expect(status.emailDigest).toHaveProperty('cronExpression');
+
+      expect(parser.parse).toHaveBeenCalledTimes(3);
     });
 
     it('should handle error when calculating next run time', () => {
@@ -223,7 +243,8 @@ describe('scheduledUpdatesService', () => {
 
       expect(status.showsUpdate.nextRunTime).toBeNull();
       expect(status.moviesUpdate.nextRunTime).toBeNull();
-      expect(cliLogger.error).toHaveBeenCalledTimes(2);
+      expect(status.emailDigest.nextRunTime).toBeNull();
+      expect(cliLogger.error).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -232,16 +253,16 @@ describe('scheduledUpdatesService', () => {
       pauseJobs();
 
       const mockJobInstance = CronJob.schedule('', () => {}).stop;
-      expect(mockJobInstance).toHaveBeenCalledTimes(2);
+      expect(mockJobInstance).toHaveBeenCalledTimes(3);
       expect(cliLogger.info).toHaveBeenCalledWith('All scheduled jobs paused');
     });
 
     it('should resume all scheduled jobs', () => {
-      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates);
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
       resumeJobs();
 
       const mockJobInstance = CronJob.schedule('', () => {}).start;
-      expect(mockJobInstance).toHaveBeenCalledTimes(4); // 2 from init + 2 from resume
+      expect(mockJobInstance).toHaveBeenCalledTimes(6); // 3 from init + 3 from resume
       expect(cliLogger.info).toHaveBeenCalledWith('All scheduled jobs resumed');
     });
   });
@@ -251,7 +272,7 @@ describe('scheduledUpdatesService', () => {
       shutdownJobs();
 
       const mockJobInstance = CronJob.schedule('', () => {}).stop;
-      expect(mockJobInstance).toHaveBeenCalledTimes(2);
+      expect(mockJobInstance).toHaveBeenCalledTimes(3);
       expect(cliLogger.info).toHaveBeenCalledWith('Job scheduler shutdown complete');
     });
   });

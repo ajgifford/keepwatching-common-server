@@ -1,7 +1,9 @@
+import { getEmailSchedule, isEmailEnabled } from '../config';
 import { getMoviesUpdateSchedule, getShowsUpdateSchedule } from '../config/config';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { updateMovies, updateShows } from './contentUpdatesService';
+import { getEmailService } from './emailService';
 import { errorService } from './errorService';
 import parser from 'cron-parser';
 import CronJob from 'node-cron';
@@ -29,16 +31,25 @@ const jobs: Record<string, ScheduledJob> = {
     lastRunStatus: 'never_run',
     isRunning: false,
   },
+  emailDigest: {
+    job: null as unknown as CronJob.ScheduledTask,
+    cronExpression: '',
+    lastRunTime: null,
+    lastRunStatus: 'never_run',
+    isRunning: false,
+  },
 };
 
 type NotificationCallback = () => void;
 let showUpdatesCallback: NotificationCallback | null = null;
 let movieUpdatesCallback: NotificationCallback | null = null;
+let emailDigestCallback: NotificationCallback | null = null;
 
 const getScheduleConfig = () => {
   return {
     showsUpdateSchedule: getShowsUpdateSchedule(),
     moviesUpdateSchedule: getMoviesUpdateSchedule(),
+    emailSchedule: getEmailSchedule(),
   };
 };
 
@@ -119,18 +130,82 @@ export async function runMoviesUpdateJob(): Promise<boolean> {
 }
 
 /**
- * Initialize scheduled jobs for content updates
+ * Run the weekly email digest job
+ * Extracted into a separate function to allow manual triggering
+ */
+export async function runEmailDigestJob(): Promise<boolean> {
+  if (!isEmailEnabled()) {
+    cliLogger.warn('Email service is disabled, skipping email digest job');
+    return false;
+  }
+
+  if (jobs.emailDigest.isRunning) {
+    cliLogger.warn('Email digest job already running, skipping this execution');
+    return false;
+  }
+
+  jobs.emailDigest.isRunning = true;
+  jobs.emailDigest.lastRunTime = new Date();
+
+  cliLogger.info('Starting the weekly email digest job');
+  appLogger.info('Weekly email digest job started');
+
+  try {
+    const emailService = getEmailService();
+    await emailService.sendWeeklyDigests();
+
+    if (emailDigestCallback) {
+      emailDigestCallback();
+    }
+
+    jobs.emailDigest.lastRunStatus = 'success';
+    cliLogger.info('Weekly email digest job completed successfully');
+    appLogger.info('Weekly email digest job completed');
+    return true;
+  } catch (error) {
+    jobs.emailDigest.lastRunStatus = 'failed';
+    cliLogger.error('Failed to complete weekly email digest job', error);
+    appLogger.error('Weekly email digest job failed', { error });
+    return false;
+  } finally {
+    jobs.emailDigest.isRunning = false;
+    cliLogger.info('Ending the weekly email digest job');
+  }
+}
+
+/**
+ * Calculate the next scheduled run time based on a cron expression
+ * @param cronExpression The cron expression to parse
+ * @returns The next date when the job will run, or null if it can't be determined
+ */
+function getNextScheduledRun(cronExpression: string): Date | null {
+  try {
+    if (!cronExpression) return null;
+
+    const interval = parser.parse(cronExpression);
+    return interval.next().toDate();
+  } catch (error) {
+    cliLogger.error(`Error parsing cron expression: ${cronExpression}`, error);
+    return null;
+  }
+}
+
+/**
+ * Initialize scheduled jobs for content updates and email digests
  * @param notifyShowUpdates Callback to notify UI when shows are updated
  * @param notifyMovieUpdates Callback to notify UI when movies are updated
+ * @param notifyEmailDigest Callback to notify UI when email digest is sent
  */
 export function initScheduledJobs(
   notifyShowUpdates: NotificationCallback,
   notifyMovieUpdates: NotificationCallback,
+  notifyEmailDigest?: NotificationCallback,
 ): void {
   showUpdatesCallback = notifyShowUpdates;
   movieUpdatesCallback = notifyMovieUpdates;
+  emailDigestCallback = notifyEmailDigest || null;
 
-  const { showsUpdateSchedule, moviesUpdateSchedule } = getScheduleConfig();
+  const { showsUpdateSchedule, moviesUpdateSchedule, emailSchedule } = getScheduleConfig();
 
   if (!CronJob.validate(showsUpdateSchedule)) {
     cliLogger.error(`Invalid CRON expression for shows update: ${showsUpdateSchedule}`);
@@ -144,6 +219,14 @@ export function initScheduledJobs(
     cliLogger.error(`Invalid CRON expression for movies update: ${moviesUpdateSchedule}`);
     throw errorService.handleError(
       new Error(`Invalid CRON expression for movies update: ${moviesUpdateSchedule}`),
+      'initScheduledJobs',
+    );
+  }
+
+  if (isEmailEnabled() && !CronJob.validate(emailSchedule)) {
+    cliLogger.error(`Invalid CRON expression for email digest: ${emailSchedule}`);
+    throw errorService.handleError(
+      new Error(`Invalid CRON expression for email digest: ${emailSchedule}`),
       'initScheduledJobs',
     );
   }
@@ -166,29 +249,28 @@ export function initScheduledJobs(
   });
   jobs.moviesUpdate.cronExpression = moviesUpdateSchedule;
 
+  if (isEmailEnabled()) {
+    jobs.emailDigest.job = CronJob.schedule(emailSchedule, async () => {
+      try {
+        await runEmailDigestJob();
+      } catch (error) {
+        cliLogger.error('Unhandled error in email digest job', error);
+      }
+    });
+    jobs.emailDigest.cronExpression = emailSchedule;
+    jobs.emailDigest.job.start();
+    cliLogger.info(`Email digest scheduled with CRON: ${emailSchedule}`);
+  } else {
+    cliLogger.info('Email service is disabled, skipping email digest scheduling');
+  }
+
+  // Start all jobs
   jobs.showsUpdate.job.start();
   jobs.moviesUpdate.job.start();
 
   cliLogger.info('Job Scheduler Initialized');
   cliLogger.info(`Shows update scheduled with CRON: ${showsUpdateSchedule}`);
   cliLogger.info(`Movies update scheduled with CRON: ${moviesUpdateSchedule}`);
-}
-
-/**
- * Calculate the next scheduled run time based on a cron expression
- * @param cronExpression The cron expression to parse
- * @returns The next date when the job will run, or null if it can't be determined
- */
-function getNextScheduledRun(cronExpression: string): Date | null {
-  try {
-    if (!cronExpression) return null;
-
-    const interval = parser.parse(cronExpression);
-    return interval.next().toDate();
-  } catch (error) {
-    cliLogger.error(`Error parsing cron expression: ${cronExpression}`, error);
-    return null;
-  }
 }
 
 /**
@@ -220,6 +302,13 @@ export function getJobsStatus(): Record<
       nextRunTime: getNextScheduledRun(jobs.moviesUpdate.cronExpression),
       cronExpression: jobs.moviesUpdate.cronExpression,
     },
+    emailDigest: {
+      lastRunTime: jobs.emailDigest.lastRunTime,
+      lastRunStatus: jobs.emailDigest.lastRunStatus,
+      isRunning: jobs.emailDigest.isRunning,
+      nextRunTime: getNextScheduledRun(jobs.emailDigest.cronExpression),
+      cronExpression: jobs.emailDigest.cronExpression,
+    },
   };
 }
 
@@ -236,6 +325,10 @@ export function pauseJobs(): void {
     jobs.moviesUpdate.job.stop();
   }
 
+  if (jobs.emailDigest.job) {
+    jobs.emailDigest.job.stop();
+  }
+
   cliLogger.info('All scheduled jobs paused');
 }
 
@@ -249,6 +342,10 @@ export function resumeJobs(): void {
 
   if (jobs.moviesUpdate.job) {
     jobs.moviesUpdate.job.start();
+  }
+
+  if (jobs.emailDigest.job && isEmailEnabled()) {
+    jobs.emailDigest.job.start();
   }
 
   cliLogger.info('All scheduled jobs resumed');

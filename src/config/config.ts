@@ -10,6 +10,17 @@ export type DBConfig = {
   queueLimit: number;
 };
 
+export interface EmailConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+  from: string;
+}
+
 export function getEnvironment() {
   return process.env.NODE_ENV || 'development';
 }
@@ -102,4 +113,64 @@ export function getRateLimitTimeWindow() {
 export function getRateLimitMax() {
   // Default: 100
   return Number(process.env.RATE_LIMIT_MAX) || 100;
+}
+
+/**
+ * Get email configuration from environment variables
+ */
+export function getEmailConfig(): EmailConfig {
+  return {
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: Number(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE?.toLowerCase() === 'true' || false,
+    auth: {
+      user: process.env.EMAIL_USER || '',
+      pass: process.env.EMAIL_PASSWORD || '',
+    },
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER || '',
+  };
+}
+
+/**
+ * Get email schedule for weekly digests
+ */
+export function getEmailSchedule(): string {
+  // Default: Every Sunday at 9 AM
+  return process.env.EMAIL_SCHEDULE || '0 9 * * 0';
+}
+
+/**
+ * Check if email service is enabled
+ */
+export function isEmailEnabled(): boolean {
+  return process.env.EMAIL_ENABLED?.toLowerCase() === 'true' || false;
+}
+
+/**
+ * Validate email configuration
+ */
+export function validateEmailConfig(): { isValid: boolean; errors: string[] } {
+  const config = getEmailConfig();
+  const errors: string[] = [];
+
+  if (!config.host) {
+    errors.push('EMAIL_HOST is required');
+  }
+
+  if (!config.auth.user) {
+    errors.push('EMAIL_USER is required');
+  }
+
+  if (!config.auth.pass) {
+    errors.push('EMAIL_PASSWORD is required');
+  }
+
+  if (!config.from) {
+    errors.push('EMAIL_FROM is required');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
 }
