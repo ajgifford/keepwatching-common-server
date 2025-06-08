@@ -25,7 +25,7 @@ export const ACCOUNT_KEYS = {
   /** Gets the cache key for account profiles */
   profiles: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_profiles`,
 
-  profilesWithCounts: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_profilesWithCounts`,
+  adminProfiles: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_adminProfiles`,
 
   /** Gets the cache key for account statistics */
   statistics: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_statistics`,

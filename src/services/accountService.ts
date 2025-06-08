@@ -344,26 +344,6 @@ export class AccountService {
   /**
    * Get account by email address
    */
-  public async getAccountByEmail(email: string): Promise<Account | null> {
-    try {
-      const account = await accountsDb.findAccountByEmail(email);
-
-      if (!account) {
-        return null;
-      }
-
-      return {
-        ...account,
-        image: getAccountImage(account.image, account.name),
-      };
-    } catch (error) {
-      throw errorService.handleError(error, `getAccountByEmail(${email})`);
-    }
-  }
-
-  /**
-   * Get account by email address
-   */
   public async getCombinedAccountByEmail(email: string): Promise<CombinedAccount | null> {
     try {
       const dbAccount = await accountsDb.findAccountByEmail(email);
@@ -387,11 +367,11 @@ export class AccountService {
           lastSignInTime: firebaseUser.metadata.lastSignInTime,
           lastRefreshTime: firebaseUser.metadata.lastRefreshTime || null,
         },
-        id: dbAccount.id,
-        name: dbAccount.name,
-        defaultProfileId: dbAccount.defaultProfileId,
-        image: getAccountImage(dbAccount.image, dbAccount.name),
-        databaseCreatedAt: new Date(),
+        id: dbAccount.account_id,
+        name: dbAccount.account_name,
+        defaultProfileId: dbAccount.default_profile_id,
+        image: getAccountImage(dbAccount.image, dbAccount.account_name),
+        databaseCreatedAt: dbAccount.created_at,
       };
     } catch (error) {
       throw errorService.handleError(error, `getCombinedAccountByEmail(${email})`);

@@ -742,4 +742,80 @@ describe('MoviesService', () => {
       expect(mockCacheService.invalidateAccount).not.toHaveBeenCalled();
     });
   });
+
+  describe('getTrendingMovies', () => {
+    it('should return trending movies', async () => {
+      (moviesDb.getTrendingMovies as jest.Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Movie 1' }]);
+
+      const result = await moviesService.getTrendingMovies();
+      expect(result).toEqual([{ id: 1, tmdbId: 100, title: 'Movie 1' }]);
+    });
+
+    it('should handle errors when getting trending movies', async () => {
+      const mockError = new Error('Database error');
+      (moviesDb.getTrendingMovies as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(moviesService.getTrendingMovies()).rejects.toThrow('Database error');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getTrendingMovies(10)');
+    });
+  });
+
+  describe('getRecentlyReleasedMovies', () => {
+    it('should return newly added movies', async () => {
+      (moviesDb.getRecentlyReleasedMovies as jest.Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Movie 1' }]);
+
+      const result = await moviesService.getRecentlyReleasedMovies();
+      expect(result).toEqual([{ id: 1, tmdbId: 100, title: 'Movie 1' }]);
+    });
+
+    it('should handle errors when getting newly added movies', async () => {
+      const mockError = new Error('Database error');
+      (moviesDb.getRecentlyReleasedMovies as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(moviesService.getRecentlyReleasedMovies()).rejects.toThrow('Database error');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getRecentlyReleasedMovies(10)');
+    });
+  });
+
+  describe('getTopRatedMovies', () => {
+    it('should return top rated movies', async () => {
+      (moviesDb.getTopRatedMovies as jest.Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Movie 1' }]);
+
+      const result = await moviesService.getTopRatedMovies();
+      expect(result).toEqual([{ id: 1, tmdbId: 100, title: 'Movie 1' }]);
+    });
+
+    it('should handle errors when getting top rated movies', async () => {
+      const mockError = new Error('Database error');
+      (moviesDb.getTopRatedMovies as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(moviesService.getTopRatedMovies()).rejects.toThrow('Database error');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getTopRatedMovies(10)');
+    });
+  });
+
+  describe('getMoviesForUpdates', () => {
+    it('should return movies for updates', async () => {
+      (moviesDb.getMoviesForUpdates as jest.Mock).mockResolvedValue([
+        { id: 1, tmdb_id: 100, title: 'Movie 1', created_at: '2025-01-01', updated_at: '2025-02-01' },
+      ]);
+
+      const result = await moviesService.getMoviesForUpdates();
+      expect(result).toEqual([
+        { id: 1, tmdb_id: 100, title: 'Movie 1', created_at: '2025-01-01', updated_at: '2025-02-01' },
+      ]);
+    });
+
+    it('should handle errors when getting movies for updates', async () => {
+      const mockError = new Error('Database error');
+      (moviesDb.getMoviesForUpdates as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(moviesService.getMoviesForUpdates()).rejects.toThrow('Database error');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getMoviesForUpdates()');
+    });
+  });
 });

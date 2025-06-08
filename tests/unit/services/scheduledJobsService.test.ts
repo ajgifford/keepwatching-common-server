@@ -1,15 +1,18 @@
 import * as config from '@config/config';
 import { appLogger, cliLogger } from '@logger/logger';
 import { updateMovies, updateShows } from '@services/contentUpdatesService';
+import { getEmailService } from '@services/emailService';
+import * as emailServiceModule from '@services/emailService';
 import {
   getJobsStatus,
   initScheduledJobs,
   pauseJobs,
   resumeJobs,
+  runEmailDigestJob,
   runMoviesUpdateJob,
   runShowsUpdateJob,
   shutdownJobs,
-} from '@services/scheduledUpdatesService';
+} from '@services/scheduledJobsService';
 import parser from 'cron-parser';
 import CronJob from 'node-cron';
 
@@ -58,7 +61,7 @@ jest.mock('@services/emailService', () => ({
   sendWeeklyDigests: jest.fn(),
 }));
 
-describe('scheduledUpdatesService', () => {
+describe('scheduledJobsService', () => {
   let mockNotifyShowUpdates: jest.Mock;
   let mockNotifyMovieUpdates: jest.Mock;
   let mockNotifyEmailDigest: jest.Mock;
@@ -77,6 +80,10 @@ describe('scheduledUpdatesService', () => {
   });
 
   describe('initScheduledJobs', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
     it('should initialize scheduled jobs with correct patterns', () => {
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
 
@@ -92,7 +99,24 @@ describe('scheduledUpdatesService', () => {
       expect(cliLogger.info).toHaveBeenCalledWith('Job Scheduler Initialized');
     });
 
+    it('should initialize update jobs but not email when disabled', () => {
+      (config.isEmailEnabled as jest.Mock).mockReturnValue(false);
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
+
+      expect(CronJob.schedule).toHaveBeenCalledTimes(2);
+      expect(CronJob.schedule).toHaveBeenCalledWith('0 2 * * *', expect.any(Function));
+      expect(CronJob.schedule).toHaveBeenCalledWith('0 1 7,14,21,28 * *', expect.any(Function));
+      expect(CronJob.schedule).not.toHaveBeenCalledWith('0 9 * * 0', expect.any(Function));
+
+      expect(CronJob.schedule('0 2 * * *', expect.any(Function)).start).toHaveBeenCalled();
+      expect(CronJob.schedule('0 1 7,14,21,28 * *', expect.any(Function)).start).toHaveBeenCalled();
+
+      expect(cliLogger.info).toHaveBeenCalledWith('Email service is disabled, skipping email digest scheduling');
+      expect(cliLogger.info).toHaveBeenCalledWith('Job Scheduler Initialized');
+    });
+
     it('should use custom cron schedules from environment variables', () => {
+      (config.isEmailEnabled as jest.Mock).mockReturnValue(true);
       (config.getShowsUpdateSchedule as jest.Mock).mockReturnValueOnce('0 4 * * *');
       (config.getMoviesUpdateSchedule as jest.Mock).mockReturnValueOnce('0 3 1,15 * *');
       (config.getEmailSchedule as jest.Mock).mockReturnValueOnce('0 8 * * 0');
@@ -202,6 +226,77 @@ describe('scheduledUpdatesService', () => {
       expect(result).toBe(false);
       expect(updateMovies).toHaveBeenCalledTimes(1); // Only called for first execution
       expect(cliLogger.warn).toHaveBeenCalledWith('Movies update job already running, skipping this execution');
+    });
+  });
+
+  describe('runEmailDigestJob', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should skip execution if email is not enabled', async () => {
+      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(false);
+      expect(await runEmailDigestJob()).toEqual(false);
+      expect(cliLogger.warn).toHaveBeenCalledWith('Email service is disabled, skipping email digest job');
+    });
+
+    it('should skip execution if job is already running', async () => {
+      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(true);
+
+      (emailServiceModule.getEmailService as jest.Mock).mockReturnValue({
+        sendWeeklyDigests: jest.fn(),
+      });
+
+      const firstExecution = runEmailDigestJob();
+      const secondExecution = runEmailDigestJob();
+
+      await firstExecution;
+      const result = await secondExecution;
+
+      expect(result).toBe(false);
+      expect(getEmailService).toHaveBeenCalledTimes(1); // Only called for first execution
+      expect(cliLogger.warn).toHaveBeenCalledWith('Email digest job already running, skipping this execution');
+    });
+
+    it('should send the weekly digest', async () => {
+      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(true);
+
+      (emailServiceModule.getEmailService as jest.Mock).mockReturnValue({
+        sendWeeklyDigests: jest.fn(),
+      });
+
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyEmailDigest);
+      const result = await runEmailDigestJob();
+
+      expect(result).toBe(true);
+      expect(getEmailService).toHaveBeenCalledTimes(1);
+      expect(mockNotifyEmailDigest).toHaveBeenCalledTimes(1);
+      expect(cliLogger.info).toHaveBeenCalledWith('Starting the weekly email digest job');
+      expect(cliLogger.info).toHaveBeenCalledWith('Weekly email digest job completed successfully');
+      expect(cliLogger.info).toHaveBeenCalledWith('Ending the weekly email digest job');
+      expect(appLogger.info).toHaveBeenCalledWith('Weekly email digest job started');
+      expect(appLogger.info).toHaveBeenCalledWith('Weekly email digest job completed');
+    });
+
+    it('should handle errors from the email service', async () => {
+      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(true);
+
+      const error = new Error('Update failed');
+      const mockSendEmail = jest.fn().mockRejectedValue(error);
+
+      (emailServiceModule.getEmailService as jest.Mock).mockReturnValue({
+        sendWeeklyDigests: mockSendEmail,
+      });
+
+      const result = await runEmailDigestJob();
+
+      expect(result).toBe(false);
+      expect(getEmailService).toHaveBeenCalledTimes(1);
+      expect(cliLogger.info).toHaveBeenCalledWith('Starting the weekly email digest job');
+      expect(cliLogger.error).toHaveBeenCalledWith('Failed to complete weekly email digest job', error);
+      expect(cliLogger.info).toHaveBeenCalledWith('Ending the weekly email digest job');
+      expect(appLogger.info).toHaveBeenCalledWith('Weekly email digest job started');
+      expect(appLogger.error).toHaveBeenCalledWith('Weekly email digest job failed', { error });
     });
   });
 

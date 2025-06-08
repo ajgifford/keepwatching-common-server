@@ -440,17 +440,12 @@ export class ShowService {
   }> {
     try {
       const currentStatus = await showsDb.getWatchStatus(profileId, showId);
-
-      // Only proceed if current status is WATCHED
       if (currentStatus !== WatchStatus.WATCHED) {
         return { updated: false, status: currentStatus };
       }
 
-      // Check if the show has any unwatched episodes or seasons
-      const hasNew = await this.hasUnwatchedContent(profileId, showId);
-
-      // If there is new content, update to UP_TO_DATE
-      if (hasNew) {
+      const hasUnwatched = await this.hasUnwatchedContent(profileId, showId);
+      if (hasUnwatched) {
         await showsDb.updateWatchStatus(profileId, showId, WatchStatus.UP_TO_DATE);
         this.invalidateProfileCache(accountId, profileId);
         return { updated: true, status: WatchStatus.UP_TO_DATE };
@@ -471,16 +466,13 @@ export class ShowService {
    */
   private async hasUnwatchedContent(profileId: number, showId: number): Promise<boolean> {
     try {
-      // Get all seasons for the show
       const seasons = await seasonsDb.getSeasonsForShow(profileId, showId);
 
-      // Check if any season is not WATCHED
       for (const season of seasons) {
         if (season.watchStatus !== WatchStatus.WATCHED) {
           return true;
         }
 
-        // Check if any episode is not WATCHED
         for (const episode of season.episodes) {
           if (episode.watchStatus !== WatchStatus.WATCHED) {
             return true;

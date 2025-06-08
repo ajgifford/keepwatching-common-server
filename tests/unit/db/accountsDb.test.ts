@@ -467,8 +467,8 @@ describe('accountsDb Module', () => {
 
       expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE email = ?', ['john@example.com']);
       expect(account).not.toBeNull();
-      expect(account?.id).toBe(1);
-      expect(account?.name).toBe('John Doe');
+      expect(account?.account_id).toBe(1);
+      expect(account?.account_name).toBe('John Doe');
     });
 
     it('should return null when account not found', async () => {

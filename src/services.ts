@@ -10,7 +10,7 @@ export * from './services/moviesService';
 export * from './services/notificationsService';
 export * from './services/profileService';
 export * from './services/seasonsService';
-export * from './services/scheduledUpdatesService';
+export * from './services/scheduledJobsService';
 export * from './services/showService';
 export * from './services/socketService';
 export * from './services/statisticsService';

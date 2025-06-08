@@ -188,11 +188,10 @@ export async function updateWatchStatusByEpisode(profileId: number, seasonId: nu
 
       const seasonEpisodeCounts = seasonEpisodeCountRows[0];
       if (seasonEpisodeCounts.total_episodes === 0) {
-        await connection.execute('UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?', [
-          'NOT_WATCHED',
-          profileId,
-          seasonId,
-        ]);
+        await connection.execute(
+          'UPDATE season_watch_status SET status = UP_TO_DATE WHERE profile_id = ? AND season_id = ?',
+          [profileId, seasonId],
+        );
         return;
       }
 

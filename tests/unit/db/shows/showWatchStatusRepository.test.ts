@@ -236,8 +236,8 @@ describe('showWatchStatusRepository', () => {
               not_watched_seasons: 0,
             },
           ],
-        ]) // Status query response
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Update response
+        ])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await showsDb.updateWatchStatusBySeason(123, 5);
 
@@ -266,8 +266,8 @@ describe('showWatchStatusRepository', () => {
               not_watched_seasons: 2,
             },
           ],
-        ]) // Status query response
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Update response
+        ])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await showsDb.updateWatchStatusBySeason(123, 5);
 
@@ -290,8 +290,8 @@ describe('showWatchStatusRepository', () => {
               not_watched_seasons: 5,
             },
           ],
-        ]) // Status query response
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Update response
+        ])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await showsDb.updateWatchStatusBySeason(123, 5);
 
@@ -302,8 +302,32 @@ describe('showWatchStatusRepository', () => {
       );
     });
 
+    it('should update show status to NOT_WATCHED when there are no seasons', async () => {
+      mockPool.execute
+        .mockResolvedValueOnce([
+          [
+            {
+              watched_seasons: 0,
+              total_seasons: 0,
+              up_to_date_seasons: 0,
+              watching_seasons: 0,
+              not_watched_seasons: 0,
+            },
+          ],
+        ])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await showsDb.updateWatchStatusBySeason(123, 5);
+
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        2,
+        'UPDATE show_watch_status SET status = NOT_WATCHED WHERE profile_id = ? AND show_id = ?',
+        [123, 5],
+      );
+    });
+
     it('should do nothing when no status result is returned', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]); // Empty result
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await showsDb.updateWatchStatusBySeason(123, 5);
 

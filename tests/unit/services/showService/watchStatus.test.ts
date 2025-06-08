@@ -1,5 +1,7 @@
 import { mockNextUnwatchedEpisodes } from './helpers/fixtures';
 import { createMockCache, setupMocks } from './helpers/mocks';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
+import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { BadRequestError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
@@ -39,7 +41,7 @@ describe('ShowService - Watch Status', () => {
     it('should update all watch statuses recursively when requested', async () => {
       (showsDb.updateAllWatchStatuses as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED', true);
+      await service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED', true);
 
       expect(showsDb.updateAllWatchStatuses).toHaveBeenCalledWith(profileId, showId, 'WATCHED');
       expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_show_details_1');
@@ -96,6 +98,51 @@ describe('ShowService - Watch Status', () => {
         mockError,
         'updateShowWatchStatusForNewContent(1, profileAccountMappings...)',
       );
+    });
+  });
+
+  describe('checkAndUpdateShowStatus', () => {
+    it('should not update when current status is not WATCHED', async () => {
+      (showsDb.getWatchStatus as jest.Mock).mockResolvedValue(WatchStatus.NOT_WATCHED);
+
+      const result = await service.checkAndUpdateShowStatus(1, 1, 100);
+
+      expect(result.status).toEqual(WatchStatus.NOT_WATCHED);
+      expect(result.updated).toEqual(false);
+    });
+
+    it('should not update when there is no unwatched content', async () => {
+      (showsDb.getWatchStatus as jest.Mock).mockResolvedValue(WatchStatus.WATCHED);
+      (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.checkAndUpdateShowStatus(1, 1, 100);
+
+      expect(result.status).toEqual(WatchStatus.WATCHED);
+      expect(result.updated).toEqual(false);
+    });
+
+    it('should update when there is unwatched content (season)', async () => {
+      (showsDb.getWatchStatus as jest.Mock).mockResolvedValue(WatchStatus.WATCHED);
+      (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValue([{ watchStatus: WatchStatus.WATCHING }]);
+
+      const result = await service.checkAndUpdateShowStatus(1, 1, 100);
+
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(1, 100, WatchStatus.UP_TO_DATE);
+      expect(result.status).toEqual(WatchStatus.UP_TO_DATE);
+      expect(result.updated).toEqual(true);
+    });
+
+    it('should update when there is unwatched content (episode)', async () => {
+      (showsDb.getWatchStatus as jest.Mock).mockResolvedValue(WatchStatus.WATCHED);
+      (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValue([
+        { watchStatus: WatchStatus.WATCHED, episodes: [{ watchStatus: WatchStatus.NOT_WATCHED }] },
+      ]);
+
+      const result = await service.checkAndUpdateShowStatus(1, 1, 100);
+
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(1, 100, WatchStatus.UP_TO_DATE);
+      expect(result.status).toEqual(WatchStatus.UP_TO_DATE);
+      expect(result.updated).toEqual(true);
     });
   });
 });

@@ -7,6 +7,7 @@ import {
   getUSMPARating,
   getUSNetwork,
   getUSRating,
+  isFutureSeason,
   stripPrefix,
 } from '@utils/contentUtility';
 
@@ -240,6 +241,24 @@ describe('contentUtility', () => {
     it('should return name for tv type', () => {
       const result = { title: 'Movie Title', name: 'Show Name' };
       expect(getTMDBItemName('tv', result)).toBe('Show Name');
+    });
+  });
+
+  describe('isFutureSeason', () => {
+    it('should return if there is no season air date', () => {
+      expect(isFutureSeason(null, 0)).toBe(true);
+    });
+
+    it('should return true if the date is in the future', () => {
+      expect(isFutureSeason('2099-12-31T00:00:00', 0)).toBe(true);
+    });
+
+    it('should return true if there are no episodes', () => {
+      expect(isFutureSeason('2025-05-01T00:00:00', 0)).toBe(true);
+    });
+
+    it('should return false if its not a future season', () => {
+      expect(isFutureSeason('2025-05-01T00:00:00', 10)).toBe(false);
     });
   });
 });

@@ -163,14 +163,14 @@ export async function findAccountByUID(uid: string): Promise<Account | null> {
  * @returns Account data if found, null otherwise
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function findAccountByEmail(email: string): Promise<Account | null> {
+export async function findAccountByEmail(email: string): Promise<AccountRow | null> {
   try {
     const query = `SELECT * FROM accounts WHERE email = ?`;
     const [rows] = await getDbPool().execute<AccountRow[]>(query, [email]);
 
     if (rows.length === 0) return null;
 
-    return transformAccountRow(rows[0]);
+    return rows[0];
   } catch (error) {
     handleDatabaseError(error, 'finding an account by email');
   }

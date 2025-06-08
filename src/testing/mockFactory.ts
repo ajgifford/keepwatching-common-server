@@ -131,9 +131,11 @@ export interface MockContentUpdatesService {
   updateShowById: jest.Mock;
 }
 
-export interface MockScheduledUpdatesService {
+export interface MockScheduledJobsService {
   runShowsUpdateJob: jest.Mock;
   runMoviesUpdateJob: jest.Mock;
+  runEmailDigestJob: jest.Mock;
+  getNextScheduledRun: jest.Mock;
   initScheduledJobs: jest.Mock;
   getJobsStatus: jest.Mock;
   pauseJobs: jest.Mock;

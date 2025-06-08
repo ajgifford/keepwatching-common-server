@@ -1,3 +1,4 @@
+import { AccountRow } from '../../../src/types/accountTypes';
 import * as accountsDb from '@db/accountsDb';
 import { appLogger, cliLogger } from '@logger/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@middleware/errorMiddleware';
@@ -467,6 +468,84 @@ describe('AccountService', () => {
 
       await expect(accountService.findAccountIdByProfileId(profileId)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(dbError, `findAccountIdByProfileId(${profileId})`);
+    });
+  });
+
+  describe('getCombinedAccountByEmail', () => {
+    const mockAccount: AccountRow = {
+      account_id: 1,
+      account_name: 'Smith Family',
+      email: 'smithfamily@example.com',
+      uid: 'uuid1',
+      image: 'smithFamily-1.png',
+      default_profile_id: 1,
+      created_at: new Date('2025-04-01T00:00:00'),
+      updated_at: new Date('2025-04-30T00:00:00'),
+    } as AccountRow;
+
+    const mockUser1 = createMockUserRecord({
+      uid: 'uid1',
+      email: 'smithfamily@example.com',
+      emailVerified: true,
+      displayName: 'Smith Family',
+      photoURL: 'photo1.jpg',
+      disabled: false,
+      metadata: {
+        creationTime: '2023-01-01',
+        lastSignInTime: '2023-01-10',
+        lastRefreshTime: '2023-01-10',
+      },
+    });
+
+    it('should return an account when the email exists', async () => {
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(mockAccount);
+      const mockFirebaseAdmin = {
+        auth: jest.fn().mockReturnValue({
+          getUserByEmail: jest.fn().mockResolvedValueOnce(mockUser1),
+        }),
+      };
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+
+      const result = await accountService.getCombinedAccountByEmail('smithfamily@example.com');
+
+      expect(result).not.toBeNull();
+      expect(result).toEqual({
+        uid: 'uid1',
+        email: 'smithfamily@example.com',
+        emailVerified: true,
+        displayName: 'Smith Family',
+        photoURL: 'photo1.jpg',
+        disabled: false,
+        metadata: {
+          creationTime: '2023-01-01',
+          lastSignInTime: '2023-01-10',
+          lastRefreshTime: '2023-01-10',
+        },
+        id: 1,
+        name: 'Smith Family',
+        defaultProfileId: 1,
+        image: 'account-image-url.jpg',
+        databaseCreatedAt: new Date('2025-04-01T00:00:00'),
+      });
+    });
+
+    it('should return null when the email does not exist', async () => {
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
+      const result = await accountService.getCombinedAccountByEmail('jonesfamily@example.com');
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle and transform errors using errorService', async () => {
+      const dbError = new Error('Database error');
+
+      (accountsDb.findAccountByEmail as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(accountService.getCombinedAccountByEmail('jonesfamily@gmail.com')).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        dbError,
+        `getCombinedAccountByEmail(jonesfamily@gmail.com)`,
+      );
     });
   });
 

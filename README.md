@@ -247,7 +247,7 @@ app.put('/shows/:id/status',
 
 ### Utility Services
 - `contentDiscoveryService` - Content search and discovery
-- `scheduledUpdatesService` - Background content updates and email jobs
+- `scheduledJobsService` - Background content updates and email jobs
 
 ## 📧 Email Features
 

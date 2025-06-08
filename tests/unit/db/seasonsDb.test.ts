@@ -332,6 +332,36 @@ describe('seasonsDb Module', () => {
       );
     });
 
+    it('should update season status to UP_TO_DATE when the season has no episodes', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([
+          [
+            {
+              total_episodes: 0,
+              watched_aired_episodes: 0,
+              aired_episodes: 0,
+              future_episodes: 0,
+              watched_episodes: 0,
+            },
+          ],
+        ])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await seasonsDb.updateWatchStatusByEpisode(123, 456);
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(`SUM(CASE WHEN ews.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_episodes`),
+        [456, 123],
+      );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        2,
+        'UPDATE season_watch_status SET status = UP_TO_DATE WHERE profile_id = ? AND season_id = ?',
+        [123, 456],
+      );
+    });
+
     it('should do nothing when no status result is returned', async () => {
       mockConnection.execute.mockResolvedValueOnce([[]]);
 
@@ -392,6 +422,41 @@ describe('seasonsDb Module', () => {
       expect(secondCall[0]).toContain('AND episode_id IN');
       expect(secondCall[0]).toContain('SELECT id from episodes where season_id');
       expect(secondCall[1]).toEqual(['WATCHED', 123, 456]);
+
+      expect(result).toBe(true);
+    });
+
+    it('should update season and episodes watch status for UP_TO_DATE', async () => {
+      const currentDate = new Date().toISOString().split('T')[0];
+
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Season update
+
+      const result = await seasonsDb.updateAllWatchStatuses(123, 456, 'UP_TO_DATE');
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(3);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
+        ['UP_TO_DATE', 123, 456],
+      );
+
+      const secondCall = mockConnection.execute.mock.calls[1];
+      expect(secondCall[0]).toContain('UPDATE episode_watch_status ews');
+      expect(secondCall[0]).toContain('JOIN episodes e ON ews.episode_id = e.id');
+      expect(secondCall[0]).toContain(`SET ews.status = 'WATCHED'`);
+      expect(secondCall[0]).toContain('WHERE ews.profile_id = ?');
+      expect(secondCall[0]).toContain('AND e.season_id = ?');
+      expect(secondCall[0]).toContain('AND (e.air_date IS NULL OR e.air_date <= ?)');
+      expect(secondCall[1]).toEqual([123, 456, currentDate]);
+
+      const thirdCall = mockConnection.execute.mock.calls[2];
+      expect(thirdCall[0]).toContain('UPDATE episode_watch_status ews');
+      expect(thirdCall[0]).toContain('JOIN episodes e ON ews.episode_id = e.id');
+      expect(thirdCall[0]).toContain(`SET ews.status = 'NOT_WATCHED'`);
+      expect(thirdCall[0]).toContain('WHERE ews.profile_id = ?');
+      expect(thirdCall[0]).toContain('AND e.season_id = ?');
+      expect(thirdCall[0]).toContain('AND e.air_date > ?');
+      expect(thirdCall[1]).toEqual([123, 456, currentDate]);
 
       expect(result).toBe(true);
     });

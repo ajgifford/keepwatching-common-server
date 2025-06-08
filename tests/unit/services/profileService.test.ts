@@ -102,6 +102,72 @@ describe('ProfileService', () => {
     });
   });
 
+  describe('getAdminProfilesByAccountId', () => {
+    it('should return admin profiles from cache when available', async () => {
+      const mockProfiles = [
+        {
+          id: 1,
+          name: 'Profile 1',
+          image: 'profile1.jpg',
+          createdAt: '2025-02-01',
+          favoritedShows: 20,
+          favoritedMovies: 5,
+        },
+        {
+          id: 2,
+          name: 'Profile 2',
+          image: 'profile2.jpg',
+          createdAt: '2025-02-05',
+          favoritedShows: 18,
+          favoritedMovies: 6,
+        },
+      ];
+      mockCache.getOrSet.mockResolvedValue(mockProfiles);
+
+      const result = await service.getAdminProfilesByAccount(123);
+
+      expect(mockCache.getOrSet).toHaveBeenCalledWith('account_123_adminProfiles', expect.any(Function), 600);
+      expect(result).toEqual(mockProfiles);
+    });
+
+    it('should fetch admin profiles from database when not in cache', async () => {
+      const mockDBProfiles = [
+        { id: 1, name: 'Profile 1', account_id: 123 },
+        { id: 2, name: 'Profile 2', account_id: 123 },
+      ];
+      const expectedProfiles = [
+        { account_id: 123, id: 1, name: 'Profile 1', image: 'profile-image-url.jpg' },
+        { account_id: 123, id: 2, name: 'Profile 2', image: 'profile-image-url.jpg' },
+      ];
+
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (profilesDb.getAdminProfilesByAccountId as jest.Mock).mockResolvedValue(mockDBProfiles);
+
+      const result = await service.getAdminProfilesByAccount(123);
+
+      expect(mockCache.getOrSet).toHaveBeenCalled();
+      expect(profilesDb.getAdminProfilesByAccountId).toHaveBeenCalledWith(123);
+      expect(result).toEqual(expectedProfiles);
+    });
+
+    it('should throw BadRequestError when admin profiles cannot be retrieved', async () => {
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (profilesDb.getAdminProfilesByAccountId as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.getAdminProfilesByAccount(123)).rejects.toThrow(BadRequestError);
+      expect(profilesDb.getAdminProfilesByAccountId).toHaveBeenCalledWith(123);
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (profilesDb.getAdminProfilesByAccountId as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.getAdminProfilesByAccount(123)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAdminProfilesByAccountId(123)');
+    });
+  });
+
   describe('getProfile', () => {
     const mockProfile = { id: 123, name: 'Test Profile', accountId: 1 };
     const mockShows = [{ show_id: 1, title: 'Test Show' }];

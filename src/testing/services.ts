@@ -10,7 +10,7 @@ import {
   MockMoviesService,
   MockNotificationsService,
   MockProfileService,
-  MockScheduledUpdatesService,
+  MockScheduledJobsService,
   MockSeasonsService,
   MockShowService,
   MockSocketService,
@@ -136,9 +136,11 @@ export const contentUpdatesService = createTypedServiceMock<MockContentUpdatesSe
   'updateShowById',
 ]);
 
-export const scheduledUpdatesService = createTypedServiceMock<MockScheduledUpdatesService>([
+export const scheduledJobsService = createTypedServiceMock<MockScheduledJobsService>([
   'runShowsUpdateJob',
   'runMoviesUpdateJob',
+  'runEmailDigestJob',
+  'getNextScheduledRun',
   'initScheduledJobs',
   'getJobsStatus',
   'pauseJobs',

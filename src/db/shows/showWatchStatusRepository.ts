@@ -145,8 +145,7 @@ export async function updateWatchStatusBySeason(profileId: number, showId: numbe
 
     const seasonStatus = seasonStatusRows[0];
     if (seasonStatus.total_seasons === 0) {
-      await pool.execute('UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?', [
-        'NOT_WATCHED',
+      await pool.execute('UPDATE show_watch_status SET status = NOT_WATCHED WHERE profile_id = ? AND show_id = ?', [
         profileId,
         showId,
       ]);

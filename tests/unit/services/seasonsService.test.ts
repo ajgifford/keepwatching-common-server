@@ -1,3 +1,4 @@
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { errorService } from '@services/errorService';
@@ -114,6 +115,23 @@ describe('seasonsService', () => {
       await expect(seasonsService.getSeasonsForShow(456, 123)).rejects.toThrow('Handled: Database error');
 
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getSeasonsForShow(456, 123)');
+    });
+  });
+
+  describe('setNewSeasonWatchStatus', () => {
+    it('should set watch status to UP_TO_DATE when there are no episodes', async () => {
+      await seasonsService.setNewSeasonWatchStatus(1, 1, null, false);
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(1, 1, WatchStatus.UP_TO_DATE);
+    });
+
+    it('should set watch status to UP_TO_DATE when there are episodes but the season has not aired', async () => {
+      await seasonsService.setNewSeasonWatchStatus(1, 1, '2050-01-01', true);
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(1, 1, WatchStatus.UP_TO_DATE);
+    });
+
+    it('should set watch status to NOT_WATCHED when there are episodes and the season has aired', async () => {
+      await seasonsService.setNewSeasonWatchStatus(1, 1, '2025-01-01', true);
+      expect(seasonsDb.updateWatchStatus).toHaveBeenCalledWith(1, 1, WatchStatus.NOT_WATCHED);
     });
   });
 

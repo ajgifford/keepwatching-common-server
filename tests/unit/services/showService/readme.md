@@ -6,7 +6,8 @@ This directory contains tests for the ShowService, split into logical groups for
 
 - `helpers/` - Shared test utilities and fixtures
 - `basic.test.ts` - Core functionality tests
-- `episodes.test.ts` - Episode-related tests
+- `episodes.test.ts` - Episode related tests
+- `digest.test.ts` - Email digest related tests
 - `favorites.test.ts` - Favorites management tests
 - `watchStatus.test.ts` - Watch status management tests
 - `recommendations.test.ts` - Show recommendation tests

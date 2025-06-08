@@ -52,7 +52,7 @@ export class ProfileService {
   public async getAdminProfilesByAccount(accountId: number): Promise<AdminProfile[]> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.profilesWithCounts(accountId),
+        ACCOUNT_KEYS.adminProfiles(accountId),
         async () => {
           const profiles = await profilesDb.getAdminProfilesByAccountId(accountId);
           if (!profiles) {
@@ -64,7 +64,7 @@ export class ProfileService {
         600, // 10 minutes TTL
       );
     } catch (error) {
-      throw errorService.handleError(error, `getProfilesWithCountsByAccount(${accountId})`);
+      throw errorService.handleError(error, `getAdminProfilesByAccountId(${accountId})`);
     }
   }
 
