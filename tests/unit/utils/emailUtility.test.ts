@@ -9,7 +9,6 @@ import {
 } from '@utils/emailUtility';
 
 describe('emailUtility', () => {
-  // Mock Date to ensure consistent test results
   const mockDate = new Date('2024-03-15T10:00:00Z'); // Friday
 
   beforeAll(() => {

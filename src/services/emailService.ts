@@ -125,6 +125,11 @@ export class EmailService {
       const digestEmails: DigestEmail[] = [];
       const discoveryEmails: DiscoveryEmail[] = [];
 
+      if (accounts.length === 0) {
+        cliLogger.error(`No accounts found, no emails will be generated`);
+        return { digestEmails, discoveryEmails };
+      }
+
       const featuredContent = await this.getFeaturedContent();
 
       for (const account of accounts) {
