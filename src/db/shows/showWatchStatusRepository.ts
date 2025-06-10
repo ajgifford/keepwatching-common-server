@@ -195,6 +195,7 @@ export async function updateAllWatchStatuses(profileId: number, showId: number, 
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
       //update show
+      console.log('Updating Show Status', status);
       const showQuery = 'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?';
       const [showResult] = await connection.execute<ResultSetHeader>(showQuery, [status, profileId, showId]);
       if (showResult.affectedRows === 0) return false;
@@ -206,15 +207,27 @@ export async function updateAllWatchStatuses(profileId: number, showId: number, 
       if (seasonsResult.affectedRows === 0) return false;
 
       //update episodes (for seasons/show)
+      const episodeStatus = determineEpisodeStatus(status);
       const episodesQuery =
         'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (SELECT id FROM seasons WHERE show_id = ?))';
-      const [episodesResult] = await connection.execute<ResultSetHeader>(episodesQuery, [status, profileId, showId]);
+      const [episodesResult] = await connection.execute<ResultSetHeader>(episodesQuery, [
+        episodeStatus,
+        profileId,
+        showId,
+      ]);
 
       return episodesResult.affectedRows > 0;
     });
   } catch (error) {
     handleDatabaseError(error, 'updating the watch status of a show and its children (seasons and episodes)');
   }
+}
+
+function determineEpisodeStatus(status: string) {
+  if (status === WatchStatus.NOT_WATCHED) {
+    return WatchStatus.NOT_WATCHED;
+  }
+  return WatchStatus.WATCHED;
 }
 
 /**
