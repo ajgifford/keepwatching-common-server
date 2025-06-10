@@ -1,4 +1,4 @@
-import { UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
+import { CreateNotificationRequest, UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
 import * as notificationsDb from '@db/notificationsDb';
 import { NoAffectedRowsError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
@@ -154,48 +154,35 @@ describe('notificationsService', () => {
 
   describe('addNotification', () => {
     it('should add a notification for all accounts successfully', async () => {
-      const mockNotification = {
+      const mockNotification: CreateNotificationRequest = {
         message: 'Test notification 13',
-        start_date: new Date('2025-04-05'),
-        end_date: new Date('2025-04-25'),
-        send_to_all: true,
-        account_id: null,
-      };
-
-      const date = new Date('2025-04-05');
-
-      notificationsDb.addNotification as jest.Mock;
-
-      await notificationsService.addNotification({
-        message: 'message',
-        startDate: '2025-04-01',
-        endDate: '2025-05-01',
+        startDate: '2025-04-05',
+        endDate: '2025-04-25',
         sendToAll: true,
         accountId: null,
-      });
+      };
 
-      expect(notificationsDb.addNotification).toHaveBeenCalled();
+      (notificationsDb.addNotification as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationsService.addNotification(mockNotification);
+
+      expect(notificationsDb.addNotification).toHaveBeenCalledWith(mockNotification);
     });
 
     it('should add a notification for a single account successfully', async () => {
-      const mockNotification = {
+      const mockNotification: CreateNotificationRequest = {
         message: 'Test notification 13',
-        start_date: new Date('2025-04-05'),
-        end_date: new Date('2025-04-25'),
-        send_to_all: false,
-        account_id: 1,
-      };
-      notificationsDb.addNotification as jest.Mock;
-
-      await notificationsService.addNotification({
-        message: 'message',
-        startDate: '2025-04-01',
-        endDate: '2025-05-01',
+        startDate: '2025-04-05',
+        endDate: '2025-04-25',
         sendToAll: false,
         accountId: 1,
-      });
+      };
 
-      expect(notificationsDb.addNotification).toHaveBeenCalled();
+      (notificationsDb.addNotification as jest.Mock).mockResolvedValue(undefined);
+
+      await notificationsService.addNotification(mockNotification);
+
+      expect(notificationsDb.addNotification).toHaveBeenCalledWith(mockNotification);
     });
 
     it('should propagate database errors through errorService', async () => {
@@ -213,7 +200,7 @@ describe('notificationsService', () => {
       ).rejects.toThrow('Database error during add');
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'addNotification({\"message\":\"message\",\"startDate\":\"2025-04-01\",\"endDate\":\"2025-05-01\",\"sendToAll\":true,\"accountId\":null})',
+        'addNotification({"message":"message","startDate":"2025-04-01","endDate":"2025-05-01","sendToAll":true,"accountId":null})',
       );
     });
   });
@@ -278,14 +265,14 @@ describe('notificationsService', () => {
       );
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'updateNotification({\"message\":\"message\",\"startDate\":\"2025-04-05\",\"endDate\":\"2025-04-25\",\"sendToAll\":true,\"accountId\":null,\"id\":13})',
+        'updateNotification({"message":"message","startDate":"2025-04-05","endDate":"2025-04-25","sendToAll":true,"accountId":null,"id":13})',
       );
     });
   });
 
   describe('deleteNotification', () => {
     it('should delete a notification successfully', async () => {
-      notificationsDb.deleteNotification as jest.Mock;
+      (notificationsDb.deleteNotification as jest.Mock).mockResolvedValue(undefined);
 
       await notificationsService.deleteNotification(1);
 

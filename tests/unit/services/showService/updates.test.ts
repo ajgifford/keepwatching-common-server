@@ -1,27 +1,18 @@
 import { Change, ContentUpdates } from '../../../../src/types/contentTypes';
-import { createMockCache, setupMocks } from './helpers/mocks';
+import { setupMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { appLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { processSeasonChanges } from '@services/seasonChangesService';
-import { ShowService, showService } from '@services/showService';
+import { showService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
 import * as contentUtility from '@utils/contentUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
 
 describe('ShowService - Content Updates', () => {
-  let service: ShowService;
-  let mockCache: jest.Mocked<CacheService>;
-
   beforeEach(() => {
     setupMocks();
-    mockCache = createMockCache();
-
-    Object.setPrototypeOf(showService, ShowService.prototype);
-    (showService as any).cache = mockCache;
-    service = showService;
   });
 
   describe('showChangesService', () => {

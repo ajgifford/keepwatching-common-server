@@ -198,7 +198,7 @@ describe('MoviesService', () => {
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
       (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(null);
       (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
-      (moviesDb.saveMovie as jest.Mock).mockImplementation((movie) => {
+      (moviesDb.saveMovie as jest.Mock).mockImplementation(() => {
         return 5;
       });
       (moviesDb.saveFavorite as jest.Mock).mockReturnValue(true);

@@ -237,7 +237,7 @@ describe('WatchStatusUtility', () => {
 
     it('should handle case when no rows are affected', async () => {
       // Mock update results with no affected rows
-      mockExecute.mockImplementation((query: string) => {
+      mockExecute.mockImplementation(() => {
         return Promise.resolve([{ affectedRows: 0 }]);
       });
 

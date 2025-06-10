@@ -12,6 +12,8 @@ const ignores = [
   'staged-themes/**',
   '.prettierrc.js',
   'eslint.config.mjs',
+  'dist/**',
+  'jest.config.js',
 ];
 
 export default [
@@ -42,5 +44,19 @@ export default [
   {
     files: ['**/*.spec.ts', '**/*.spec.tsx'],
     rules: { '@typescript-eslint/no-floating-promises': 'error' },
+  },
+  {
+    files: [
+      'test/**/*',
+      'tests/**/*',
+      '*/testing/**',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   },
 ];

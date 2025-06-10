@@ -50,7 +50,7 @@ describe('movieRepository', () => {
         streaming_service_ids: [1, 2],
       };
 
-      mockConnection.execute.mockImplementation((query: string | string[], params: any) => {
+      mockConnection.execute.mockImplementation((query: string | string[]) => {
         if (query.includes('INSERT into movies')) {
           return [{ insertId: 1 }];
         }
@@ -155,7 +155,7 @@ describe('movieRepository', () => {
         streaming_service_ids: [3],
       };
 
-      mockConnection.execute.mockImplementation((query: string | string[], params: any) => {
+      mockConnection.execute.mockImplementation((query: string | string[]) => {
         if (query.includes('UPDATE movies')) {
           return [{ affectedRows: 1 }];
         }

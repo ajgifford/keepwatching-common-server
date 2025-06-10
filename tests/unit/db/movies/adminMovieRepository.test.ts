@@ -12,15 +12,10 @@ jest.mock('@utils/db', () => {
 
 describe('adminMovieRepository', () => {
   let mockPool: any;
-  let mockConnection: any;
 
   beforeEach(() => {
     mockPool = getDbPool();
     mockPool.execute.mockReset();
-
-    mockConnection = {
-      execute: jest.fn().mockResolvedValue([{ insertId: 1 }]),
-    };
   });
 
   describe('getMoviesCount', () => {

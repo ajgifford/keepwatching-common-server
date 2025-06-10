@@ -1,4 +1,4 @@
-import { ADMIN_KEYS, PROFILE_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
+import { ADMIN_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
 import * as episodesDb from '../db/episodesDb';
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';

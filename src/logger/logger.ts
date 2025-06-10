@@ -13,7 +13,7 @@ import winston from 'winston';
 import { format, transports } from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
-const { combine, timestamp, json, printf, label, colorize } = format;
+const { combine, timestamp, json, printf, label } = format;
 const serviceName = getServiceName();
 const appVersion = getAppVersion();
 const timestampFormat = getLogTimestampFormat();
@@ -122,7 +122,6 @@ export class Logger {
 
     res.send = function (body: any): any {
       if (!responseSent) {
-        const duration = Date.now() - requestStartTime;
         const logData = formatAppLoggerResponse(req, res, body, requestStartTime);
 
         if (res.statusCode < 400) {

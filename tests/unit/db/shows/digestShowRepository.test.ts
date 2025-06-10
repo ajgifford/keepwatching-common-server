@@ -1,4 +1,3 @@
-import { ShowTMDBReferenceRow } from '../../../../src/types/showTypes';
 import * as digestShowRepository from '@db/shows/digestShowRepository';
 import { getDbPool } from '@utils/db';
 

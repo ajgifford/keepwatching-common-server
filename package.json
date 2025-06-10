@@ -54,8 +54,11 @@
     "prepare": "yarn build",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --config ./.prettierrc.js . --write",
+    "format:check": "prettier --config ./.prettierrc.js . --check",
+    "type-check": "tsc --noEmit",
     "version:patch": "npm version patch",
     "version:minor": "npm version minor",
     "version:major": "npm version major"
@@ -90,6 +93,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "9.16.0",
     "@trivago/prettier-plugin-sort-imports": "^5.2.2",
     "@types/express": "^5.0.1",
     "@types/jest": "^29.5.14",
@@ -97,6 +101,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.17",
     "@types/uuid": "^10.0.0",
+    "eslint": "9.16.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-js": "eslint/js",
     "eslint-plugin-jest": "^28.11.0",
@@ -107,7 +112,7 @@
     "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.29.1"
+    "typescript-eslint": "8.16.0"
   },
   "resolutions": {
     "punycode": "^2.3.1",

@@ -237,7 +237,7 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<A
 
     const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(episodesQuery, seasonIds);
 
-    const episodesBySeason: Record<number, any[]> = {};
+    const episodesBySeason: Record<number, AdminEpisode[]> = {};
     episodeRows.forEach((episodeRow) => {
       if (!episodesBySeason[episodeRow.season_id]) {
         episodesBySeason[episodeRow.season_id] = [];

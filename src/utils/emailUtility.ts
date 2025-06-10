@@ -168,7 +168,7 @@ export function generateWeeklyDigestText(emailData: DigestEmail): string {
  */
 export function generateDiscoveryEmailHTML(emailData: DiscoveryEmail): string {
   const { accountName, data } = emailData;
-  const { profiles, featuredContent, weekRange } = data;
+  const { profiles, featuredContent } = data;
 
   let html = `
 <!DOCTYPE html>
@@ -311,7 +311,7 @@ export function generateDiscoveryEmailHTML(emailData: DiscoveryEmail): string {
  */
 export function generateDiscoveryEmailText(emailData: DiscoveryEmail): string {
   const { accountName, data } = emailData;
-  const { profiles, featuredContent, weekRange } = data;
+  const { profiles, featuredContent } = data;
 
   let text = `Discover Something New!\n`;
   text += `Hi ${accountName}! Your watchlist is ready for some fresh content\n\n`;

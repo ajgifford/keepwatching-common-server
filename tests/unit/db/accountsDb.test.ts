@@ -1,4 +1,3 @@
-import { AccountRow } from '../../../src/types/accountTypes';
 import { Account, UpdateAccountRequest } from '@ajgifford/keepwatching-types';
 import * as accountsDb from '@db/accountsDb';
 import { DatabaseError } from '@middleware/errorMiddleware';

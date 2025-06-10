@@ -206,7 +206,7 @@ export class EmailService {
       });
 
       // Filter upcoming movies to only include this week's releases
-      const weeklyUpcomingMovies = upcomingMovies.filter((movie) => {
+      const weeklyUpcomingMovies = upcomingMovies.filter(() => {
         // Note: You might need to add a releaseDate field to MovieReference
         // or fetch full movie details to get release dates
         return true; // For now, include all upcoming movies

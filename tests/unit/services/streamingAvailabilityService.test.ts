@@ -77,7 +77,7 @@ describe('StreamingAvailabilityService', () => {
 
   describe('constructor', () => {
     it('should initialize client with API key from environment', () => {
-      const service = StreamingAvailabilityService.getInstance();
+      StreamingAvailabilityService.getInstance();
 
       expect(Configuration).toHaveBeenCalledWith({
         apiKey: 'mock-api-key',
@@ -88,7 +88,7 @@ describe('StreamingAvailabilityService', () => {
     it('should handle missing API key gracefully', () => {
       (config.getStreamingAPIKey as jest.Mock).mockReturnValueOnce(undefined);
 
-      const service = StreamingAvailabilityService.getInstance();
+      StreamingAvailabilityService.getInstance();
 
       expect(Configuration).toHaveBeenCalledWith({
         apiKey: 'undefined',

@@ -1,5 +1,4 @@
 import { cliLogger } from '@logger/logger';
-import { CustomError, TransientApiError } from '@middleware/errorMiddleware';
 import { RetryOptions, calculateRetryDelay, isRetriableError, isRetriableStatus, withRetry } from '@utils/retryUtil';
 import { AxiosError } from 'axios';
 

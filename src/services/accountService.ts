@@ -378,21 +378,17 @@ export class AccountService {
     }
   }
 
-  private async getAllUsers(): Promise<any[]> {
+  private async getAllUsers(): Promise<UserRecord[]> {
     let nextPageToken: string | undefined;
     let allUsers: UserRecord[] = [];
 
-    try {
-      do {
-        const admin = getFirebaseAdmin();
-        const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
-        allUsers = allUsers.concat(listUsersResult.users);
-        nextPageToken = listUsersResult.pageToken;
-      } while (nextPageToken);
-      return allUsers;
-    } catch (error) {
-      throw error;
-    }
+    do {
+      const admin = getFirebaseAdmin();
+      const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+      allUsers = allUsers.concat(listUsersResult.users);
+      nextPageToken = listUsersResult.pageToken;
+    } while (nextPageToken);
+    return allUsers;
   }
 
   private combineUserData(firebaseUsers: UserRecord[], databaseAccounts: AccountRow[]): CombinedAccount[] {

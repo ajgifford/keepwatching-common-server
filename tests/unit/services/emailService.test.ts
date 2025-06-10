@@ -1,4 +1,4 @@
-import { AccountContentAnalysis, DigestEmail, DiscoveryEmail } from '../../../src/types/emailTypes';
+import { AccountContentAnalysis } from '../../../src/types/emailTypes';
 import {
   CombinedAccount,
   KeepWatchingShow,
@@ -16,14 +16,7 @@ import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { profileService } from '@services/profileService';
 import { showService } from '@services/showService';
-import {
-  generateDiscoveryEmailHTML,
-  generateDiscoveryEmailText,
-  generateWeeklyDigestHTML,
-  generateWeeklyDigestText,
-  getUpcomingWeekRange,
-} from '@utils/emailUtility';
-import { profile } from 'console';
+import { getUpcomingWeekRange } from '@utils/emailUtility';
 import nodemailer from 'nodemailer';
 
 jest.mock('@logger/logger');
@@ -43,15 +36,6 @@ const mockCreateTransporter = jest.fn().mockReturnValue({
   verify: mockVerify,
 });
 (nodemailer.createTransport as jest.Mock) = mockCreateTransporter;
-
-const mockedGenerateWeeklyDigestHTML = generateWeeklyDigestHTML as jest.MockedFunction<typeof generateWeeklyDigestHTML>;
-const mockedGenerateWeeklyDigestText = generateWeeklyDigestText as jest.MockedFunction<typeof generateWeeklyDigestText>;
-const mockedGenerateDiscoveryEmailHTML = generateDiscoveryEmailHTML as jest.MockedFunction<
-  typeof generateDiscoveryEmailHTML
->;
-const mockedGenerateDiscoveryEmailText = generateDiscoveryEmailText as jest.MockedFunction<
-  typeof generateDiscoveryEmailText
->;
 
 describe('EmailService', () => {
   let emailService: EmailService;

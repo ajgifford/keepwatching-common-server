@@ -121,7 +121,7 @@ describe('Episode Module', () => {
         still_image: '/path/to/new_still.jpg',
       };
 
-      const updatedEpisode = await episodeModule.updateEpisode(episode);
+      await episodeModule.updateEpisode(episode);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(mockPool.execute).toHaveBeenCalledWith(

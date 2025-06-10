@@ -1,5 +1,4 @@
 import { createMockCache, setupMocks } from './helpers/mocks';
-import * as showsDb from '@db/showsDb';
 import { CacheService } from '@services/cacheService';
 import { profileService } from '@services/profileService';
 import { ShowService, showService } from '@services/showService';
