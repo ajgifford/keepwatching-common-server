@@ -1,4 +1,5 @@
 import {
+  AdminEpisode,
   AdminSeason,
   AdminSeasonWithEpisodes,
   FullWatchStatusType,
@@ -85,7 +86,7 @@ export function transformAdminSeason(season: AdminSeasonRow): AdminSeason {
 
 export function transformAdminSeasonWithEpisodes(
   season: AdminSeasonRow,
-  episodesBySeason: Record<number, any[]>,
+  episodesBySeason: Record<number, AdminEpisode[]>,
 ): AdminSeasonWithEpisodes {
   return {
     ...transformAdminSeason(season),

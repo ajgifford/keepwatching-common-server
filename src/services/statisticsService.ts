@@ -11,6 +11,7 @@ import {
   MovieReference,
   MovieStatisticsResponse,
   ProfileStatisticsResponse,
+  ShowProgress,
   ShowStatisticsResponse,
   UniqueContentCounts,
 } from '@ajgifford/keepwatching-types';
@@ -176,7 +177,7 @@ export class StatisticsService {
           (aggregate.movies.serviceDistribution[service] || 0) + (count as number);
       });
 
-      profileStats.episodeWatchProgress.showsProgress.forEach((show: any) => {
+      profileStats.episodeWatchProgress.showsProgress.forEach((show: ShowProgress) => {
         uniqueShowIds.add(show.showId);
       });
 

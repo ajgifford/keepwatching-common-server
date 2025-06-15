@@ -1,6 +1,6 @@
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { Change } from '../types/contentTypes';
+import { TMDBChange } from '../types/tmdbTypes';
 import { getTMDBService } from './tmdbService';
 
 /**
@@ -19,7 +19,7 @@ export async function checkSeasonForEpisodeChanges(
 
   try {
     const changesData = await tmdbService.getSeasonChanges(seasonId, pastDate, currentDate);
-    const changes: Change[] = changesData.changes || [];
+    const changes: TMDBChange[] = changesData.changes || [];
     return changes.some((item) => item.key === 'episode');
   } catch (error) {
     cliLogger.error(`Error checking changes for season ID ${seasonId}`, error);

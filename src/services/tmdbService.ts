@@ -1,3 +1,17 @@
+import {
+  TMDBChangesResponse,
+  TMDBMovie,
+  TMDBPaginatedResponse,
+  TMDBRelatedMovie,
+  TMDBRelatedShow,
+  TMDBSearchMovieParams,
+  TMDBSearchMovieResult,
+  TMDBSearchShowResult,
+  TMDBSearchTVParams,
+  TMDBSeasonDetails,
+  TMDBShow,
+  TMDBTrendingResult,
+} from '../types/tmdbTypes';
 import { axiosTMDBAPIInstance } from '../utils/axiosInstance';
 import { withRetry } from '../utils/retryUtil';
 import { CacheService } from './cacheService';
@@ -35,7 +49,7 @@ export interface TMDBService {
    * @param year - Optional year filter
    * @returns Search results from TMDB
    */
-  searchShows(query: string, page?: number, year?: string): Promise<any>;
+  searchShows(query: string, page?: number, year?: string): Promise<TMDBPaginatedResponse<TMDBSearchShowResult>>;
 
   /**
    * Search for movies matching the provided query
@@ -44,21 +58,21 @@ export interface TMDBService {
    * @param year - Optional year filter
    * @returns Search results from TMDB
    */
-  searchMovies(query: string, page?: number, year?: string): Promise<any>;
+  searchMovies(query: string, page?: number, year?: string): Promise<TMDBPaginatedResponse<TMDBSearchMovieResult>>;
 
   /**
    * Get detailed information about a TV show
    * @param id - TMDB ID of the show
    * @returns Show details with content ratings and watch providers
    */
-  getShowDetails(id: number): Promise<any>;
+  getShowDetails(id: number): Promise<TMDBShow>;
 
   /**
    * Get detailed information about a movie
    * @param id - TMDB ID of the movie
    * @returns Movie details with release dates and watch providers
    */
-  getMovieDetails(id: number): Promise<any>;
+  getMovieDetails(id: number): Promise<TMDBMovie>;
 
   /**
    * Get detailed information about a specific season of a TV show
@@ -66,7 +80,7 @@ export interface TMDBService {
    * @param seasonNumber - Season number
    * @returns Season details including episodes
    */
-  getSeasonDetails(showId: number, seasonNumber: number): Promise<any>;
+  getSeasonDetails(showId: number, seasonNumber: number): Promise<TMDBSeasonDetails>;
 
   /**
    * Get trending shows or movies for the week
@@ -74,35 +88,35 @@ export interface TMDBService {
    * @param page - Page number of results
    * @returns Trending content
    */
-  getTrending(mediaType: 'tv' | 'movie', page?: string): Promise<any>;
+  getTrending(mediaType: 'tv' | 'movie', page?: string): Promise<TMDBPaginatedResponse<TMDBTrendingResult>>;
 
   /**
    * Get recommendations for a TV show
    * @param showId - TMDB ID of the show
    * @returns Show recommendations
    */
-  getShowRecommendations(showId: number): Promise<any>;
+  getShowRecommendations(showId: number): Promise<TMDBPaginatedResponse<TMDBRelatedShow>>;
 
   /**
    * Get recommendations for a movie
    * @param movieId - TMDB ID of the movie
    * @returns Movie recommendations
    */
-  getMovieRecommendations(movieId: number): Promise<any>;
+  getMovieRecommendations(movieId: number): Promise<TMDBPaginatedResponse<TMDBRelatedMovie>>;
 
   /**
    * Get similar shows for a given TV show
    * @param showId - TMDB ID of the show
    * @returns Similar shows
    */
-  getSimilarShows(showId: number): Promise<any>;
+  getSimilarShows(showId: number): Promise<TMDBPaginatedResponse<TMDBRelatedShow>>;
 
   /**
    * Get similar movies for a given movie
    * @param movieId - TMDB ID of the movie
    * @returns Similar movies
    */
-  getSimilarMovies(movieId: number): Promise<any>;
+  getSimilarMovies(movieId: number): Promise<TMDBPaginatedResponse<TMDBRelatedMovie>>;
 
   /**
    * Get changes for a specific show
@@ -111,7 +125,7 @@ export interface TMDBService {
    * @param endDate - End date for changes in YYYY-MM-DD format
    * @returns Changes for the show
    */
-  getShowChanges(showId: number, startDate: string, endDate: string): Promise<any>;
+  getShowChanges(showId: number, startDate: string, endDate: string): Promise<TMDBChangesResponse>;
 
   /**
    * Get changes for a specific movie
@@ -120,7 +134,7 @@ export interface TMDBService {
    * @param endDate - End date for changes in YYYY-MM-DD format
    * @returns Changes for the movie
    */
-  getMovieChanges(movieId: number, startDate: string, endDate: string): Promise<any>;
+  getMovieChanges(movieId: number, startDate: string, endDate: string): Promise<TMDBChangesResponse>;
 
   /**
    * Get changes for a specific season
@@ -129,7 +143,7 @@ export interface TMDBService {
    * @param endDate - End date for changes in YYYY-MM-DD format
    * @returns Changes for the season
    */
-  getSeasonChanges(seasonId: number, startDate: string, endDate: string): Promise<any>;
+  getSeasonChanges(seasonId: number, startDate: string, endDate: string): Promise<TMDBChangesResponse>;
 
   /**
    * Clear cache for specific items or all items if no key provided
@@ -148,7 +162,11 @@ export class DefaultTMDBService implements TMDBService {
     this.cache = CacheService.getInstance();
   }
 
-  async searchShows(query: string, page: number = 1, year?: string): Promise<any> {
+  async searchShows(
+    query: string,
+    page: number = 1,
+    year?: string,
+  ): Promise<TMDBPaginatedResponse<TMDBSearchShowResult>> {
     const cacheKey = TMDB_CACHE_KEYS.search.shows(query, page, year);
 
     return await this.cache.getOrSet(
@@ -156,7 +174,7 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const params: Record<string, any> = {
+            const params: TMDBSearchTVParams = {
               query,
               page,
               include_adult: false,
@@ -167,7 +185,9 @@ export class DefaultTMDBService implements TMDBService {
               params.first_air_date_year = year;
             }
 
-            const response = await axiosTMDBAPIInstance.get('/search/tv', { params });
+            const response = await axiosTMDBAPIInstance.get<TMDBPaginatedResponse<TMDBSearchShowResult>>('/search/tv', {
+              params,
+            });
             return response.data;
           },
           {
@@ -181,7 +201,11 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async searchMovies(query: string, page: number = 1, year?: string): Promise<any> {
+  async searchMovies(
+    query: string,
+    page: number = 1,
+    year?: string,
+  ): Promise<TMDBPaginatedResponse<TMDBSearchMovieResult>> {
     const cacheKey = TMDB_CACHE_KEYS.search.movies(query, page, year);
 
     return await this.cache.getOrSet(
@@ -189,7 +213,7 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const params: Record<string, any> = {
+            const params: TMDBSearchMovieParams = {
               query,
               page,
               include_adult: false,
@@ -201,7 +225,10 @@ export class DefaultTMDBService implements TMDBService {
               params.primary_release_year = year;
             }
 
-            const response = await axiosTMDBAPIInstance.get('/search/movie', { params });
+            const response = await axiosTMDBAPIInstance.get<TMDBPaginatedResponse<TMDBSearchMovieResult>>(
+              '/search/movie',
+              { params },
+            );
             return response.data;
           },
           {
@@ -215,7 +242,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getShowDetails(id: number): Promise<any> {
+  async getShowDetails(id: number): Promise<TMDBShow> {
     const cacheKey = TMDB_CACHE_KEYS.showDetails(id);
 
     return await this.cache.getOrSet(
@@ -223,8 +250,9 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(
-              `/tv/${id}?append_to_response=content_ratings,watch/providers`, { timeout: 10000 }
+            const response = await axiosTMDBAPIInstance.get<TMDBShow>(
+              `/tv/${id}?append_to_response=content_ratings,watch/providers`,
+              { timeout: 10000 },
             );
             return response.data;
           },
@@ -239,7 +267,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getMovieDetails(id: number): Promise<any> {
+  async getMovieDetails(id: number): Promise<TMDBMovie> {
     const cacheKey = TMDB_CACHE_KEYS.movieDetails(id);
 
     return await this.cache.getOrSet(
@@ -247,8 +275,9 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(
-              `/movie/${id}?append_to_response=release_dates%2Cwatch%2Fproviders&language=en-US`, { timeout: 10000 }
+            const response = await axiosTMDBAPIInstance.get<TMDBMovie>(
+              `/movie/${id}?append_to_response=credits%2Crelease_dates%2Cwatch%2Fproviders&language=en-US`,
+              { timeout: 10000 },
             );
             return response.data;
           },
@@ -263,7 +292,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getSeasonDetails(showId: number, seasonNumber: number): Promise<any> {
+  async getSeasonDetails(showId: number, seasonNumber: number): Promise<TMDBSeasonDetails> {
     const cacheKey = TMDB_CACHE_KEYS.seasonDetails(showId, seasonNumber);
 
     return await this.cache.getOrSet(
@@ -271,7 +300,9 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/season/${seasonNumber}`, { timeout: 10000 });
+            const response = await axiosTMDBAPIInstance.get<TMDBSeasonDetails>(`/tv/${showId}/season/${seasonNumber}`, {
+              timeout: 10000,
+            });
             return response.data;
           },
           {
@@ -285,7 +316,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getTrending(mediaType: 'tv' | 'movie', page: string = '1'): Promise<any> {
+  async getTrending(mediaType: 'tv' | 'movie', page: string = '1'): Promise<TMDBPaginatedResponse<TMDBTrendingResult>> {
     const cacheKey = TMDB_CACHE_KEYS.trending(mediaType, page);
 
     return await this.cache.getOrSet(
@@ -299,6 +330,7 @@ export class DefaultTMDBService implements TMDBService {
                 language: 'en-US',
               },
             });
+
             return response.data;
           },
           {
@@ -308,11 +340,11 @@ export class DefaultTMDBService implements TMDBService {
           `getTrending(${mediaType}, ${page})`,
         );
       },
-      1800, // 30 minutes TTL for trending content
+      1800,
     );
   }
 
-  async getShowRecommendations(showId: number): Promise<any> {
+  async getShowRecommendations(showId: number): Promise<TMDBPaginatedResponse<TMDBRelatedShow>> {
     const cacheKey = TMDB_CACHE_KEYS.showRecommendations(showId);
 
     return await this.cache.getOrSet(
@@ -320,11 +352,14 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/recommendations`, {
-              params: {
-                language: 'en-US',
+            const response = await axiosTMDBAPIInstance.get<TMDBPaginatedResponse<TMDBRelatedShow>>(
+              `/tv/${showId}/recommendations`,
+              {
+                params: {
+                  language: 'en-US',
+                },
               },
-            });
+            );
             return response.data;
           },
           {
@@ -338,7 +373,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getSimilarShows(showId: number): Promise<any> {
+  async getSimilarShows(showId: number): Promise<TMDBPaginatedResponse<TMDBRelatedShow>> {
     const cacheKey = TMDB_CACHE_KEYS.similarShows(showId);
 
     return await this.cache.getOrSet(
@@ -346,11 +381,14 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(`/tv/${showId}/similar`, {
-              params: {
-                language: 'en-US',
+            const response = await axiosTMDBAPIInstance.get<TMDBPaginatedResponse<TMDBRelatedShow>>(
+              `/tv/${showId}/similar`,
+              {
+                params: {
+                  language: 'en-US',
+                },
               },
-            });
+            );
             return response.data;
           },
           {
@@ -364,7 +402,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getMovieRecommendations(movieId: number): Promise<any> {
+  async getMovieRecommendations(movieId: number): Promise<TMDBPaginatedResponse<TMDBRelatedMovie>> {
     const cacheKey = TMDB_CACHE_KEYS.movieRecommendations(movieId);
 
     return await this.cache.getOrSet(
@@ -372,11 +410,14 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/recommendations`, {
-              params: {
-                language: 'en-US',
+            const response = await axiosTMDBAPIInstance.get<TMDBPaginatedResponse<TMDBRelatedMovie>>(
+              `/movie/${movieId}/recommendations`,
+              {
+                params: {
+                  language: 'en-US',
+                },
               },
-            });
+            );
             return response.data;
           },
           {
@@ -390,7 +431,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getSimilarMovies(movieId: number): Promise<any> {
+  async getSimilarMovies(movieId: number): Promise<TMDBPaginatedResponse<TMDBRelatedMovie>> {
     const cacheKey = TMDB_CACHE_KEYS.similarMovies(movieId);
 
     return await this.cache.getOrSet(
@@ -398,11 +439,14 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(`/movie/${movieId}/similar`, {
-              params: {
-                language: 'en-US',
+            const response = await axiosTMDBAPIInstance.get<TMDBPaginatedResponse<TMDBRelatedMovie>>(
+              `/movie/${movieId}/similar`,
+              {
+                params: {
+                  language: 'en-US',
+                },
               },
-            });
+            );
             return response.data;
           },
           {
@@ -416,7 +460,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getShowChanges(showId: number, startDate: string, endDate: string): Promise<any> {
+  async getShowChanges(showId: number, startDate: string, endDate: string): Promise<TMDBChangesResponse> {
     const cacheKey = TMDB_CACHE_KEYS.showChanges(showId, startDate, endDate);
 
     return await this.cache.getOrSet(
@@ -424,7 +468,7 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(
+            const response = await axiosTMDBAPIInstance.get<TMDBChangesResponse>(
               `tv/${showId}/changes?end_date=${endDate}&start_date=${startDate}`,
             );
             return response.data;
@@ -440,7 +484,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getMovieChanges(movieId: number, startDate: string, endDate: string): Promise<any> {
+  async getMovieChanges(movieId: number, startDate: string, endDate: string): Promise<TMDBChangesResponse> {
     const cacheKey = TMDB_CACHE_KEYS.movieChanges(movieId, startDate, endDate);
 
     return await this.cache.getOrSet(
@@ -448,7 +492,7 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(
+            const response = await axiosTMDBAPIInstance.get<TMDBChangesResponse>(
               `movie/${movieId}/changes?end_date=${endDate}&start_date=${startDate}`,
             );
             return response.data;
@@ -464,7 +508,7 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
-  async getSeasonChanges(seasonId: number, startDate: string, endDate: string): Promise<any> {
+  async getSeasonChanges(seasonId: number, startDate: string, endDate: string): Promise<TMDBChangesResponse> {
     const cacheKey = TMDB_CACHE_KEYS.seasonChanges(seasonId, startDate, endDate);
 
     return await this.cache.getOrSet(
@@ -472,7 +516,7 @@ export class DefaultTMDBService implements TMDBService {
       async () => {
         return await withRetry(
           async () => {
-            const response = await axiosTMDBAPIInstance.get(
+            const response = await axiosTMDBAPIInstance.get<TMDBChangesResponse>(
               `tv/season/${seasonId}/changes?end_date=${endDate}&start_date=${startDate}`,
             );
             return response.data;

@@ -24,13 +24,13 @@ describe('imageUtility', () => {
   describe('buildDefaultImagePath', () => {
     it('should build a placeholder URL with account name', () => {
       expect(buildDefaultImagePath('John Doe')).toBe(
-        'https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto',
+        'https://placehold.co/300x200/42a5f5/white?text=John+Doe&font=roboto',
       );
     });
 
     it('should properly replace spaces with plus signs', () => {
       expect(buildDefaultImagePath('John Doe Jr')).toBe(
-        'https://placehold.co/300x200/orange/white?text=John+Doe+Jr&font=roboto',
+        'https://placehold.co/300x200/42a5f5/white?text=John+Doe+Jr&font=roboto',
       );
     });
   });
@@ -116,7 +116,7 @@ describe('imageUtility', () => {
       const image = undefined;
 
       expect(getPhotoForGoogleAccount(name, photoURL, image)).toBe(
-        'https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto',
+        'https://placehold.co/300x200/42a5f5/white?text=John+Doe&font=roboto',
       );
     });
   });
@@ -133,7 +133,7 @@ describe('imageUtility', () => {
       const name = 'John Doe';
       const image = undefined;
 
-      expect(getAccountImage(image, name)).toBe('https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto');
+      expect(getAccountImage(image, name)).toBe('https://placehold.co/300x200/42a5f5/white?text=John+Doe&font=roboto');
     });
   });
 
@@ -149,7 +149,7 @@ describe('imageUtility', () => {
       const name = 'John Doe';
       const image = undefined;
 
-      expect(getProfileImage(image, name)).toBe('https://placehold.co/300x200/orange/white?text=John+Doe&font=roboto');
+      expect(getProfileImage(image, name)).toBe('https://placehold.co/300x200/42a5f5/white?text=John+Doe&font=roboto');
     });
   });
 });

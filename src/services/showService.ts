@@ -5,8 +5,14 @@ import * as showsDb from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError } from '../middleware/errorMiddleware';
-import { Change, ContentUpdates } from '../types/contentTypes';
-import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
+import { ContentUpdates } from '../types/contentTypes';
+import { TMDBGenre, TMDBPaginatedResponse, TMDBRelatedShow, TMDBShow, TMDBShowSeason } from '../types/tmdbTypes';
+import {
+  GLOBAL_KEYS,
+  LANGUAGE_SPECIFIC_KEYS,
+  SUPPORTED_CHANGE_KEYS,
+  SUPPORTED_LANGUAGE,
+} from '../utils/changesUtility';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { filterUSOrEnglishShows } from '../utils/usSearchFilter';
@@ -19,6 +25,7 @@ import { socketService } from './socketService';
 import { getTMDBService } from './tmdbService';
 import {
   AddShowFavorite,
+  ContentReference,
   CreateShowRequest,
   EpisodesForProfile,
   KeepWatchingShow,
@@ -30,7 +37,6 @@ import {
   RemoveShowFavorite,
   ShowReference,
   ShowStatisticsResponse,
-  ShowTMDBReference,
   SimilarOrRecommendedShow,
   UpdateShowRequest,
   WatchStatus,
@@ -249,7 +255,7 @@ export class ShowService {
       season_count: responseShow.number_of_seasons,
       episode_count: responseShow.number_of_episodes,
       streaming_service_ids: getUSWatchProviders(responseShow, 9999),
-      genre_ids: responseShow.genres.map((genre: { id: any }) => genre.id),
+      genre_ids: responseShow.genres.map((genre: TMDBGenre) => genre.id),
       status: responseShow.status,
       type: responseShow.type,
       in_production: getInProduction(responseShow),
@@ -278,10 +284,10 @@ export class ShowService {
    * @param showId - ID of the show in the database
    * @param profileId - ID of the profile to add the show for
    */
-  private async fetchSeasonsAndEpisodes(show: any, showId: number, profileId: number): Promise<void> {
+  private async fetchSeasonsAndEpisodes(show: TMDBShow, showId: number, profileId: number): Promise<void> {
     try {
       const tmdbService = getTMDBService();
-      const validSeasons = show.seasons.filter((season: any) => {
+      const validSeasons = show.seasons.filter((season: TMDBShowSeason) => {
         return season.season_number > 0;
       });
 
@@ -539,13 +545,13 @@ export class ShowService {
   }
 
   private async populateSimilarOrRecommendedResult(
-    response: any,
+    response: TMDBPaginatedResponse<TMDBRelatedShow>,
     profileId: number,
   ): Promise<SimilarOrRecommendedShow[]> {
     const responseShows = filterUSOrEnglishShows(response.results);
     const userShows = await showsDb.getAllShowsForProfile(profileId);
     const userShowIds = new Set(userShows.map((s) => s.tmdbId));
-    return responseShows.map((rec: any) => ({
+    return responseShows.map((rec: TMDBRelatedShow) => ({
       id: rec.id,
       title: rec.name,
       genres: generateGenreArrayFromIds(rec.genre_ids),
@@ -554,7 +560,7 @@ export class ShowService {
       image: rec.poster_path,
       rating: rec.vote_average,
       popularity: rec.popularity,
-      country: rec.origin_country,
+      country: 'US',
       language: rec.original_language,
       inFavorites: userShowIds.has(rec.id),
     }));
@@ -563,7 +569,7 @@ export class ShowService {
   /**
    * Get trending shows for discovery emails
    */
-  public async getTrendingShows(limit: number = 10): Promise<ShowTMDBReference[]> {
+  public async getTrendingShows(limit: number = 10): Promise<ContentReference[]> {
     try {
       return await showsDb.getTrendingShows(limit);
     } catch (error) {
@@ -574,7 +580,7 @@ export class ShowService {
   /**
    * Get newly added shows
    */
-  public async getNewlyAddedShows(limit: number = 10): Promise<ShowTMDBReference[]> {
+  public async getNewlyAddedShows(limit: number = 10): Promise<ContentReference[]> {
     try {
       return await showsDb.getNewlyAddedShows(limit);
     } catch (error) {
@@ -585,7 +591,7 @@ export class ShowService {
   /**
    * Get top rated shows
    */
-  public async getTopRatedShows(limit: number = 10): Promise<ShowTMDBReference[]> {
+  public async getTopRatedShows(limit: number = 10): Promise<ContentReference[]> {
     try {
       return await showsDb.getTopRatedShows(limit);
     } catch (error) {
@@ -604,11 +610,23 @@ export class ShowService {
 
     try {
       const changesData = await tmdbService.getShowChanges(content.tmdb_id, pastDate, currentDate);
-      const changes: Change[] = changesData.changes || [];
+      const changes = changesData.changes || [];
+      const hasRelevantChange = changes.some((change) => {
+        if (!SUPPORTED_CHANGE_KEYS.includes(change.key)) return false;
 
-      const supportedChanges = changes.filter((item) => SUPPORTED_CHANGE_KEYS.includes(item.key));
+        if (LANGUAGE_SPECIFIC_KEYS.has(change.key)) {
+          return change.items.some((item) =>
+            Array.isArray(item.value)
+              ? item.value.some((val) => val.iso_639_1 === SUPPORTED_LANGUAGE)
+              : item.iso_639_1 === SUPPORTED_LANGUAGE,
+          );
+        }
 
-      if (supportedChanges.length > 0) {
+        return GLOBAL_KEYS.has(change.key);
+      });
+      const seasonChange = changes.find((item) => item.key === 'season');
+
+      if (hasRelevantChange || seasonChange) {
         const showDetails = await tmdbService.getShowDetails(content.tmdb_id);
 
         const updatedShow: UpdateShowRequest = {
@@ -624,7 +642,7 @@ export class ShowService {
           streaming_service_ids: getUSWatchProviders(showDetails, 9999),
           season_count: showDetails.number_of_seasons,
           episode_count: showDetails.number_of_episodes,
-          genre_ids: showDetails.genres.map((genre: { id: any }) => genre.id),
+          genre_ids: showDetails.genres.map((genre: TMDBGenre) => genre.id),
           status: showDetails.status,
           type: showDetails.type,
           in_production: getInProduction(showDetails),
@@ -638,10 +656,9 @@ export class ShowService {
 
         const profilesForShow = await showsDb.getProfilesForShow(updatedShow.id);
 
-        const seasonChanges = changes.filter((item) => item.key === 'season');
-        if (seasonChanges.length > 0) {
+        if (seasonChange) {
           await processSeasonChanges(
-            seasonChanges[0].items,
+            seasonChange,
             showDetails,
             content,
             profilesForShow.profileAccountMappings,

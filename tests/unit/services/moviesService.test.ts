@@ -1,4 +1,5 @@
-import { Change, ContentUpdates } from '../../../src/types/contentTypes';
+import { ContentUpdates } from '../../../src/types/contentTypes';
+import { TMDBChange } from '../../../src/types/tmdbTypes';
 import * as moviesDb from '@db/moviesDb';
 import { appLogger } from '@logger/logger';
 import { NotFoundError } from '@middleware/errorMiddleware';
@@ -7,7 +8,7 @@ import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { profileService } from '@services/profileService';
 import { getTMDBService } from '@services/tmdbService';
-import { getUSMPARating } from '@utils/contentUtility';
+import { getDirectors, getUSMPARating, getUSProductionCompanies } from '@utils/contentUtility';
 import { getUSWatchProviders } from '@utils/watchProvidersUtility';
 
 jest.mock('@db/moviesDb');
@@ -15,7 +16,9 @@ jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
 jest.mock('@services/profileService');
 jest.mock('@utils/contentUtility', () => ({
-  getUSMPARating: jest.fn().mockReturnValue('PG-13'),
+  getUSMPARating: jest.fn().mockReturnValue('Unknown'),
+  getDirectors: jest.fn().mockReturnValue('Director A'),
+  getUSProductionCompanies: jest.fn().mockReturnValue('Production A'),
 }));
 jest.mock('@utils/watchProvidersUtility', () => ({
   getUSWatchProviders: jest.fn().mockReturnValue([8, 9]),
@@ -81,7 +84,7 @@ describe('MoviesService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      mockCacheService.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
       (moviesDb.getAllMoviesForProfile as jest.Mock).mockRejectedValue(error);
       (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
@@ -89,6 +92,42 @@ describe('MoviesService', () => {
 
       await expect(moviesService.getMoviesForProfile(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getMoviesForProfile(123)');
+    });
+  });
+
+  describe('getMovieDetailsForProfile', () => {
+    it('should return a movie with details from cache when available', async () => {
+      const mockMovie = { id: 1, title: 'Test Movie' };
+      mockCacheService.getOrSet.mockResolvedValue(mockMovie);
+
+      const result = await moviesService.getMovieDetailsForProfile(123, 1);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_movie_1', expect.any(Function), 600);
+      expect(result).toEqual(mockMovie);
+    });
+
+    it('should fetch movies from database when not in cache', async () => {
+      const mockMovie = { id: 1, title: 'Test Movie' };
+      mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
+      (moviesDb.getMovieDetailsForProfile as jest.Mock).mockResolvedValue(mockMovie);
+
+      const result = await moviesService.getMovieDetailsForProfile(123, 1);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
+      expect(moviesDb.getMovieDetailsForProfile).toHaveBeenCalledWith(123, 1);
+      expect(result).toEqual(mockMovie);
+    });
+
+    it('should handle errors properly', async () => {
+      const error = new Error('Database error');
+      mockCacheService.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
+      (moviesDb.getMovieDetailsForProfile as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+        throw err;
+      });
+
+      await expect(moviesService.getMovieDetailsForProfile(123, 1)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getMovieDetailsForProfile(123, 1)');
     });
   });
 
@@ -203,6 +242,8 @@ describe('MoviesService', () => {
       });
       (moviesDb.saveFavorite as jest.Mock).mockReturnValue(true);
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
+      (getDirectors as jest.Mock).mockReturnValue('Steven Jones');
+      (getUSProductionCompanies as jest.Mock).mockReturnValue('MGM Global');
       (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
@@ -222,6 +263,8 @@ describe('MoviesService', () => {
         backdrop_image: '/backdrop.jpg',
         user_rating: 8.5,
         mpa_rating: 'PG-13',
+        director: 'Steven Jones',
+        production_companies: 'MGM Global',
         genre_ids: [28, 12],
         streaming_service_ids: [8, 9],
       });
@@ -252,6 +295,8 @@ describe('MoviesService', () => {
       (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(null);
       (moviesDb.saveFavorite as jest.Mock).mockReturnValue(false);
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
+      (getDirectors as jest.Mock).mockReturnValue('Steven Jones');
+      (getUSProductionCompanies as jest.Mock).mockReturnValue('MGM Global');
       (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
       (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
@@ -422,7 +467,7 @@ describe('MoviesService', () => {
     });
 
     it('should do nothing when only unsupported changes are detected', async () => {
-      const unsupportedChanges: Change[] = [
+      const unsupportedChanges: TMDBChange[] = [
         {
           key: 'unsupported_key',
           items: [
@@ -432,8 +477,8 @@ describe('MoviesService', () => {
               time: '2023-01-05',
               iso_639_1: 'en',
               iso_3166_1: 'US',
-              value: {},
-              original_value: null,
+              value: '',
+              original_value: undefined,
             },
           ],
         },
@@ -448,7 +493,7 @@ describe('MoviesService', () => {
     });
 
     it('should update movie when supported changes are detected', async () => {
-      const supportedChanges: Change[] = [
+      const supportedChanges: TMDBChange[] = [
         {
           key: 'title',
           items: [
@@ -481,6 +526,10 @@ describe('MoviesService', () => {
         backdrop_image: '/new-backdrop.jpg',
         user_rating: 8.5,
         mpa_rating: 'PG-13',
+        director: 'Steven Jones',
+        production_companies: 'MGM Global',
+        budget: undefined,
+        revenue: undefined,
         id: 123,
         streaming_service_ids: [8, 9],
         genre_ids: [28, 12],
@@ -504,7 +553,7 @@ describe('MoviesService', () => {
     });
 
     it('should handle errors from getMovieDetails API', async () => {
-      const supportedChanges: Change[] = [
+      const supportedChanges: TMDBChange[] = [
         {
           key: 'title',
           items: [
@@ -538,7 +587,7 @@ describe('MoviesService', () => {
     });
 
     it('should handle multiple supported changes', async () => {
-      const supportedChanges: Change[] = [
+      const supportedChanges: TMDBChange[] = [
         {
           key: 'title',
           items: [
@@ -579,7 +628,7 @@ describe('MoviesService', () => {
     });
 
     it('should handle empty changes array', async () => {
-      mockTMDBService.getMovieChanges.mockResolvedValue({});
+      mockTMDBService.getMovieChanges.mockResolvedValue({ changes: [] });
 
       await moviesService.checkMovieForChanges(mockMovieContent, pastDate, currentDate);
 
@@ -588,7 +637,7 @@ describe('MoviesService', () => {
     });
 
     it('should handle errors from moviesDb.updateMovie()', async () => {
-      const supportedChanges: Change[] = [
+      const supportedChanges: TMDBChange[] = [
         {
           key: 'title',
           items: [

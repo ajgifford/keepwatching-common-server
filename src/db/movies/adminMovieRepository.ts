@@ -1,10 +1,10 @@
 import { NotFoundError } from '../../middleware/errorMiddleware';
+import { ContentCountRow } from '../../types/contentTypes';
 import { AdminMovieRow, transformAdminMovie } from '../../types/movieTypes';
 import { ContentProfilesRow, transformContentProfiles } from '../../types/profileTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { AdminMovie, ContentProfiles } from '@ajgifford/keepwatching-types';
-import { ContentCountRow } from 'src/types/contentTypes';
 
 export async function getMoviesCount(): Promise<number> {
   try {

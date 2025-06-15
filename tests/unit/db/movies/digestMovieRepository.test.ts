@@ -71,7 +71,7 @@ describe('digestMovieRepository', () => {
 
       expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining(`
-      SELECT m.id, m.title, m.tmdb_id
+      SELECT m.id, m.title, m.tmdb_id, m.release_date
       FROM movies m
       JOIN movie_watch_status mws ON m.id = mws.movie_id
       WHERE mws.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -164,7 +164,7 @@ describe('digestMovieRepository', () => {
 
       expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining(`
-      SELECT id, title, tmdb_id
+      SELECT id, title, tmdb_id, release_date
       FROM movies
       WHERE release_date >= DATE_SUB(NOW(), INTERVAL 90 DAY)
       AND release_date <= NOW()
@@ -271,7 +271,7 @@ describe('digestMovieRepository', () => {
 
       expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining(`
-      SELECT id, title, tmdb_id
+      SELECT id, title, tmdb_id, release_date
       FROM movies
       WHERE user_rating >= 7.0
       ORDER BY user_rating DESC, release_date DESC

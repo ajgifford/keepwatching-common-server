@@ -1,3 +1,4 @@
+import { ContentReference } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
 export interface ContentUpdatesRow extends RowDataPacket {
@@ -30,17 +31,22 @@ export interface ContentUpdates {
   updated_at: string;
 }
 
-export interface ChangeItem {
-  id: string;
-  action: string;
-  time: string;
-  iso_639_1: string;
-  iso_3166_1: string;
-  value: any;
-  original_value: any;
+export interface StreamingServiceReferenceRow extends RowDataPacket {
+  id: number;
 }
 
-export interface Change {
-  key: string;
-  items: ChangeItem[];
+export interface ContentReferenceRow extends RowDataPacket {
+  id: number;
+  tmdb_id: number;
+  title: string;
+  release_date: string;
+}
+
+export function transformContentReferenceRow(content: ContentReferenceRow): ContentReference {
+  return {
+    id: content.id,
+    tmdbId: content.tmdb_id,
+    title: content.title,
+    releaseDate: content.release_date,
+  };
 }

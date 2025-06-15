@@ -1,5 +1,12 @@
 import { DISCOVER_KEYS, SEARCH_KEYS } from '../constants/cacheKeys';
 import { DiscoverChangesQuery, DiscoverTopQuery, DiscoverTrendingQuery } from '../schema/discoverSchema';
+import {
+  TMDBSearchMovieResult,
+  TMDBSearchShowResult,
+  TMDBTrendingMovieResult,
+  TMDBTrendingResult,
+  TMDBTrendingShowResult,
+} from '../types/tmdbTypes';
 import { getStreamingPremieredDate, getTMDBItemName, getTMDBPremieredDate, stripPrefix } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { buildTMDBImagePath } from '../utils/imageUtility';
@@ -36,7 +43,7 @@ export class ContentDiscoveryService {
           return {
             id: stripPrefix(result.tmdbId),
             title: result.title,
-            genres: result.genres.map((genre: { name: any }) => genre.name),
+            genres: result.genres.map((genre: { name: string }) => genre.name),
             premiered: getStreamingPremieredDate(showType, result),
             summary: result.overview,
             image: result.imageSet.verticalPoster.w240,
@@ -114,43 +121,48 @@ export class ContentDiscoveryService {
     page: DiscoverTrendingQuery['page'],
   ): Promise<DiscoverAndSearchResponse> {
     try {
-      const trendingContent = this.cache.getOrSet(DISCOVER_KEYS.trending(showType, page), async () => {
-        const mediaType = showType === 'movie' ? 'movie' : 'tv';
+      return await this.cache.getOrSet(DISCOVER_KEYS.trending(showType, page), async () => {
         const tmdbService = getTMDBService();
-        const tmdbResponse = await tmdbService.getTrending(mediaType, String(page));
+        const isTV = showType === 'series';
 
-        const apiResults: any[] = tmdbResponse.results;
-        const usResults =
-          showType === 'movie'
-            ? apiResults.filter((movie) => movie.original_language === 'en')
-            : apiResults.filter((show) => show.origin_country && show.origin_country.includes('US'));
+        const trending = await tmdbService.getTrending(isTV ? 'tv' : 'movie', String(page));
 
-        const contentItems: DiscoverAndSearchResult[] = usResults.map((result): DiscoverAndSearchResult => {
-          return {
-            id: result.id,
-            title: getTMDBItemName(showType, result),
-            genres: generateGenreArrayFromIds(result.genre_ids),
-            premiered: getTMDBPremieredDate(showType, result),
-            summary: result.overview,
-            image: buildTMDBImagePath(result.poster_path),
-            rating: result.vote_average,
-            popularity: result.popularity,
-          };
-        });
+        const filtered = isTV
+          ? trending.results.filter((show) => this.isUSBasedTV(show as TMDBTrendingShowResult))
+          : trending.results.filter((movie) => this.isUSBasedMovie(movie as TMDBTrendingMovieResult));
 
-        const response: DiscoverAndSearchResponse = {
+        const contentItems: DiscoverAndSearchResult[] = filtered.map((item) => ({
+          id: String(item.id),
+          title: isTV ? (item as TMDBTrendingShowResult).name : (item as TMDBTrendingMovieResult).title,
+          genres: generateGenreArrayFromIds(item.genre_ids),
+          premiered: isTV
+            ? (item as TMDBTrendingShowResult).first_air_date
+            : (item as TMDBTrendingMovieResult).release_date,
+          summary: item.overview,
+          image: buildTMDBImagePath(item.poster_path),
+          rating: item.vote_average,
+          popularity: item.popularity,
+        }));
+
+        return {
           message: `Found trending ${showType}`,
           results: contentItems,
-          totalResults: tmdbResponse.total_results,
-          totalPages: tmdbResponse.total_pages,
+          totalResults: trending.total_results,
+          totalPages: trending.total_pages,
           currentPage: page,
         };
-        return response;
       });
-      return trendingContent;
     } catch (error) {
-      throw errorService.handleError(error, `discoverChangesContent(${showType}, ${page}`);
+      throw errorService.handleError(error, `discoverTrendingContent(${showType}, ${page})`);
     }
+  }
+
+  private isUSBasedTV(item: TMDBTrendingShowResult) {
+    return item.media_type === 'tv' && item.origin_country?.includes('US');
+  }
+
+  private isUSBasedMovie(item: TMDBTrendingResult) {
+    return item.media_type === 'movie' && item.original_language === 'en';
   }
 
   public async searchMedia(
@@ -167,10 +179,10 @@ export class ContentDiscoveryService {
             ? await tmdbService.searchShows(searchString, page, year)
             : await tmdbService.searchMovies(searchString, page, year);
 
-        const results: any[] = response.results;
+        const results = response.results as (TMDBSearchShowResult | TMDBSearchMovieResult)[];
         const searchResult = results.map((result) => {
           return {
-            id: result.id,
+            id: String(result.id),
             title: getTMDBItemName(mediaType, result),
             genres: generateGenreArrayFromIds(result.genre_ids),
             premiered: getTMDBPremieredDate(mediaType, result),

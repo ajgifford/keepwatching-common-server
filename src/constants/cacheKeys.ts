@@ -84,10 +84,10 @@ export const SHOW_KEYS = {
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_show_details_${showId}`,
 
   /** Gets the cache key for show recommendations */
-  recommendations: (showId: number | string) => `${CACHE_KEY_PATTERNS.RECOMMENDATIONS}_${showId}`,
+  recommendations: (showId: number | string) => `${CACHE_KEY_PATTERNS.RECOMMENDATIONS}_show_${showId}`,
 
   /** Gets the cache key for similar shows */
-  similar: (showId: number | string) => `${CACHE_KEY_PATTERNS.SIMILAR}_${showId}`,
+  similar: (showId: number | string) => `${CACHE_KEY_PATTERNS.SIMILAR}_show_${showId}`,
 };
 
 export const ADMIN_KEYS = {
@@ -137,6 +137,12 @@ export const MOVIE_KEYS = {
   /** Gets the cache key for a specific movie for a profile */
   details: (profileId: number | string, movieId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_movie_${movieId}`,
+
+  /** Gets the cache key for movie recommendations */
+  recommendations: (movieId: number | string) => `${CACHE_KEY_PATTERNS.RECOMMENDATIONS}_movie_${movieId}`,
+
+  /** Gets the cache key for similar movies */
+  similar: (movieId: number | string) => `${CACHE_KEY_PATTERNS.SIMILAR}_movie_${movieId}`,
 };
 
 // Discovery keys

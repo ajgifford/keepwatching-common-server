@@ -1,11 +1,15 @@
-import { PROFILE_KEYS } from '../constants/cacheKeys';
+import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
 import { appLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NoAffectedRowsError } from '../middleware/errorMiddleware';
-import { Change, ContentUpdates } from '../types/contentTypes';
+import { ContentUpdates } from '../types/contentTypes';
+import { TMDBPaginatedResponse, TMDBRelatedMovie } from '../types/tmdbTypes';
+import { TMDBGenre } from '../types/tmdbTypes';
 import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
-import { getUSMPARating } from '../utils/contentUtility';
+import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils/contentUtility';
+import { generateGenreArrayFromIds } from '../utils/genreUtility';
+import { filterEnglishMovies } from '../utils/usSearchFilter';
 import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
@@ -13,11 +17,13 @@ import { profileService } from './profileService';
 import { getTMDBService } from './tmdbService';
 import {
   AddMovieFavorite,
+  ContentReference,
   CreateMovieRequest,
   MovieReference,
   MovieStatisticsResponse,
   ProfileMovie,
   RemoveMovieFavorite,
+  SimilarOrRecommendedMovie,
   UpdateMovieRequest,
 } from '@ajgifford/keepwatching-types';
 
@@ -72,6 +78,25 @@ export class MoviesService {
   }
 
   /**
+   * Retrieve the given movie for a specific profile
+   *
+   * @param profileId - ID of the profile to get movies for
+   * @param movieId - ID of the movie to get
+   * @returns Movie associated with the profile
+   */
+  public async getMovieDetailsForProfile(profileId: number, movieId: number): Promise<ProfileMovie> {
+    try {
+      return await this.cache.getOrSet(
+        MOVIE_KEYS.details(profileId, movieId),
+        () => moviesDb.getMovieDetailsForProfile(profileId, movieId),
+        600,
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getMovieDetailsForProfile(${profileId}, ${movieId})`);
+    }
+  }
+
+  /**
    * Retrieves all movies for a specific profile
    *
    * @param profileId - ID of the profile to get movies for
@@ -95,7 +120,7 @@ export class MoviesService {
    * @param profileId - ID of the profile to get recent movies for
    * @returns Array of recent movie releases
    */
-  public async getRecentMoviesForProfile(profileId: number): Promise<MovieReference[]> {
+  public async getRecentMoviesForProfile(profileId: number): Promise<ContentReference[]> {
     try {
       return await this.cache.getOrSet(
         `${PROFILE_KEYS.recentMovies(profileId)}`,
@@ -113,7 +138,7 @@ export class MoviesService {
    * @param profileId - ID of the profile to get upcoming movies for
    * @returns Array of upcoming movie releases
    */
-  public async getUpcomingMoviesForProfile(profileId: number): Promise<MovieReference[]> {
+  public async getUpcomingMoviesForProfile(profileId: number): Promise<ContentReference[]> {
     try {
       return await this.cache.getOrSet(
         `${PROFILE_KEYS.upcomingMovies(profileId)}`,
@@ -192,8 +217,12 @@ export class MoviesService {
       backdrop_image: response.backdrop_path,
       user_rating: response.vote_average,
       mpa_rating: getUSMPARating(response.release_dates),
+      director: getDirectors(response),
+      production_companies: getUSProductionCompanies(response.production_companies),
+      budget: response.budget,
+      revenue: response.revenue,
       streaming_service_ids: getUSWatchProviders(response, 9998),
-      genre_ids: response.genres.map((genre: { id: any }) => genre.id),
+      genre_ids: response.genres.map((genre: TMDBGenre) => genre.id),
     };
 
     const savedMovieId = await moviesDb.saveMovie(createMovieRequest);
@@ -270,7 +299,7 @@ export class MoviesService {
   /**
    * Get trending movies for discovery emails
    */
-  public async getTrendingMovies(limit: number = 10): Promise<MovieReference[]> {
+  public async getTrendingMovies(limit: number = 10): Promise<ContentReference[]> {
     try {
       return await moviesDb.getTrendingMovies(limit);
     } catch (error) {
@@ -281,7 +310,7 @@ export class MoviesService {
   /**
    * Get recently released movies
    */
-  public async getRecentlyReleasedMovies(limit: number = 10): Promise<MovieReference[]> {
+  public async getRecentlyReleasedMovies(limit: number = 10): Promise<ContentReference[]> {
     try {
       return await moviesDb.getRecentlyReleasedMovies(limit);
     } catch (error) {
@@ -292,12 +321,86 @@ export class MoviesService {
   /**
    * Get top rated movies
    */
-  public async getTopRatedMovies(limit: number = 10): Promise<MovieReference[]> {
+  public async getTopRatedMovies(limit: number = 10): Promise<ContentReference[]> {
     try {
       return await moviesDb.getTopRatedMovies(limit);
     } catch (error) {
       throw errorService.handleError(error, `getTopRatedMovies(${limit})`);
     }
+  }
+
+  /**
+   * Gets recommendations for similar movies based on a given movie
+   *
+   * @param profileId - ID of the profile requesting recommendations
+   * @param movieId - ID of the movie to get recommendations for
+   * @returns Array of recommended movies
+   */
+  public async getMovieRecommendations(profileId: number, movieId: number): Promise<SimilarOrRecommendedMovie[]> {
+    try {
+      const movieReference = await moviesDb.findMovieById(movieId);
+      errorService.assertExists(movieReference, 'MovieReference', movieId);
+
+      return await this.cache.getOrSet(
+        MOVIE_KEYS.recommendations(movieId),
+        async () => {
+          const tmdbService = getTMDBService();
+          const response = await tmdbService.getMovieRecommendations(movieReference.tmdbId);
+          return await this.populateSimilarOrRecommendedResult(response, profileId);
+        },
+        86400, // 24 hours TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getMovieRecommendations(${profileId}, ${movieId})`);
+    }
+  }
+
+  /**
+   * Gets similar movies based on a given movie
+   *
+   * @param profileId - ID of the profile requesting similar movies
+   * @param movieId - ID of the movies to get recommendations for
+   * @returns Array of recommended movies
+   */
+  public async getSimilarMovies(profileId: number, movieId: number): Promise<SimilarOrRecommendedMovie[]> {
+    try {
+      const movieReference = await moviesDb.findMovieById(movieId);
+      errorService.assertExists(movieReference, 'MovieReference', movieId);
+
+      return await this.cache.getOrSet(
+        MOVIE_KEYS.similar(movieId),
+        async () => {
+          const tmdbService = getTMDBService();
+          const response = await tmdbService.getSimilarMovies(movieReference.tmdbId);
+          return await this.populateSimilarOrRecommendedResult(response, profileId);
+        },
+        86400, // 24 hours TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getSimilarMovies(${profileId}, ${movieId})`);
+    }
+  }
+
+  private async populateSimilarOrRecommendedResult(
+    response: TMDBPaginatedResponse<TMDBRelatedMovie>,
+    profileId: number,
+  ): Promise<SimilarOrRecommendedMovie[]> {
+    const responseMovies = filterEnglishMovies(response.results);
+    const userMovies = await moviesDb.getAllMoviesForProfile(profileId);
+    const userMovieIds = new Set(userMovies.map((s) => s.tmdbId));
+    return responseMovies.map((rec: TMDBRelatedMovie) => ({
+      id: rec.id,
+      title: rec.title,
+      genres: generateGenreArrayFromIds(rec.genre_ids),
+      premiered: rec.release_date,
+      summary: rec.overview,
+      image: rec.poster_path,
+      rating: rec.vote_average,
+      popularity: rec.popularity,
+      language: rec.original_language,
+      country: 'US',
+      inFavorites: userMovieIds.has(rec.id),
+    }));
   }
 
   /**
@@ -310,9 +413,7 @@ export class MoviesService {
     const tmdbService = getTMDBService();
 
     try {
-      const changesData = await tmdbService.getMovieChanges(content.tmdb_id, pastDate, currentDate);
-      const changes: Change[] = changesData.changes || [];
-
+      const { changes } = await tmdbService.getMovieChanges(content.tmdb_id, pastDate, currentDate);
       const supportedChanges = changes.filter((item) => SUPPORTED_CHANGE_KEYS.includes(item.key));
 
       if (supportedChanges.length > 0) {
@@ -329,8 +430,12 @@ export class MoviesService {
           backdrop_image: movieDetails.backdrop_path,
           user_rating: movieDetails.vote_average,
           mpa_rating: getUSMPARating(movieDetails.release_dates),
+          director: getDirectors(movieDetails),
+          production_companies: getUSProductionCompanies(movieDetails.production_companies),
+          budget: movieDetails.budget,
+          revenue: movieDetails.revenue,
           streaming_service_ids: getUSWatchProviders(movieDetails, 9998),
-          genre_ids: movieDetails.genres.map((genre: { id: any }) => genre.id),
+          genre_ids: movieDetails.genres.map((genre: TMDBGenre) => genre.id),
         };
 
         await moviesDb.updateMovie(updateMovieRequest);

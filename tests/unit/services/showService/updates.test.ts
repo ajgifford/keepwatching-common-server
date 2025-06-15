@@ -1,4 +1,5 @@
-import { Change, ContentUpdates } from '../../../../src/types/contentTypes';
+import { ContentUpdates } from '../../../../src/types/contentTypes';
+import { TMDBChangesResponse } from '../../../../src/types/tmdbTypes';
 import { setupMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { appLogger } from '@logger/logger';
@@ -89,24 +90,26 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should do nothing when only unsupported changes are detected', async () => {
-      const unsupportedChanges: Change[] = [
-        {
-          key: 'unsupported_key',
-          items: [
-            {
-              id: 'abc123',
-              action: 'added',
-              time: '2023-01-05',
-              iso_639_1: 'en',
-              iso_3166_1: 'US',
-              value: {},
-              original_value: null,
-            },
-          ],
-        },
-      ];
+      const unsupportedChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'unsupported_key',
+            items: [
+              {
+                id: 'abc123',
+                action: 'added',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: '',
+                original_value: undefined,
+              },
+            ],
+          },
+        ],
+      };
 
-      mockTMDBService.getShowChanges.mockResolvedValue({ changes: unsupportedChanges });
+      mockTMDBService.getShowChanges.mockResolvedValue(unsupportedChanges);
 
       await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
 
@@ -116,24 +119,26 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should update show when supported changes are detected', async () => {
-      const supportedChanges: Change[] = [
-        {
-          key: 'name',
-          items: [
-            {
-              id: 'abc123',
-              action: 'updated',
-              time: '2023-01-05',
-              iso_639_1: 'en',
-              iso_3166_1: 'US',
-              value: 'Updated Show Title',
-              original_value: 'Test Show',
-            },
-          ],
-        },
-      ];
+      const supportedChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'name',
+            items: [
+              {
+                id: 'abc123',
+                action: 'updated',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: 'Updated Show Title',
+                original_value: 'Test Show',
+              },
+            ],
+          },
+        ],
+      };
 
-      mockTMDBService.getShowChanges.mockResolvedValue({ changes: supportedChanges });
+      mockTMDBService.getShowChanges.mockResolvedValue(supportedChanges);
 
       await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
 
@@ -143,24 +148,26 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should process season changes when season changes are detected', async () => {
-      const seasonChanges: Change[] = [
-        {
-          key: 'season',
-          items: [
-            {
-              id: 'season1',
-              action: 'added',
-              time: '2023-01-05',
-              iso_639_1: 'en',
-              iso_3166_1: 'US',
-              value: { season_id: 101 },
-              original_value: null,
-            },
-          ],
-        },
-      ];
+      const seasonChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'season',
+            items: [
+              {
+                id: 'season1',
+                action: 'added',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: { season_id: 101, season_number: 2 },
+                original_value: undefined,
+              },
+            ],
+          },
+        ],
+      };
 
-      mockTMDBService.getShowChanges.mockResolvedValue({ changes: seasonChanges });
+      mockTMDBService.getShowChanges.mockResolvedValue(seasonChanges);
       (showsDb.getWatchStatus as jest.Mock).mockResolvedValue('WATCHING');
 
       await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
@@ -170,7 +177,7 @@ describe('ShowService - Content Updates', () => {
       expect(showsDb.updateShow).toHaveBeenCalled();
       expect(showsDb.getProfilesForShow).toHaveBeenCalledWith(123);
       expect(processSeasonChanges).toHaveBeenCalledWith(
-        seasonChanges[0].items,
+        seasonChanges.changes[0],
         expect.any(Object),
         mockShowContent,
         [
@@ -200,24 +207,26 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should handle errors from getShowDetails API', async () => {
-      const supportedChanges: Change[] = [
-        {
-          key: 'name',
-          items: [
-            {
-              id: 'abc123',
-              action: 'updated',
-              time: '2023-01-05',
-              iso_639_1: 'en',
-              iso_3166_1: 'US',
-              value: 'Updated Show Title',
-              original_value: 'Test Show',
-            },
-          ],
-        },
-      ];
+      const supportedChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'name',
+            items: [
+              {
+                id: 'abc123',
+                action: 'updated',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: 'Updated Show Title',
+                original_value: 'Test Show',
+              },
+            ],
+          },
+        ],
+      };
 
-      mockTMDBService.getShowChanges.mockResolvedValue({ changes: supportedChanges });
+      mockTMDBService.getShowChanges.mockResolvedValue(supportedChanges);
 
       const mockError = new Error('Show details API error');
       mockTMDBService.getShowDetails.mockRejectedValue(mockError);
@@ -233,38 +242,40 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should handle multiple supported changes', async () => {
-      const supportedChanges: Change[] = [
-        {
-          key: 'name',
-          items: [
-            {
-              id: 'abc123',
-              action: 'updated',
-              time: '2023-01-05',
-              iso_639_1: 'en',
-              iso_3166_1: 'US',
-              value: 'Updated Show Title',
-              original_value: 'Test Show',
-            },
-          ],
-        },
-        {
-          key: 'overview',
-          items: [
-            {
-              id: 'def456',
-              action: 'updated',
-              time: '2023-01-05',
-              iso_639_1: 'en',
-              iso_3166_1: 'US',
-              value: 'New overview',
-              original_value: 'Old overview',
-            },
-          ],
-        },
-      ];
+      const supportedChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'name',
+            items: [
+              {
+                id: 'abc123',
+                action: 'updated',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: 'Updated Show Title',
+                original_value: 'Test Show',
+              },
+            ],
+          },
+          {
+            key: 'overview',
+            items: [
+              {
+                id: 'def456',
+                action: 'updated',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: 'New overview',
+                original_value: 'Old overview',
+              },
+            ],
+          },
+        ],
+      };
 
-      mockTMDBService.getShowChanges.mockResolvedValue({ changes: supportedChanges });
+      mockTMDBService.getShowChanges.mockResolvedValue(supportedChanges);
 
       await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
 
@@ -283,24 +294,26 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should handle errors from showsDb.updateShow', async () => {
-      const supportedChanges: Change[] = [
-        {
-          key: 'name',
-          items: [
-            {
-              id: 'abc123',
-              action: 'updated',
-              time: '2023-01-05',
-              iso_639_1: 'en',
-              iso_3166_1: 'US',
-              value: 'Updated Show Title',
-              original_value: 'Test Show',
-            },
-          ],
-        },
-      ];
+      const supportedChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'name',
+            items: [
+              {
+                id: 'abc123',
+                action: 'updated',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: 'Updated Show Title',
+                original_value: 'Test Show',
+              },
+            ],
+          },
+        ],
+      };
 
-      mockTMDBService.getShowChanges.mockResolvedValue({ changes: supportedChanges });
+      mockTMDBService.getShowChanges.mockResolvedValue(supportedChanges);
 
       const mockError = new Error('Database update error');
       (showsDb.updateShow as jest.Mock).mockRejectedValue(mockError);

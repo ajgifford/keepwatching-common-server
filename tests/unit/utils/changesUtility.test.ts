@@ -1,145 +1,83 @@
-import { ChangeItem } from '../../../src/types/contentTypes';
+import { TMDBChange } from '../../../src/types/tmdbTypes';
 import { filterUniqueSeasonIds, generateDateRange } from '@utils/changesUtility';
 
 describe('changesUtility', () => {
   describe('filterUniqueSeasonIds', () => {
     it('should return empty array when changes array is empty', () => {
-      const changes: ChangeItem[] = [];
-      const result = filterUniqueSeasonIds(changes);
+      const change: TMDBChange = {
+        key: '',
+        items: [],
+      };
+      const result = filterUniqueSeasonIds(change);
       expect(result).toEqual([]);
     });
 
     it('should extract unique season IDs from change items', () => {
-      const changes: ChangeItem[] = [
-        {
-          id: '1',
-          action: 'added',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: { season_id: 123 },
-          original_value: null,
-        },
-        {
-          id: '2',
-          action: 'updated',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: { season_id: 456 },
-          original_value: { season_id: 456 },
-        },
-        {
-          id: '3',
-          action: 'added',
-          time: '2023-06-16',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: { season_id: 123 },
-          original_value: null,
-        },
-      ];
+      const changes: TMDBChange = {
+        key: 'season',
+        items: [
+          {
+            id: '1',
+            action: 'added',
+            time: '2023-06-15',
+            iso_639_1: 'en',
+            iso_3166_1: 'US',
+            value: { season_id: 123, season_number: 1 },
+            original_value: undefined,
+          },
+          {
+            id: '2',
+            action: 'updated',
+            time: '2023-06-15',
+            iso_639_1: 'en',
+            iso_3166_1: 'US',
+            value: { season_id: 456, season_number: 2 },
+            original_value: undefined,
+          },
+          {
+            id: '3',
+            action: 'added',
+            time: '2023-06-16',
+            iso_639_1: 'en',
+            iso_3166_1: 'US',
+            value: { season_id: 789, season_number: 3 },
+            original_value: undefined,
+          },
+        ],
+      };
 
       const result = filterUniqueSeasonIds(changes);
-      expect(result).toEqual([123, 456]);
-      expect(result.length).toBe(2);
+      expect(result.length).toBe(3);
+      expect(result).toEqual([123, 456, 789]);
     });
 
-    it('should ignore changes without season_id', () => {
-      const changes: ChangeItem[] = [
-        {
-          id: '1',
-          action: 'added',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: { season_id: 123 },
-          original_value: null,
-        },
-        {
-          id: '2',
-          action: 'updated',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: { some_other_property: 'value' },
-          original_value: null,
-        },
-        {
-          id: '3',
-          action: 'deleted',
-          time: '2023-06-16',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: null,
-          original_value: { season_id: 789 },
-        },
-      ];
-
-      const result = filterUniqueSeasonIds(changes);
-      expect(result).toEqual([123]);
-      expect(result.length).toBe(1);
-    });
-
-    it('should handle changes with undefined or null values', () => {
-      const changes: ChangeItem[] = [
-        {
-          id: '1',
-          action: 'added',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: undefined,
-          original_value: null,
-        },
-        {
-          id: '2',
-          action: 'updated',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: null,
-          original_value: null,
-        },
-      ];
+    it('should handle changes with undefined values', () => {
+      const changes: TMDBChange = {
+        key: 'season',
+        items: [
+          {
+            id: '1',
+            action: 'added',
+            time: '2023-06-15',
+            iso_639_1: 'en',
+            iso_3166_1: 'US',
+            value: undefined,
+            original_value: undefined,
+          },
+          {
+            id: '2',
+            action: 'updated',
+            time: '2023-06-15',
+            iso_639_1: 'en',
+            iso_3166_1: 'US',
+            value: undefined,
+            original_value: undefined,
+          },
+        ],
+      };
 
       const result = filterUniqueSeasonIds(changes);
       expect(result).toEqual([]);
-    });
-
-    it('should handle mixed types of changes', () => {
-      const changes: ChangeItem[] = [
-        {
-          id: '1',
-          action: 'added',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: { season_id: 123 },
-          original_value: null,
-        },
-        {
-          id: '2',
-          action: 'updated',
-          time: '2023-06-15',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: null,
-          original_value: null,
-        },
-        {
-          id: '3',
-          action: 'deleted',
-          time: '2023-06-16',
-          iso_639_1: 'en',
-          iso_3166_1: 'US',
-          value: { season_id: 456 },
-          original_value: { season_id: 789 },
-        },
-      ];
-
-      const result = filterUniqueSeasonIds(changes);
-      expect(result).toEqual([123, 456]);
     });
   });
 

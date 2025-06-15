@@ -1,4 +1,3 @@
-// src/utils/transactionHelper.ts
 import { getDbPool } from './db';
 import { PoolConnection } from 'mysql2/promise';
 

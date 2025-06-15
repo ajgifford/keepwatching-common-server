@@ -114,6 +114,10 @@ CREATE TABLE movies (
 	backdrop_image VARCHAR(255),
 	user_rating FLOAT CHECK (user_rating >= 0 AND user_rating <= 10),
 	mpa_rating VARCHAR(36),
+    budget BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    revenue BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    director VARCHAR(255),
+    production_companies VARCHAR(512),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -231,7 +235,43 @@ LEFT JOIN
 	streaming_services ss on ms.streaming_service_id = ss.id
 GROUP BY 
     p.profile_id, m.id, ws.status;
-	
+
+CREATE VIEW profile_movies_details AS
+SELECT 
+    p.profile_id,
+    m.id AS movie_id,
+	m.tmdb_id,
+    m.title,
+    m.description,
+    m.release_date,
+    m.runtime,
+    m.poster_image,
+	m.backdrop_image,
+    m.user_rating,
+    m.mpa_rating,
+    m.budget,
+    m.revenue,
+    m.director,
+    m.production_companies,
+    GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
+	GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services,
+	ws.status AS watch_status
+FROM 
+    profiles p
+JOIN 
+    movie_watch_status ws ON p.profile_id = ws.profile_id
+JOIN 
+    movies m ON ws.movie_id = m.id
+LEFT JOIN 
+    movie_genres mg ON m.id = mg.movie_id
+LEFT JOIN 
+    genres g ON mg.genre_id = g.id
+LEFT JOIN
+	movie_services ms ON m.id = ms.movie_id
+LEFT JOIN
+	streaming_services ss on ms.streaming_service_id = ss.id
+GROUP BY 
+    p.profile_id, m.id, ws.status;	
 	
 CREATE VIEW profile_shows AS
 SELECT 

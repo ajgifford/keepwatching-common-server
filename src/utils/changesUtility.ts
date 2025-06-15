@@ -1,4 +1,4 @@
-import { ChangeItem } from '../types/contentTypes';
+import { TMDBChange } from '../types/tmdbTypes';
 
 /**
  * List of content change keys we want to process
@@ -6,6 +6,7 @@ import { ChangeItem } from '../types/contentTypes';
  */
 export const SUPPORTED_CHANGE_KEYS = [
   'air_date',
+  'budget',
   'episode',
   'episode_number',
   'episode_run_time',
@@ -15,6 +16,7 @@ export const SUPPORTED_CHANGE_KEYS = [
   'name',
   'network',
   'overview',
+  'revenue',
   'runtime',
   'season',
   'season_number',
@@ -22,6 +24,27 @@ export const SUPPORTED_CHANGE_KEYS = [
   'title',
   'type',
 ];
+
+export const LANGUAGE_SPECIFIC_KEYS = new Set(['name', 'overview', 'title']);
+
+export const GLOBAL_KEYS = new Set([
+  'air_date',
+  'budget',
+  'episode',
+  'episode_number',
+  'episode_run_time',
+  'general',
+  'genres',
+  'images',
+  'network',
+  'revenue',
+  'runtime',
+  'season_number',
+  'status',
+  'type',
+]);
+
+export const SUPPORTED_LANGUAGE = 'en';
 
 /**
  * Helper function to delay execution
@@ -34,16 +57,16 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
  * @param changes Change items from TMDB
  * @returns Array of unique season IDs
  */
-export function filterUniqueSeasonIds(changes: ChangeItem[]): number[] {
-  const uniqueSeasonIds = new Set<number>();
+export function filterUniqueSeasonIds(change: TMDBChange): number[] {
+  const uniqueIds = new Set<number>();
 
-  for (const change of changes) {
-    if (change.value && change.value.season_id) {
-      uniqueSeasonIds.add(change.value.season_id);
+  for (const item of change.items) {
+    if (typeof item.value === 'object' && item.value !== null && 'season_id' in item.value) {
+      uniqueIds.add((item.value as { season_id: number }).season_id);
     }
   }
 
-  return Array.from(uniqueSeasonIds);
+  return Array.from(uniqueIds);
 }
 
 /**

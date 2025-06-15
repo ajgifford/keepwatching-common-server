@@ -1,22 +1,6 @@
+import { StreamingServiceReferenceRow } from '../types/contentTypes';
+import { TMDBContent } from '../types/tmdbTypes';
 import pool from './db';
-
-interface ProviderInfo {
-  link: string;
-  flatrate: {
-    logo_path: string;
-    provider_id: number;
-    provider_name: string;
-    display_priority: number;
-  }[];
-}
-
-interface WatchProviders {
-  results: Record<string, ProviderInfo>;
-}
-
-interface ContentDetails {
-  'watch/providers': WatchProviders;
-}
 
 let cachedStreamingServiceIds: number[] = [];
 export const getCachedStreamingServiceIds = (): number[] => cachedStreamingServiceIds;
@@ -24,7 +8,7 @@ export const setCachedStreamingServiceIds = (data: number[]): void => {
   cachedStreamingServiceIds = data;
 };
 
-export function getUSWatchProviders(content: ContentDetails, defaultProvider: number): number[] {
+export function getUSWatchProviders(content: TMDBContent, defaultProvider: number): number[] {
   const watchProviders = content['watch/providers']?.results;
   const usWatchProvider = watchProviders.US;
   if (usWatchProvider && usWatchProvider.flatrate && usWatchProvider.flatrate.length > 0) {
@@ -45,7 +29,6 @@ export function getUSWatchProviders(content: ContentDetails, defaultProvider: nu
 
 export async function loadStreamingService() {
   const query = `SELECT id FROM streaming_services`;
-  const [rows] = await pool.execute(query);
-  const streamingServiceIds = rows as any[];
-  setCachedStreamingServiceIds(streamingServiceIds.map((item) => item.id));
+  const [rows] = await pool.execute<StreamingServiceReferenceRow[]>(query);
+  setCachedStreamingServiceIds(rows.map((item) => item.id));
 }

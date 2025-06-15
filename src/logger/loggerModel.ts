@@ -86,36 +86,3 @@ export enum ErrorMessages {
   AuthenticationFail = 'Authentication failure',
   ValidationFail = 'Validation failure',
 }
-
-/**
- * Interface for HTTP request information
- */
-export interface HTTPLoggerRequest {
-  headers: any;
-  host?: string;
-  baseUrl: string;
-  url: string;
-  method: string;
-  body: any;
-  params: any;
-  query: any;
-  clientIp?: string | string[];
-}
-
-/**
- * Interface for HTTP response information
- */
-export interface HTTPLoggerResponse {
-  headers: any;
-  statusCode: number;
-  requestDuration: string;
-  body: any;
-}
-
-/**
- * Complete HTTP logger response data combining request and response
- */
-export interface HTTPLoggerResponseData {
-  request: HTTPLoggerRequest;
-  response: HTTPLoggerResponse;
-}

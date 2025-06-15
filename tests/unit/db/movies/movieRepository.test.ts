@@ -46,6 +46,10 @@ describe('movieRepository', () => {
         backdrop_image: '/test-backdrop.jpg',
         user_rating: 8.5,
         mpa_rating: 'PG-13',
+        budget: 50000,
+        revenue: 123456,
+        director: 'Director A',
+        production_companies: 'Production A',
         genre_ids: [28, 12],
         streaming_service_ids: [1, 2],
       };
@@ -72,6 +76,10 @@ describe('movieRepository', () => {
         '/test-backdrop.jpg',
         8.5,
         'PG-13',
+        'Director A',
+        'Production A',
+        50000,
+        123456,
       ]);
       expect(mockConnection.execute).toHaveBeenCalledWith(
         expect.stringContaining('INSERT IGNORE INTO movie_genres'),
@@ -103,6 +111,10 @@ describe('movieRepository', () => {
         backdrop_image: '/test-backdrop.jpg',
         user_rating: 8.5,
         mpa_rating: 'PG-13',
+        budget: 50000,
+        revenue: 123456,
+        director: 'Director A',
+        production_companies: 'Production A',
       };
 
       mockConnection.execute.mockResolvedValue([{ insertId: 1 }]);
@@ -129,6 +141,10 @@ describe('movieRepository', () => {
         backdrop_image: '/test-backdrop.jpg',
         user_rating: 8.5,
         mpa_rating: 'PG-13',
+        budget: 50000,
+        revenue: 123456,
+        director: 'Director A',
+        production_companies: 'Production A',
       };
 
       const dbError = new Error('Database connection failed');
@@ -151,6 +167,10 @@ describe('movieRepository', () => {
         backdrop_image: '/updated-backdrop.jpg',
         user_rating: 9.0,
         mpa_rating: 'R',
+        budget: 50000,
+        revenue: 123456,
+        director: 'Director A',
+        production_companies: 'Production A',
         genre_ids: [28, 53],
         streaming_service_ids: [3],
       };
@@ -174,6 +194,10 @@ describe('movieRepository', () => {
         9.0,
         'R',
         12345,
+        'Director A',
+        'Production A',
+        50000,
+        123456,
       ]);
 
       expect(mockConnection.execute).toHaveBeenCalledWith(
@@ -199,6 +223,10 @@ describe('movieRepository', () => {
         backdrop_image: '/updated-backdrop.jpg',
         user_rating: 9.0,
         mpa_rating: 'R',
+        budget: 50000,
+        revenue: 123456,
+        director: 'Director A',
+        production_companies: 'Production A',
       };
 
       const dbError = new Error('Update failed');
@@ -514,7 +542,7 @@ describe('movieRepository', () => {
 
   describe('getRecentMovieReleasesForProfile', () => {
     it('should return recent movie releases for a profile', async () => {
-      const recentMovies = [{ movie_id: 1 }, { movie_id: 2 }];
+      const recentMovies = [{ id: 1 }, { id: 2 }];
       const expectedMovies = [{ id: 1 }, { id: 2 }];
 
       mockPool.execute.mockResolvedValue([recentMovies]);
@@ -523,7 +551,7 @@ describe('movieRepository', () => {
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         expect.stringContaining(
-          'SELECT movie_id, title, tmdb_id from profile_movies WHERE profile_id = ? AND release_date BETWEEN',
+          'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN',
         ),
         [123],
       );
@@ -542,7 +570,7 @@ describe('movieRepository', () => {
 
   describe('getUpcomingMovieReleasesForProfile', () => {
     it('should return upcoming movie releases for a profile', async () => {
-      const upcomingMovies = [{ movie_id: 1 }, { movie_id: 2 }];
+      const upcomingMovies = [{ id: 1 }, { id: 2 }];
       const expectedMovies = [{ id: 1 }, { id: 2 }];
 
       mockPool.execute.mockResolvedValue([upcomingMovies]);
@@ -551,7 +579,7 @@ describe('movieRepository', () => {
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         expect.stringContaining(
-          'SELECT movie_id, title, tmdb_id from profile_movies WHERE profile_id = ? AND release_date BETWEEN',
+          'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN',
         ),
         [123],
       );

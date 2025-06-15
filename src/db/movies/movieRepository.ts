@@ -1,16 +1,29 @@
-import { ContentUpdates, ContentUpdatesRow, transformContentUpdates } from '../../types/contentTypes';
+import {
+  ContentReferenceRow,
+  ContentUpdates,
+  ContentUpdatesRow,
+  transformContentReferenceRow,
+  transformContentUpdates,
+} from '../../types/contentTypes';
 import {
   MovieReferenceRow,
-  ProfileMovieReferenceRow,
+  ProfileMovieDetailsRow,
   ProfileMovieRow,
   transformMovieReferenceRow,
   transformProfileMovie,
-  transformProfileMovieReferenceRow,
+  transformProfileMovieWithDetails,
 } from '../../types/movieTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
-import { CreateMovieRequest, MovieReference, ProfileMovie, UpdateMovieRequest } from '@ajgifford/keepwatching-types';
+import {
+  ContentReference,
+  CreateMovieRequest,
+  MovieReference,
+  ProfileMovie,
+  ProfileMovieWithDetails,
+  UpdateMovieRequest,
+} from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 
@@ -30,7 +43,7 @@ export async function saveMovie(createRequest: CreateMovieRequest): Promise<numb
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
       const query =
-        'INSERT into movies (tmdb_id, title, description, release_date, runtime, poster_image, backdrop_image, user_rating, mpa_rating) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        'INSERT into movies (tmdb_id, title, description, release_date, runtime, poster_image, backdrop_image, user_rating, mpa_rating, director, production_companies, budget, revenue) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)';
       const [result] = await connection.execute<ResultSetHeader>(query, [
         createRequest.tmdb_id,
         createRequest.title,
@@ -41,6 +54,10 @@ export async function saveMovie(createRequest: CreateMovieRequest): Promise<numb
         createRequest.backdrop_image,
         createRequest.user_rating,
         createRequest.mpa_rating,
+        createRequest.director,
+        createRequest.production_companies,
+        createRequest.budget,
+        createRequest.revenue,
       ]);
       const newId = result.insertId;
 
@@ -78,7 +95,7 @@ export async function updateMovie(updateRequest: UpdateMovieRequest): Promise<bo
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
       const query =
-        'UPDATE movies SET title = ?, description = ?, release_date = ?, runtime = ?, poster_image = ?, backdrop_image = ?, user_rating = ?, mpa_rating = ? WHERE tmdb_id = ?';
+        'UPDATE movies SET title = ?, description = ?, release_date = ?, runtime = ?, poster_image = ?, backdrop_image = ?, user_rating = ?, mpa_rating = ?, director = ?, production_companies = ?, budget = ?, revenue = ? WHERE tmdb_id = ?';
       const [result] = await connection.execute<ResultSetHeader>(query, [
         updateRequest.title,
         updateRequest.description,
@@ -89,6 +106,10 @@ export async function updateMovie(updateRequest: UpdateMovieRequest): Promise<bo
         updateRequest.user_rating,
         updateRequest.mpa_rating,
         updateRequest.tmdb_id,
+        updateRequest.director,
+        updateRequest.production_companies,
+        updateRequest.budget,
+        updateRequest.revenue,
       ]);
 
       const success = result.affectedRows !== undefined;
@@ -306,6 +327,27 @@ export async function getMovieForProfile(profileId: number, movieId: number): Pr
 }
 
 /**
+ * Gets a specific movie with extended details for a profile with watch status information
+ *
+ * This function retrieves a single movie from a profile's watchlist
+ * along with its watch status.
+ *
+ * @param profileId - ID of the profile
+ * @param movieId - ID of the movie to retrieve
+ * @returns Movie with watch status information
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getMovieDetailsForProfile(profileId: number, movieId: number): Promise<ProfileMovieWithDetails> {
+  try {
+    const query = 'SELECT * FROM profile_movies_details where profile_id = ? AND movie_id = ?';
+    const [movies] = await getDbPool().execute<ProfileMovieDetailsRow[]>(query, [profileId, movieId]);
+    return transformProfileMovieWithDetails(movies[0]);
+  } catch (error) {
+    handleDatabaseError(error, 'getting a movie with details for a profile');
+  }
+}
+
+/**
  * Gets recently released movies from a profile's watchlist
  *
  * This function retrieves movies from a profile's watchlist that have
@@ -315,12 +357,12 @@ export async function getMovieForProfile(profileId: number, movieId: number): Pr
  * @returns Array of recently released movies
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getRecentMovieReleasesForProfile(profileId: number): Promise<MovieReference[]> {
+export async function getRecentMovieReleasesForProfile(profileId: number): Promise<ContentReference[]> {
   try {
     const query =
-      'SELECT movie_id, title, tmdb_id from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY) AND CURRENT_DATE() ORDER BY release_date DESC LIMIT 6';
-    const [movies] = await getDbPool().execute<ProfileMovieReferenceRow[]>(query, [profileId]);
-    return movies.map((movie) => transformProfileMovieReferenceRow(movie));
+      'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY) AND CURRENT_DATE() ORDER BY release_date DESC LIMIT 6';
+    const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
+    return movies.map((movie) => transformContentReferenceRow(movie));
   } catch (error) {
     handleDatabaseError(error, 'getting recent movie releases for a profile');
   }
@@ -336,12 +378,12 @@ export async function getRecentMovieReleasesForProfile(profileId: number): Promi
  * @returns Array of upcoming movie releases
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getUpcomingMovieReleasesForProfile(profileId: number): Promise<MovieReference[]> {
+export async function getUpcomingMovieReleasesForProfile(profileId: number): Promise<ContentReference[]> {
   try {
     const query =
-      'SELECT movie_id, title, tmdb_id from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AND DATE_ADD(CURRENT_DATE(), INTERVAL 60 DAY) ORDER BY release_date LIMIT 6';
-    const [movies] = await getDbPool().execute<ProfileMovieReferenceRow[]>(query, [profileId]);
-    return movies.map((movie) => transformProfileMovieReferenceRow(movie));
+      'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AND DATE_ADD(CURRENT_DATE(), INTERVAL 60 DAY) ORDER BY release_date LIMIT 6';
+    const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
+    return movies.map((movie) => transformContentReferenceRow(movie));
   } catch (error) {
     handleDatabaseError(error, 'getting upcoming movie releases for a profile');
   }

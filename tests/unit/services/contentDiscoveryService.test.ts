@@ -269,6 +269,7 @@ describe('ContentDiscoveryService', () => {
         results: [
           {
             id: 789,
+            media_type: 'movie',
             title: 'Trending Movie',
             genre_ids: [28, 18],
             overview: 'A trending movie',
@@ -294,11 +295,12 @@ describe('ContentDiscoveryService', () => {
         message: 'Found trending movie',
         results: expect.arrayContaining([
           expect.objectContaining({
-            id: 789,
+            id: '789',
             title: 'Trending Movie',
             genres: ['Action', 'Drama'],
             summary: 'A trending movie',
             image: 'https://image.tmdb.org/t/p/w185/poster.jpg',
+            premiered: '2023-01-01',
             rating: 8.0,
             popularity: 1500,
           }),
@@ -315,6 +317,7 @@ describe('ContentDiscoveryService', () => {
           {
             id: 789,
             name: 'US Show',
+            media_type: 'tv',
             origin_country: ['US'],
             genre_ids: [28, 18],
             overview: 'A US show',
@@ -326,6 +329,7 @@ describe('ContentDiscoveryService', () => {
           {
             id: 790,
             name: 'Foreign Show',
+            media_type: 'tv',
             origin_country: ['UK'],
             genre_ids: [28, 18],
             overview: 'A non-US show',
@@ -399,11 +403,12 @@ describe('ContentDiscoveryService', () => {
         message: `Search results for 'test query' of type: tv`,
         results: expect.arrayContaining([
           expect.objectContaining({
-            id: 123,
+            id: '123',
             title: 'Test Show',
             genres: ['Action', 'Drama'],
             summary: 'A test show',
             image: '/poster.jpg',
+            premiered: '2023-01-01',
             rating: 8.5,
             popularity: 1500,
           }),
@@ -443,11 +448,12 @@ describe('ContentDiscoveryService', () => {
         message: `Search results for 'test query' of type: movie`,
         results: expect.arrayContaining([
           expect.objectContaining({
-            id: 456,
+            id: '456',
             title: 'Test Movie',
             genres: ['Action', 'Drama'],
             summary: 'A test movie',
             image: '/poster.jpg',
+            premiered: '2023-01-01',
             rating: 7.5,
             popularity: 1200,
           }),

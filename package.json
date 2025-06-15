@@ -51,6 +51,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "rebuild": "yarn clean && yarn build",
     "prepare": "yarn build",
     "test": "jest",
     "test:coverage": "jest --coverage",
@@ -73,7 +75,7 @@
   "author": "Gifford Family Dev",
   "license": "ISC",
   "dependencies": {
-    "@ajgifford/keepwatching-types": "^0.1.0",
+    "@ajgifford/keepwatching-types": "^0.1.2",
     "axios": "^1.8.4",
     "axios-retry": "^4.5.0",
     "cron-parser": "^5.1.1",
@@ -109,6 +111,7 @@
     "jest": "^29.7.0",
     "jest-mock-extended": "^4.0.0-beta1",
     "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
     "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",

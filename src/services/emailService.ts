@@ -23,7 +23,7 @@ import { errorService } from './errorService';
 import { moviesService } from './moviesService';
 import { profileService } from './profileService';
 import { showService } from './showService';
-import { MovieReference, Profile, ShowTMDBReference } from '@ajgifford/keepwatching-types';
+import { ContentReference, Profile } from '@ajgifford/keepwatching-types';
 import nodemailer from 'nodemailer';
 
 /**
@@ -206,10 +206,11 @@ export class EmailService {
       });
 
       // Filter upcoming movies to only include this week's releases
-      const weeklyUpcomingMovies = upcomingMovies.filter(() => {
-        // Note: You might need to add a releaseDate field to MovieReference
-        // or fetch full movie details to get release dates
-        return true; // For now, include all upcoming movies
+      const weeklyUpcomingMovies = upcomingMovies.filter((upcomingMovie) => {
+        const releaseDate = new Date(upcomingMovie.releaseDate);
+        const weekStart = new Date(weekRange.start);
+        const weekEnd = new Date(weekRange.end);
+        return releaseDate >= weekStart && releaseDate <= weekEnd;
       });
 
       const profileHasContent =
@@ -256,9 +257,9 @@ export class EmailService {
    * Get featured content for discovery emails
    */
   private async getFeaturedContent(): Promise<{
-    trendingShows: MovieReference[];
-    newReleases: MovieReference[];
-    popularMovies: MovieReference[];
+    trendingShows: ContentReference[];
+    newReleases: ContentReference[];
+    popularMovies: ContentReference[];
   }> {
     try {
       const [trendingShows, newReleases, popularMovies] = await Promise.all([
@@ -285,7 +286,7 @@ export class EmailService {
   /**
    * Get trending shows
    */
-  private async getPopularShows(): Promise<ShowTMDBReference[]> {
+  private async getPopularShows(): Promise<ContentReference[]> {
     try {
       const [trending, topRated] = await Promise.all([
         showService.getTrendingShows(5),
@@ -305,7 +306,7 @@ export class EmailService {
   /**
    * Get new releases
    */
-  private async getNewReleases(): Promise<MovieReference[]> {
+  private async getNewReleases(): Promise<ContentReference[]> {
     try {
       const [newShows, newMovies] = await Promise.all([
         showService.getNewlyAddedShows(5),
@@ -323,7 +324,7 @@ export class EmailService {
   /**
    * Get popular movies
    */
-  private async getPopularMovies(): Promise<MovieReference[]> {
+  private async getPopularMovies(): Promise<ContentReference[]> {
     try {
       const [trending, topRated] = await Promise.all([
         moviesService.getTrendingMovies(5),

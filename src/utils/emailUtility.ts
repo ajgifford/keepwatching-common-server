@@ -1,4 +1,4 @@
-import { DigestEmail, DiscoveryEmail } from 'src/types/emailTypes';
+import { DigestEmail, DiscoveryEmail } from '../types/emailTypes';
 
 /**
  * Generate HTML content for weekly digest email

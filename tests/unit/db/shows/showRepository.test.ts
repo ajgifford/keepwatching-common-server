@@ -1,9 +1,8 @@
-import { ShowTMDBReferenceRow } from '../../../../src/types/showTypes';
+import { ShowReferenceRow, ShowTMDBReferenceRow } from '../../../../src/types/showTypes';
 import { CreateShowRequest, UpdateShowRequest } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
 import { DatabaseError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
-import { ShowReferenceRow } from 'dist/types';
 import { ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 

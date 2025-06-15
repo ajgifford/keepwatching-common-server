@@ -1,4 +1,5 @@
 import { ContentUpdates } from '../../../../../src/types/contentTypes';
+import { TMDBRelatedShow } from '../../../../../src/types/tmdbTypes';
 import { KeepWatchingShow, ProfileSeason, ProfileShow, Show, ShowTMDBReference } from '@ajgifford/keepwatching-types';
 
 /**
@@ -486,9 +487,11 @@ export const mockTMDBResponses = {
     id: 100,
     name: 'Season 1',
     overview: 'Season 1 overview',
+    air_date: '2023-01-01',
     episodes: [
       {
         id: 1001,
+        show_id: 5,
         name: 'Episode 1',
         overview: 'Episode 1 overview',
         episode_number: 1,
@@ -500,6 +503,7 @@ export const mockTMDBResponses = {
       },
       {
         id: 1002,
+        show_id: 5,
         name: 'Episode 2',
         overview: 'Episode 2 overview',
         episode_number: 2,
@@ -528,7 +532,7 @@ export const mockTMDBResponses = {
         popularity: 52.3,
         origin_country: ['US'],
         original_language: 'en',
-      },
+      } as TMDBRelatedShow,
       {
         id: 789,
         name: 'Recommended Show 2',
@@ -540,8 +544,11 @@ export const mockTMDBResponses = {
         popularity: 42.1,
         origin_country: ['GB'],
         original_language: 'en',
-      },
+      } as TMDBRelatedShow,
     ],
+    page: 1,
+    total_pages: 1,
+    total_results: 2,
   },
 
   /**
@@ -560,7 +567,7 @@ export const mockTMDBResponses = {
         popularity: 52.3,
         origin_country: ['US'],
         original_language: 'en',
-      },
+      } as TMDBRelatedShow,
       {
         id: 789,
         name: 'Similar Show 2',
@@ -572,8 +579,11 @@ export const mockTMDBResponses = {
         popularity: 42.1,
         origin_country: ['GB'],
         original_language: 'en',
-      },
+      } as TMDBRelatedShow,
     ],
+    page: 1,
+    total_pages: 1,
+    total_results: 2,
   },
 
   /**

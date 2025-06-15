@@ -1,4 +1,10 @@
-import { AdminMovie, BinaryWatchStatusType, MovieReference, ProfileMovie } from '@ajgifford/keepwatching-types';
+import {
+  AdminMovie,
+  BinaryWatchStatusType,
+  MovieReference,
+  ProfileMovie,
+  ProfileMovieWithDetails,
+} from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
 export interface MovieReferenceRow extends RowDataPacket {
@@ -10,20 +16,6 @@ export interface MovieReferenceRow extends RowDataPacket {
 export function transformMovieReferenceRow(movie: MovieReferenceRow): MovieReference {
   return {
     id: movie.id,
-    title: movie.title,
-    tmdbId: movie.tmdb_id,
-  };
-}
-
-export interface ProfileMovieReferenceRow extends RowDataPacket {
-  movie_id: number;
-  title: string;
-  tmdb_id: number;
-}
-
-export function transformProfileMovieReferenceRow(movie: ProfileMovieReferenceRow): MovieReference {
-  return {
-    id: movie.movie_id,
     title: movie.title,
     tmdbId: movie.tmdb_id,
   };
@@ -62,6 +54,36 @@ export function transformProfileMovie(movie: ProfileMovieRow): ProfileMovie {
     genres: movie.genres,
     streamingServices: movie.streaming_services,
     watchStatus: movie.watch_status,
+  };
+}
+
+export interface ProfileMovieDetailsRow extends ProfileMovieRow {
+  budget: number;
+  revenue: number;
+  director: string;
+  production_companies: string;
+}
+
+export function transformProfileMovieWithDetails(movie: ProfileMovieDetailsRow): ProfileMovieWithDetails {
+  return {
+    profileId: movie.profile_id,
+    id: movie.movie_id,
+    tmdbId: movie.tmdb_id,
+    title: movie.title,
+    description: movie.description,
+    releaseDate: movie.release_date,
+    runtime: movie.runtime,
+    posterImage: movie.poster_image,
+    backdropImage: movie.backdrop_image,
+    userRating: movie.user_rating,
+    mpaRating: movie.mpa_rating,
+    genres: movie.genres,
+    streamingServices: movie.streaming_services,
+    watchStatus: movie.watch_status,
+    director: movie.director,
+    productionCompanies: movie.production_companies,
+    budget: movie.budget,
+    revenue: movie.revenue,
   };
 }
 

@@ -1,31 +1,14 @@
-interface ReleaseDateInfo {
-  certification: string;
-  descriptors: string[];
-  iso_639_1: string;
-  note: string;
-  release_date: Date;
-  type: number;
-}
+import {
+  TMDBContentRatings,
+  TMDBEpisodeToAir,
+  TMDBMovie,
+  TMDBNetwork,
+  TMDBProductionCompanies,
+  TMDBReleaseDates,
+} from '../types/tmdbTypes';
+import { Show } from 'streaming-availability';
 
-interface ReleaseDates {
-  results: {
-    iso_3166_1: string;
-    release_dates: ReleaseDateInfo[];
-  }[];
-}
-
-interface ContentRatings {
-  results: { descriptors: string[]; iso_3166_1: string; rating: string }[];
-}
-
-interface Network {
-  id: string;
-  logo_path: string;
-  name: string;
-  origin_country: string;
-}
-
-export function getUSNetwork(networks: Network[]): string | null {
+export function getUSNetwork(networks: TMDBNetwork[]): string | null {
   for (const network of networks) {
     if (network.origin_country === 'US') {
       return network.name;
@@ -34,7 +17,7 @@ export function getUSNetwork(networks: Network[]): string | null {
   return null;
 }
 
-export function getUSRating(contentRatings: ContentRatings): string {
+export function getUSRating(contentRatings: TMDBContentRatings): string {
   for (const result of contentRatings.results) {
     if (result.iso_3166_1 === 'US') {
       return result.rating;
@@ -47,36 +30,52 @@ export function getInProduction(show: { in_production: boolean }): 0 | 1 {
   return show.in_production ? 1 : 0;
 }
 
-export function getEpisodeToAirId(episode: { id: number } | null) {
+export function getEpisodeToAirId(episode: TMDBEpisodeToAir | null) {
   if (episode) {
     return episode.id;
   }
   return null;
 }
 
-export function getUSMPARating(releaseDates: ReleaseDates): string {
-  for (const releaseDate of releaseDates.results) {
-    if (releaseDate.iso_3166_1 === 'US') {
-      const release: ReleaseDateInfo = releaseDate.release_dates[0];
-      return release.certification;
-    }
+export function getUSMPARating(releaseDates: TMDBReleaseDates): string {
+  const usRelease = releaseDates.results.find((r) => r.iso_3166_1 === 'US');
+  if (usRelease) {
+    const releaseDates = usRelease.release_dates;
+    const theatricalRelease = releaseDates.find((r) => r.type === 3);
+    return theatricalRelease?.certification || 'Unknown';
   }
-  return 'PG';
+  return 'Unknown';
+}
+
+export function getDirectors(movie: TMDBMovie) {
+  const crew = movie.credits?.crew ?? [];
+  const directors = crew.filter((member) => member.job === 'Director').map((director) => director.name);
+
+  return directors.length > 0 ? directors.join(', ') : 'Unknown';
+}
+
+export function getUSProductionCompanies(companies: TMDBProductionCompanies[]): string {
+  const usCompanies = companies
+    .filter((company) => company.origin_country === 'US')
+    .slice(0, 3)
+    .map((company) => company.name);
+
+  return usCompanies.length > 0 ? usCompanies.join(', ') : 'Unknown';
 }
 
 export function stripPrefix(input: string): string {
   return input.replace(/^(tv\/|movie\/)/, '');
 }
 
-export function getStreamingPremieredDate(showType: string, result: { firstAirYear?: any; releaseYear?: any }) {
+export function getStreamingPremieredDate(showType: string, result: Show) {
   if (showType === 'movie') {
-    return result.releaseYear;
+    return `${result.releaseYear}`;
   } else {
-    return result.firstAirYear;
+    return `${result.firstAirYear}`;
   }
 }
 
-export function getTMDBPremieredDate(showType: string, result: { first_air_date?: any; release_date?: any }) {
+export function getTMDBPremieredDate(showType: string, result: { first_air_date?: string; release_date?: string }) {
   if (showType === 'movie') {
     return result.release_date;
   } else {
@@ -84,7 +83,7 @@ export function getTMDBPremieredDate(showType: string, result: { first_air_date?
   }
 }
 
-export function getTMDBItemName(searchType: string, result: { name?: any; title?: any }) {
+export function getTMDBItemName(searchType: string, result: { name?: string; title?: string }) {
   if (searchType === 'movie') {
     return result.title;
   } else {

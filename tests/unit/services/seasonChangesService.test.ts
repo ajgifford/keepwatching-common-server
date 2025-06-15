@@ -1,4 +1,5 @@
-import { ChangeItem, ContentUpdates } from '../../../src/types/contentTypes';
+import { ContentUpdates } from '../../../src/types/contentTypes';
+import { TMDBChange, TMDBShow } from '../../../src/types/tmdbTypes';
 import { cliLogger } from '@logger/logger';
 import { checkSeasonForEpisodeChanges } from '@services/episodeChangesService';
 import { episodesService } from '@services/episodesService';
@@ -15,27 +16,51 @@ jest.mock('@utils/changesUtility');
 jest.mock('@logger/logger');
 
 describe('processSeasonChanges', () => {
-  const mockChanges: ChangeItem[] = [
-    {
-      value: { season_id: 123 },
-      id: '',
-      action: '',
-      time: '',
-      iso_639_1: '',
-      iso_3166_1: '',
-      original_value: undefined,
-    },
-    {
-      value: { season_id: 456 },
-      id: '',
-      action: '',
-      time: '',
-      iso_639_1: '',
-      iso_3166_1: '',
-      original_value: undefined,
-    },
-  ];
-  const mockResponseShow = {
+  const mockChanges: TMDBChange = {
+    key: 'season',
+    items: [
+      {
+        value: { season_id: 123, season_number: 1 },
+        id: '',
+        action: 'added',
+        time: '',
+        iso_639_1: '',
+        iso_3166_1: '',
+        original_value: undefined,
+      },
+      {
+        value: { season_id: 456, season_number: 2 },
+        id: '',
+        action: 'added',
+        time: '',
+        iso_639_1: '',
+        iso_3166_1: '',
+        original_value: undefined,
+      },
+    ],
+  };
+
+  const mockResponseShow: TMDBShow = {
+    backdrop_path: '',
+    first_air_date: '',
+    genres: [],
+    in_production: false,
+    last_air_date: '',
+    last_episode_to_air: null,
+    name: '',
+    next_episode_to_air: null,
+    networks: [],
+    number_of_episodes: 0,
+    number_of_seasons: 0,
+    overview: '',
+    popularity: 0,
+    poster_path: '',
+    production_companies: [],
+    status: '',
+    type: '',
+    vote_average: 0,
+    content_ratings: { results: [{ descriptors: [], iso_3166_1: '', rating: 'TV-13' }] },
+    id: 0,
     seasons: [
       {
         id: 123,
@@ -45,6 +70,7 @@ describe('processSeasonChanges', () => {
         air_date: '2024-01-01',
         poster_path: '/path1.jpg',
         episode_count: 10,
+        vote_average: 0,
       },
       {
         id: 456,
@@ -54,6 +80,7 @@ describe('processSeasonChanges', () => {
         air_date: '2024-06-01',
         poster_path: '/path2.jpg',
         episode_count: 8,
+        vote_average: 0,
       },
       {
         id: 789,
@@ -63,9 +90,26 @@ describe('processSeasonChanges', () => {
         air_date: '2024-05-01',
         poster_path: '/path3.jpg',
         episode_count: 2,
+        vote_average: 0,
       },
     ],
+    'watch/providers': {
+      results: {
+        ['US']: {
+          link: '',
+          flatrate: [
+            {
+              display_priority: 0,
+              logo_path: '',
+              provider_id: 0,
+              provider_name: '',
+            },
+          ],
+        },
+      },
+    },
   };
+
   const mockContent: ContentUpdates = {
     id: 100,
     tmdb_id: 12345,
@@ -73,10 +117,12 @@ describe('processSeasonChanges', () => {
     created_at: '',
     updated_at: '',
   };
+
   const mockProfileAccountMappings = [
     { accountId: 1, profileId: 101 },
     { accountId: 1, profileId: 202 },
   ];
+
   const mockDates = { pastDate: '2024-01-01', currentDate: '2024-06-01' };
 
   const mockTmdbService = {

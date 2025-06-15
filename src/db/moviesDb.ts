@@ -8,6 +8,7 @@ export {
   findMovieByTMDBId,
   getAllMoviesForProfile,
   getMovieForProfile,
+  getMovieDetailsForProfile,
   getRecentMovieReleasesForProfile,
   getUpcomingMovieReleasesForProfile,
   getMoviesForUpdates,

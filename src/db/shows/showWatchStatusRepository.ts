@@ -1,10 +1,10 @@
+import { SeasonReferenceRow } from '../../types/seasonTypes';
 import { ShowSeasonStatusRow, WatchStatusRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { FullWatchStatusType, WatchStatus, isFullWatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
-import { SeasonReferenceRow } from 'src/types/seasonTypes';
 
 /**
  * Adds a show to a user's favorites/watchlist
@@ -195,7 +195,6 @@ export async function updateAllWatchStatuses(profileId: number, showId: number, 
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
       //update show
-      console.log('Updating Show Status', status);
       const showQuery = 'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?';
       const [showResult] = await connection.execute<ResultSetHeader>(showQuery, [status, profileId, showId]);
       if (showResult.affectedRows === 0) return false;

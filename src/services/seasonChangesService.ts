@@ -1,5 +1,6 @@
 import { cliLogger } from '../logger/logger';
-import { ChangeItem, ContentUpdates } from '../types/contentTypes';
+import { ContentUpdates } from '../types/contentTypes';
+import { TMDBChange, TMDBShow } from '../types/tmdbTypes';
 import { filterUniqueSeasonIds, sleep } from '../utils/changesUtility';
 import { checkSeasonForEpisodeChanges } from './episodeChangesService';
 import { episodesService } from './episodesService';
@@ -9,7 +10,7 @@ import { ProfileAccountMapping } from '@ajgifford/keepwatching-types';
 
 /**
  * Process season changes for a show
- * @param changes Season change items from TMDB
+ * @param change Season change items from TMDB
  * @param responseShow Full show details from TMDB
  * @param content Basic show info from our database
  * @param profileIds Profile IDs that have this show in their watchlist
@@ -17,15 +18,15 @@ import { ProfileAccountMapping } from '@ajgifford/keepwatching-types';
  * @param currentDate Date current date used as the end of the change window
  */
 export async function processSeasonChanges(
-  changes: ChangeItem[],
-  responseShow: any,
+  change: TMDBChange,
+  responseShow: TMDBShow,
   content: ContentUpdates,
   profileAccountMappings: ProfileAccountMapping[],
   pastDate: string,
   currentDate: string,
 ): Promise<void> {
   const tmdbService = getTMDBService();
-  const uniqueSeasonIds = filterUniqueSeasonIds(changes);
+  const uniqueSeasonIds = filterUniqueSeasonIds(change);
   const responseShowSeasons = responseShow.seasons || [];
 
   for (const uniqueSeasonId of uniqueSeasonIds) {

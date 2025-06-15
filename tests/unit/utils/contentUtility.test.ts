@@ -10,6 +10,7 @@ import {
   isFutureSeason,
   stripPrefix,
 } from '@utils/contentUtility';
+import { Show, ShowType } from 'streaming-availability';
 
 describe('contentUtility', () => {
   describe('getUSNetwork', () => {
@@ -118,7 +119,18 @@ describe('contentUtility', () => {
 
   describe('getEpisodeToAirId', () => {
     it('should return the episode id when episode is present', () => {
-      const episode = { id: 12345 };
+      const episode = {
+        id: 12345,
+        air_date: '',
+        episode_number: 1,
+        name: '',
+        overview: '',
+        production_code: '',
+        season_number: 1,
+        still_path: '',
+        vote_average: 1,
+        vote_count: 1,
+      };
       expect(getEpisodeToAirId(episode)).toBe(12345);
     });
 
@@ -163,7 +175,7 @@ describe('contentUtility', () => {
       expect(getUSMPARating(releaseDates)).toBe('PG-13');
     });
 
-    it('should return default "PG" when no US certification is present', () => {
+    it('should return default "unknown" when no US certification is present', () => {
       const releaseDates = {
         results: [
           {
@@ -182,15 +194,15 @@ describe('contentUtility', () => {
         ],
       };
 
-      expect(getUSMPARating(releaseDates)).toBe('PG');
+      expect(getUSMPARating(releaseDates)).toBe('Unknown');
     });
 
-    it('should return default "PG" for empty results array', () => {
+    it('should return default "unknown" for empty results array', () => {
       const releaseDates = {
         results: [],
       };
 
-      expect(getUSMPARating(releaseDates)).toBe('PG');
+      expect(getUSMPARating(releaseDates)).toBe('Unknown');
     });
   });
 
@@ -209,14 +221,86 @@ describe('contentUtility', () => {
   });
 
   describe('getStreamingPremieredDate', () => {
+    const mockMovieShow: Show = {
+      itemType: 'show',
+      showType: ShowType.Movie,
+      id: 'movie-001',
+      imdbId: 'tt1234567',
+      tmdbId: '98765',
+      title: 'Example Movie',
+      overview: 'A thrilling adventure of a lifetime.',
+      releaseYear: 2022,
+      firstAirYear: 2023,
+      originalTitle: 'Example Movie Original',
+      genres: [{ id: '1', name: 'Adventure' }],
+      directors: ['Jane Doe'],
+      cast: ['Actor A', 'Actor B'],
+      rating: 8.2,
+      runtime: 130,
+      imageSet: {
+        verticalPoster: {
+          w240: '',
+          w360: '',
+          w480: '',
+          w600: '',
+          w720: '',
+        },
+        horizontalPoster: {
+          w360: '',
+          w480: '',
+          w720: '',
+          w1080: '',
+          w1440: '',
+        },
+      },
+      streamingOptions: {
+        US: [],
+      },
+    };
     it('should return releaseYear for movie type', () => {
-      const result = { releaseYear: '2023', firstAirYear: '2022' };
-      expect(getStreamingPremieredDate('movie', result)).toBe('2023');
+      expect(getStreamingPremieredDate('movie', mockMovieShow)).toBe('2022');
     });
 
     it('should return firstAirYear for tv type', () => {
-      const result = { releaseYear: '2023', firstAirYear: '2022' };
-      expect(getStreamingPremieredDate('tv', result)).toBe('2022');
+      const mockTVShow: Show = {
+        itemType: 'show',
+        showType: 'series',
+        id: 'tv-001',
+        imdbId: 'tt7654321',
+        tmdbId: '12345',
+        title: 'Example Series',
+        overview: 'A gripping drama about interconnected lives.',
+        releaseYear: 2022,
+        firstAirYear: 2018,
+        lastAirYear: 2021,
+        originalTitle: 'Example Series Original',
+        genres: [{ id: '2', name: 'Drama' }],
+        creators: ['John Smith'],
+        cast: ['Actor X', 'Actor Y', 'Actor Z'],
+        rating: 9.1,
+        seasonCount: 3,
+        episodeCount: 30,
+        imageSet: {
+          verticalPoster: {
+            w240: '',
+            w360: '',
+            w480: '',
+            w600: '',
+            w720: '',
+          },
+          horizontalPoster: {
+            w360: '',
+            w480: '',
+            w720: '',
+            w1080: '',
+            w1440: '',
+          },
+        },
+        streamingOptions: {
+          US: [],
+        },
+      };
+      expect(getStreamingPremieredDate('tv', mockTVShow)).toBe('2018');
     });
   });
 

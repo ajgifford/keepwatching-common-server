@@ -2,9 +2,9 @@ export function buildTMDBImagePath(path: string, size: string = 'w185'): string 
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 
-export function buildDefaultImagePath(accountName: string): string {
-  const formattedAccountName = replaceSpacesWithPlus(accountName);
-  return `https://placehold.co/300x200/orange/white?text=${formattedAccountName}&font=roboto`;
+export function buildDefaultImagePath(name: string): string {
+  const formattedName = replaceSpacesWithPlus(name);
+  return `https://placehold.co/300x200/42a5f5/white?text=${formattedName}&font=roboto`;
 }
 
 function replaceSpacesWithPlus(input: string): string {

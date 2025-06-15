@@ -42,7 +42,7 @@ describe('ShowService - Recommendations', () => {
       const result = await service.getShowRecommendations(123, 1);
 
       expect(showsDb.findShowById).toHaveBeenCalledWith(1);
-      expect(mockCache.getOrSet).toHaveBeenCalledWith('recommendations_1', expect.any(Function), 86400);
+      expect(mockCache.getOrSet).toHaveBeenCalledWith('recommendations_show_1', expect.any(Function), 86400);
       expect(result).toEqual(mockRecommendations);
     });
 
@@ -114,7 +114,7 @@ describe('ShowService - Recommendations', () => {
       const result = await service.getSimilarShows(123, 1);
 
       expect(showsDb.findShowById).toHaveBeenCalledWith(1);
-      expect(mockCache.getOrSet).toHaveBeenCalledWith('similar_1', expect.any(Function), 86400);
+      expect(mockCache.getOrSet).toHaveBeenCalledWith('similar_show_1', expect.any(Function), 86400);
       expect(result).toEqual(mockSimilarShows);
     });
 

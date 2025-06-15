@@ -1,4 +1,5 @@
 import { NotFoundError } from '../../middleware/errorMiddleware';
+import { ContentCountRow } from '../../types/contentTypes';
 import { AdminEpisodeRow, transformAdminEpisode } from '../../types/episodeTypes';
 import {
   AdminSeasonWatchProgressRow,
@@ -20,7 +21,6 @@ import {
   AdminShowWatchProgressResult,
   ContentProfiles,
 } from '@ajgifford/keepwatching-types';
-import { ContentCountRow } from 'src/types/contentTypes';
 
 export async function getShowsCount(): Promise<number> {
   try {

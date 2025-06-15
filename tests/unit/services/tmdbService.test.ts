@@ -138,7 +138,7 @@ describe('TMDB Service', () => {
 
       // Verify axios was called with correct parameters
       expect(mockAxios.get).toHaveBeenCalledWith(
-        '/movie/456?append_to_response=release_dates%2Cwatch%2Fproviders&language=en-US',
+        '/movie/456?append_to_response=credits%2Crelease_dates%2Cwatch%2Fproviders&language=en-US',
         {
           timeout: 10000,
         },

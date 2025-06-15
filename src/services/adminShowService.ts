@@ -4,6 +4,7 @@ import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
+import { TMDBGenre, TMDBShowSeason } from '../types/tmdbTypes';
 import { sleep } from '../utils/changesUtility';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
 import { getUSWatchProviders } from '../utils/watchProvidersUtility';
@@ -213,7 +214,7 @@ export class AdminShowService {
         streaming_service_ids: getUSWatchProviders(showDetails, 9999),
         season_count: showDetails.number_of_seasons,
         episode_count: showDetails.number_of_episodes,
-        genre_ids: showDetails.genres.map((genre: { id: any }) => genre.id),
+        genre_ids: showDetails.genres.map((genre: TMDBGenre) => genre.id),
         status: showDetails.status,
         type: showDetails.type,
         in_production: getInProduction(showDetails),
@@ -230,8 +231,8 @@ export class AdminShowService {
 
       const seasons = showDetails.seasons || [];
       const validSeasons = seasons
-        .filter((season: any) => season.season_number > 0)
-        .sort((a: any, b: any) => b.season_number - a.season_number);
+        .filter((season: TMDBShowSeason) => season.season_number > 0)
+        .sort((a: TMDBShowSeason, b: TMDBShowSeason) => b.season_number - a.season_number);
       const seasonsToUpdate = updateMode === 'latest' ? validSeasons.slice(0, 1) : validSeasons;
 
       const profileForShow = await showsDb.getProfilesForShow(showId);
