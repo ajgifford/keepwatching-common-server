@@ -226,7 +226,7 @@ export class ProfileService {
    * @throws {NotFoundError} If the profile is not found
    * @throws {BadRequestError} If the profile update fails
    */
-  public async updateProfileImage(profileId: number, image: string): Promise<Profile> {
+  public async updateProfileImage(profileId: number, image: string | null): Promise<Profile> {
     try {
       const profile = await profilesDb.findProfileById(profileId);
       if (!profile) {

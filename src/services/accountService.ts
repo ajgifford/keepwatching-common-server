@@ -234,13 +234,9 @@ export class AccountService {
    * @throws BadRequestError if image update fails
    * @throws Error for other database errors
    */
-  public async updateAccountImage(id: number, image: string): Promise<Account> {
+  public async updateAccountImage(id: number, image: string | null): Promise<Account> {
     try {
-      const accountData: UpdateAccountRequest = {
-        id,
-        image,
-      };
-      const updatedAccount = await accountsDb.updateAccountImage(accountData);
+      const updatedAccount = await accountsDb.updateAccountImage({ id, image });
 
       if (!updatedAccount) {
         throw new Error(`Failed to update image for account ${id}`);

@@ -33,15 +33,15 @@ export function getPhotoForGoogleAccount(name: string, photoURL: string | undefi
   return buildDefaultImagePath(name);
 }
 
-export function getAccountImage(image: string | undefined, name: string) {
+export function getAccountImage(image: string | null | undefined, name: string) {
   return getImage(image, name, 'accounts');
 }
 
-export function getProfileImage(image: string | undefined, name: string) {
+export function getProfileImage(image: string | null | undefined, name: string) {
   return getImage(image, name, 'profiles');
 }
 
-function getImage(image: string | undefined, name: string, folder: string) {
+function getImage(image: string | null | undefined, name: string, folder: string) {
   if (image) {
     return buildUploadedImageURL(image, folder);
   }
