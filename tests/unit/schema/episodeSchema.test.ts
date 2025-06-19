@@ -36,7 +36,7 @@ describe('episodeSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.status?._errors).toContain('Status must be either NOT_WATCHED or WATCHED');
+        expect(formattedErrors.status?._errors).toContain('Status must be one of UNAIRED, NOT_WATCHED or WATCHED');
       }
     });
 
@@ -122,7 +122,7 @@ describe('episodeSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.status?._errors).toContain('Status must be either NOT_WATCHED or WATCHED');
+        expect(formattedErrors.status?._errors).toContain('Status must be one of UNAIRED, NOT_WATCHED or WATCHED');
       }
     });
 

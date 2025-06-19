@@ -1,3 +1,4 @@
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
 import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
@@ -168,11 +169,11 @@ describe('showWatchStatusRepository', () => {
     it('should update show watch status', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
-      const result = await showsDb.updateWatchStatus(123, 5, 'WATCHED');
+      const result = await showsDb.updateWatchStatus(123, 5, WatchStatus.WATCHED);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?',
-        ['WATCHED', 123, 5],
+        [WatchStatus.WATCHED, 123, 5],
       );
       expect(result).toBe(true);
     });
@@ -180,7 +181,7 @@ describe('showWatchStatusRepository', () => {
     it('should return false when no rows affected', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
-      const result = await showsDb.updateWatchStatus(123, 999, 'WATCHED');
+      const result = await showsDb.updateWatchStatus(123, 999, WatchStatus.WATCHED);
 
       expect(result).toBe(false);
     });
@@ -189,7 +190,7 @@ describe('showWatchStatusRepository', () => {
       const error = new Error('Database error');
       mockPool.execute.mockRejectedValueOnce(error);
 
-      await expect(showsDb.updateWatchStatus(123, 5, 'WATCHED')).rejects.toThrow();
+      await expect(showsDb.updateWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow();
     });
   });
 
@@ -220,7 +221,7 @@ describe('showWatchStatusRepository', () => {
       expect(mockPool.execute).toHaveBeenNthCalledWith(
         2,
         'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?',
-        ['WATCHED', 123, 5],
+        [WatchStatus.WATCHED, 123, 5],
       );
     });
 
@@ -349,24 +350,24 @@ describe('showWatchStatusRepository', () => {
         .mockResolvedValueOnce([{ affectedRows: 3 } as ResultSetHeader]) // Seasons update
         .mockResolvedValueOnce([{ affectedRows: 15 } as ResultSetHeader]); // Episodes update
 
-      const result = await showsDb.updateAllWatchStatuses(123, 5, 'WATCHED');
+      const result = await showsDb.updateAllWatchStatuses(123, 5, WatchStatus.WATCHED);
 
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledTimes(3);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?',
-        ['WATCHED', 123, 5],
+        [WatchStatus.WATCHED, 123, 5],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
         'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id IN (SELECT id FROM seasons WHERE show_id = ?)',
-        ['WATCHED', 123, 5],
+        [WatchStatus.WATCHED, 123, 5],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         3,
         'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (SELECT id FROM seasons WHERE show_id = ?))',
-        ['WATCHED', 123, 5],
+        [WatchStatus.WATCHED, 123, 5],
       );
       expect(mockConnection.commit).toHaveBeenCalled();
       expect(result).toBe(true);
@@ -375,7 +376,7 @@ describe('showWatchStatusRepository', () => {
     it('should return false when show update fails', async () => {
       mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]); // Show update fails
 
-      const result = await showsDb.updateAllWatchStatuses(123, 5, 'WATCHED');
+      const result = await showsDb.updateAllWatchStatuses(123, 5, WatchStatus.WATCHED);
 
       expect(result).toBe(false);
       expect(mockConnection.execute).toHaveBeenCalledTimes(1);
@@ -387,7 +388,7 @@ describe('showWatchStatusRepository', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]) // Show update succeeds
         .mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]); // Seasons update fails
 
-      const result = await showsDb.updateAllWatchStatuses(123, 5, 'WATCHED');
+      const result = await showsDb.updateAllWatchStatuses(123, 5, WatchStatus.WATCHED);
 
       expect(result).toBe(false);
       expect(mockConnection.execute).toHaveBeenCalledTimes(2);
@@ -398,7 +399,7 @@ describe('showWatchStatusRepository', () => {
       const error = new Error('Database error');
       mockConnection.execute.mockRejectedValueOnce(error);
 
-      await expect(showsDb.updateAllWatchStatuses(123, 5, 'WATCHED')).rejects.toThrow('Database error');
+      await expect(showsDb.updateAllWatchStatuses(123, 5, WatchStatus.WATCHED)).rejects.toThrow('Database error');
 
       expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.rollback).toHaveBeenCalled();

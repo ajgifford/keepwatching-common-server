@@ -1,10 +1,10 @@
 import { createPositiveIntegerSchema } from './schemaUtil';
-import { fullWatchStatusSchema } from './watchStatusSchema';
+import { watchStatusSchema } from './watchStatusSchema';
 import { z } from 'zod';
 
 export const seasonWatchStatusBodySchema = z.object({
   seasonId: z.number().int().positive('Season ID must be a positive integer'),
-  status: fullWatchStatusSchema,
+  status: watchStatusSchema,
   recursive: z.boolean().default(false).optional(),
 });
 

@@ -24,7 +24,9 @@ import {
   ProfileMovie,
   RemoveMovieFavorite,
   SimilarOrRecommendedMovie,
+  SimpleWatchStatus,
   UpdateMovieRequest,
+  WatchStatus,
 } from '@ajgifford/keepwatching-types';
 
 /**
@@ -275,10 +277,10 @@ export class MoviesService {
    *
    * @param profileId - ID of the profile to update the watch status for
    * @param movieId - ID of the movie to update
-   * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
+   * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
    * @returns Success state of the update operation
    */
-  public async updateMovieWatchStatus(profileId: number, movieId: number, status: string): Promise<boolean> {
+  public async updateMovieWatchStatus(profileId: number, movieId: number, status: SimpleWatchStatus): Promise<boolean> {
     try {
       const success = await moviesDb.updateWatchStatus(profileId, movieId, status);
 
@@ -460,8 +462,9 @@ export class MoviesService {
           const movies = await moviesDb.getAllMoviesForProfile(profileId);
 
           const total = movies.length;
-          const watched = movies.filter((m) => m.watchStatus === 'WATCHED').length;
-          const notWatched = movies.filter((m) => m.watchStatus === 'NOT_WATCHED').length;
+          const unaired = movies.filter((m) => m.watchStatus === WatchStatus.UNAIRED).length;
+          const watched = movies.filter((m) => m.watchStatus === WatchStatus.WATCHED).length;
+          const notWatched = movies.filter((m) => m.watchStatus === WatchStatus.NOT_WATCHED).length;
 
           const genreCounts: Record<string, number> = {};
           movies.forEach((movie) => {
@@ -493,7 +496,7 @@ export class MoviesService {
           return {
             movieReferences: movieReferences,
             total: total,
-            watchStatusCounts: { watched, notWatched },
+            watchStatusCounts: { unaired, watched, notWatched },
             genreDistribution: genreCounts,
             serviceDistribution: serviceCounts,
             watchProgress: total > 0 ? Math.round((watched / total) * 100) : 0,

@@ -128,13 +128,13 @@ export class StatisticsService {
     const aggregate = {
       shows: {
         total: 0,
-        watchStatusCounts: { watched: 0, watching: 0, notWatched: 0, upToDate: 0 },
+        watchStatusCounts: { unaired: 0, watched: 0, watching: 0, notWatched: 0, upToDate: 0 },
         genreDistribution: {} as Record<string, number>,
         serviceDistribution: {} as Record<string, number>,
       },
       movies: {
         total: 0,
-        watchStatusCounts: { watched: 0, notWatched: 0 },
+        watchStatusCounts: { unaired: 0, watched: 0, notWatched: 0 },
         genreDistribution: {} as Record<string, number>,
         serviceDistribution: {} as Record<string, number>,
       },
@@ -146,12 +146,14 @@ export class StatisticsService {
 
     profilesStats.forEach((profileStats) => {
       aggregate.shows.total += profileStats.showStatistics.total;
+      aggregate.shows.watchStatusCounts.unaired += profileStats.showStatistics.watchStatusCounts.unaired;
       aggregate.shows.watchStatusCounts.watched += profileStats.showStatistics.watchStatusCounts.watched;
       aggregate.shows.watchStatusCounts.watching += profileStats.showStatistics.watchStatusCounts.watching;
       aggregate.shows.watchStatusCounts.notWatched += profileStats.showStatistics.watchStatusCounts.notWatched;
       aggregate.shows.watchStatusCounts.upToDate += profileStats.showStatistics.watchStatusCounts.upToDate || 0;
 
       aggregate.movies.total += profileStats.movieStatistics.total;
+      aggregate.movies.watchStatusCounts.unaired += profileStats.movieStatistics.watchStatusCounts.unaired;
       aggregate.movies.watchStatusCounts.watched += profileStats.movieStatistics.watchStatusCounts.watched;
       aggregate.movies.watchStatusCounts.notWatched += profileStats.movieStatistics.watchStatusCounts.notWatched;
 
@@ -236,6 +238,7 @@ export class StatisticsService {
       shows: {
         total: 0,
         watchStatusCounts: {
+          unaired: 0,
           watched: 0,
           watching: 0,
           notWatched: 0,
@@ -249,6 +252,7 @@ export class StatisticsService {
         movieReferences: [],
         total: 0,
         watchStatusCounts: {
+          unaired: 0,
           watched: 0,
           notWatched: 0,
         },

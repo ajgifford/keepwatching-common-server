@@ -1,9 +1,10 @@
 import {
   AdminEpisode,
-  BinaryWatchStatusType,
   NextEpisode,
   ProfileEpisode,
   RecentUpcomingEpisode,
+  SimpleWatchStatus,
+  SimpleWatchStatusType,
 } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
@@ -24,7 +25,7 @@ interface BaseEpisodeRow extends RowDataPacket {
 export interface ProfileEpisodeRow extends BaseEpisodeRow {
   profile_id: number;
   episode_id: number;
-  watch_status: BinaryWatchStatusType;
+  watch_status: SimpleWatchStatusType;
 }
 
 export interface AdminEpisodeRow extends BaseEpisodeRow {
@@ -54,7 +55,7 @@ export function transformProfileEpisode(episode: ProfileEpisodeRow): ProfileEpis
     ...transformBaseEpisode(episode),
     profileId: episode.profile_id,
     id: episode.episode_id,
-    watchStatus: episode.watch_status,
+    watchStatus: episode.watch_status as SimpleWatchStatus,
   };
 }
 

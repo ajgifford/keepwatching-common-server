@@ -1,4 +1,4 @@
-import { CreateSeasonRequest, UpdateSeasonRequest } from '@ajgifford/keepwatching-types';
+import { CreateSeasonRequest, UpdateSeasonRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as seasonsDb from '@db/seasonsDb';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
@@ -196,11 +196,11 @@ describe('seasonsDb Module', () => {
     it('should update watch status for a season', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
-      const result = await seasonsDb.updateWatchStatus(123, 456, 'WATCHED');
+      const result = await seasonsDb.updateWatchStatus(123, 456, WatchStatus.WATCHED);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
-        ['WATCHED', 123, 456],
+        [WatchStatus.WATCHED, 123, 456],
       );
       expect(result).toBe(true);
     });
@@ -208,22 +208,21 @@ describe('seasonsDb Module', () => {
     it('should return false when no rows affected', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
-      const result = await seasonsDb.updateWatchStatus(123, 999, 'WATCHED');
+      const result = await seasonsDb.updateWatchStatus(123, 999, WatchStatus.WATCHED);
 
       expect(result).toBe(false);
     });
 
     it('should throw error when parameters are missing', async () => {
-      await expect(seasonsDb.updateWatchStatus(0, 456, 'WATCHED')).rejects.toThrow('Invalid parameters');
-      await expect(seasonsDb.updateWatchStatus(123, 0, 'WATCHED')).rejects.toThrow('Invalid parameters');
-      await expect(seasonsDb.updateWatchStatus(123, 456, '')).rejects.toThrow('Invalid parameters');
+      await expect(seasonsDb.updateWatchStatus(0, 456, WatchStatus.WATCHED)).rejects.toThrow('Invalid parameters');
+      await expect(seasonsDb.updateWatchStatus(123, 0, WatchStatus.WATCHED)).rejects.toThrow('Invalid parameters');
     });
 
     it('should throw DatabaseError when updating watch status fails', async () => {
       const mockError = new Error('Database connection failed');
       mockPool.execute.mockRejectedValueOnce(mockError);
 
-      await expect(seasonsDb.updateWatchStatus(123, 456, 'WATCHED')).rejects.toThrow(
+      await expect(seasonsDb.updateWatchStatus(123, 456, WatchStatus.WATCHED)).rejects.toThrow(
         'Database error updating the watch status of a season: Database connection failed',
       );
     });
@@ -268,7 +267,7 @@ describe('seasonsDb Module', () => {
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
         'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
-        ['WATCHED', 123, 456],
+        [WatchStatus.WATCHED, 123, 456],
       );
     });
 
@@ -407,13 +406,13 @@ describe('seasonsDb Module', () => {
         .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]) // Season update
         .mockResolvedValueOnce([{ affectedRows: 5 } as ResultSetHeader]); // Episodes update
 
-      const result = await seasonsDb.updateAllWatchStatuses(123, 456, 'WATCHED');
+      const result = await seasonsDb.updateAllWatchStatuses(123, 456, WatchStatus.WATCHED);
 
       expect(mockConnection.execute).toHaveBeenCalledTimes(2);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
-        ['WATCHED', 123, 456],
+        [WatchStatus.WATCHED, 123, 456],
       );
 
       const secondCall = mockConnection.execute.mock.calls[1];
@@ -421,7 +420,7 @@ describe('seasonsDb Module', () => {
       expect(secondCall[0]).toContain('WHERE profile_id = ?');
       expect(secondCall[0]).toContain('AND episode_id IN');
       expect(secondCall[0]).toContain('SELECT id from episodes where season_id');
-      expect(secondCall[1]).toEqual(['WATCHED', 123, 456]);
+      expect(secondCall[1]).toEqual([WatchStatus.WATCHED, 123, 456]);
 
       expect(result).toBe(true);
     });
@@ -431,13 +430,13 @@ describe('seasonsDb Module', () => {
 
       mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Season update
 
-      const result = await seasonsDb.updateAllWatchStatuses(123, 456, 'UP_TO_DATE');
+      const result = await seasonsDb.updateAllWatchStatuses(123, 456, WatchStatus.UP_TO_DATE);
 
       expect(mockConnection.execute).toHaveBeenCalledTimes(3);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?',
-        ['UP_TO_DATE', 123, 456],
+        [WatchStatus.UP_TO_DATE, 123, 456],
       );
 
       const secondCall = mockConnection.execute.mock.calls[1];
@@ -464,23 +463,22 @@ describe('seasonsDb Module', () => {
     it('should return false when season update fails', async () => {
       mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
-      const result = await seasonsDb.updateAllWatchStatuses(123, 456, 'WATCHED');
+      const result = await seasonsDb.updateAllWatchStatuses(123, 456, WatchStatus.WATCHED);
 
       expect(result).toBe(false);
       expect(mockConnection.execute).toHaveBeenCalledTimes(1);
     });
 
     it('should throw error when parameters are missing', async () => {
-      await expect(seasonsDb.updateAllWatchStatuses(0, 456, 'WATCHED')).rejects.toThrow('Invalid parameters');
-      await expect(seasonsDb.updateAllWatchStatuses(123, 0, 'WATCHED')).rejects.toThrow('Invalid parameters');
-      await expect(seasonsDb.updateAllWatchStatuses(123, 456, '')).rejects.toThrow('Invalid parameters');
+      await expect(seasonsDb.updateAllWatchStatuses(0, 456, WatchStatus.WATCHED)).rejects.toThrow('Invalid parameters');
+      await expect(seasonsDb.updateAllWatchStatuses(123, 0, WatchStatus.WATCHED)).rejects.toThrow('Invalid parameters');
     });
 
     it('should throw DatabaseError when updating all statuses fails', async () => {
       const mockError = new Error('Database connection failed');
       mockConnection.execute.mockRejectedValueOnce(mockError);
 
-      await expect(seasonsDb.updateAllWatchStatuses(123, 456, 'WATCHED')).rejects.toThrow(
+      await expect(seasonsDb.updateAllWatchStatuses(123, 456, WatchStatus.WATCHED)).rejects.toThrow(
         'Database error updating a season watch status and its episodes: Database connection failed',
       );
     });

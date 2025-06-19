@@ -4,6 +4,7 @@ import {
   AdminSeasonWatchProgress,
   ContentProfiles,
   Profile,
+  WatchStatus,
   WatchStatusType,
 } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
@@ -75,7 +76,7 @@ export function transformContentProfiles(profile: ContentProfilesRow): ContentPr
     image: profile.image,
     accountId: profile.account_id,
     accountName: profile.account_name,
-    watchStatus: profile.watch_status,
+    watchStatus: profile.watch_status as WatchStatus,
     addedDate: profile.added_date.toISOString(),
     lastUpdated: profile.status_updated_date.toISOString(),
   };
@@ -104,7 +105,7 @@ export function transformAdminSeasonWatchProgress(season: AdminSeasonWatchProgre
     seasonId: season.season_id,
     seasonNumber: season.season_number,
     name: season.name,
-    status: season.season_status,
+    status: season.season_status as WatchStatus,
     episodeCount: season.number_of_episodes,
     watchedEpisodes: season.watched_episodes,
     percentComplete: seasonPercentComplete,

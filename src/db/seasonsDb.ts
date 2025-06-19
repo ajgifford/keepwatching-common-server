@@ -12,10 +12,10 @@ import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import {
   CreateSeasonRequest,
-  FullWatchStatusType,
   ProfileEpisode,
   ProfileSeason,
   UpdateSeasonRequest,
+  WatchStatus,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
 
@@ -130,7 +130,7 @@ export async function saveFavorite(profileId: number, seasonId: number): Promise
  * @returns True if the watch status was updated, false if no rows affected
  * @throws {DatabaseError} If a database error occurs
  */
-export async function updateWatchStatus(profileId: number, seasonId: number, status: string): Promise<boolean> {
+export async function updateWatchStatus(profileId: number, seasonId: number, status: WatchStatus): Promise<boolean> {
   if (!profileId || !seasonId || !status) {
     throw new DatabaseError('Invalid parameters: profileId, seasonId and status are required', null);
   }
@@ -195,19 +195,19 @@ export async function updateWatchStatusByEpisode(profileId: number, seasonId: nu
         return;
       }
 
-      let seasonStatus = 'NOT_WATCHED';
+      let seasonStatus = WatchStatus.NOT_WATCHED;
 
       if (seasonEpisodeCounts.watched_aired_episodes === seasonEpisodeCounts.aired_episodes) {
         if (seasonEpisodeCounts.future_episodes > 0) {
-          seasonStatus = 'UP_TO_DATE';
+          seasonStatus = WatchStatus.UP_TO_DATE;
         } else {
-          seasonStatus = 'WATCHED';
+          seasonStatus = WatchStatus.WATCHED;
         }
       } else if (
         seasonEpisodeCounts.watched_episodes > 0 &&
         seasonEpisodeCounts.watched_episodes < seasonEpisodeCounts.total_episodes
       ) {
-        seasonStatus = 'WATCHING';
+        seasonStatus = WatchStatus.WATCHING;
       }
 
       await connection.execute('UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id = ?', [
@@ -236,7 +236,11 @@ export async function updateWatchStatusByEpisode(profileId: number, seasonId: nu
  * @returns True if the update was successful, false otherwise
  * @throws {DatabaseError} If a database error occurs
  */
-export async function updateAllWatchStatuses(profileId: number, seasonId: number, status: string): Promise<boolean> {
+export async function updateAllWatchStatuses(
+  profileId: number,
+  seasonId: number,
+  status: WatchStatus,
+): Promise<boolean> {
   if (!profileId || !seasonId || !status) {
     throw new DatabaseError('Invalid parameters: profileId, seasonId and status are required', null);
   }
@@ -389,7 +393,7 @@ export async function getShowIdForSeason(seasonId: number): Promise<number | nul
  * @returns Current watch status or null if not found
  * @throws {DatabaseError} If a database error occurs
  */
-export async function getWatchStatus(profileId: number, seasonId: number): Promise<FullWatchStatusType | null> {
+export async function getWatchStatus(profileId: number, seasonId: number): Promise<WatchStatus | null> {
   if (!profileId || !seasonId) {
     throw new DatabaseError('Invalid parameters: profileId and seasonId are required', null);
   }
@@ -399,7 +403,7 @@ export async function getWatchStatus(profileId: number, seasonId: number): Promi
     const [rows] = await getDbPool().execute<SeasonStatusReferenceRow[]>(query, [profileId, seasonId]);
 
     if (rows.length === 0) return null;
-    return rows[0].status;
+    return rows[0].status as WatchStatus;
   } catch (error) {
     handleDatabaseError(error, 'getting a seasons watch status');
   }

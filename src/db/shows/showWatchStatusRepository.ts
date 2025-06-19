@@ -3,8 +3,10 @@ import { ShowSeasonStatusRow, WatchStatusRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
-import { FullWatchStatusType, WatchStatus, isFullWatchStatus } from '@ajgifford/keepwatching-types';
+import * as seasonsDb from '../seasonsDb';
+import { WatchStatus, isWatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
+import { PoolConnection } from 'mysql2/promise';
 
 /**
  * Adds a show to a user's favorites/watchlist
@@ -98,7 +100,7 @@ export async function removeFavorite(profileId: number, showId: number): Promise
  * @returns `True` if the status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function updateWatchStatus(profileId: number, showId: number, status: string): Promise<boolean> {
+export async function updateWatchStatus(profileId: number, showId: number, status: WatchStatus): Promise<boolean> {
   try {
     const showQuery = 'UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?';
     const [result] = await getDbPool().execute<ResultSetHeader>(showQuery, [status, profileId, showId]);
@@ -131,6 +133,7 @@ export async function updateWatchStatusBySeason(profileId: number, showId: numbe
     const seasonStatusQuery = `
       SELECT 
         COUNT(*) as total_seasons,
+        SUM(CASE WHEN sws.status = 'UNAIRED' THEN 1 ELSE 0 END) as unaired_seasons,
         SUM(CASE WHEN sws.status = 'WATCHED' THEN 1 ELSE 0 END) as watched_seasons,
         SUM(CASE WHEN sws.status = 'WATCHING' THEN 1 ELSE 0 END) as watching_seasons,
         SUM(CASE WHEN sws.status = 'NOT_WATCHED' THEN 1 ELSE 0 END) as not_watched_seasons,
@@ -152,19 +155,19 @@ export async function updateWatchStatusBySeason(profileId: number, showId: numbe
       return;
     }
 
-    let showStatus = 'NOT_WATCHED';
+    let showStatus = WatchStatus.NOT_WATCHED;
     if (seasonStatus.watched_seasons === seasonStatus.total_seasons) {
-      showStatus = 'WATCHED';
+      showStatus = WatchStatus.WATCHED;
     } else if (
       seasonStatus.watched_seasons + seasonStatus.up_to_date_seasons === seasonStatus.total_seasons &&
       seasonStatus.up_to_date_seasons > 0
     ) {
-      showStatus = 'UP_TO_DATE';
+      showStatus = WatchStatus.UP_TO_DATE;
     } else if (
       seasonStatus.watching_seasons > 0 ||
       (seasonStatus.watched_seasons > 0 && seasonStatus.not_watched_seasons > 0)
     ) {
-      showStatus = 'WATCHING';
+      showStatus = WatchStatus.WATCHING;
     }
 
     await pool.execute('UPDATE show_watch_status SET status = ? WHERE profile_id = ? AND show_id = ?', [
@@ -189,7 +192,7 @@ export async function updateWatchStatusBySeason(profileId: number, showId: numbe
  * @returns `True` if the watch status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function updateAllWatchStatuses(profileId: number, showId: number, status: string): Promise<boolean> {
+export async function updateAllWatchStatuses(profileId: number, showId: number, status: WatchStatus): Promise<boolean> {
   const transactionHelper = new TransactionHelper();
 
   try {
@@ -200,26 +203,112 @@ export async function updateAllWatchStatuses(profileId: number, showId: number, 
       if (showResult.affectedRows === 0) return false;
 
       //update seasons (for show)
-      const seasonsQuery =
-        'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id IN (SELECT id FROM seasons WHERE show_id = ?)';
-      const [seasonsResult] = await connection.execute<ResultSetHeader>(seasonsQuery, [status, profileId, showId]);
-      if (seasonsResult.affectedRows === 0) return false;
+      if (status == WatchStatus.UP_TO_DATE) {
+        const currentDate = new Date().toISOString().split('T')[0];
+        updateSeasonsForUpToDate(showId, profileId, currentDate, connection);
+        return true;
+      } else {
+        const seasonsQuery =
+          'UPDATE season_watch_status SET status = ? WHERE profile_id = ? AND season_id IN (SELECT id FROM seasons WHERE show_id = ?)';
+        const [seasonsResult] = await connection.execute<ResultSetHeader>(seasonsQuery, [status, profileId, showId]);
+        if (seasonsResult.affectedRows === 0) return false;
 
-      //update episodes (for seasons/show)
-      const episodeStatus = determineEpisodeStatus(status);
-      const episodesQuery =
-        'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (SELECT id FROM seasons WHERE show_id = ?))';
-      const [episodesResult] = await connection.execute<ResultSetHeader>(episodesQuery, [
-        episodeStatus,
-        profileId,
-        showId,
-      ]);
+        //update episodes (for seasons/show)
+        const episodeStatus = determineEpisodeStatus(status);
+        const episodesQuery =
+          'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (SELECT id FROM seasons WHERE show_id = ?))';
+        const [episodesResult] = await connection.execute<ResultSetHeader>(episodesQuery, [
+          episodeStatus,
+          profileId,
+          showId,
+        ]);
 
-      return episodesResult.affectedRows > 0;
+        return episodesResult.affectedRows > 0;
+      }
     });
   } catch (error) {
     handleDatabaseError(error, 'updating the watch status of a show and its children (seasons and episodes)');
   }
+}
+
+async function updateSeasonsForUpToDate(
+  showId: number,
+  profileId: number,
+  currentDate: string,
+  connection: PoolConnection,
+): Promise<void> {
+  const completelyAiredIds = await getCompletelyAiredSeasons(showId, currentDate, connection);
+  const partiallyAiredIds = await getPartiallyAiredSeasons(showId, currentDate, connection);
+  const unairedIds = await getUnairedSeasons(showId, currentDate, connection);
+
+  for (const seasonId of completelyAiredIds) {
+    await seasonsDb.updateAllWatchStatuses(profileId, seasonId, WatchStatus.WATCHED);
+  }
+
+  for (const seasonId of partiallyAiredIds) {
+    await seasonsDb.updateAllWatchStatuses(profileId, seasonId, WatchStatus.UP_TO_DATE);
+  }
+
+  for (const seasonId of unairedIds) {
+    await seasonsDb.updateAllWatchStatuses(profileId, seasonId, WatchStatus.NOT_WATCHED);
+  }
+}
+
+async function getCompletelyAiredSeasons(
+  showId: number,
+  currentDate: string,
+  connection: PoolConnection,
+): Promise<number[]> {
+  const query = `
+    SELECT s.id
+    FROM seasons s
+    LEFT JOIN episodes e ON s.id = e.season_id
+    WHERE s.show_id = ?
+    GROUP BY s.id
+    HAVING 
+      COUNT(e.id) > 0 
+      AND COUNT(CASE WHEN e.air_date IS NULL OR e.air_date > ? THEN 1 END) = 0
+  `;
+
+  const [rows] = await connection.execute<SeasonReferenceRow[]>(query, [showId, currentDate]);
+  return rows.map((row) => row.id);
+}
+
+async function getPartiallyAiredSeasons(
+  showId: number,
+  currentDate: string,
+  connection: PoolConnection,
+): Promise<number[]> {
+  const query = `
+    SELECT s.id
+    FROM seasons s
+    LEFT JOIN episodes e ON s.id = e.season_id
+    WHERE s.show_id = ?
+    GROUP BY s.id
+    HAVING 
+      COUNT(e.id) > 0
+      AND COUNT(CASE WHEN e.air_date IS NOT NULL AND e.air_date <= ? THEN 1 END) > 0
+      AND COUNT(CASE WHEN e.air_date IS NULL OR e.air_date > ? THEN 1 END) > 0
+  `;
+
+  const [rows] = await connection.execute<SeasonReferenceRow[]>(query, [showId, currentDate, currentDate]);
+  return rows.map((row) => row.id);
+}
+
+async function getUnairedSeasons(showId: number, currentDate: string, connection: PoolConnection): Promise<number[]> {
+  const query = `
+    SELECT s.id
+    FROM seasons s
+    LEFT JOIN episodes e ON s.id = e.season_id
+    WHERE s.show_id = ?
+    GROUP BY s.id
+    HAVING 
+      COUNT(e.id) = 0 
+      OR COUNT(CASE WHEN e.air_date IS NOT NULL AND e.air_date <= ? THEN 1 END) = 0
+  `;
+
+  const [rows] = await connection.execute<SeasonReferenceRow[]>(query, [showId, currentDate]);
+  return rows.map((row) => row.id);
 }
 
 function determineEpisodeStatus(status: string) {
@@ -237,15 +326,15 @@ function determineEpisodeStatus(status: string) {
  * @returns The watch status of the show or null if not found
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getWatchStatus(profileId: number, showId: number): Promise<FullWatchStatusType | null> {
+export async function getWatchStatus(profileId: number, showId: number): Promise<WatchStatus | null> {
   try {
     const query = 'SELECT status FROM show_watch_status WHERE profile_id = ? AND show_id = ?';
     const [rows] = await getDbPool().execute<WatchStatusRow[]>(query, [profileId, showId]);
 
     if (rows.length === 0) return null;
 
-    const status = rows[0].status;
-    if (isFullWatchStatus(status)) {
+    const status = rows[0].status as WatchStatus;
+    if (isWatchStatus(status)) {
       return status;
     } else {
       return WatchStatus.NOT_WATCHED;

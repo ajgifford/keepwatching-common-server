@@ -1,5 +1,6 @@
 import { ContentUpdates } from '../../../src/types/contentTypes';
 import { TMDBChange } from '../../../src/types/tmdbTypes';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
 import { appLogger } from '@logger/logger';
 import { NotFoundError } from '@middleware/errorMiddleware';
@@ -390,9 +391,9 @@ describe('MoviesService', () => {
     it('should update movie watch status successfully', async () => {
       (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
 
-      const result = await moviesService.updateMovieWatchStatus(123, 5, 'WATCHED');
+      const result = await moviesService.updateMovieWatchStatus(123, 5, WatchStatus.WATCHED);
 
-      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, 'WATCHED');
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED);
       expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledTimes(1);
       expect(result).toBe(true);
     });
@@ -403,10 +404,10 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.updateMovieWatchStatus(123, 5, 'WATCHED')).rejects.toThrow(
+      await expect(moviesService.updateMovieWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow(
         'Failed to update watch status. Ensure the movie (ID: 5) exists in your favorites.',
       );
-      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, 'WATCHED');
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED);
     });
 
     it('should handle database errors', async () => {
@@ -416,7 +417,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.updateMovieWatchStatus(123, 5, 'WATCHED')).rejects.toThrow('Database error');
+      await expect(moviesService.updateMovieWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'updateMovieWatchStatus(123, 5, WATCHED)');
     });
   });
@@ -695,13 +696,13 @@ describe('MoviesService', () => {
       const mockMovies = [
         {
           id: 1,
-          watchStatus: 'WATCHED',
+          watchStatus: WatchStatus.WATCHED,
           genres: 'Action, Adventure',
           streamingServices: 'Netflix, Disney+',
         },
         {
           id: 2,
-          watchStatus: 'NOT_WATCHED',
+          watchStatus: WatchStatus.NOT_WATCHED,
           genres: 'Comedy',
           streamingServices: 'Prime',
         },
@@ -717,7 +718,7 @@ describe('MoviesService', () => {
       expect(result).toEqual({
         movieReferences: [{ id: 1 }, { id: 2 }],
         total: 2,
-        watchStatusCounts: { watched: 1, notWatched: 1 },
+        watchStatusCounts: { unaired: 0, watched: 1, notWatched: 1 },
         genreDistribution: { Action: 1, Adventure: 1, Comedy: 1 },
         serviceDistribution: { Netflix: 1, 'Disney+': 1, Prime: 1 },
         watchProgress: 50,
@@ -733,7 +734,7 @@ describe('MoviesService', () => {
       expect(result).toEqual({
         movieReferences: [],
         total: 0,
-        watchStatusCounts: { watched: 0, notWatched: 0 },
+        watchStatusCounts: { unaired: 0, watched: 0, notWatched: 0 },
         genreDistribution: {},
         serviceDistribution: {},
         watchProgress: 0,

@@ -2,9 +2,10 @@ import {
   AdminEpisode,
   AdminSeason,
   AdminSeasonWithEpisodes,
-  FullWatchStatusType,
   ProfileEpisode,
   ProfileSeason,
+  WatchStatus,
+  WatchStatusType,
 } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
@@ -17,7 +18,7 @@ export interface SeasonShowReferenceRow extends RowDataPacket {
 }
 
 export interface SeasonStatusReferenceRow extends RowDataPacket {
-  status: FullWatchStatusType;
+  status: WatchStatusType;
 }
 
 export interface SeasonEpisodeCountReferenceRow extends RowDataPacket {
@@ -42,7 +43,7 @@ interface BaseSeasonRow extends RowDataPacket {
 export interface ProfileSeasonRow extends BaseSeasonRow {
   profile_id: number;
   season_id: number;
-  watch_status: FullWatchStatusType;
+  watch_status: WatchStatusType;
 }
 
 export interface AdminSeasonRow extends BaseSeasonRow {
@@ -70,7 +71,7 @@ export function transformProfileSeason(season: ProfileSeasonRow, episodes: Profi
     ...transformBaseSeasonRow(season),
     profileId: season.profile_id,
     id: season.season_id,
-    watchStatus: season.watch_status,
+    watchStatus: season.watch_status as WatchStatus,
     episodes,
   };
 }

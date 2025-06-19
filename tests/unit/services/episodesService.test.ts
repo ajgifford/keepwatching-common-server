@@ -1,3 +1,4 @@
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
@@ -18,7 +19,7 @@ describe('episodesService', () => {
   const showId = 789;
   const seasonId = 456;
   const episodeId = 101;
-  const status = 'WATCHED';
+  const status = WatchStatus.WATCHED;
 
   beforeEach(() => {
     jest.clearAllMocks();

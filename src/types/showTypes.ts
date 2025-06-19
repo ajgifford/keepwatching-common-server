@@ -1,9 +1,9 @@
 import {
   AdminShow,
-  FullWatchStatusType,
   ProfileShow,
   ShowReference,
   ShowTMDBReference,
+  WatchStatus,
   WatchStatusType,
 } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
@@ -42,6 +42,7 @@ export interface ShowSeasonStatusRow extends RowDataPacket {
   watching_seasons: number;
   not_watched_seasons: number;
   up_to_date_seasons: number;
+  unaired_seasons: number;
 }
 
 export interface ProfileShowStatusRow extends RowDataPacket {
@@ -81,7 +82,7 @@ export interface AdminShowRow extends BaseShowRow {
 export interface ProfileShowRow extends BaseShowRow {
   profile_id: number;
   show_id: number;
-  watch_status: FullWatchStatusType;
+  watch_status: WatchStatusType;
   last_episode_title: string;
   last_episode_air_date: string;
   last_episode_number: number;
@@ -135,7 +136,7 @@ export function transformProfileShow(show: ProfileShowRow): ProfileShow {
           episodeNumber: show.next_episode_number,
         }
       : null,
-    watchStatus: show.watch_status,
+    watchStatus: show.watch_status as WatchStatus,
   };
 }
 

@@ -1,5 +1,5 @@
 import { RecentUpcomingEpisodeRow } from '../../../src/types/episodeTypes';
-import { CreateEpisodeRequest, UpdateEpisodeRequest } from '@ajgifford/keepwatching-types';
+import { CreateEpisodeRequest, UpdateEpisodeRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodeModule from '@db/episodesDb';
 import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
@@ -233,7 +233,7 @@ describe('Episode Module', () => {
     it('should update watch status', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
-      const result = await episodeModule.updateWatchStatus(123, 5, 'WATCHED');
+      const result = await episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id = ?',
@@ -245,7 +245,7 @@ describe('Episode Module', () => {
     it('should return false if no rows affected', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
-      const result = await episodeModule.updateWatchStatus(123, 5, 'WATCHED');
+      const result = await episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED);
 
       expect(result).toBe(false);
     });
@@ -254,13 +254,15 @@ describe('Episode Module', () => {
       const mockError = new Error('DB connection failed');
       mockPool.execute.mockRejectedValue(mockError);
 
-      await expect(episodeModule.updateWatchStatus(123, 5, 'WATCHED')).rejects.toThrow('DB connection failed');
+      await expect(episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow(
+        'DB connection failed',
+      );
     });
 
     it('should throw error with default message when updating watch status fails', async () => {
       mockPool.execute.mockRejectedValue({});
 
-      await expect(episodeModule.updateWatchStatus(123, 5, 'WATCHED')).rejects.toThrow(
+      await expect(episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow(
         'Unknown database error updating an episode watch status',
       );
     });

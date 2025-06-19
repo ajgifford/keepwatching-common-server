@@ -10,6 +10,7 @@ import {
   CreateEpisodeRequest,
   ProfileEpisode,
   RecentUpcomingEpisode,
+  SimpleWatchStatus,
   UpdateEpisodeRequest,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
@@ -183,20 +184,24 @@ export async function removeFavorite(profileId: number, episodeId: number): Prom
  *
  * @param profileId - ID of the profile to update the watch status for
  * @param episodeId - ID of the episode to update
- * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
+ * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
  * @returns `true` if the watch status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  *
  * @example
  * // Mark episode 789 as watched for profile 456
- * const updated = await updateWatchStatus('456', 789, 'WATCHED');
+ * const updated = await updateWatchStatus('456', 789, WatchStatus.WATCHED);
  * if (updated) {
  *   console.log('Episode marked as watched');
  * } else {
  *   console.log('No update occurred - episode might not be in favorites');
  * }
  */
-export async function updateWatchStatus(profileId: number, episodeId: number, status: string): Promise<boolean> {
+export async function updateWatchStatus(
+  profileId: number,
+  episodeId: number,
+  status: SimpleWatchStatus,
+): Promise<boolean> {
   try {
     const query = 'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id = ?';
     const [result] = await getDbPool().execute<ResultSetHeader>(query, [status, profileId, episodeId]);
@@ -226,7 +231,7 @@ export async function updateWatchStatus(profileId: number, episodeId: number, st
  *   console.log(`Found ${episodes.length} episodes`);
  *
  *   // Count watched episodes
- *   const watchedCount = episodes.filter(ep => ep.watch_status === 'WATCHED').length;
+ *   const watchedCount = episodes.filter(ep => ep.watch_status === WatchStatus.WATCHED).length;
  *   console.log(`${watchedCount} episodes watched out of ${episodes.length}`);
  * } catch (error) {
  *   console.error('Error fetching episodes:', error);

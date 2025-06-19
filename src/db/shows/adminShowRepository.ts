@@ -20,6 +20,7 @@ import {
   AdminShow,
   AdminShowWatchProgressResult,
   ContentProfiles,
+  WatchStatus,
 } from '@ajgifford/keepwatching-types';
 
 export async function getShowsCount(): Promise<number> {
@@ -393,7 +394,7 @@ export async function getAdminShowWatchProgress(showId: number): Promise<AdminSh
         return {
           profileId: profile.profile_id,
           name: profile.name,
-          showStatus: profile.show_status,
+          showStatus: profile.show_status as WatchStatus,
           totalEpisodes,
           watchedEpisodes,
           percentComplete,

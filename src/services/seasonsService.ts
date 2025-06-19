@@ -22,7 +22,7 @@ export class SeasonsService {
     accountId: number,
     profileId: number,
     seasonId: number,
-    status: string,
+    status: WatchStatus,
     recursive: boolean = false,
   ): Promise<void> {
     try {

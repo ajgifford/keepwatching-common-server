@@ -8,6 +8,7 @@ import {
   KeepWatchingShow,
   ProfileEpisode,
   RecentUpcomingEpisode,
+  SimpleWatchStatus,
   UpdateEpisodeRequest,
 } from '@ajgifford/keepwatching-types';
 
@@ -20,7 +21,7 @@ export class EpisodesService {
    *
    * @param profileId - ID of the profile to update the watch status for
    * @param episodeId - ID of the episode to update
-   * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
+   * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
    * @returns Object containing next unwatched episodes after the update
    * @throws {BadRequestError} If no episode watch status was updated
    */
@@ -28,7 +29,7 @@ export class EpisodesService {
     accountId: number,
     profileId: number,
     episodeId: number,
-    status: string,
+    status: SimpleWatchStatus,
   ): Promise<KeepWatchingShow[]> {
     try {
       const success = await episodesDb.updateWatchStatus(profileId, episodeId, status);
@@ -57,7 +58,7 @@ export class EpisodesService {
    * @param showId - ID of the show the episode belongs to
    * @param seasonId - ID of the season the episode belongs to
    * @param episodeId - ID of the episode to update
-   * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
+   * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
    * @returns Object containing next unwatched episodes after the update
    * @throws {BadRequestError} If no episode watch status was updated
    */
@@ -67,7 +68,7 @@ export class EpisodesService {
     showId: number,
     seasonId: number,
     episodeId: number,
-    status: string,
+    status: SimpleWatchStatus,
   ): Promise<KeepWatchingShow[]> {
     try {
       const success = await episodesDb.updateWatchStatus(profileId, episodeId, status);

@@ -55,7 +55,7 @@ describe('seasonSchema', () => {
       if (!result.success) {
         const formattedErrors = result.error.format();
         expect(formattedErrors.status?._errors).toContain(
-          'Status must be one of: NOT_WATCHED, WATCHING, WATCHED, or UP_TO_DATE',
+          'Status must be one of: UNAIRED, NOT_WATCHED, WATCHING, WATCHED, or UP_TO_DATE',
         );
       }
     });

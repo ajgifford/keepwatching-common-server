@@ -1,9 +1,10 @@
 import {
   AdminMovie,
-  BinaryWatchStatusType,
   MovieReference,
   ProfileMovie,
   ProfileMovieWithDetails,
+  SimpleWatchStatus,
+  SimpleWatchStatusType,
 } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
@@ -35,7 +36,7 @@ export interface ProfileMovieRow extends RowDataPacket {
   mpa_rating: string;
   genres: string;
   streaming_services: string;
-  watch_status: BinaryWatchStatusType;
+  watch_status: SimpleWatchStatusType;
 }
 
 export function transformProfileMovie(movie: ProfileMovieRow): ProfileMovie {
@@ -53,7 +54,7 @@ export function transformProfileMovie(movie: ProfileMovieRow): ProfileMovie {
     mpaRating: movie.mpa_rating,
     genres: movie.genres,
     streamingServices: movie.streaming_services,
-    watchStatus: movie.watch_status,
+    watchStatus: movie.watch_status as SimpleWatchStatus,
   };
 }
 
@@ -79,7 +80,7 @@ export function transformProfileMovieWithDetails(movie: ProfileMovieDetailsRow):
     mpaRating: movie.mpa_rating,
     genres: movie.genres,
     streamingServices: movie.streaming_services,
-    watchStatus: movie.watch_status,
+    watchStatus: movie.watch_status as SimpleWatchStatus,
     director: movie.director,
     productionCompanies: movie.production_companies,
     budget: movie.budget,

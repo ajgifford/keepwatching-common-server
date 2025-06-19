@@ -1,5 +1,5 @@
 import { createPositiveIntegerSchema } from './schemaUtil';
-import { binaryWatchStatusSchema } from './watchStatusSchema';
+import { simpleWatchStatusSchema } from './watchStatusSchema';
 import { z } from 'zod';
 
 export const addMovieFavoriteBodySchema = z.object({
@@ -20,7 +20,7 @@ export const movieParamsSchema = z.object({
 
 export const movieWatchStatusBodySchema = z.object({
   movieId: z.number().int().positive('Movie ID must be a positive integer'),
-  status: binaryWatchStatusSchema,
+  status: simpleWatchStatusSchema,
 });
 
 export type MovieWatchStatusBody = z.infer<typeof movieWatchStatusBodySchema>;

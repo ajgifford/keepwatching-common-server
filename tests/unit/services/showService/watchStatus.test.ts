@@ -30,9 +30,9 @@ describe('ShowService - Watch Status', () => {
       (showsDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
       mockCache.getOrSet.mockResolvedValue(mockNextUnwatchedEpisodes);
 
-      const result = await service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED');
+      const result = await service.updateShowWatchStatus(accountId, profileId, showId, WatchStatus.WATCHED);
 
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(profileId, showId, 'WATCHED');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(profileId, showId, WatchStatus.WATCHED);
       expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_show_details_1');
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(result).toEqual(mockNextUnwatchedEpisodes);
@@ -41,9 +41,9 @@ describe('ShowService - Watch Status', () => {
     it('should update all watch statuses recursively when requested', async () => {
       (showsDb.updateAllWatchStatuses as jest.Mock).mockResolvedValue(true);
 
-      await service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED', true);
+      await service.updateShowWatchStatus(accountId, profileId, showId, WatchStatus.WATCHED, true);
 
-      expect(showsDb.updateAllWatchStatuses).toHaveBeenCalledWith(profileId, showId, 'WATCHED');
+      expect(showsDb.updateAllWatchStatuses).toHaveBeenCalledWith(profileId, showId, WatchStatus.WATCHED);
       expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_show_details_1');
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
     });
@@ -51,10 +51,10 @@ describe('ShowService - Watch Status', () => {
     it('should throw BadRequestError when update fails', async () => {
       (showsDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
 
-      await expect(service.updateShowWatchStatus(accountId, profileId, showId, 'WATCHED')).rejects.toThrow(
+      await expect(service.updateShowWatchStatus(accountId, profileId, showId, WatchStatus.WATCHED)).rejects.toThrow(
         BadRequestError,
       );
-      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(profileId, showId, 'WATCHED');
+      expect(showsDb.updateWatchStatus).toHaveBeenCalledWith(profileId, showId, WatchStatus.WATCHED);
     });
   });
 

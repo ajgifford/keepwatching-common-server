@@ -379,7 +379,7 @@ export class ShowService {
     accountId: number,
     profileId: number,
     showId: number,
-    status: string,
+    status: WatchStatus,
     recursive: boolean = false,
   ): Promise<KeepWatchingShow[]> {
     try {
@@ -688,10 +688,11 @@ export class ShowService {
           const shows = await showsDb.getAllShowsForProfile(profileId);
 
           const total = shows.length;
-          const watched = shows.filter((s) => s.watchStatus === 'WATCHED').length;
-          const watching = shows.filter((s) => s.watchStatus === 'WATCHING').length;
-          const notWatched = shows.filter((s) => s.watchStatus === 'NOT_WATCHED').length;
-          const upToDate = shows.filter((s) => s.watchStatus === 'UP_TO_DATE').length;
+          const unaired = shows.filter((s) => s.watchStatus === WatchStatus.UNAIRED).length;
+          const watched = shows.filter((s) => s.watchStatus === WatchStatus.WATCHED).length;
+          const watching = shows.filter((s) => s.watchStatus === WatchStatus.WATCHING).length;
+          const notWatched = shows.filter((s) => s.watchStatus === WatchStatus.NOT_WATCHED).length;
+          const upToDate = shows.filter((s) => s.watchStatus === WatchStatus.UP_TO_DATE).length;
 
           const genreCounts: Record<string, number> = {};
           shows.forEach((show) => {
@@ -719,7 +720,7 @@ export class ShowService {
 
           return {
             total: total,
-            watchStatusCounts: { watched, watching, notWatched, upToDate },
+            watchStatusCounts: { unaired, watched, watching, notWatched, upToDate },
             genreDistribution: genreCounts,
             serviceDistribution: serviceCounts,
             watchProgress: total > 0 ? Math.round((watched / total) * 100) : 0,
@@ -754,7 +755,7 @@ export class ShowService {
 
               const showEpisodeCount = seasons.reduce((sum, season: ProfileSeason) => sum + season.episodes.length, 0);
               const showWatchedCount = seasons.reduce((sum, season: ProfileSeason) => {
-                return sum + season.episodes.filter((ep) => ep.watchStatus === 'WATCHED').length;
+                return sum + season.episodes.filter((ep) => ep.watchStatus === WatchStatus.WATCHED).length;
               }, 0);
 
               totalEpisodes += showEpisodeCount;
