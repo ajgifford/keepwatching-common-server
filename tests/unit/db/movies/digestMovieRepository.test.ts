@@ -33,16 +33,19 @@ describe('digestMovieRepository', () => {
         id: 1,
         title: 'Trending Movie 1',
         tmdb_id: 12345,
+        release_date: '2025-04-01',
       } as MovieReferenceRow,
       {
         id: 2,
         title: 'Trending Movie 2',
         tmdb_id: 23456,
+        release_date: '2025-05-01',
       } as MovieReferenceRow,
       {
         id: 3,
         title: 'Trending Movie 3',
         tmdb_id: 34567,
+        release_date: '2025-06-01',
       } as MovieReferenceRow,
     ];
 
@@ -51,16 +54,19 @@ describe('digestMovieRepository', () => {
         id: 1,
         title: 'Trending Movie 1',
         tmdbId: 12345,
+        releaseDate: '2025-04-01',
       },
       {
         id: 2,
         title: 'Trending Movie 2',
         tmdbId: 23456,
+        releaseDate: '2025-05-01',
       },
       {
         id: 3,
         title: 'Trending Movie 3',
         tmdbId: 34567,
+        releaseDate: '2025-06-01',
       },
     ];
 
@@ -136,11 +142,13 @@ describe('digestMovieRepository', () => {
         id: 4,
         title: 'Recent Movie 1',
         tmdb_id: 45678,
+        release_date: '2025-04-01',
       } as MovieReferenceRow,
       {
         id: 5,
         title: 'Recent Movie 2',
         tmdb_id: 56789,
+        release_date: '2025-05-01',
       } as MovieReferenceRow,
     ];
 
@@ -149,11 +157,13 @@ describe('digestMovieRepository', () => {
         id: 4,
         title: 'Recent Movie 1',
         tmdbId: 45678,
+        releaseDate: '2025-04-01',
       },
       {
         id: 5,
         title: 'Recent Movie 2',
         tmdbId: 56789,
+        releaseDate: '2025-05-01',
       },
     ];
 
@@ -233,16 +243,19 @@ describe('digestMovieRepository', () => {
         id: 6,
         title: 'Top Rated Movie 1',
         tmdb_id: 67890,
+        release_date: '2025-04-01',
       } as MovieReferenceRow,
       {
         id: 7,
         title: 'Top Rated Movie 2',
         tmdb_id: 78901,
+        release_date: '2025-05-01',
       } as MovieReferenceRow,
       {
         id: 8,
         title: 'Top Rated Movie 3',
         tmdb_id: 89012,
+        release_date: '2025-06-01',
       } as MovieReferenceRow,
     ];
 
@@ -251,16 +264,19 @@ describe('digestMovieRepository', () => {
         id: 6,
         title: 'Top Rated Movie 1',
         tmdbId: 67890,
+        releaseDate: '2025-04-01',
       },
       {
         id: 7,
         title: 'Top Rated Movie 2',
         tmdbId: 78901,
+        releaseDate: '2025-05-01',
       },
       {
         id: 8,
         title: 'Top Rated Movie 3',
         tmdbId: 89012,
+        releaseDate: '2025-06-01',
       },
     ];
 

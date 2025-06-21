@@ -5,6 +5,7 @@ import {
   mockUpcomingEpisodes,
 } from './helpers/fixtures';
 import { setupDbMocks, setupShowService, testUtils } from './helpers/mocks';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
@@ -128,7 +129,7 @@ describe('ShowService - Episodes', () => {
     });
 
     const showId = 123;
-    const profileId = '456';
+    const profileId = 456;
     const mockShow = mockTMDBResponses.showDetails;
 
     it('should fetch and save seasons and episodes', async () => {
@@ -146,7 +147,7 @@ describe('ShowService - Episodes', () => {
       const mockEpisode2 = { id: 302, tmdb_id: 1002, show_id: showId, season_id: 201 };
       (episodesDb.saveEpisode as jest.Mock).mockResolvedValueOnce(mockEpisode1).mockResolvedValueOnce(mockEpisode2);
 
-      const mockProfileShow = { show_id: showId, profile_id: Number(profileId), title: 'Test Show' };
+      const mockProfileShow = { show_id: showId, profile_id: profileId, title: 'Test Show' };
       (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
 
       const timeoutSpy = testUtils.mockImmediateTimeout();
@@ -163,7 +164,7 @@ describe('ShowService - Episodes', () => {
         }),
       );
 
-      expect(seasonsDb.saveFavorite).toHaveBeenCalledWith(Number(profileId), 201);
+      expect(seasonsDb.saveFavorite).toHaveBeenCalledWith(profileId, 201, WatchStatus.NOT_WATCHED);
       expect(episodesDb.saveEpisode).toHaveBeenCalledTimes(2);
       expect(episodesDb.saveFavorite).toHaveBeenCalledTimes(2);
       expect(showsDb.getShowForProfile).toHaveBeenCalledWith(profileId, showId);

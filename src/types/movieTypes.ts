@@ -12,6 +12,7 @@ export interface MovieReferenceRow extends RowDataPacket {
   id: number;
   tmdb_id: number;
   title: string;
+  release_date: string;
 }
 
 export function transformMovieReferenceRow(movie: MovieReferenceRow): MovieReference {
@@ -19,6 +20,7 @@ export function transformMovieReferenceRow(movie: MovieReferenceRow): MovieRefer
     id: movie.id,
     title: movie.title,
     tmdbId: movie.tmdb_id,
+    releaseDate: movie.release_date,
   };
 }
 

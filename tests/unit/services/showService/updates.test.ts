@@ -8,6 +8,7 @@ import { errorService } from '@services/errorService';
 import { processSeasonChanges } from '@services/seasonChangesService';
 import { showService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
+import { watchStatusService } from '@services/watchStatusService';
 import * as contentUtility from '@utils/contentUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
 
@@ -43,6 +44,13 @@ describe('ShowService - Content Updates', () => {
       (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValue(null);
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('HBO');
       (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+
+      (watchStatusService.checkAndUpdateShowStatus as jest.Mock).mockResolvedValue({
+        success: true,
+        message: 'Check and update show test message',
+        affectedRows: 1,
+        changes: [{}, {}],
+      });
 
       // Default mock implementations
       mockTMDBService.getShowChanges.mockResolvedValue({ changes: [] });
@@ -168,7 +176,6 @@ describe('ShowService - Content Updates', () => {
       };
 
       mockTMDBService.getShowChanges.mockResolvedValue(seasonChanges);
-      (showsDb.getWatchStatus as jest.Mock).mockResolvedValue('WATCHING');
 
       await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
 
@@ -188,9 +195,6 @@ describe('ShowService - Content Updates', () => {
         pastDate,
         currentDate,
       );
-      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(1, 1, 123);
-      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(2, 2, 123);
-      expect(showsDb.getWatchStatus).toHaveBeenNthCalledWith(3, 3, 123);
     });
 
     it('should handle errors from getShowChanges API', async () => {

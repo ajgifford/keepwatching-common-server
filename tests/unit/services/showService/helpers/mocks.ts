@@ -21,12 +21,14 @@ jest.mock('@services/tmdbService');
 jest.mock('@utils/db');
 jest.mock('@utils/contentUtility');
 jest.mock('@utils/watchProvidersUtility');
+jest.mock('@services/watchStatusService');
 jest.mock('@logger/logger', () => ({
   cliLogger: {
     info: jest.fn(),
     error: jest.fn(),
   },
   appLogger: {
+    info: jest.fn(),
     error: jest.fn(),
   },
 }));
@@ -126,8 +128,6 @@ export function setupDbMocks(
   (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
   (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
   (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue([1, 2, 3]);
-  (showsDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
-  (showsDb.updateAllWatchStatuses as jest.Mock).mockResolvedValue(true);
 
   // Default seasonsDb implementations
   (seasonsDb.updateSeason as jest.Mock).mockImplementation((season) => 200 + (season.season_number || 1));

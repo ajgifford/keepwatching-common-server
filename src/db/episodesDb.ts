@@ -12,6 +12,7 @@ import {
   RecentUpcomingEpisode,
   SimpleWatchStatus,
   UpdateEpisodeRequest,
+  WatchStatus,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
 
@@ -136,6 +137,7 @@ export async function updateEpisode(episode: UpdateEpisodeRequest): Promise<numb
  *
  * @param profileId - ID of the profile to add the episode to as a favorite
  * @param episodeId - ID of the episode to add as a favorite
+ * @param status - watch status of the episode, defaults to NOT_WATCHED
  * @returns A promise that resolves when the favorite has been added
  * @throws {DatabaseError} If a database error occurs during the operation
  *
@@ -143,10 +145,14 @@ export async function updateEpisode(episode: UpdateEpisodeRequest): Promise<numb
  * // Add episode with ID 789 to profile 456's favorites
  * await saveFavorite('456', 789);
  */
-export async function saveFavorite(profileId: number, episodeId: number): Promise<void> {
+export async function saveFavorite(
+  profileId: number,
+  episodeId: number,
+  status: SimpleWatchStatus = WatchStatus.NOT_WATCHED,
+): Promise<void> {
   try {
-    const query = 'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id) VALUES (?,?)';
-    await getDbPool().execute(query, [profileId, episodeId]);
+    const query = 'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id, status) VALUES (?,?,?)';
+    await getDbPool().execute(query, [profileId, episodeId, status]);
   } catch (error) {
     handleDatabaseError(error, 'saving an episode as a favorite');
   }
@@ -173,43 +179,6 @@ export async function removeFavorite(profileId: number, episodeId: number): Prom
     await getDbPool().execute(query, [profileId, episodeId]);
   } catch (error) {
     handleDatabaseError(error, 'removing an episode as a favorite');
-  }
-}
-
-/**
- * Updates the watch status of an episode for a specific profile
- *
- * This method marks an episode as watched, watching, or not watched for a user,
- * allowing for tracking watch progress of TV shows.
- *
- * @param profileId - ID of the profile to update the watch status for
- * @param episodeId - ID of the episode to update
- * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
- * @returns `true` if the watch status was updated, `false` if no rows were affected
- * @throws {DatabaseError} If a database error occurs during the operation
- *
- * @example
- * // Mark episode 789 as watched for profile 456
- * const updated = await updateWatchStatus('456', 789, WatchStatus.WATCHED);
- * if (updated) {
- *   console.log('Episode marked as watched');
- * } else {
- *   console.log('No update occurred - episode might not be in favorites');
- * }
- */
-export async function updateWatchStatus(
-  profileId: number,
-  episodeId: number,
-  status: SimpleWatchStatus,
-): Promise<boolean> {
-  try {
-    const query = 'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id = ?';
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [status, profileId, episodeId]);
-
-    // Return true if at least one row was affected (watch status was updated)
-    return result.affectedRows > 0;
-  } catch (error) {
-    handleDatabaseError(error, 'updating an episode watch status');
   }
 }
 

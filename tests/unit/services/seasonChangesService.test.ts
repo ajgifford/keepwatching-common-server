@@ -1,5 +1,6 @@
 import { ContentUpdates } from '../../../src/types/contentTypes';
 import { TMDBChange, TMDBShow } from '../../../src/types/tmdbTypes';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { cliLogger } from '@logger/logger';
 import { checkSeasonForEpisodeChanges } from '@services/episodeChangesService';
 import { episodesService } from '@services/episodesService';
@@ -173,8 +174,6 @@ describe('processSeasonChanges', () => {
     const mockUpdatedEpisode = { id: 2000 };
     (episodesService.updateEpisode as jest.Mock).mockResolvedValue(mockUpdatedEpisode);
     (episodesService.addEpisodeToFavorites as jest.Mock).mockResolvedValue(undefined);
-
-    (seasonsService.updateSeasonWatchStatusForNewEpisodes as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('should process season changes correctly', async () => {
@@ -200,13 +199,12 @@ describe('processSeasonChanges', () => {
     );
 
     expect(seasonsService.addSeasonToFavorites).toHaveBeenCalledTimes(4); // 2 seasons × 2 profiles
-    expect(seasonsService.addSeasonToFavorites).toHaveBeenCalledWith(101, 500);
-    expect(seasonsService.addSeasonToFavorites).toHaveBeenCalledWith(202, 500);
+    expect(seasonsService.addSeasonToFavorites).toHaveBeenCalledWith(101, 500, WatchStatus.NOT_WATCHED);
+    expect(seasonsService.addSeasonToFavorites).toHaveBeenCalledWith(202, 500, WatchStatus.NOT_WATCHED);
     expect(checkSeasonForEpisodeChanges).toHaveBeenCalledTimes(2);
     expect(mockTmdbService.getSeasonDetails).toHaveBeenCalledTimes(2);
     expect(episodesService.updateEpisode).toHaveBeenCalledTimes(4); // 2 episodes × 2 seasons
     expect(episodesService.addEpisodeToFavorites).toHaveBeenCalledTimes(8); // 2 episodes × 2 seasons × 2 profiles
-    expect(seasonsService.updateSeasonWatchStatusForNewEpisodes).toHaveBeenCalledTimes(4); // 2 seasons × 2 profiles
   });
 
   it('should skip seasons with number 0 (specials)', async () => {
@@ -269,6 +267,5 @@ describe('processSeasonChanges', () => {
     expect(mockTmdbService.getSeasonDetails).not.toHaveBeenCalled();
     expect(episodesService.updateEpisode).not.toHaveBeenCalled();
     expect(episodesService.addEpisodeToFavorites).not.toHaveBeenCalled();
-    expect(seasonsService.updateSeasonWatchStatusForNewEpisodes).not.toHaveBeenCalled();
   });
 });

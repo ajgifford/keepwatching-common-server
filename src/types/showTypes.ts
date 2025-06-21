@@ -1,57 +1,25 @@
-import {
-  AdminShow,
-  ProfileShow,
-  ShowReference,
-  ShowTMDBReference,
-  WatchStatus,
-  WatchStatusType,
-} from '@ajgifford/keepwatching-types';
+import { AdminShow, ProfileShow, ShowReference, WatchStatus, WatchStatusType } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
 export interface ShowReferenceRow extends RowDataPacket {
   id: number;
-}
-
-export interface ProfileShowReferenceRow extends RowDataPacket {
-  show_id: number;
-}
-
-export function transformProfileShowReferenceRow(show: ProfileShowReferenceRow): ShowReference {
-  return {
-    id: show.show_id,
-  };
-}
-
-export interface ShowTMDBReferenceRow extends RowDataPacket {
-  id: number;
   tmdb_id: number;
   title: string;
+  release_date: string;
 }
 
-export function transformShowTMDBReferenceRow(show: ShowTMDBReferenceRow): ShowTMDBReference {
+export function transformShowReferenceRow(show: ShowReferenceRow): ShowReference {
   return {
     id: show.id,
     tmdbId: show.tmdb_id,
     title: show.title,
+    releaseDate: show.release_date,
   };
 }
 
-export interface ShowSeasonStatusRow extends RowDataPacket {
-  total_seasons: number;
-  watched_seasons: number;
-  watching_seasons: number;
-  not_watched_seasons: number;
-  up_to_date_seasons: number;
-  unaired_seasons: number;
-}
-
-export interface ProfileShowStatusRow extends RowDataPacket {
+export interface ProfileForShowRow extends RowDataPacket {
   profile_id: number;
   account_id: number;
-}
-
-export interface WatchStatusRow extends RowDataPacket {
-  status: WatchStatusType;
 }
 
 interface BaseShowRow extends RowDataPacket {

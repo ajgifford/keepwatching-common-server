@@ -8,6 +8,11 @@ import {
 } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
 
+export interface EpisodeReferenceRow extends RowDataPacket {
+  id: number;
+  air_date: string;
+}
+
 interface BaseEpisodeRow extends RowDataPacket {
   tmdb_id: number;
   season_id: number;

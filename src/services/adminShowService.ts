@@ -10,7 +10,6 @@ import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '.
 import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
-import { seasonsService } from './seasonsService';
 import { showService } from './showService';
 import { socketService } from './socketService';
 import { getTMDBService } from './tmdbService';
@@ -276,16 +275,12 @@ export class AdminShowService {
               await episodesDb.saveFavorite(mapping.profileId, episodeId);
             }
           }
-
-          for (const mapping of profileForShow.profileAccountMappings) {
-            await seasonsService.updateSeasonWatchStatusForNewEpisodes(mapping.profileId, seasonId);
-          }
         } catch (error) {
           cliLogger.error(`Error updating season ${responseSeason.season_number} for show ${showId}`, error);
         }
       }
 
-      await showService.updateShowWatchStatusForNewContent(showId, profileForShow.profileAccountMappings);
+      await showService.checkAndUpdateShowStatus(showId, profileForShow.profileAccountMappings);
 
       for (const mapping of profileForShow.profileAccountMappings) {
         this.cache.invalidate(SHOW_KEYS.detailsForProfile(mapping.profileId, showId));

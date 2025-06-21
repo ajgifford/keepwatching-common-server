@@ -7,6 +7,7 @@ import { ErrorMessages } from '@logger/loggerModel';
 import { adminShowService } from '@services/adminShowService';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
+import { showService } from '@services/showService';
 import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import * as contentUtility from '@utils/contentUtility';
@@ -19,6 +20,7 @@ jest.mock('@db/episodesDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
 jest.mock('@services/socketService');
+jest.mock('@services/showService');
 jest.mock('@services/tmdbService');
 jest.mock('@utils/db');
 jest.mock('@utils/contentUtility');
@@ -596,6 +598,7 @@ describe('AdminShowService', () => {
 
       (episodesDb.updateEpisode as jest.Mock).mockResolvedValue(mockEpisode);
       (episodesDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+      (showService.checkAndUpdateShowStatus as jest.Mock).mockResolvedValue(undefined);
 
       const result = await adminShowService.updateShowById(showId, tmdbId, updateMode);
 

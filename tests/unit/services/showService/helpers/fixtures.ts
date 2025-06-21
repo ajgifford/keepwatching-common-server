@@ -1,6 +1,13 @@
 import { ContentUpdates } from '../../../../../src/types/contentTypes';
 import { TMDBRelatedShow } from '../../../../../src/types/tmdbTypes';
-import { KeepWatchingShow, ProfileSeason, ProfileShow, Show, ShowTMDBReference } from '@ajgifford/keepwatching-types';
+import {
+  KeepWatchingShow,
+  ProfileSeason,
+  ProfileShow,
+  Show,
+  ShowReference,
+  WatchStatus,
+} from '@ajgifford/keepwatching-types';
 
 /**
  * Sample profile shows for testing
@@ -19,7 +26,7 @@ export const mockProfileShows: ProfileShow[] = [
     contentRating: 'TV-14',
     seasonCount: 2,
     episodeCount: 16,
-    watchStatus: 'WATCHED',
+    watchStatus: WatchStatus.WATCHED,
     status: 'Ended',
     type: 'Scripted',
     inProduction: false,
@@ -43,7 +50,7 @@ export const mockProfileShows: ProfileShow[] = [
     contentRating: 'TV-MA',
     seasonCount: 1,
     episodeCount: 8,
-    watchStatus: 'UP_TO_DATE',
+    watchStatus: WatchStatus.UP_TO_DATE,
     status: 'Returning Series',
     type: 'Scripted',
     inProduction: true,
@@ -67,7 +74,7 @@ export const mockProfileShows: ProfileShow[] = [
     contentRating: 'TV-PG',
     seasonCount: 3,
     episodeCount: 24,
-    watchStatus: 'WATCHING',
+    watchStatus: WatchStatus.WATCHING,
     status: 'Returning Series',
     type: 'Scripted',
     inProduction: true,
@@ -91,7 +98,7 @@ export const mockProfileShows: ProfileShow[] = [
     contentRating: 'TV-PG',
     seasonCount: 3,
     episodeCount: 24,
-    watchStatus: 'NOT_WATCHED',
+    watchStatus: WatchStatus.NOT_WATCHED,
     status: 'Returning Series',
     type: 'Scripted',
     inProduction: true,
@@ -115,7 +122,7 @@ export const mockProfileShows: ProfileShow[] = [
     contentRating: 'TV-PG',
     seasonCount: 3,
     episodeCount: 24,
-    watchStatus: 'WATCHED',
+    watchStatus: WatchStatus.WATCHED,
     status: 'Canceled',
     type: 'Scripted',
     inProduction: false,
@@ -128,12 +135,12 @@ export const mockProfileShows: ProfileShow[] = [
   },
 ];
 
-export const mockShowTMDBReferences: ShowTMDBReference[] = [
-  { id: 1, tmdbId: 101, title: 'Show 1' },
-  { id: 2, tmdbId: 102, title: 'Show 2' },
-  { id: 3, tmdbId: 103, title: 'Show 3' },
-  { id: 4, tmdbId: 104, title: 'Show 4' },
-  { id: 5, tmdbId: 105, title: 'Show 5' },
+export const mockShowTMDBReferences: ShowReference[] = [
+  { id: 1, tmdbId: 101, title: 'Show 1', releaseDate: '2025-01-01' },
+  { id: 2, tmdbId: 102, title: 'Show 2', releaseDate: '2025-01-01' },
+  { id: 3, tmdbId: 103, title: 'Show 3', releaseDate: '2025-01-01' },
+  { id: 4, tmdbId: 104, title: 'Show 4', releaseDate: '2025-01-01' },
+  { id: 5, tmdbId: 105, title: 'Show 5', releaseDate: '2025-01-01' },
 ];
 
 /**
@@ -228,7 +235,7 @@ export const mockProfileSeasons: ProfileSeason[] = [
     releaseDate: '2023-01-01',
     posterImage: '/season1_poster.jpg',
     numberOfEpisodes: 8,
-    watchStatus: 'WATCHED',
+    watchStatus: WatchStatus.WATCHED,
     episodes: [
       {
         profileId: 123,
@@ -244,7 +251,7 @@ export const mockProfileSeasons: ProfileSeason[] = [
         runtime: 45,
         airDate: '2023-01-01',
         stillImage: '/episode1_still.jpg',
-        watchStatus: 'WATCHED',
+        watchStatus: WatchStatus.WATCHED,
       },
       {
         profileId: 123,
@@ -260,7 +267,7 @@ export const mockProfileSeasons: ProfileSeason[] = [
         runtime: 42,
         airDate: '2023-01-08',
         stillImage: '/episode2_still.jpg',
-        watchStatus: 'WATCHED',
+        watchStatus: WatchStatus.WATCHED,
       },
     ],
   },
@@ -275,7 +282,7 @@ export const mockProfileSeasons: ProfileSeason[] = [
     releaseDate: '2023-02-01',
     posterImage: '/season2_poster.jpg',
     numberOfEpisodes: 8,
-    watchStatus: 'WATCHED',
+    watchStatus: WatchStatus.WATCHED,
     episodes: [
       {
         profileId: 123,
@@ -291,7 +298,7 @@ export const mockProfileSeasons: ProfileSeason[] = [
         runtime: 45,
         airDate: '2023-02-01',
         stillImage: '/s2_episode1_still.jpg',
-        watchStatus: 'WATCHED',
+        watchStatus: WatchStatus.WATCHED,
       },
       {
         profileId: 123,
@@ -307,7 +314,7 @@ export const mockProfileSeasons: ProfileSeason[] = [
         runtime: 42,
         airDate: '2023-02-08',
         stillImage: '/s2_episode2_still.jpg',
-        watchStatus: 'WATCHED',
+        watchStatus: WatchStatus.WATCHED,
       },
     ],
   },

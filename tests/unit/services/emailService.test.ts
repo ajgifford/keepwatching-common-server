@@ -86,6 +86,7 @@ describe('EmailService', () => {
     id: 1,
     title: 'Test Movie',
     tmdbId: 101,
+    releaseDate: '2025-01-01',
   };
 
   const mockContinueWatching: KeepWatchingShow = {
@@ -851,9 +852,7 @@ describe('EmailService singleton functions', () => {
   let mockConfig: EmailConfig;
 
   beforeEach(() => {
-    // Reset singleton state
-    (require('@services/emailService') as any).emailServiceInstance = null;
-
+    jest.resetModules(); // Clears the module cache
     mockConfig = {
       host: 'smtp.test.com',
       port: 587,

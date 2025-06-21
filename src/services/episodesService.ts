@@ -1,15 +1,16 @@
 import * as episodesDb from '../db/episodesDb';
-import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
-import { BadRequestError } from '../middleware/errorMiddleware';
+import { appLogger } from '../logger/logger';
 import { errorService } from './errorService';
-import { showService } from './showService';
+import { watchStatusService } from './watchStatusService';
 import {
   KeepWatchingShow,
   ProfileEpisode,
   RecentUpcomingEpisode,
   SimpleWatchStatus,
   UpdateEpisodeRequest,
+  UserWatchStatus,
+  WatchStatus,
 } from '@ajgifford/keepwatching-types';
 
 /**
@@ -29,67 +30,20 @@ export class EpisodesService {
     accountId: number,
     profileId: number,
     episodeId: number,
-    status: SimpleWatchStatus,
+    status: UserWatchStatus,
   ): Promise<KeepWatchingShow[]> {
     try {
-      const success = await episodesDb.updateWatchStatus(profileId, episodeId, status);
-      if (!success) {
-        throw new BadRequestError('No episode watch status was updated');
-      }
+      const result = await watchStatusService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
-      // Invalidate cache for the profile to ensure fresh data
-      showService.invalidateProfileCache(accountId, profileId);
+      appLogger.info(`Episode ${episodeId} update: ${result.message}`);
+      appLogger.info(`Affected entities: ${result.changes.length}`);
 
       // Get fresh data for next unwatched episodes
-      const nextUnwatchedEpisodes = await showsDb.getNextUnwatchedEpisodesForProfile(profileId);
-      return nextUnwatchedEpisodes;
+      return await showsDb.getNextUnwatchedEpisodesForProfile(profileId);
     } catch (error) {
       throw errorService.handleError(
         error,
         `updateEpisodeWatchStatus(${accountId}, ${profileId}, ${episodeId}, ${status})`,
-      );
-    }
-  }
-
-  /**
-   * Updates the watch status of a next episode and updates related season and show statuses
-   *
-   * @param profileId - ID of the profile to update the watch status for
-   * @param showId - ID of the show the episode belongs to
-   * @param seasonId - ID of the season the episode belongs to
-   * @param episodeId - ID of the episode to update
-   * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
-   * @returns Object containing next unwatched episodes after the update
-   * @throws {BadRequestError} If no episode watch status was updated
-   */
-  public async updateNextEpisodeWatchStatus(
-    accountId: number,
-    profileId: number,
-    showId: number,
-    seasonId: number,
-    episodeId: number,
-    status: SimpleWatchStatus,
-  ): Promise<KeepWatchingShow[]> {
-    try {
-      const success = await episodesDb.updateWatchStatus(profileId, episodeId, status);
-      if (!success) {
-        throw new BadRequestError('No next episode watch status was updated');
-      }
-
-      // Update related season and show statuses based on episode change
-      await seasonsDb.updateWatchStatusByEpisode(profileId, seasonId);
-      await showsDb.updateWatchStatusBySeason(profileId, showId);
-
-      // Invalidate cache for the profile to ensure fresh data
-      showService.invalidateProfileCache(accountId, profileId);
-
-      // Get fresh data for next unwatched episodes
-      const nextUnwatchedEpisodes = await showsDb.getNextUnwatchedEpisodesForProfile(profileId);
-      return nextUnwatchedEpisodes;
-    } catch (error) {
-      throw errorService.handleError(
-        error,
-        `updateNextEpisodeWatchStatus(${profileId}, ${showId}, ${seasonId}, ${episodeId}, ${status})`,
       );
     }
   }
@@ -156,10 +110,15 @@ export class EpisodesService {
    *
    * @param profileId - ID of the profile
    * @param episodeId - ID of the episode
+   * @param status - watch status of the episode, defaults to NOT_WATCHED
    */
-  public async addEpisodeToFavorites(profileId: number, episodeId: number): Promise<void> {
+  public async addEpisodeToFavorites(
+    profileId: number,
+    episodeId: number,
+    status: SimpleWatchStatus = WatchStatus.NOT_WATCHED,
+  ): Promise<void> {
     try {
-      await episodesDb.saveFavorite(profileId, episodeId);
+      await episodesDb.saveFavorite(profileId, episodeId, status);
     } catch (error) {
       throw errorService.handleError(error, `addEpisodeToFavorites(${profileId}, ${episodeId})`);
     }

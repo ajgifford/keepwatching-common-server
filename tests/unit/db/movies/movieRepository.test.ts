@@ -1,4 +1,4 @@
-import { CreateMovieRequest, UpdateMovieRequest } from '@ajgifford/keepwatching-types';
+import { CreateMovieRequest, UpdateMovieRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
@@ -243,8 +243,8 @@ describe('movieRepository', () => {
       await moviesDb.saveFavorite(123, 456);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id) VALUES (?,?)',
-        [123, 456],
+        'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id, status) VALUES (?,?,?)',
+        [123, 456, WatchStatus.NOT_WATCHED],
       );
     });
 
@@ -350,31 +350,22 @@ describe('movieRepository', () => {
         id: 123,
         tmdb_id: 12345,
         title: 'Test Movie',
-        description: 'A test movie description',
         release_date: '2025-01-01',
-        runtime: 120,
-        poster_image: '/test-poster.jpg',
-        backdrop_image: '/test-backdrop.jpg',
-        user_rating: 8.5,
-        mpa_rating: 'PG-13',
       };
 
       mockPool.execute.mockResolvedValue([[mockMovie]]);
 
       const result = await moviesDb.findMovieByTMDBId(12345);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, title, tmdb_id FROM movies WHERE tmdb_id = ?', [12345]);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT id, title, tmdb_id, release_date FROM movies WHERE tmdb_id = ?',
+        [12345],
+      );
       expect(result).toEqual({
         id: 123,
-        tmdb_id: 12345,
+        tmdbId: 12345,
         title: 'Test Movie',
-        description: 'A test movie description',
-        release_date: '2025-01-01',
-        runtime: 120,
-        poster_image: '/test-poster.jpg',
-        backdrop_image: '/test-backdrop.jpg',
-        user_rating: 8.5,
-        mpa_rating: 'PG-13',
+        releaseDate: '2025-01-01',
       });
     });
 
@@ -383,7 +374,10 @@ describe('movieRepository', () => {
 
       const result = await moviesDb.findMovieByTMDBId(99999);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, title, tmdb_id FROM movies WHERE tmdb_id = ?', [99999]);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT id, title, tmdb_id, release_date FROM movies WHERE tmdb_id = ?',
+        [99999],
+      );
       expect(result).toBeNull();
     });
 

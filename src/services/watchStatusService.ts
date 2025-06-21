@@ -16,7 +16,12 @@ export class WatchStatusService {
   }
 
   /**
-   * Update episode watch status with automatic propagation
+   * Update the watch status of an episode based off of the provided status. Will then propagate to the parent season and show.  This method is intended to be called when there is an action taken by an end-user.
+   * @param accountId ID of the account
+   * @param profileId ID of the profile
+   * @param episodeId ID of the episode
+   * @param status the target watch status for the show, either 'WATCHED' or 'NOT_WATCHED'
+   * @returns Object indicating if the status was updated and the new status
    */
   async updateEpisodeWatchStatus(
     accountId: number,
@@ -48,7 +53,12 @@ export class WatchStatusService {
   }
 
   /**
-   * Update season watch status with episode propagation
+   * Update the watch status of a season based off of the provided status. Will then propagate to the children episodes and parent show. This method is intended to be called when there is an action taken by an end-user.
+   * @param accountId ID of the account
+   * @param profileId ID of the profile
+   * @param seasonId ID of the season
+   * @param status the target watch status for the show, either 'WATCHED' or 'NOT_WATCHED'
+   * @returns Object indicating if the status was updated and the new status
    */
   async updateSeasonWatchStatus(
     accountId: number,
@@ -80,18 +90,20 @@ export class WatchStatusService {
   }
 
   /**
-   * Update show watch status with season/episode propagation
+   * Update the watch status of a show based off of the provided status. Will then propagate to the children seasons and episodes. This method is intended to be called when there is an action taken by an end-user.
+   *
+   * @param accountId ID of the account
+   * @param profileId ID of the profile
+   * @param showId ID of the show
+   * @param status the target watch status for the show, either 'WATCHED' or 'NOT_WATCHED'
+   * @returns Object indicating if the status was updated and the new status
    */
   async updateShowWatchStatus(
     accountId: number,
     profileId: number,
     showId: number,
     status: UserWatchStatus,
-  ): Promise<{
-    success: boolean;
-    changes: StatusChange[];
-    message: string;
-  }> {
+  ): Promise<StatusUpdateResult> {
     try {
       const result = await this.dbService.updateShowWatchStatus(profileId, showId, status);
 
@@ -104,10 +116,53 @@ export class WatchStatusService {
       return {
         success: true,
         changes: result.changes,
+        affectedRows: result.affectedRows,
         message: this.formatChangesMessage(result.changes),
       };
     } catch (error) {
       throw errorService.handleError(error, `updateShowWatchStatus(${profileId}, ${showId}, ${status})`);
+    }
+  }
+
+  /**
+   * Checks whether a show's status should be updated to reflect that new content is available
+   *
+   * @param accountId ID of the account
+   * @param profileId ID of the profile
+   * @param showId ID of the show
+   * @returns Object indicating if the status was updated and the new status
+   */
+  public async checkAndUpdateShowStatus(
+    accountId: number,
+    profileId: number,
+    showId: number,
+  ): Promise<StatusUpdateResult> {
+    try {
+      const result = await this.dbService.checkAndUpdateShowWatchStatus(profileId, showId);
+
+      if (!result.success) {
+        throw new DatabaseError('Failed to recalculate and update show watch status', null);
+      }
+
+      if (result.affectedRows <= 0) {
+        return {
+          success: true,
+          changes: result.changes,
+          affectedRows: result.affectedRows,
+          message: 'Show status is already correct',
+        };
+      }
+
+      showService.invalidateProfileCache(accountId, profileId);
+
+      return {
+        success: true,
+        changes: result.changes,
+        affectedRows: result.affectedRows,
+        message: this.formatChangesMessage(result.changes),
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `checkAndUpdateShowStatus(${profileId}, ${showId})`);
     }
   }
 

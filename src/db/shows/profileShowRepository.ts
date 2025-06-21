@@ -6,7 +6,7 @@ import {
 } from '../../types/episodeTypes';
 import { RecentShowsWithUnwatchedRow } from '../../types/profileTypes';
 import { ProfileSeasonRow, transformProfileSeason } from '../../types/seasonTypes';
-import { ProfileShowRow, ProfileShowStatusRow, transformProfileShow } from '../../types/showTypes';
+import { ProfileForShowRow, ProfileShowRow, transformProfileShow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import {
@@ -185,7 +185,7 @@ export async function getProfilesForShow(showId: number): Promise<ProfilesForSho
       ORDER BY 
         p.account_id, sws.profile_id`;
 
-    const [rows] = await getDbPool().execute<ProfileShowStatusRow[]>(query, [showId]);
+    const [rows] = await getDbPool().execute<ProfileForShowRow[]>(query, [showId]);
 
     const profileAccountMappings = rows.map((row) => ({
       profileId: row.profile_id,

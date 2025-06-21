@@ -1,9 +1,9 @@
 import { ContentUpdates, ContentUpdatesRow, transformContentUpdates } from '../../types/contentTypes';
-import { ShowReferenceRow, ShowTMDBReferenceRow, transformShowTMDBReferenceRow } from '../../types/showTypes';
+import { ShowReferenceRow, transformShowReferenceRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
-import { CreateShowRequest, ShowReference, ShowTMDBReference, UpdateShowRequest } from '@ajgifford/keepwatching-types';
+import { CreateShowRequest, ShowReference, UpdateShowRequest } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 
@@ -173,13 +173,13 @@ export async function saveShowStreamingService(
  * @returns `ShowTMDBReference` object if found, `null` otherwise
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function findShowById(id: number): Promise<ShowTMDBReference | null> {
+export async function findShowById(id: number): Promise<ShowReference | null> {
   try {
-    const query = `SELECT id, tmdb_id, title FROM shows WHERE id = ?`;
-    const [shows] = await getDbPool().execute<ShowTMDBReferenceRow[]>(query, [id]);
+    const query = `SELECT id, tmdb_id, title, release_date FROM shows WHERE id = ?`;
+    const [shows] = await getDbPool().execute<ShowReferenceRow[]>(query, [id]);
     if (shows.length === 0) return null;
 
-    return transformShowTMDBReferenceRow(shows[0]);
+    return transformShowReferenceRow(shows[0]);
   } catch (error) {
     handleDatabaseError(error, 'finding a show by its id');
   }
@@ -196,11 +196,11 @@ export async function findShowById(id: number): Promise<ShowTMDBReference | null
  */
 export async function findShowByTMDBId(tmdbId: number): Promise<ShowReference | null> {
   try {
-    const query = `SELECT id FROM shows WHERE tmdb_id = ?`;
+    const query = `SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?`;
     const [shows] = await getDbPool().execute<ShowReferenceRow[]>(query, [tmdbId]);
     if (shows.length === 0) return null;
 
-    return shows[0];
+    return transformShowReferenceRow(shows[0]);
   } catch (error) {
     handleDatabaseError(error, 'finding a show by its TMDB id');
   }

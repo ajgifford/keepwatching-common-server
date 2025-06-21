@@ -16,14 +16,7 @@ export {
   getProfilesForShow,
 } from './shows/profileShowRepository';
 
-export {
-  saveFavorite,
-  removeFavorite,
-  updateWatchStatus,
-  updateWatchStatusBySeason,
-  updateAllWatchStatuses,
-  getWatchStatus,
-} from './shows/showWatchStatusRepository';
+export { saveFavorite, removeFavorite } from './shows/showWatchStatusRepository';
 
 export {
   getAllShows,

@@ -22,7 +22,9 @@ import {
   MovieReference,
   ProfileMovie,
   ProfileMovieWithDetails,
+  SimpleWatchStatus,
   UpdateMovieRequest,
+  WatchStatus,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
@@ -187,10 +189,14 @@ async function saveMovieStreamingService(
  * @returns A promise that resolves when the favorite has been added
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function saveFavorite(profileId: number, movieId: number): Promise<boolean> {
+export async function saveFavorite(
+  profileId: number,
+  movieId: number,
+  status: SimpleWatchStatus = WatchStatus.NOT_WATCHED,
+): Promise<boolean> {
   try {
-    const query = 'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id) VALUES (?,?)';
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [profileId, movieId]);
+    const query = 'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id, status) VALUES (?,?,?)';
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [profileId, movieId, status]);
 
     // Return true if a row was inserted, false if the row already existed (IGNORE)
     return result.affectedRows > 0;
@@ -274,12 +280,12 @@ export async function findMovieById(id: number): Promise<MovieReference | null> 
  * @returns `Movie` object if found, `null` otherwise
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function findMovieByTMDBId(tmdbId: number): Promise<MovieReferenceRow | null> {
+export async function findMovieByTMDBId(tmdbId: number): Promise<MovieReference | null> {
   try {
-    const query = `SELECT id, title, tmdb_id FROM movies WHERE tmdb_id = ?`;
+    const query = `SELECT id, title, tmdb_id, release_date FROM movies WHERE tmdb_id = ?`;
     const [movies] = await getDbPool().execute<MovieReferenceRow[]>(query, [tmdbId]);
     if (movies.length === 0) return null;
-    return movies[0];
+    return transformMovieReferenceRow(movies[0]);
   } catch (error) {
     handleDatabaseError(error, 'finding a movie by TMDB id');
   }

@@ -1,9 +1,14 @@
 import * as seasonsDb from '../db/seasonsDb';
-import * as showsDb from '../db/showsDb';
-import { BadRequestError } from '../middleware/errorMiddleware';
+import { appLogger } from '../logger/logger';
 import { errorService } from './errorService';
-import { showService } from './showService';
-import { ProfileSeason, UpdateSeasonRequest, WatchStatus } from '@ajgifford/keepwatching-types';
+import { watchStatusService } from './watchStatusService';
+import {
+  ProfileSeason,
+  SimpleWatchStatus,
+  UpdateSeasonRequest,
+  UserWatchStatus,
+  WatchStatus,
+} from '@ajgifford/keepwatching-types';
 
 /**
  * Service class for handling season-related business logic
@@ -12,42 +17,27 @@ export class SeasonsService {
   /**
    * Updates the watch status of a season
    *
+   * @param accountId - ID of the account
    * @param profileId - ID of the profile to update the watch status for
    * @param seasonId - ID of the season to update
-   * @param status - New watch status ('NOT_WATCHED', 'WATCHING', 'WATCHED', or 'UP_TO_DATE')
-   * @param recursive - Whether to update all episodes as well
+   * @param status - New watch status ('NOT_WATCHED' or 'WATCHED')
    * @throws {BadRequestError} If no season watch status was updated
    */
   public async updateSeasonWatchStatus(
     accountId: number,
     profileId: number,
     seasonId: number,
-    status: WatchStatus,
-    recursive: boolean = false,
+    status: UserWatchStatus,
   ): Promise<void> {
     try {
-      // Validate status is a valid watch status
-      if (!Object.values(WatchStatus).includes(status as WatchStatus)) {
-        throw new BadRequestError(`Invalid watch status: ${status}`);
-      }
+      const result = await watchStatusService.updateSeasonWatchStatus(accountId, profileId, seasonId, status);
 
-      const success = recursive
-        ? await seasonsDb.updateAllWatchStatuses(profileId, seasonId, status)
-        : await seasonsDb.updateWatchStatus(profileId, seasonId, status);
-
-      if (!success) {
-        throw new BadRequestError('No season watch status was updated');
-      }
-
-      const showId = await seasonsDb.getShowIdForSeason(seasonId);
-      if (showId) {
-        await showsDb.updateWatchStatusBySeason(profileId, showId);
-        showService.invalidateProfileCache(accountId, profileId);
-      }
+      appLogger.info(`Season ${seasonId} update: ${result.message}`);
+      appLogger.info(`Affected entities: ${result.changes.length}`);
     } catch (error) {
       throw errorService.handleError(
         error,
-        `updateSeasonWatchStatus(${profileId}, ${seasonId}, ${status}, ${recursive})`,
+        `updateSeasonWatchStatus(${accountId}, ${profileId}, ${seasonId}, ${status})`,
       );
     }
   }
@@ -64,68 +54,6 @@ export class SeasonsService {
       return await seasonsDb.getSeasonsForShow(profileId, showId);
     } catch (error) {
       throw errorService.handleError(error, `getSeasonsForShow(${profileId}, ${showId})`);
-    }
-  }
-
-  /**
-   * Sets the appropriate watch status for a newly added season
-   *
-   * @param profileId ID of the profile
-   * @param seasonId ID of the season in the database
-   * @param seasonAirDate Air date of the season (null if unknown)
-   * @param hasEpisodes Whether the season currently has any episodes
-   */
-  public async setNewSeasonWatchStatus(
-    profileId: number,
-    seasonId: number,
-    seasonAirDate: string | null,
-    hasEpisodes: boolean,
-  ): Promise<void> {
-    try {
-      let initialStatus: WatchStatus;
-
-      if (!hasEpisodes) {
-        // No episodes exist yet - this is a future season announcement
-        initialStatus = WatchStatus.UP_TO_DATE;
-      } else if (seasonAirDate && new Date(seasonAirDate) > new Date()) {
-        // Season has episodes but hasn't aired yet
-        initialStatus = WatchStatus.UP_TO_DATE;
-      } else {
-        // Season has aired episodes - user needs to watch them
-        initialStatus = WatchStatus.NOT_WATCHED;
-      }
-
-      await seasonsDb.updateWatchStatus(profileId, seasonId, initialStatus);
-    } catch (error) {
-      throw errorService.handleError(error, `setNewSeasonWatchStatus(${profileId}, ${seasonId})`);
-    }
-  }
-
-  /**
-   * Updates the watch status of a season when new episodes are added
-   * If a season was previously marked as WATCHED, update to UP_TO_DATE since there's new content
-   * that's consistent with what the user has already seen
-   *
-   * @param profileId ID of the profile
-   * @param seasonId ID of the season in the database
-   */
-  public async updateSeasonWatchStatusForNewEpisodes(profileId: number, seasonId: number): Promise<void> {
-    try {
-      const seasonWatchStatus = await seasonsDb.getWatchStatus(profileId, seasonId);
-
-      if (seasonWatchStatus === WatchStatus.WATCHED) {
-        await seasonsDb.updateWatchStatus(profileId, seasonId, WatchStatus.UP_TO_DATE);
-
-        const seasonShowId = await seasonsDb.getShowIdForSeason(seasonId);
-        if (seasonShowId) {
-          const showWatchStatus = await showsDb.getWatchStatus(profileId, seasonShowId);
-          if (showWatchStatus === WatchStatus.WATCHED) {
-            await showsDb.updateWatchStatus(profileId, seasonShowId, WatchStatus.UP_TO_DATE);
-          }
-        }
-      }
-    } catch (error) {
-      throw errorService.handleError(error, `updateSeasonWatchStatusForNewEpisodes(${profileId}, ${seasonId})`);
     }
   }
 
@@ -148,10 +76,15 @@ export class SeasonsService {
    *
    * @param profileId - ID of the profile
    * @param seasonId - ID of the season
+   * @param status - watch status of the season, defaults to NOT_WATCHED
    */
-  public async addSeasonToFavorites(profileId: number, seasonId: number): Promise<void> {
+  public async addSeasonToFavorites(
+    profileId: number,
+    seasonId: number,
+    status: SimpleWatchStatus = WatchStatus.NOT_WATCHED,
+  ): Promise<void> {
     try {
-      await seasonsDb.saveFavorite(profileId, seasonId);
+      await seasonsDb.saveFavorite(profileId, seasonId, status);
     } catch (error) {
       throw errorService.handleError(error, `addSeasonToFavorites(${profileId}, ${seasonId})`);
     }

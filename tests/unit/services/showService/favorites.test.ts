@@ -1,4 +1,5 @@
 import { createMockCache, setupMocks } from './helpers/mocks';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
@@ -46,7 +47,7 @@ describe('ShowService - Favorites', () => {
       watch_status: 'NOT_WATCHED',
     };
 
-    it('should add an existing show to favorites', async () => {
+    it('should add an existing show to favorites with the default status', async () => {
       (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(mockExistingShow);
       (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
       (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
@@ -61,7 +62,7 @@ describe('ShowService - Favorites', () => {
       const result = await service.addShowToFavorites(accountId, profileId, showTMDBId);
 
       expect(showsDb.findShowByTMDBId).toHaveBeenCalledWith(123);
-      expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, showId, true);
+      expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, showId, true, WatchStatus.NOT_WATCHED);
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(result).toEqual({
         favoritedShow: mockProfileShow,
@@ -228,7 +229,7 @@ describe('ShowService - Favorites', () => {
       expect(getTMDBService).toHaveBeenCalled();
       expect(mockTMDBService.getShowDetails).toHaveBeenCalledWith(123);
       expect(showsDb.saveShow).toHaveBeenCalled();
-      expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, 999, false);
+      expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, 999, false, WatchStatus.NOT_WATCHED);
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledWith(showTMDBId, 1);
       expect(result).toHaveProperty('favoritedShow');

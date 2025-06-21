@@ -6,7 +6,7 @@ import { checkSeasonForEpisodeChanges } from './episodeChangesService';
 import { episodesService } from './episodesService';
 import { seasonsService } from './seasonsService';
 import { getTMDBService } from './tmdbService';
-import { ProfileAccountMapping } from '@ajgifford/keepwatching-types';
+import { ProfileAccountMapping, WatchStatus } from '@ajgifford/keepwatching-types';
 
 /**
  * Process season changes for a show
@@ -32,6 +32,7 @@ export async function processSeasonChanges(
   for (const uniqueSeasonId of uniqueSeasonIds) {
     try {
       await sleep(500); // Rate limiting
+      const now = new Date();
 
       // Find the season in the show data
       const seasonInfo = responseShowSeasons.find((season: { id: number }) => season.id === uniqueSeasonId);
@@ -58,13 +59,10 @@ export async function processSeasonChanges(
 
       // Add this season to all profiles that have the show
       for (const mapping of profileAccountMappings) {
-        await seasonsService.addSeasonToFavorites(mapping.profileId, seasonId);
-
-        await seasonsService.setNewSeasonWatchStatus(
+        await seasonsService.addSeasonToFavorites(
           mapping.profileId,
           seasonId,
-          seasonInfo.air_date,
-          seasonInfo.episode_count > 0,
+          new Date(seasonInfo.air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
         );
       }
 
@@ -96,13 +94,12 @@ export async function processSeasonChanges(
 
           // Add this episode to all profiles that have the show
           for (const mapping of profileAccountMappings) {
-            await episodesService.addEpisodeToFavorites(mapping.profileId, episodeId);
+            await episodesService.addEpisodeToFavorites(
+              mapping.profileId,
+              episodeId,
+              new Date(episodeData.air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+            );
           }
-        }
-
-        // Update watch status for all affected profiles
-        for (const mapping of profileAccountMappings) {
-          await seasonsService.updateSeasonWatchStatusForNewEpisodes(mapping.profileId, seasonId);
         }
       }
     } catch (error) {

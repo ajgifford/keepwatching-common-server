@@ -11,22 +11,11 @@ import { RowDataPacket } from 'mysql2';
 
 export interface SeasonReferenceRow extends RowDataPacket {
   id: number;
+  release_date: string;
 }
 
 export interface SeasonShowReferenceRow extends RowDataPacket {
   show_id: number;
-}
-
-export interface SeasonStatusReferenceRow extends RowDataPacket {
-  status: WatchStatusType;
-}
-
-export interface SeasonEpisodeCountReferenceRow extends RowDataPacket {
-  total_episode: number;
-  watched_episodes: number;
-  future_episodes: number;
-  aired_episodes: number;
-  watched_aired_episodes: number;
 }
 
 interface BaseSeasonRow extends RowDataPacket {

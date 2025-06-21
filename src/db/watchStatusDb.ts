@@ -32,6 +32,24 @@ export class WatchStatusDbService {
     this.transactionHelper = new TransactionHelper();
   }
 
+  async updateEpisodeWatchStatusOnly(profileId: number, episodeId: number, status: UserWatchStatus) {
+    try {
+      return await this.transactionHelper.executeInTransaction(async (connection) => {
+        const updateEpisodeQuery = `
+          INSERT INTO episode_watch_status (profile_id, episode_id, status) 
+          VALUES (?, ?, ?) 
+          ON DUPLICATE KEY UPDATE
+            status = VALUES(status),
+            updated_at = CURRENT_TIMESTAMP;
+        `;
+
+        await connection.execute<ResultSetHeader>(updateEpisodeQuery, [profileId, episodeId, status]);
+      });
+    } catch (error) {
+      handleDatabaseError(error, 'updating episode watch status with propagation');
+    }
+  }
+
   /**
    * Update episode watch status and propagate changes up the hierarchy
    */
@@ -474,6 +492,157 @@ export class WatchStatusDbService {
           status,
           showId,
         ]);
+
+        totalAffectedRows += episodesResult.affectedRows;
+
+        const episodeStatusQuery = `
+          SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
+          FROM episodes e
+          LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+          WHERE e.season_id = ?
+          `;
+
+        const seasonStatusQuery = `
+            SELECT s.id, s.release_date, s.show_id, COALESCE(sws.status, 'NOT_WATCHED') as status
+            FROM seasons s
+            LEFT JOIN season_watch_status sws on s.id = sws.season_id AND sws.profile_id = ?
+            where s.show_id = ?
+          `;
+
+        const [seasonRows] = await connection.execute<WatchStatusSeasonRow[]>(seasonStatusQuery, []);
+        const showSeasons: WatchStatusSeason[] = [];
+        for (const seasonRow of seasonRows) {
+          const [episodeRows] = await connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
+            profileId,
+            seasonRow.id,
+          ]);
+
+          const episodes = episodeRows.map(transformWatchStatusEpisode);
+          const season = transformWatchStatusSeason(seasonRow, episodes);
+          showSeasons.push(season);
+          const newSeasonStatus = this.statusManager.calculateSeasonStatus(season);
+
+          if (season.watchStatus === newSeasonStatus) {
+            continue;
+          }
+
+          const updateSeasonQuery = `
+            INSERT INTO season_watch_status (profile_id, season_id, status) 
+            VALUES (?, ?, ?) 
+            ON DUPLICATE KEY UPDATE
+              status = VALUES(status),
+              updated_at = CURRENT_TIMESTAMP;
+          `;
+
+          const [seasonResult] = await connection.execute<ResultSetHeader>(updateSeasonQuery, [
+            profileId,
+            seasonRow.id,
+            newSeasonStatus,
+          ]);
+
+          totalAffectedRows += seasonResult.affectedRows;
+
+          changes.push({
+            entityType: 'season',
+            entityId: showId,
+            from: season.watchStatus,
+            to: newSeasonStatus,
+            timestamp: new Date(),
+            reason: `Show manually set to ${status}`,
+          });
+        }
+
+        const watchStatusShow = transformWatchStatusShow(showRows[0], showSeasons);
+        const newShowStatus = this.statusManager.calculateShowStatus(watchStatusShow);
+
+        // Update show status
+        if (watchStatusShow.watchStatus !== newShowStatus) {
+          const updateShowQuery = `
+          INSERT INTO show_watch_status (profile_id, show_id, status) 
+          VALUES (?, ?, ?) 
+          ON DUPLICATE KEY UPDATE
+            status = VALUES(status),
+            updated_at = CURRENT_TIMESTAMP;
+        `;
+
+          const [showResult] = await connection.execute<ResultSetHeader>(updateShowQuery, [
+            profileId,
+            showId,
+            newShowStatus,
+          ]);
+
+          totalAffectedRows += showResult.affectedRows;
+
+          // Record show status change
+          changes.push({
+            entityType: 'show',
+            entityId: showId,
+            from: watchStatusShow.watchStatus,
+            to: newShowStatus,
+            timestamp: new Date(),
+            reason: `Show manually set to ${status}`,
+          });
+        }
+
+        return { success: true, changes, affectedRows: totalAffectedRows };
+      });
+    } catch (error) {
+      handleDatabaseError(error, 'updating show watch status with propagation');
+    }
+  }
+
+  /**
+   * Check for content updates and update show, season and episode watch statuses as necessary
+   */
+  async checkAndUpdateShowWatchStatus(profileId: number, showId: number): Promise<StatusUpdateResult> {
+    try {
+      return await this.transactionHelper.executeInTransaction(async (connection) => {
+        const changes: StatusChange[] = [];
+        let totalAffectedRows = 0;
+        const now = new Date();
+
+        // Get current show status
+        const showQuery = `
+          SELECT 
+            sh.id, sh.release_date, sh.in_production,
+            COALESCE(shws.status, 'NOT_WATCHED') as status
+          FROM shows sh
+          LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
+          WHERE sh.id = ?
+        `;
+
+        const [showRows] = await connection.execute<WatchStatusShowRow[]>(showQuery, [profileId, showId]);
+
+        if (showRows.length === 0) {
+          throw new NotFoundError(`Show ${showId} not found`);
+        }
+
+        //Attempt to update any previously UNAIRED episodes to NOT_WATCHED if they've aired
+        const episodeInsertQuery = `
+          INSERT INTO episode_watch_status (profile_id, episode_id, status)
+          SELECT ?, e.id, 'NOT_WATCHED'
+          FROM episodes e
+          LEFT JOIN episode_watch_status ews
+            ON e.id = ews.episode_id AND ews.profile_id = ?
+          WHERE e.show_id = ?
+            AND DATE(e.air_date) <= ?
+            AND (ews.status = 'UNAIRED' OR ews.episode_id IS NULL)
+          ON DUPLICATE KEY UPDATE
+            status = 'NOT_WATCHED',
+            updated_at = CURRENT_TIMESTAMP;
+          `;
+
+        const [episodesResult] = await connection.execute<ResultSetHeader>(episodeInsertQuery, [
+          profileId,
+          profileId,
+          showId,
+          now,
+        ]);
+
+        // If no episodes changed than than the show status remains the same
+        if (episodesResult.affectedRows <= 0) {
+          return { success: true, changes: changes, affectedRows: 0 };
+        }
 
         totalAffectedRows += episodesResult.affectedRows;
 

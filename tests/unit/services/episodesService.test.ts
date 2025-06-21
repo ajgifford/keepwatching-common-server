@@ -1,22 +1,28 @@
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodesDb from '@db/episodesDb';
-import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
-import { BadRequestError } from '@middleware/errorMiddleware';
+import { appLogger } from '@logger/logger';
 import { episodesService } from '@services/episodesService';
 import { errorService } from '@services/errorService';
-import { showService } from '@services/showService';
+import { watchStatusService } from '@services/watchStatusService';
 
 jest.mock('@db/episodesDb');
 jest.mock('@db/seasonsDb');
 jest.mock('@db/showsDb');
 jest.mock('@services/errorService');
 jest.mock('@services/showService');
+jest.mock('@services/watchStatusService');
+
+jest.mock('@logger/logger', () => ({
+  appLogger: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 describe('episodesService', () => {
   const accountId = 1;
   const profileId = 123;
-  const showId = 789;
   const seasonId = 456;
   const episodeId = 101;
   const status = WatchStatus.WATCHED;
@@ -29,35 +35,28 @@ describe('episodesService', () => {
     it('should update episode watch status and return next unwatched episodes', async () => {
       const mockNextUnwatchedEpisodes = [{ show_id: 1, episodes: [{ episode_id: 789 }] }];
 
-      (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
+      (watchStatusService.updateEpisodeWatchStatus as jest.Mock).mockResolvedValue({
+        success: true,
+        message: 'Episode test message',
+        affectedRows: 1,
+        changes: [{}, {}],
+      });
+
       (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
 
       const result = await episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
-      expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
-      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
       expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
       expect(result).toEqual(mockNextUnwatchedEpisodes);
-    });
 
-    it('should throw BadRequestError when update fails', async () => {
-      (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
-      (errorService.handleError as jest.Mock).mockImplementation((error) => {
-        throw error;
-      });
-
-      await expect(episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status)).rejects.toThrow(
-        BadRequestError,
-      );
-      expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
-      expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
-      expect(showsDb.getNextUnwatchedEpisodesForProfile).not.toHaveBeenCalled();
+      expect(appLogger.info).toHaveBeenCalledWith(`Episode ${episodeId} update: Episode test message`);
+      expect(appLogger.info).toHaveBeenCalledWith(`Affected entities: 2`);
     });
 
     it('should handle database errors', async () => {
       const mockError = new Error('Database error');
 
-      (episodesDb.updateWatchStatus as jest.Mock).mockRejectedValue(mockError);
+      (watchStatusService.updateEpisodeWatchStatus as jest.Mock).mockRejectedValue(mockError);
       (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
@@ -69,83 +68,6 @@ describe('episodesService', () => {
         mockError,
         `updateEpisodeWatchStatus(${accountId}, ${profileId}, ${episodeId}, ${status})`,
       );
-    });
-  });
-
-  describe('updateNextEpisodeWatchStatus', () => {
-    it('should update next episode watch status and related season/show statuses', async () => {
-      const mockNextUnwatchedEpisodes = [{ show_id: 789, episodes: [{ episode_id: 102 }] }];
-
-      (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
-      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
-
-      const result = await episodesService.updateNextEpisodeWatchStatus(
-        accountId,
-        profileId,
-        showId,
-        seasonId,
-        episodeId,
-        status,
-      );
-
-      expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
-      expect(seasonsDb.updateWatchStatusByEpisode).toHaveBeenCalledWith(profileId, seasonId);
-      expect(showsDb.updateWatchStatusBySeason).toHaveBeenCalledWith(profileId, showId);
-      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
-      expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
-      expect(result).toEqual(mockNextUnwatchedEpisodes);
-    });
-
-    it('should throw BadRequestError when update fails', async () => {
-      (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
-      (errorService.handleError as jest.Mock).mockImplementation((error) => {
-        throw error;
-      });
-
-      await expect(
-        episodesService.updateNextEpisodeWatchStatus(accountId, profileId, showId, seasonId, episodeId, status),
-      ).rejects.toThrow(BadRequestError);
-
-      expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
-      expect(seasonsDb.updateWatchStatusByEpisode).not.toHaveBeenCalled();
-      expect(showsDb.updateWatchStatusBySeason).not.toHaveBeenCalled();
-      expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
-    });
-
-    it('should handle database errors', async () => {
-      const mockError = new Error('Database error');
-
-      (episodesDb.updateWatchStatus as jest.Mock).mockRejectedValue(mockError);
-      (errorService.handleError as jest.Mock).mockImplementation((error) => {
-        throw new Error(`Handled: ${error.message}`);
-      });
-
-      await expect(
-        episodesService.updateNextEpisodeWatchStatus(accountId, profileId, showId, seasonId, episodeId, status),
-      ).rejects.toThrow('Handled: Database error');
-
-      expect(errorService.handleError).toHaveBeenCalledWith(
-        mockError,
-        `updateNextEpisodeWatchStatus(${profileId}, ${showId}, ${seasonId}, ${episodeId}, ${status})`,
-      );
-    });
-
-    it('should handle errors in season status update', async () => {
-      const mockError = new Error('Season update error');
-
-      (episodesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
-      (seasonsDb.updateWatchStatusByEpisode as jest.Mock).mockRejectedValue(mockError);
-      (errorService.handleError as jest.Mock).mockImplementation((error) => {
-        throw new Error(`Handled: ${error.message}`);
-      });
-
-      await expect(
-        episodesService.updateNextEpisodeWatchStatus(accountId, profileId, showId, seasonId, episodeId, status),
-      ).rejects.toThrow('Handled: Season update error');
-
-      expect(episodesDb.updateWatchStatus).toHaveBeenCalledWith(profileId, episodeId, status);
-      expect(seasonsDb.updateWatchStatusByEpisode).toHaveBeenCalledWith(profileId, seasonId);
-      expect(showsDb.updateWatchStatusBySeason).not.toHaveBeenCalled();
     });
   });
 
@@ -303,12 +225,20 @@ describe('episodesService', () => {
       jest.clearAllMocks();
     });
 
-    it('should add an episode to favorites successfully', async () => {
+    it('should add an episode to favorites with the default status', async () => {
       jest.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
 
       await episodesService.addEpisodeToFavorites(profileId, episodeId);
 
-      expect(episodesDb.saveFavorite).toHaveBeenCalledWith(profileId, episodeId);
+      expect(episodesDb.saveFavorite).toHaveBeenCalledWith(profileId, episodeId, WatchStatus.NOT_WATCHED);
+    });
+
+    it('should add an episode to favorites with the provided status', async () => {
+      jest.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
+
+      await episodesService.addEpisodeToFavorites(profileId, episodeId, WatchStatus.UNAIRED);
+
+      expect(episodesDb.saveFavorite).toHaveBeenCalledWith(profileId, episodeId, WatchStatus.UNAIRED);
     });
 
     it('should handle errors when adding an episode to favorites', async () => {

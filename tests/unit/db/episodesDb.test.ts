@@ -180,8 +180,8 @@ describe('Episode Module', () => {
       await episodeModule.saveFavorite(123, 5);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id) VALUES (?,?)',
-        [123, 5],
+        'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id, status) VALUES (?,?,?)',
+        [123, 5, WatchStatus.NOT_WATCHED],
       );
     });
 
@@ -225,45 +225,6 @@ describe('Episode Module', () => {
 
       await expect(episodeModule.removeFavorite(123, 5)).rejects.toThrow(
         'Unknown database error removing an episode as a favorite',
-      );
-    });
-  });
-
-  describe('updateWatchStatus', () => {
-    it('should update watch status', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
-
-      const result = await episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED);
-
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE episode_watch_status SET status = ? WHERE profile_id = ? AND episode_id = ?',
-        ['WATCHED', 123, 5],
-      );
-      expect(result).toBe(true);
-    });
-
-    it('should return false if no rows affected', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
-
-      const result = await episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED);
-
-      expect(result).toBe(false);
-    });
-
-    it('should throw error when updating watch status fails', async () => {
-      const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
-
-      await expect(episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow(
-        'DB connection failed',
-      );
-    });
-
-    it('should throw error with default message when updating watch status fails', async () => {
-      mockPool.execute.mockRejectedValue({});
-
-      await expect(episodeModule.updateWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow(
-        'Unknown database error updating an episode watch status',
       );
     });
   });

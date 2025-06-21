@@ -4,7 +4,6 @@ import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { BadRequestError } from '../middleware/errorMiddleware';
 import { ContentUpdates } from '../types/contentTypes';
 import { TMDBGenre, TMDBPaginatedResponse, TMDBRelatedShow, TMDBShow, TMDBShowSeason } from '../types/tmdbTypes';
 import {
@@ -23,6 +22,7 @@ import { profileService } from './profileService';
 import { processSeasonChanges } from './seasonChangesService';
 import { socketService } from './socketService';
 import { getTMDBService } from './tmdbService';
+import { watchStatusService } from './watchStatusService';
 import {
   AddShowFavorite,
   ContentReference,
@@ -39,6 +39,7 @@ import {
   ShowStatisticsResponse,
   SimilarOrRecommendedShow,
   UpdateShowRequest,
+  UserWatchStatus,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
 
@@ -113,13 +114,19 @@ export class ShowService {
   /**
    * Retrieves a show and all its details for a specific profile
    *
+   * @param accountId - ID of the account to get the show for
    * @param profileId - ID of the profile to get the show for
    * @param showId - ID of the show to retrieve
    * @returns Detailed show information
    * @throws {NotFoundError} If the show isn't found
    */
-  public async getShowDetailsForProfile(profileId: number, showId: number): Promise<ProfileShowWithSeasons> {
+  public async getShowDetailsForProfile(
+    accountId: number,
+    profileId: number,
+    showId: number,
+  ): Promise<ProfileShowWithSeasons> {
     try {
+      watchStatusService.checkAndUpdateShowStatus(accountId, profileId, showId);
       const show = await this.cache.getOrSet(
         SHOW_KEYS.detailsForProfile(profileId, showId),
         () => showsDb.getShowWithSeasonsForProfile(profileId, showId),
@@ -129,7 +136,7 @@ export class ShowService {
       errorService.assertExists(show, 'Show', showId);
       return show;
     } catch (error) {
-      throw errorService.handleError(error, `getShowDetailsForProfile(${profileId}, ${showId})`);
+      throw errorService.handleError(error, `getShowDetailsForProfile(${accountId}, ${profileId}, ${showId})`);
     }
   }
 
@@ -217,7 +224,13 @@ export class ShowService {
     accountId: number,
     profileId: number,
   ): Promise<AddShowFavorite> {
-    await showsDb.saveFavorite(profileId, showToFavorite.id, true);
+    const now = new Date();
+    await showsDb.saveFavorite(
+      profileId,
+      showToFavorite.id,
+      true,
+      new Date(showToFavorite.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+    );
 
     this.invalidateProfileCache(accountId, profileId);
 
@@ -242,6 +255,7 @@ export class ShowService {
   private async favoriteNewShow(showId: number, accountId: number, profileId: number): Promise<AddShowFavorite> {
     const tmdbService = getTMDBService();
     const responseShow = await tmdbService.getShowDetails(showId);
+    const now = new Date();
 
     const newShowToFavorite: CreateShowRequest = {
       tmdb_id: responseShow.id,
@@ -266,7 +280,12 @@ export class ShowService {
     };
 
     const savedShowId = await showsDb.saveShow(newShowToFavorite);
-    await showsDb.saveFavorite(profileId, savedShowId, false);
+    await showsDb.saveFavorite(
+      profileId,
+      savedShowId,
+      false,
+      new Date(responseShow.first_air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+    );
     this.invalidateProfileCache(accountId, profileId);
 
     // Start background process to fetch seasons and episodes
@@ -291,6 +310,8 @@ export class ShowService {
         return season.season_number > 0;
       });
 
+      const now = new Date();
+
       for (const responseSeason of validSeasons) {
         const responseData = await tmdbService.getSeasonDetails(show.id, responseSeason.season_number);
 
@@ -304,7 +325,11 @@ export class ShowService {
           poster_image: responseSeason.poster_path,
           number_of_episodes: responseSeason.episode_count,
         });
-        await seasonsDb.saveFavorite(Number(profileId), seasonId);
+        await seasonsDb.saveFavorite(
+          Number(profileId),
+          seasonId,
+          new Date(responseSeason.air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+        );
 
         for (const responseEpisode of responseData.episodes) {
           const episodeId = await episodesDb.saveEpisode({
@@ -320,7 +345,11 @@ export class ShowService {
             runtime: responseEpisode.runtime,
             still_image: responseEpisode.still_path,
           });
-          await episodesDb.saveFavorite(Number(profileId), episodeId);
+          await episodesDb.saveFavorite(
+            Number(profileId),
+            episodeId,
+            new Date(responseEpisode.air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+          );
         }
 
         await new Promise((resolve) => setTimeout(resolve, 200));
@@ -371,124 +400,45 @@ export class ShowService {
    * @param accountId - ID of the account to update the watch status for
    * @param profileId - ID of the profile to update the watch status for
    * @param showId - ID of the show to update
-   * @param status - New watch status ('WATCHED', 'WATCHING', or 'NOT_WATCHED')
-   * @param recursive - Whether to update all seasons and episodes as well
+   * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
    * @returns Success state of the update operation
    */
   public async updateShowWatchStatus(
     accountId: number,
     profileId: number,
     showId: number,
-    status: WatchStatus,
-    recursive: boolean = false,
+    status: UserWatchStatus,
   ): Promise<KeepWatchingShow[]> {
     try {
-      const success = recursive
-        ? await showsDb.updateAllWatchStatuses(profileId, showId, status)
-        : await showsDb.updateWatchStatus(profileId, showId, status);
+      const result = await watchStatusService.updateShowWatchStatus(accountId, profileId, showId, status);
 
-      if (!success) {
-        throw new BadRequestError(
-          `Failed to update watch status. Ensure the show (ID: ${showId}) exists in your favorites.`,
-        );
-      }
+      appLogger.info(`Show ${showId} update: ${result.message}`);
+      appLogger.info(`Affected entities: ${result.changes.length}`);
 
       this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
-      this.cache.invalidateProfileShows(accountId, profileId);
 
       return this.getNextUnwatchedEpisodesForProfile(profileId);
     } catch (error) {
-      throw errorService.handleError(error, `updateShowWatchStatus(${profileId}, ${showId}, ${status}, ${recursive})`);
+      throw errorService.handleError(error, `updateShowWatchStatus(${accountId}, ${profileId}, ${showId}, ${status})`);
     }
   }
 
   /**
-   * Update watch status for a show when new seasons are added
-   * If a show was previously marked as WATCHED, update to UP_TO_DATE since there's new content
-   * that's consistent with what the user has already seen
+   * Check and update watch status for a show when content could have been added or changed
    *
    * @param showId ID of the show in the database
-   * @param profileIds List of profile IDs that have this show in their watchlist
+   * @param profileAccountMappings Mapping of profile IDs and their account IDs that have this show in their favorites
    */
-  public async updateShowWatchStatusForNewContent(
+  public async checkAndUpdateShowStatus(
     showId: number,
     profileAccountMappings: ProfileAccountMapping[],
   ): Promise<void> {
     try {
       for (const mapping of profileAccountMappings) {
-        const watchStatus = await showsDb.getWatchStatus(mapping.profileId, showId);
-
-        if (watchStatus === WatchStatus.WATCHED) {
-          await showsDb.updateWatchStatus(mapping.profileId, showId, WatchStatus.UP_TO_DATE);
-          this.cache.invalidate(SHOW_KEYS.detailsForProfile(mapping.profileId, showId));
-          this.cache.invalidateProfileShows(mapping.accountId, mapping.profileId);
-        }
+        watchStatusService.checkAndUpdateShowStatus(mapping.accountId, mapping.profileId, showId);
       }
     } catch (error) {
       throw errorService.handleError(error, `updateShowWatchStatusForNewContent(${showId}, profileAccountMappings...)`);
-    }
-  }
-
-  /**
-   * Checks whether a show's status should be updated to reflect that new content is available
-   *
-   * @param profileId ID of the profile
-   * @param showId ID of the show
-   * @returns Object indicating if the status was updated and the new status
-   */
-  public async checkAndUpdateShowStatus(
-    profileId: number,
-    accountId: number,
-    showId: number,
-  ): Promise<{
-    updated: boolean;
-    status: string | null;
-  }> {
-    try {
-      const currentStatus = await showsDb.getWatchStatus(profileId, showId);
-      if (currentStatus !== WatchStatus.WATCHED) {
-        return { updated: false, status: currentStatus };
-      }
-
-      const hasUnwatched = await this.hasUnwatchedContent(profileId, showId);
-      if (hasUnwatched) {
-        await showsDb.updateWatchStatus(profileId, showId, WatchStatus.UP_TO_DATE);
-        this.invalidateProfileCache(accountId, profileId);
-        return { updated: true, status: WatchStatus.UP_TO_DATE };
-      }
-
-      return { updated: false, status: currentStatus };
-    } catch (error) {
-      throw errorService.handleError(error, `checkAndUpdateShowStatus(${profileId}, ${showId})`);
-    }
-  }
-
-  /**
-   * Checks if a show has any unwatched content (seasons or episodes)
-   *
-   * @param profileId ID of the profile
-   * @param showId ID of the show
-   * @returns True if there's unwatched content
-   */
-  private async hasUnwatchedContent(profileId: number, showId: number): Promise<boolean> {
-    try {
-      const seasons = await seasonsDb.getSeasonsForShow(profileId, showId);
-
-      for (const season of seasons) {
-        if (season.watchStatus !== WatchStatus.WATCHED) {
-          return true;
-        }
-
-        for (const episode of season.episodes) {
-          if (episode.watchStatus !== WatchStatus.WATCHED) {
-            return true;
-          }
-        }
-      }
-
-      return false;
-    } catch (error) {
-      throw errorService.handleError(error, `hasUnwatchedContent(${profileId}, ${showId})`);
     }
   }
 
@@ -665,7 +615,7 @@ export class ShowService {
             pastDate,
             currentDate,
           );
-          await this.updateShowWatchStatusForNewContent(updatedShow.id, profilesForShow.profileAccountMappings);
+          await this.checkAndUpdateShowStatus(updatedShow.id, profilesForShow.profileAccountMappings);
         }
       }
     } catch (error) {

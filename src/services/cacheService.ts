@@ -180,7 +180,7 @@ export class CacheService {
     this.invalidate(PROFILE_KEYS.recentEpisodes(profileId));
     this.invalidate(PROFILE_KEYS.upcomingEpisodes(profileId));
 
-    // Invalidate profile adn account statistics since they're affected by show changes
+    // Invalidate profile and account statistics since they're affected by show changes
     this.invalidateProfileStatistics(profileId);
     this.invalidateAccountStatistics(accountId);
 

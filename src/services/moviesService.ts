@@ -163,7 +163,7 @@ export class MoviesService {
     try {
       const existingMovieToFavorite = await moviesDb.findMovieByTMDBId(movieTMDBId);
       if (existingMovieToFavorite) {
-        return await this.favoriteExistingMovie(existingMovieToFavorite.id!, profileId);
+        return await this.favoriteExistingMovie(existingMovieToFavorite, profileId);
       }
 
       return await this.favoriteNewMovie(movieTMDBId, profileId);
@@ -179,15 +179,20 @@ export class MoviesService {
    * @param profileId - ID of the profile to add the movie for
    * @returns Object containing the favorited movie and updated recent/upcoming lists
    */
-  private async favoriteExistingMovie(movieId: number, profileId: number): Promise<AddMovieFavorite> {
-    const saved = await moviesDb.saveFavorite(profileId, movieId);
+  private async favoriteExistingMovie(movie: MovieReference, profileId: number): Promise<AddMovieFavorite> {
+    const now = new Date();
+    const saved = await moviesDb.saveFavorite(
+      profileId,
+      movie.id,
+      new Date(movie.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+    );
     if (!saved) {
       throw new NoAffectedRowsError('Failed to save a movie as a favorite');
     }
 
     this.invalidateProfileMovieCache(profileId);
 
-    const favoritedMovie = await moviesDb.getMovieForProfile(profileId, movieId);
+    const favoritedMovie = await moviesDb.getMovieForProfile(profileId, movie.id);
     const recentMovies = await this.getRecentMoviesForProfile(profileId);
     const upcomingMovies = await this.getUpcomingMoviesForProfile(profileId);
 
@@ -207,28 +212,33 @@ export class MoviesService {
    */
   private async favoriteNewMovie(movieTMDBId: number, profileId: number): Promise<AddMovieFavorite> {
     const tmdbService = getTMDBService();
-    const response = await tmdbService.getMovieDetails(movieTMDBId);
+    const movieResponse = await tmdbService.getMovieDetails(movieTMDBId);
+    const now = new Date();
 
     const createMovieRequest: CreateMovieRequest = {
-      tmdb_id: response.id,
-      title: response.title,
-      description: response.overview,
-      release_date: response.release_date,
-      runtime: response.runtime,
-      poster_image: response.poster_path,
-      backdrop_image: response.backdrop_path,
-      user_rating: response.vote_average,
-      mpa_rating: getUSMPARating(response.release_dates),
-      director: getDirectors(response),
-      production_companies: getUSProductionCompanies(response.production_companies),
-      budget: response.budget,
-      revenue: response.revenue,
-      streaming_service_ids: getUSWatchProviders(response, 9998),
-      genre_ids: response.genres.map((genre: TMDBGenre) => genre.id),
+      tmdb_id: movieResponse.id,
+      title: movieResponse.title,
+      description: movieResponse.overview,
+      release_date: movieResponse.release_date,
+      runtime: movieResponse.runtime,
+      poster_image: movieResponse.poster_path,
+      backdrop_image: movieResponse.backdrop_path,
+      user_rating: movieResponse.vote_average,
+      mpa_rating: getUSMPARating(movieResponse.release_dates),
+      director: getDirectors(movieResponse),
+      production_companies: getUSProductionCompanies(movieResponse.production_companies),
+      budget: movieResponse.budget,
+      revenue: movieResponse.revenue,
+      streaming_service_ids: getUSWatchProviders(movieResponse, 9998),
+      genre_ids: movieResponse.genres.map((genre: TMDBGenre) => genre.id),
     };
 
     const savedMovieId = await moviesDb.saveMovie(createMovieRequest);
-    const favoriteSaved = await moviesDb.saveFavorite(profileId, savedMovieId);
+    const favoriteSaved = await moviesDb.saveFavorite(
+      profileId,
+      savedMovieId,
+      new Date(movieResponse.release_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+    );
     if (!favoriteSaved) {
       throw new NoAffectedRowsError('Failed to save a movie as a favorite');
     }
@@ -482,7 +492,12 @@ export class MoviesService {
           const serviceCounts: Record<string, number> = {};
           const movieReferences: MovieReference[] = [];
           movies.forEach((movie) => {
-            movieReferences.push({ id: movie.id, title: movie.title, tmdbId: movie.tmdbId });
+            movieReferences.push({
+              id: movie.id,
+              title: movie.title,
+              tmdbId: movie.tmdbId,
+              releaseDate: movie.releaseDate,
+            });
             if (movie.streamingServices && typeof movie.streamingServices === 'string') {
               const serviceArray = movie.streamingServices.split(',').map((service) => service.trim());
               serviceArray.forEach((service: string) => {

@@ -1,4 +1,4 @@
-import { ShowReferenceRow, ShowTMDBReferenceRow } from '../../../../src/types/showTypes';
+import { ShowReferenceRow } from '../../../../src/types/showTypes';
 import { CreateShowRequest, UpdateShowRequest } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
 import { DatabaseError } from '@middleware/errorMiddleware';
@@ -365,7 +365,9 @@ describe('showRepository', () => {
 
       const showTMDBReference = await showsDb.findShowById(5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title FROM shows WHERE id = ?', [5]);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows WHERE id = ?', [
+        5,
+      ]);
       expect(showTMDBReference).not.toBeNull();
       expect(showTMDBReference).toEqual({
         id: 5,
@@ -375,7 +377,7 @@ describe('showRepository', () => {
     });
 
     it('should return null when show not found', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as ShowTMDBReferenceRow[]]);
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[] as ShowReferenceRow[]]);
       const show = await showsDb.findShowById(999);
       expect(show).toBeNull();
     });
@@ -398,7 +400,10 @@ describe('showRepository', () => {
 
       const show = await showsDb.findShowByTMDBId(12345);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id FROM shows WHERE tmdb_id = ?', [12345]);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?',
+        [12345],
+      );
       expect(show).not.toBeNull();
       expect(show!.id).toBe(5);
     });

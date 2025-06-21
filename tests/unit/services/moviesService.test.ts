@@ -208,7 +208,7 @@ describe('MoviesService', () => {
       const result = await moviesService.addMovieToFavorites(123, 12345);
 
       expect(moviesDb.findMovieByTMDBId).toHaveBeenCalledWith(12345);
-      expect(moviesDb.saveFavorite).toHaveBeenCalledWith(123, 5);
+      expect(moviesDb.saveFavorite).toHaveBeenCalledWith(123, 5, WatchStatus.NOT_WATCHED);
       expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledWith(123);
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
@@ -270,7 +270,7 @@ describe('MoviesService', () => {
         streaming_service_ids: [8, 9],
       });
       expect(moviesDb.saveMovie).toHaveBeenCalled();
-      expect(moviesDb.saveFavorite).toHaveBeenCalledWith(123, 5);
+      expect(moviesDb.saveFavorite).toHaveBeenCalledWith(123, 5, WatchStatus.NOT_WATCHED);
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
         recentUpcomingMovies: { recentMovies: mockRecentMovies, upcomingMovies: mockUpcomingMovies },
