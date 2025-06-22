@@ -8,6 +8,7 @@ import {
   WatchStatusExtendedSeasonRow,
   WatchStatusSeason,
   WatchStatusSeasonRow,
+  WatchStatusShow,
   WatchStatusShowRow,
   transformWatchStatusEpisode,
   transformWatchStatusExtendedEpisode,
@@ -46,9 +47,12 @@ export class WatchStatusDbService {
   private statusManager: WatchStatusManager;
   private transactionHelper: TransactionHelper;
 
-  constructor() {
-    this.statusManager = WatchStatusManager.getInstance();
-    this.transactionHelper = new TransactionHelper();
+  constructor(
+    statusManager: WatchStatusManager = WatchStatusManager.getInstance(),
+    transactionHelper: TransactionHelper = new TransactionHelper(),
+  ) {
+    this.statusManager = statusManager;
+    this.transactionHelper = transactionHelper;
   }
 
   /**
@@ -190,10 +194,38 @@ export class WatchStatusDbService {
       );
 
       // Propagate to season and show
+      await this.updateSeasonEpisodes(context, watchStatusExtendedEpisode);
       await this.propagateStatusToParents(context, watchStatusExtendedEpisode);
-
       return this.createSuccessResult(context);
     });
+  }
+
+  /**
+   * Helper method to ensure all episodes of a given season that have aired are marked correctly
+   */
+  private async updateSeasonEpisodes(context: StatusUpdateContext, episode: WatchStatusExtendedEpisode) {
+    // Update all episodes in the season
+    const episodeUpdateQuery = `
+        INSERT INTO episode_watch_status (profile_id, episode_id, status)
+        SELECT ?, e.id, 'NOT_WATCHED'
+        FROM episodes e
+        LEFT JOIN episode_watch_status ews
+          ON e.id = ews.episode_id AND ews.profile_id = ?
+        WHERE e.season_id = ?
+          AND DATE(e.air_date) <= ?
+          AND (ews.status = 'UNAIRED' OR ews.episode_id IS NULL)
+        ON DUPLICATE KEY UPDATE
+          status = 'NOT_WATCHED',
+          updated_at = CURRENT_TIMESTAMP;
+      `;
+
+    const [episodesResult] = await context.connection.execute<ResultSetHeader>(episodeUpdateQuery, [
+      context.profileId,
+      context.profileId,
+      episode.seasonId,
+      context.timestamp,
+    ]);
+    context.totalAffectedRows += episodesResult.affectedRows;
   }
 
   /**
@@ -218,8 +250,11 @@ export class WatchStatusDbService {
 
     const seasonEpisodes = seasonEpisodeRows.map(transformWatchStatusEpisode);
     const seasonWithEpisodes = {
-      ...episode,
+      id: episode.seasonId,
+      airDate: episode.seasonAirDate,
+      showId: episode.showId,
       episodes: seasonEpisodes,
+      watchStatus: episode.seasonWatchStatus,
     };
 
     const newSeasonStatus = this.statusManager.calculateSeasonStatus(seasonWithEpisodes);
@@ -332,7 +367,6 @@ export class WatchStatusDbService {
 
       await this.updateSeasonAndEpisodes(context, seasonRows[0], seasonId, targetStatus);
       await this.updateParentShowStatus(context, seasonRows[0], seasonId, targetStatus);
-
       return this.createSuccessResult(context);
     });
   }
@@ -450,32 +484,33 @@ export class WatchStatusDbService {
       seasonId,
       targetStatus,
       context.profileId,
-      seasonRow.showId,
+      seasonRow.show_id,
     ]);
 
     const show = {
-      id: seasonRow.showId,
-      airDate: seasonRow.showAirDate,
-      inProduction: seasonRow.showInProduction,
+      id: seasonRow.show_id,
+      airDate: new Date(seasonRow.show_air_date),
+      inProduction: seasonRow.show_in_production === 1,
       seasons: showSeasons.map((s) => transformWatchStatusSeason(s, [])),
-      watchStatus: seasonRow.showWatchStatus,
+      watchStatus: seasonRow.show_status,
     };
 
     const newShowStatus = this.statusManager.calculateShowStatus(show);
 
-    if (seasonRow.showWatchStatus !== newShowStatus) {
+    console.log('Updating show status', seasonRow, newShowStatus);
+    if (seasonRow.show_status !== newShowStatus) {
       await this.updateEntityStatus(context, {
         table: 'show_watch_status',
         entityColumn: 'show_id',
-        entityId: seasonRow.showId,
+        entityId: seasonRow.show_id,
         status: newShowStatus,
       });
 
       this.recordStatusChange(
         context,
         'show',
-        seasonRow.showId,
-        seasonRow.showWatchStatus,
+        seasonRow.show_id,
+        seasonRow.show_status,
         newShowStatus,
         `Season ${seasonId} status changed`,
       );
@@ -506,7 +541,6 @@ export class WatchStatusDbService {
       }
 
       await this.updateShowAndAllChildren(context, showRows[0], showId, status);
-
       return this.createSuccessResult(context);
     });
   }
@@ -546,34 +580,93 @@ export class WatchStatusDbService {
     ]);
     context.totalAffectedRows += episodeResult.affectedRows;
 
-    // Update all seasons in the show
-    const seasonUpdateQuery = `
-      INSERT INTO season_watch_status (profile_id, season_id, status)
-      SELECT ?, s.id, ?
+    // Get all seasons and calculate their individual statuses
+    const seasonsQuery = `
+      SELECT s.id, s.release_date, s.show_id, COALESCE(sws.status, 'NOT_WATCHED') as status
       FROM seasons s
+      LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
       WHERE s.show_id = ?
-      ON DUPLICATE KEY UPDATE 
-        status = VALUES(status),
-        updated_at = CURRENT_TIMESTAMP
+      ORDER BY s.season_number
     `;
 
-    const [seasonResult] = await context.connection.execute<ResultSetHeader>(seasonUpdateQuery, [
+    const [seasonRows] = await context.connection.execute<WatchStatusSeasonRow[]>(seasonsQuery, [
       context.profileId,
-      status,
       showId,
     ]);
-    context.totalAffectedRows += seasonResult.affectedRows;
 
-    // Update the show itself
-    await this.updateEntityStatus(context, {
-      table: 'show_watch_status',
-      entityColumn: 'show_id',
-      entityId: showId,
-      status,
-    });
+    const episodeStatusQuery = `
+      SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
+      FROM episodes e
+      LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+      WHERE e.season_id = ?
+    `;
 
-    // Record show status change
-    this.recordStatusChange(context, 'show', showId, showRow.status, status, `Show manually set to ${status}`);
+    // Update each season individually based on its episodes
+    for (const seasonRow of seasonRows) {
+      // Get all episodes for this season with their updated statuses
+      const [episodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
+        context.profileId,
+        seasonRow.id,
+      ]);
+
+      const episodes = episodeRows.map(transformWatchStatusEpisode);
+      const season = transformWatchStatusSeason(seasonRow, episodes);
+      const calculatedSeasonStatus = this.statusManager.calculateSeasonStatus(season);
+
+      // Update the season status
+      await this.updateEntityStatus(context, {
+        table: 'season_watch_status',
+        entityColumn: 'season_id',
+        entityId: seasonRow.id,
+        status: calculatedSeasonStatus,
+      });
+
+      this.recordStatusChange(
+        context,
+        'season',
+        seasonRow.id,
+        seasonRow.status,
+        calculatedSeasonStatus,
+        `Show manually set to ${status}`,
+      );
+    }
+
+    // Re-query to get the actual current season statuses after updates
+    const [updatedSeasonRows] = await context.connection.execute<WatchStatusSeasonRow[]>(seasonsQuery, [
+      context.profileId,
+      showId,
+    ]);
+
+    const seasonsWithCurrentStatus = updatedSeasonRows.map((row) => transformWatchStatusSeason(row, []));
+
+    const showWithUpdatedSeasons: WatchStatusShow = {
+      id: showId,
+      airDate: new Date(showRow.release_date),
+      inProduction: showRow.in_production === 1,
+      seasons: seasonsWithCurrentStatus,
+      watchStatus: showRow.status,
+    };
+
+    const calculatedShowStatus = this.statusManager.calculateShowStatus(showWithUpdatedSeasons);
+
+    // Only update the show status if it has changed
+    if (showRow.status !== calculatedShowStatus) {
+      await this.updateEntityStatus(context, {
+        table: 'show_watch_status',
+        entityColumn: 'show_id',
+        entityId: showId,
+        status: calculatedShowStatus,
+      });
+
+      this.recordStatusChange(
+        context,
+        'show',
+        showId,
+        showRow.status,
+        calculatedShowStatus,
+        `Show manually set to ${status}`,
+      );
+    }
   }
 
   /**

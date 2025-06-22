@@ -111,7 +111,7 @@ export function transformWatchStatusExtendedEpisode(
     seasonId: episodeRow.season_id,
     seasonWatchStatus: episodeRow.season_status,
     seasonAirDate: new Date(episodeRow.season_air_date),
-    showId: episodeRow.season_id,
+    showId: episodeRow.show_id,
     showInProduction: episodeRow.show_in_production === 1,
     showWatchStatus: episodeRow.show_status,
     showAirDate: new Date(episodeRow.show_air_date),

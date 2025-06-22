@@ -142,14 +142,14 @@ export class WatchStatusManager {
   public generateStatusSummary(show: WatchStatusShow, now: Date = new Date()): string {
     const showStatus = this.calculateShowStatus(show, now);
     let summary = `Show "${show.id}" - Status: ${showStatus}\n`;
-    summary += `  Air Date: ${show.airDate.toISOString}\n`;
+    summary += `  Air Date: ${show.airDate.toISOString()}\n`;
     summary += `  In Production: ${show.inProduction}\n`;
     summary += `  Seasons: ${show.seasons?.length}\n\n`;
 
     show.seasons!.forEach((season) => {
       const seasonStatus = this.calculateSeasonStatus(season, now);
       summary += `  Season "${season.id}" - Status: ${seasonStatus}\n`;
-      summary += `    Air Date: ${season.airDate.toISOString}\n`;
+      summary += `    Air Date: ${season.airDate.toISOString()}\n`;
       summary += `    Episodes: ${season.episodes.length}\n`;
 
       const watchedCount = season.episodes.filter((e) => e.watchStatus === WatchStatus.WATCHED).length;
