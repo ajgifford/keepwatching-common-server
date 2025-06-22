@@ -141,7 +141,7 @@ describe('notificationDb', () => {
     });
   });
 
-  describe('saveNotification()', () => {
+  describe('addNotification()', () => {
     let mockTransactionHelper: jest.Mocked<TransactionHelper>;
 
     beforeEach(() => {
