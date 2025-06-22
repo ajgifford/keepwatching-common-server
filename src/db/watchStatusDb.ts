@@ -3,6 +3,7 @@ import {
   StatusChange,
   StatusUpdateResult,
   WatchStatusEpisodeRow,
+  WatchStatusExtendedEpisode,
   WatchStatusExtendedEpisodeRow,
   WatchStatusExtendedSeasonRow,
   WatchStatusSeason,
@@ -19,6 +20,24 @@ import { TransactionHelper } from '../utils/transactionHelper';
 import { WatchStatusManager } from '../utils/watchStatusManager';
 import { UserWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
+import { PoolConnection } from 'mysql2/promise';
+
+type EntityType = 'episode' | 'season' | 'show';
+
+interface StatusUpdateContext {
+  changes: StatusChange[];
+  totalAffectedRows: number;
+  connection: PoolConnection;
+  profileId: number;
+  timestamp: Date;
+}
+
+interface EntityUpdateParams {
+  table: string;
+  entityColumn: string;
+  entityId: number;
+  status: WatchStatus;
+}
 
 /**
  * Database service for managing watch statuses with the centralized status manager
@@ -32,22 +51,83 @@ export class WatchStatusDbService {
     this.transactionHelper = new TransactionHelper();
   }
 
-  async updateEpisodeWatchStatusOnly(profileId: number, episodeId: number, status: UserWatchStatus) {
+  /**
+   * Generic method to execute status update operations within a transaction
+   */
+  private async executeStatusUpdate<T>(
+    operationName: string,
+    operation: (context: StatusUpdateContext) => Promise<T>,
+  ): Promise<T> {
     try {
       return await this.transactionHelper.executeInTransaction(async (connection) => {
-        const updateEpisodeQuery = `
-          INSERT INTO episode_watch_status (profile_id, episode_id, status) 
-          VALUES (?, ?, ?) 
-          ON DUPLICATE KEY UPDATE
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP;
-        `;
+        const context: StatusUpdateContext = {
+          changes: [],
+          totalAffectedRows: 0,
+          connection,
+          profileId: 0, // Will be set by the operation
+          timestamp: new Date(),
+        };
 
-        await connection.execute<ResultSetHeader>(updateEpisodeQuery, [profileId, episodeId, status]);
+        return await operation(context);
       });
     } catch (error) {
-      handleDatabaseError(error, 'updating episode watch status with propagation');
+      handleDatabaseError(error, operationName);
     }
+  }
+
+  /**
+   * Generic method to update entity status using INSERT...ON DUPLICATE KEY UPDATE pattern
+   */
+  private async updateEntityStatus(context: StatusUpdateContext, params: EntityUpdateParams): Promise<void> {
+    const query = `
+      INSERT INTO ${params.table} (profile_id, ${params.entityColumn}, status) 
+      VALUES (?, ?, ?) 
+      ON DUPLICATE KEY UPDATE
+        status = VALUES(status),
+        updated_at = CURRENT_TIMESTAMP;
+    `;
+
+    const [result] = await context.connection.execute<ResultSetHeader>(query, [
+      context.profileId,
+      params.entityId,
+      params.status,
+    ]);
+
+    context.totalAffectedRows += result.affectedRows;
+  }
+
+  /**
+   * Generic method to record status changes
+   */
+  private recordStatusChange(
+    context: StatusUpdateContext,
+    entityType: EntityType,
+    entityId: number,
+    fromStatus: WatchStatus,
+    toStatus: WatchStatus,
+    reason: string,
+  ): void {
+    if (fromStatus !== toStatus) {
+      context.changes.push({
+        entityType,
+        entityId,
+        from: fromStatus,
+        to: toStatus,
+        timestamp: context.timestamp,
+        reason,
+      });
+    }
+  }
+
+  /**
+   * Common method to create successful status update result
+   */
+  private createSuccessResult(context: StatusUpdateContext): StatusUpdateResult {
+    return {
+      success: true,
+      changes: context.changes,
+      affectedRows: context.totalAffectedRows,
+    };
   }
 
   /**
@@ -58,198 +138,160 @@ export class WatchStatusDbService {
     episodeId: number,
     status: UserWatchStatus,
   ): Promise<StatusUpdateResult> {
-    try {
-      return await this.transactionHelper.executeInTransaction(async (connection) => {
-        const changes: StatusChange[] = [];
-        let totalAffectedRows = 0;
+    return this.executeStatusUpdate('updating episode watch status with propagation', async (context) => {
+      context.profileId = profileId;
 
-        // Get episode data with season and show info
-        const episodeQuery = `
-          SELECT 
-            e.id, e.season_id, e.air_date,
-            COALESCE(ews.status, 'NOT_WATCHED') as status,
-            s.id as season_id, s.show_id, s.air_date as season_air_date,
-            COALESCE(sws.status, 'NOT_WATCHED') as season_status,
-            sh.id as show_id, sh.air_date as show_air_date, sh.in_production as show_in_production,
-            COALESCE(shws.status, 'NOT_WATCHED') as show_status
-          FROM episodes e
-          JOIN seasons s ON e.season_id = s.id
-          JOIN shows sh ON s.show_id = sh.id
-          LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
-          LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
-          LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
-          WHERE e.id = ?
-        `;
+      // Get episode data with season and show info
+      const episodeQuery = `
+        SELECT 
+          e.id, e.season_id, e.air_date,
+          COALESCE(ews.status, 'NOT_WATCHED') as status,
+          s.id as season_id, s.show_id, s.air_date as season_air_date,
+          COALESCE(sws.status, 'NOT_WATCHED') as season_status,
+          sh.id as show_id, sh.air_date as show_air_date, sh.in_production as show_in_production,
+          COALESCE(shws.status, 'NOT_WATCHED') as show_status
+        FROM episodes e
+        JOIN seasons s ON e.season_id = s.id
+        JOIN shows sh ON s.show_id = sh.id
+        LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+        LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
+        LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
+        WHERE e.id = ?
+      `;
 
-        const [episodeRows] = await connection.execute<WatchStatusExtendedEpisodeRow[]>(episodeQuery, [
-          profileId,
-          profileId,
-          profileId,
-          episodeId,
-        ]);
+      const [episodeRows] = await context.connection.execute<WatchStatusExtendedEpisodeRow[]>(episodeQuery, [
+        profileId,
+        profileId,
+        profileId,
+        episodeId,
+      ]);
 
-        if (episodeRows.length === 0) {
-          throw new NotFoundError(`Episode ${episodeId} not found`);
-        }
+      if (episodeRows.length === 0) {
+        throw new NotFoundError(`Episode ${episodeId} not found`);
+      }
 
-        const watchStatusExtendedEpisode = transformWatchStatusExtendedEpisode(episodeRows[0]);
+      const watchStatusExtendedEpisode = transformWatchStatusExtendedEpisode(episodeRows[0]);
 
-        // Update episode status in database
-        const updateEpisodeQuery = `
-          INSERT INTO episode_watch_status (profile_id, episode_id, status) 
-          VALUES (?, ?, ?) 
-          ON DUPLICATE KEY UPDATE
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP;
-        `;
-
-        const [episodeResult] = await connection.execute<ResultSetHeader>(updateEpisodeQuery, [
-          profileId,
-          episodeId,
-          status,
-        ]);
-
-        totalAffectedRows += episodeResult.affectedRows;
-
-        // Record episode status change
-        if (watchStatusExtendedEpisode.watchStatus !== status) {
-          changes.push({
-            entityType: 'episode',
-            entityId: episodeId,
-            from: watchStatusExtendedEpisode.watchStatus,
-            to: status,
-            timestamp: new Date(),
-            reason: `Episode marked as ${status}`,
-          });
-        }
-
-        // Get all episodes for the season to calculate new season status
-        const seasonEpisodesQuery = `
-          SELECT 
-            e.id, e.air_date, e.season_id,
-            CASE 
-              WHEN e.id = ? THEN ?
-              ELSE COALESCE(ews.status, 'NOT_WATCHED')
-            END as status
-          FROM episodes e
-          LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
-          WHERE e.season_id = ?
-          ORDER BY e.episode_number
-        `;
-
-        const [seasonEpisodes] = await connection.execute<WatchStatusEpisodeRow[]>(seasonEpisodesQuery, [
-          episodeId,
-          status,
-          profileId,
-          watchStatusExtendedEpisode.seasonId,
-        ]);
-
-        // Calculate new season status
-        const season = {
-          id: watchStatusExtendedEpisode.seasonId,
-          airDate: watchStatusExtendedEpisode.seasonAirDate,
-          showId: watchStatusExtendedEpisode.showId,
-          watchStatus: watchStatusExtendedEpisode.seasonWatchStatus,
-          episodes: seasonEpisodes.map(transformWatchStatusEpisode),
-        };
-
-        const newSeasonStatus = this.statusManager.calculateSeasonStatus(season);
-
-        // If a season status hasn't changed then a show status would also not change, return
-        if (watchStatusExtendedEpisode.seasonWatchStatus === newSeasonStatus) {
-          return { success: true, changes, affectedRows: totalAffectedRows };
-        }
-
-        // Update season status if changed
-        const updateSeasonQuery = `
-            INSERT INTO season_watch_status (profile_id, season_id, status) 
-            VALUES (?, ?, ?) 
-            ON DUPLICATE KEY UPDATE
-              status = VALUES(status),
-              updated_at = CURRENT_TIMESTAMP;
-          `;
-
-        const [seasonResult] = await connection.execute<ResultSetHeader>(updateSeasonQuery, [
-          profileId,
-          watchStatusExtendedEpisode.seasonId,
-          newSeasonStatus,
-        ]);
-
-        totalAffectedRows += seasonResult.affectedRows;
-
-        changes.push({
-          entityType: 'season',
-          entityId: watchStatusExtendedEpisode.seasonId,
-          from: watchStatusExtendedEpisode.seasonWatchStatus,
-          to: newSeasonStatus,
-          timestamp: new Date(),
-          reason: `Episode ${episodeId} status changed`,
-        });
-
-        // Get all seasons for the show to calculate new show status
-        const showSeasonsQuery = `
-          SELECT 
-            s.id, s.release_date, s.show_id,
-            CASE 
-              WHEN s.id = ? THEN ?
-              ELSE COALESCE(sws.status, 'NOT_WATCHED')
-            END as status
-          FROM seasons s
-          LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
-          WHERE s.show_id = ?
-          ORDER BY s.season_number
-        `;
-
-        const [showSeasons] = await connection.execute<WatchStatusSeasonRow[]>(showSeasonsQuery, [
-          watchStatusExtendedEpisode.seasonId,
-          newSeasonStatus,
-          profileId,
-          watchStatusExtendedEpisode.showId,
-        ]);
-
-        // Calculate new show status
-        const show = {
-          id: watchStatusExtendedEpisode.showId,
-          airDate: watchStatusExtendedEpisode.showAirDate,
-          inProduction: watchStatusExtendedEpisode.showInProduction,
-          watchStatus: watchStatusExtendedEpisode.showWatchStatus,
-          seasons: showSeasons.map((s) => transformWatchStatusSeason(s, [])),
-        };
-
-        const newShowStatus = this.statusManager.calculateShowStatus(show);
-
-        // Update show status if changed
-        if (watchStatusExtendedEpisode.showWatchStatus !== newShowStatus) {
-          const updateShowQuery = `
-            INSERT INTO show_watch_status (profile_id, show_id, status) 
-            VALUES (?, ?, ?) 
-            ON DUPLICATE KEY UPDATE
-              status = VALUES(status),
-              updated_at = CURRENT_TIMESTAMP;
-          `;
-
-          const [showResult] = await connection.execute<ResultSetHeader>(updateShowQuery, [
-            profileId,
-            watchStatusExtendedEpisode.showId,
-            newShowStatus,
-          ]);
-
-          totalAffectedRows += showResult.affectedRows;
-
-          changes.push({
-            entityType: 'show',
-            entityId: watchStatusExtendedEpisode.showId,
-            from: watchStatusExtendedEpisode.showWatchStatus,
-            to: newShowStatus,
-            timestamp: new Date(),
-            reason: `Season ${watchStatusExtendedEpisode.seasonId} status changed`,
-          });
-        }
-
-        return { success: true, changes, affectedRows: totalAffectedRows };
+      // Update episode status
+      await this.updateEntityStatus(context, {
+        table: 'episode_watch_status',
+        entityColumn: 'episode_id',
+        entityId: episodeId,
+        status,
       });
-    } catch (error) {
-      handleDatabaseError(error, 'updating episode watch status with propagation');
+
+      this.recordStatusChange(
+        context,
+        'episode',
+        episodeId,
+        watchStatusExtendedEpisode.watchStatus,
+        status,
+        `Episode manually set to ${status}`,
+      );
+
+      // Propagate to season and show
+      await this.propagateStatusToParents(context, watchStatusExtendedEpisode);
+
+      return this.createSuccessResult(context);
+    });
+  }
+
+  /**
+   * Helper method to propagate status changes to parent entities (season and show)
+   */
+  private async propagateStatusToParents(
+    context: StatusUpdateContext,
+    episode: WatchStatusExtendedEpisode,
+  ): Promise<void> {
+    // Get all episodes in the season to calculate new season status
+    const seasonEpisodesQuery = `
+      SELECT e.id, e.air_date, COALESCE(ews.status, 'NOT_WATCHED') as status
+      FROM episodes e
+      LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+      WHERE e.season_id = ?
+    `;
+
+    const [seasonEpisodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(seasonEpisodesQuery, [
+      context.profileId,
+      episode.seasonId,
+    ]);
+
+    const seasonEpisodes = seasonEpisodeRows.map(transformWatchStatusEpisode);
+    const seasonWithEpisodes = {
+      ...episode,
+      episodes: seasonEpisodes,
+    };
+
+    const newSeasonStatus = this.statusManager.calculateSeasonStatus(seasonWithEpisodes);
+
+    // Update season status if changed
+    if (episode.seasonWatchStatus !== newSeasonStatus) {
+      await this.updateEntityStatus(context, {
+        table: 'season_watch_status',
+        entityColumn: 'season_id',
+        entityId: episode.seasonId,
+        status: newSeasonStatus,
+      });
+
+      this.recordStatusChange(
+        context,
+        'season',
+        episode.seasonId,
+        episode.seasonWatchStatus,
+        newSeasonStatus,
+        `Episode ${episode.id} status changed`,
+      );
+    }
+
+    // Get all seasons in the show to calculate new show status
+    const showSeasonsQuery = `
+      SELECT 
+        s.id, s.release_date, s.show_id,
+        CASE 
+          WHEN s.id = ? THEN ?
+          ELSE COALESCE(sws.status, 'NOT_WATCHED')
+        END as status
+      FROM seasons s
+      LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
+      WHERE s.show_id = ?
+      ORDER BY s.season_number
+    `;
+
+    const [showSeasonRows] = await context.connection.execute<WatchStatusSeasonRow[]>(showSeasonsQuery, [
+      episode.seasonId,
+      newSeasonStatus,
+      context.profileId,
+      episode.showId,
+    ]);
+
+    const showSeasons = showSeasonRows.map((s) => transformWatchStatusSeason(s, []));
+    const showWithSeasons = {
+      id: episode.showId,
+      airDate: episode.showAirDate,
+      inProduction: episode.showInProduction,
+      seasons: showSeasons,
+      watchStatus: episode.showWatchStatus,
+    };
+
+    const newShowStatus = this.statusManager.calculateShowStatus(showWithSeasons);
+
+    // Update show status if changed
+    if (episode.showWatchStatus !== newShowStatus) {
+      await this.updateEntityStatus(context, {
+        table: 'show_watch_status',
+        entityColumn: 'show_id',
+        entityId: episode.showId,
+        status: newShowStatus,
+      });
+
+      this.recordStatusChange(
+        context,
+        'show',
+        episode.showId,
+        episode.showWatchStatus,
+        newShowStatus,
+        `Season ${episode.seasonId} status changed`,
+      );
     }
   }
 
@@ -261,185 +303,182 @@ export class WatchStatusDbService {
     seasonId: number,
     targetStatus: UserWatchStatus,
   ): Promise<StatusUpdateResult> {
-    try {
-      return await this.transactionHelper.executeInTransaction(async (connection) => {
-        const changes: StatusChange[] = [];
-        const now = new Date();
-        let totalAffectedRows = 0;
+    return this.executeStatusUpdate('updating season watch status with propagation', async (context) => {
+      context.profileId = profileId;
 
-        // Get season data
-        const seasonQuery = `
-          SELECT 
-            s.id, s.show_id, s.release_date,
-            COALESCE(sws.status, 'NOT_WATCHED') as status,
-            sh.in_production as show_in_production, sh.release_date as show_air_date,
-            COALESCE(shws.status, 'NOT_WATCHED') as show_status
-          FROM seasons s
-          JOIN shows sh ON s.show_id = sh.id
-          LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
-          LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
-          WHERE s.id = ?
-        `;
+      // Get season data
+      const seasonQuery = `
+        SELECT 
+          s.id, s.show_id, s.release_date,
+          COALESCE(sws.status, 'NOT_WATCHED') as status,
+          sh.in_production as show_in_production, sh.release_date as show_air_date,
+          COALESCE(shws.status, 'NOT_WATCHED') as show_status
+        FROM seasons s
+        JOIN shows sh ON s.show_id = sh.id
+        LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
+        LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
+        WHERE s.id = ?
+      `;
 
-        const [seasonRows] = await connection.execute<WatchStatusExtendedSeasonRow[]>(seasonQuery, [
-          profileId,
-          profileId,
-          seasonId,
-        ]);
+      const [seasonRows] = await context.connection.execute<WatchStatusExtendedSeasonRow[]>(seasonQuery, [
+        profileId,
+        profileId,
+        seasonId,
+      ]);
 
-        if (seasonRows.length === 0) {
-          throw new NotFoundError(`Season ${seasonId} not found`);
-        }
+      if (seasonRows.length === 0) {
+        throw new NotFoundError(`Season ${seasonId} not found`);
+      }
 
-        // Update episodes
-        const episodeStatusQuery = `
-        SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
-        FROM episodes e
-        LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
-        WHERE e.season_id = ?
-        `;
+      await this.updateSeasonAndEpisodes(context, seasonRows[0], seasonId, targetStatus);
+      await this.updateParentShowStatus(context, seasonRows[0], seasonId, targetStatus);
 
-        const [originalEpisodeRows] = await connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
-          profileId,
-          seasonId,
-        ]);
+      return this.createSuccessResult(context);
+    });
+  }
 
-        const episodeUpdateQuery = `
-          INSERT INTO episode_watch_status (profile_id, episode_id, status)
-          SELECT 
-            ?, 
-            e.id, 
-            CASE 
-              WHEN e.air_date IS NULL OR DATE(e.air_date) <= ? THEN ?
-              ELSE 'UNAIRED'
-            END
-          FROM episodes e
-          WHERE e.season_id = ?
-          ON DUPLICATE KEY UPDATE 
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP
-        `;
+  /**
+   * Helper method to update season and its episodes
+   */
+  private async updateSeasonAndEpisodes(
+    context: StatusUpdateContext,
+    seasonRow: WatchStatusExtendedSeasonRow,
+    seasonId: number,
+    targetStatus: UserWatchStatus,
+  ): Promise<void> {
+    // Get original episode statuses
+    const episodeStatusQuery = `
+      SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
+      FROM episodes e
+      LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+      WHERE e.season_id = ?
+    `;
 
-        const [episodeResult] = await connection.execute<ResultSetHeader>(episodeUpdateQuery, [
-          profileId,
-          now,
-          targetStatus,
-          seasonId,
-        ]);
-        totalAffectedRows += episodeResult.affectedRows;
+    const [originalEpisodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
+      context.profileId,
+      seasonId,
+    ]);
 
-        const [updatedEpisodeRows] = await connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
-          profileId,
-          seasonId,
-        ]);
+    // Update all episodes in the season
+    const episodeUpdateQuery = `
+      INSERT INTO episode_watch_status (profile_id, episode_id, status)
+      SELECT 
+        ?, 
+        e.id, 
+        CASE 
+          WHEN e.air_date IS NULL OR DATE(e.air_date) <= ? THEN ?
+          ELSE 'UNAIRED'
+        END
+      FROM episodes e
+      WHERE e.season_id = ?
+      ON DUPLICATE KEY UPDATE 
+        status = VALUES(status),
+        updated_at = CURRENT_TIMESTAMP
+    `;
 
-        updatedEpisodeRows.forEach((ep) => {
-          const originalEpisode = originalEpisodeRows.find((oe) => ep.id === oe.id);
-          changes.push({
-            entityType: 'episode',
-            entityId: ep.id,
-            from: originalEpisode?.status || WatchStatus.NOT_WATCHED,
-            to: ep.status,
-            timestamp: new Date(),
-            reason: `Season ${seasonId} marked as ${targetStatus}`,
-          });
-        });
+    const [episodeResult] = await context.connection.execute<ResultSetHeader>(episodeUpdateQuery, [
+      context.profileId,
+      context.timestamp,
+      targetStatus,
+      seasonId,
+    ]);
+    context.totalAffectedRows += episodeResult.affectedRows;
 
-        const updatedEpisodes = updatedEpisodeRows.map(transformWatchStatusEpisode);
-        const watchStatusSeason = transformWatchStatusExtendedSeason(seasonRows[0], updatedEpisodes);
-        const newSeasonStatus = this.statusManager.calculateSeasonStatus(watchStatusSeason);
+    // Get updated episode statuses and record changes
+    const [updatedEpisodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
+      context.profileId,
+      seasonId,
+    ]);
 
-        // Update season status
-        const updateSeasonQuery = `
-          INSERT INTO season_watch_status (profile_id, season_id, status) 
-          VALUES (?, ?, ?) 
-          ON DUPLICATE KEY UPDATE
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP;
-        `;
+    updatedEpisodeRows.forEach((ep) => {
+      const originalEpisode = originalEpisodeRows.find((oe) => ep.id === oe.id);
+      this.recordStatusChange(
+        context,
+        'episode',
+        ep.id,
+        originalEpisode?.status || WatchStatus.NOT_WATCHED,
+        ep.status,
+        `Season ${seasonId} marked as ${targetStatus}`,
+      );
+    });
 
-        const [seasonResult] = await connection.execute<ResultSetHeader>(updateSeasonQuery, [
-          profileId,
-          seasonId,
-          newSeasonStatus,
-        ]);
+    // Calculate and update season status
+    const updatedEpisodes = updatedEpisodeRows.map(transformWatchStatusEpisode);
+    const watchStatusSeason = transformWatchStatusExtendedSeason(seasonRow, updatedEpisodes);
+    const newSeasonStatus = this.statusManager.calculateSeasonStatus(watchStatusSeason);
 
-        totalAffectedRows += seasonResult.affectedRows;
+    await this.updateEntityStatus(context, {
+      table: 'season_watch_status',
+      entityColumn: 'season_id',
+      entityId: seasonId,
+      status: newSeasonStatus,
+    });
 
-        // Record season status change
-        if (watchStatusSeason.watchStatus !== newSeasonStatus) {
-          changes.push({
-            entityType: 'season',
-            entityId: seasonId,
-            from: watchStatusSeason.watchStatus,
-            to: newSeasonStatus,
-            timestamp: new Date(),
-            reason: `Season manually set to ${targetStatus}`,
-          });
-        }
+    this.recordStatusChange(
+      context,
+      'season',
+      seasonId,
+      watchStatusSeason.watchStatus,
+      newSeasonStatus,
+      `Season manually set to ${targetStatus}`,
+    );
+  }
 
-        // Update show status
-        const showSeasonsQuery = `
-          SELECT 
-            s.id, s.release_date, s.show_id,
-            CASE 
-              WHEN s.id = ? THEN ?
-              ELSE COALESCE(sws.status, 'NOT_WATCHED')
-            END as status
-          FROM seasons s
-          LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
-          WHERE s.show_id = ?
-          ORDER BY s.season_number
-        `;
+  /**
+   * Helper method to update parent show status after season changes
+   */
+  private async updateParentShowStatus(
+    context: StatusUpdateContext,
+    seasonRow: WatchStatusExtendedSeasonRow,
+    seasonId: number,
+    targetStatus: UserWatchStatus,
+  ): Promise<void> {
+    const showSeasonsQuery = `
+      SELECT 
+        s.id, s.release_date, s.show_id,
+        CASE 
+          WHEN s.id = ? THEN ?
+          ELSE COALESCE(sws.status, 'NOT_WATCHED')
+        END as status
+      FROM seasons s
+      LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
+      WHERE s.show_id = ?
+      ORDER BY s.season_number
+    `;
 
-        const [showSeasons] = await connection.execute<WatchStatusSeasonRow[]>(showSeasonsQuery, [
-          seasonId,
-          targetStatus,
-          profileId,
-          watchStatusSeason.showId,
-        ]);
+    const [showSeasons] = await context.connection.execute<WatchStatusSeasonRow[]>(showSeasonsQuery, [
+      seasonId,
+      targetStatus,
+      context.profileId,
+      seasonRow.showId,
+    ]);
 
-        const show = {
-          id: watchStatusSeason.showId,
-          airDate: watchStatusSeason.showAirDate,
-          inProduction: watchStatusSeason.showInProduction,
-          seasons: showSeasons.map((s) => transformWatchStatusSeason(s, [])),
-          watchStatus: watchStatusSeason.showWatchStatus,
-        };
+    const show = {
+      id: seasonRow.showId,
+      airDate: seasonRow.showAirDate,
+      inProduction: seasonRow.showInProduction,
+      seasons: showSeasons.map((s) => transformWatchStatusSeason(s, [])),
+      watchStatus: seasonRow.showWatchStatus,
+    };
 
-        const newShowStatus = this.statusManager.calculateShowStatus(show);
+    const newShowStatus = this.statusManager.calculateShowStatus(show);
 
-        if (watchStatusSeason.showWatchStatus !== newShowStatus) {
-          const updateShowQuery = `
-            INSERT INTO show_watch_status (profile_id, show_id, status) 
-            VALUES (?, ?, ?) 
-            ON DUPLICATE KEY UPDATE
-              status = VALUES(status),
-              updated_at = CURRENT_TIMESTAMP;
-          `;
-
-          const [showResult] = await connection.execute<ResultSetHeader>(updateShowQuery, [
-            profileId,
-            watchStatusSeason.showId,
-            newShowStatus,
-          ]);
-
-          totalAffectedRows += showResult.affectedRows;
-
-          changes.push({
-            entityType: 'show',
-            entityId: watchStatusSeason.showId,
-            from: watchStatusSeason.showWatchStatus,
-            to: newShowStatus,
-            timestamp: new Date(),
-            reason: `Season ${seasonId} status changed`,
-          });
-        }
-
-        return { success: true, changes, affectedRows: totalAffectedRows };
+    if (seasonRow.showWatchStatus !== newShowStatus) {
+      await this.updateEntityStatus(context, {
+        table: 'show_watch_status',
+        entityColumn: 'show_id',
+        entityId: seasonRow.showId,
+        status: newShowStatus,
       });
-    } catch (error) {
-      handleDatabaseError(error, 'updating season watch status with propagation');
+
+      this.recordStatusChange(
+        context,
+        'show',
+        seasonRow.showId,
+        seasonRow.showWatchStatus,
+        newShowStatus,
+        `Season ${seasonId} status changed`,
+      );
     }
   }
 
@@ -447,297 +486,228 @@ export class WatchStatusDbService {
    * Update show watch status and propagate to all seasons and episodes
    */
   async updateShowWatchStatus(profileId: number, showId: number, status: UserWatchStatus): Promise<StatusUpdateResult> {
-    try {
-      return await this.transactionHelper.executeInTransaction(async (connection) => {
-        const changes: StatusChange[] = [];
-        let totalAffectedRows = 0;
-        const now = new Date();
+    return this.executeStatusUpdate('updating show watch status with propagation', async (context) => {
+      context.profileId = profileId;
 
-        // Get current show status
-        const showQuery = `
-          SELECT 
-            sh.id, sh.release_date, sh.in_production,
-            COALESCE(shws.status, 'NOT_WATCHED') as status
-          FROM shows sh
-          LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
-          WHERE sh.id = ?
-        `;
+      // Get current show status
+      const showQuery = `
+        SELECT 
+          sh.id, sh.release_date, sh.in_production,
+          COALESCE(shws.status, 'NOT_WATCHED') as status
+        FROM shows sh
+        LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
+        WHERE sh.id = ?
+      `;
 
-        const [showRows] = await connection.execute<WatchStatusShowRow[]>(showQuery, [profileId, showId]);
+      const [showRows] = await context.connection.execute<WatchStatusShowRow[]>(showQuery, [profileId, showId]);
 
-        if (showRows.length === 0) {
-          throw new NotFoundError(`Show ${showId} not found`);
-        }
+      if (showRows.length === 0) {
+        throw new NotFoundError(`Show ${showId} not found`);
+      }
 
-        //Update all episodes of the show
-        const episodeInsertQuery = `
-          INSERT INTO episode_watch_status (profile_id, episode_id, status)
-          SELECT 
-            ?,
-            e.id,
-            CASE
-              WHEN e.air_date IS NULL OR DATE(e.air_date) <= ? THEN ?
-              ELSE 'UNAIRED'
-            END 
-          FROM episodes e
-          WHERE e.show_id = ?
-          ON DUPLICATE KEY UPDATE
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP;
-          `;
+      await this.updateShowAndAllChildren(context, showRows[0], showId, status);
 
-        const [episodesResult] = await connection.execute<ResultSetHeader>(episodeInsertQuery, [
-          profileId,
-          now,
-          status,
-          showId,
-        ]);
+      return this.createSuccessResult(context);
+    });
+  }
 
-        totalAffectedRows += episodesResult.affectedRows;
+  /**
+   * Helper method to update show and all its children (seasons and episodes)
+   */
+  private async updateShowAndAllChildren(
+    context: StatusUpdateContext,
+    showRow: WatchStatusShowRow,
+    showId: number,
+    status: UserWatchStatus,
+  ): Promise<void> {
+    // Update all episodes in the show
+    const episodeUpdateQuery = `
+      INSERT INTO episode_watch_status (profile_id, episode_id, status)
+      SELECT 
+        ?, 
+        e.id, 
+        CASE 
+          WHEN e.air_date IS NULL OR DATE(e.air_date) <= ? THEN ?
+          ELSE 'UNAIRED'
+        END
+      FROM episodes e
+      JOIN seasons s ON e.season_id = s.id
+      WHERE s.show_id = ?
+      ON DUPLICATE KEY UPDATE 
+        status = VALUES(status),
+        updated_at = CURRENT_TIMESTAMP
+    `;
 
-        const episodeStatusQuery = `
-          SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
-          FROM episodes e
-          LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
-          WHERE e.season_id = ?
-          `;
+    const [episodeResult] = await context.connection.execute<ResultSetHeader>(episodeUpdateQuery, [
+      context.profileId,
+      context.timestamp,
+      status,
+      showId,
+    ]);
+    context.totalAffectedRows += episodeResult.affectedRows;
 
-        const seasonStatusQuery = `
-            SELECT s.id, s.release_date, s.show_id, COALESCE(sws.status, 'NOT_WATCHED') as status
-            FROM seasons s
-            LEFT JOIN season_watch_status sws on s.id = sws.season_id AND sws.profile_id = ?
-            where s.show_id = ?
-          `;
+    // Update all seasons in the show
+    const seasonUpdateQuery = `
+      INSERT INTO season_watch_status (profile_id, season_id, status)
+      SELECT ?, s.id, ?
+      FROM seasons s
+      WHERE s.show_id = ?
+      ON DUPLICATE KEY UPDATE 
+        status = VALUES(status),
+        updated_at = CURRENT_TIMESTAMP
+    `;
 
-        const [seasonRows] = await connection.execute<WatchStatusSeasonRow[]>(seasonStatusQuery, []);
-        const showSeasons: WatchStatusSeason[] = [];
-        for (const seasonRow of seasonRows) {
-          const [episodeRows] = await connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
-            profileId,
-            seasonRow.id,
-          ]);
+    const [seasonResult] = await context.connection.execute<ResultSetHeader>(seasonUpdateQuery, [
+      context.profileId,
+      status,
+      showId,
+    ]);
+    context.totalAffectedRows += seasonResult.affectedRows;
 
-          const episodes = episodeRows.map(transformWatchStatusEpisode);
-          const season = transformWatchStatusSeason(seasonRow, episodes);
-          showSeasons.push(season);
-          const newSeasonStatus = this.statusManager.calculateSeasonStatus(season);
+    // Update the show itself
+    await this.updateEntityStatus(context, {
+      table: 'show_watch_status',
+      entityColumn: 'show_id',
+      entityId: showId,
+      status,
+    });
 
-          if (season.watchStatus === newSeasonStatus) {
-            continue;
-          }
-
-          const updateSeasonQuery = `
-            INSERT INTO season_watch_status (profile_id, season_id, status) 
-            VALUES (?, ?, ?) 
-            ON DUPLICATE KEY UPDATE
-              status = VALUES(status),
-              updated_at = CURRENT_TIMESTAMP;
-          `;
-
-          const [seasonResult] = await connection.execute<ResultSetHeader>(updateSeasonQuery, [
-            profileId,
-            seasonRow.id,
-            newSeasonStatus,
-          ]);
-
-          totalAffectedRows += seasonResult.affectedRows;
-
-          changes.push({
-            entityType: 'season',
-            entityId: showId,
-            from: season.watchStatus,
-            to: newSeasonStatus,
-            timestamp: new Date(),
-            reason: `Show manually set to ${status}`,
-          });
-        }
-
-        const watchStatusShow = transformWatchStatusShow(showRows[0], showSeasons);
-        const newShowStatus = this.statusManager.calculateShowStatus(watchStatusShow);
-
-        // Update show status
-        if (watchStatusShow.watchStatus !== newShowStatus) {
-          const updateShowQuery = `
-          INSERT INTO show_watch_status (profile_id, show_id, status) 
-          VALUES (?, ?, ?) 
-          ON DUPLICATE KEY UPDATE
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP;
-        `;
-
-          const [showResult] = await connection.execute<ResultSetHeader>(updateShowQuery, [
-            profileId,
-            showId,
-            newShowStatus,
-          ]);
-
-          totalAffectedRows += showResult.affectedRows;
-
-          // Record show status change
-          changes.push({
-            entityType: 'show',
-            entityId: showId,
-            from: watchStatusShow.watchStatus,
-            to: newShowStatus,
-            timestamp: new Date(),
-            reason: `Show manually set to ${status}`,
-          });
-        }
-
-        return { success: true, changes, affectedRows: totalAffectedRows };
-      });
-    } catch (error) {
-      handleDatabaseError(error, 'updating show watch status with propagation');
-    }
+    // Record show status change
+    this.recordStatusChange(context, 'show', showId, showRow.status, status, `Show manually set to ${status}`);
   }
 
   /**
    * Check for content updates and update show, season and episode watch statuses as necessary
    */
   async checkAndUpdateShowWatchStatus(profileId: number, showId: number): Promise<StatusUpdateResult> {
-    try {
-      return await this.transactionHelper.executeInTransaction(async (connection) => {
-        const changes: StatusChange[] = [];
-        let totalAffectedRows = 0;
-        const now = new Date();
+    return this.executeStatusUpdate('checking and updating show watch status', async (context) => {
+      context.profileId = profileId;
 
-        // Get current show status
-        const showQuery = `
-          SELECT 
-            sh.id, sh.release_date, sh.in_production,
-            COALESCE(shws.status, 'NOT_WATCHED') as status
-          FROM shows sh
-          LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
-          WHERE sh.id = ?
-        `;
+      // Get current show status
+      const showQuery = `
+        SELECT 
+          sh.id, sh.release_date, sh.in_production,
+          COALESCE(shws.status, 'NOT_WATCHED') as status
+        FROM shows sh
+        LEFT JOIN show_watch_status shws ON sh.id = shws.show_id AND shws.profile_id = ?
+        WHERE sh.id = ?
+      `;
 
-        const [showRows] = await connection.execute<WatchStatusShowRow[]>(showQuery, [profileId, showId]);
+      const [showRows] = await context.connection.execute<WatchStatusShowRow[]>(showQuery, [profileId, showId]);
 
-        if (showRows.length === 0) {
-          throw new NotFoundError(`Show ${showId} not found`);
-        }
+      if (showRows.length === 0) {
+        throw new NotFoundError(`Show ${showId} not found`);
+      }
 
-        //Attempt to update any previously UNAIRED episodes to NOT_WATCHED if they've aired
-        const episodeInsertQuery = `
-          INSERT INTO episode_watch_status (profile_id, episode_id, status)
-          SELECT ?, e.id, 'NOT_WATCHED'
-          FROM episodes e
-          LEFT JOIN episode_watch_status ews
-            ON e.id = ews.episode_id AND ews.profile_id = ?
-          WHERE e.show_id = ?
-            AND DATE(e.air_date) <= ?
-            AND (ews.status = 'UNAIRED' OR ews.episode_id IS NULL)
-          ON DUPLICATE KEY UPDATE
-            status = 'NOT_WATCHED',
-            updated_at = CURRENT_TIMESTAMP;
-          `;
+      // Update any previously UNAIRED episodes to NOT_WATCHED if they've aired
+      const episodeUpdateQuery = `
+        INSERT INTO episode_watch_status (profile_id, episode_id, status)
+        SELECT ?, e.id, 'NOT_WATCHED'
+        FROM episodes e
+        LEFT JOIN episode_watch_status ews
+          ON e.id = ews.episode_id AND ews.profile_id = ?
+        WHERE e.show_id = ?
+          AND DATE(e.air_date) <= ?
+          AND (ews.status = 'UNAIRED' OR ews.episode_id IS NULL)
+        ON DUPLICATE KEY UPDATE
+          status = 'NOT_WATCHED',
+          updated_at = CURRENT_TIMESTAMP;
+      `;
 
-        const [episodesResult] = await connection.execute<ResultSetHeader>(episodeInsertQuery, [
+      const [episodesResult] = await context.connection.execute<ResultSetHeader>(episodeUpdateQuery, [
+        profileId,
+        profileId,
+        showId,
+        context.timestamp,
+      ]);
+
+      // If no episodes changed, the show status remains the same
+      if (episodesResult.affectedRows <= 0) {
+        return this.createSuccessResult(context);
+      }
+
+      context.totalAffectedRows += episodesResult.affectedRows;
+
+      // Get all seasons for the show and recalculate their statuses
+      const seasonStatusQuery = `
+        SELECT s.id, s.release_date, s.show_id, COALESCE(sws.status, 'NOT_WATCHED') as status
+        FROM seasons s
+        LEFT JOIN season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
+        WHERE s.show_id = ?
+      `;
+
+      const [seasonRows] = await context.connection.execute<WatchStatusSeasonRow[]>(seasonStatusQuery, [
+        profileId,
+        showId,
+      ]);
+
+      const episodeStatusQuery = `
+        SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
+        FROM episodes e
+        LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+        WHERE e.season_id = ?
+      `;
+
+      const showSeasons: WatchStatusSeason[] = [];
+
+      // Process each season to check if its status needs updating
+      for (const seasonRow of seasonRows) {
+        const [episodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
           profileId,
-          profileId,
-          showId,
-          now,
+          seasonRow.id,
         ]);
 
-        // If no episodes changed than than the show status remains the same
-        if (episodesResult.affectedRows <= 0) {
-          return { success: true, changes: changes, affectedRows: 0 };
-        }
+        const episodes = episodeRows.map(transformWatchStatusEpisode);
+        const season = transformWatchStatusSeason(seasonRow, episodes);
+        showSeasons.push(season);
 
-        totalAffectedRows += episodesResult.affectedRows;
+        const newSeasonStatus = this.statusManager.calculateSeasonStatus(season);
 
-        const episodeStatusQuery = `
-          SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
-          FROM episodes e
-          LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
-          WHERE e.season_id = ?
-          `;
+        // Update season status if it has changed
+        if (season.watchStatus !== newSeasonStatus) {
+          await this.updateEntityStatus(context, {
+            table: 'season_watch_status',
+            entityColumn: 'season_id',
+            entityId: seasonRow.id,
+            status: newSeasonStatus,
+          });
 
-        const seasonStatusQuery = `
-            SELECT s.id, s.release_date, s.show_id, COALESCE(sws.status, 'NOT_WATCHED') as status
-            FROM seasons s
-            LEFT JOIN season_watch_status sws on s.id = sws.season_id AND sws.profile_id = ?
-            where s.show_id = ?
-          `;
-        const [seasonRows] = await connection.execute<WatchStatusSeasonRow[]>(seasonStatusQuery, []);
-        const showSeasons: WatchStatusSeason[] = [];
-        for (const seasonRow of seasonRows) {
-          const [episodeRows] = await connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
-            profileId,
+          this.recordStatusChange(
+            context,
+            'season',
             seasonRow.id,
-          ]);
-
-          const episodes = episodeRows.map(transformWatchStatusEpisode);
-          const season = transformWatchStatusSeason(seasonRow, episodes);
-          showSeasons.push(season);
-          const newSeasonStatus = this.statusManager.calculateSeasonStatus(season);
-
-          if (season.watchStatus === newSeasonStatus) {
-            continue;
-          }
-
-          const updateSeasonQuery = `
-            INSERT INTO season_watch_status (profile_id, season_id, status) 
-            VALUES (?, ?, ?) 
-            ON DUPLICATE KEY UPDATE
-              status = VALUES(status),
-              updated_at = CURRENT_TIMESTAMP;
-          `;
-
-          const [seasonResult] = await connection.execute<ResultSetHeader>(updateSeasonQuery, [
-            profileId,
-            seasonRow.id,
+            season.watchStatus,
             newSeasonStatus,
-          ]);
-
-          totalAffectedRows += seasonResult.affectedRows;
-
-          changes.push({
-            entityType: 'season',
-            entityId: showId,
-            from: season.watchStatus,
-            to: newSeasonStatus,
-            timestamp: new Date(),
-            reason: `Show manually set to ${status}`,
-          });
+            'Content updates detected',
+          );
         }
+      }
 
-        const watchStatusShow = transformWatchStatusShow(showRows[0], showSeasons);
-        const newShowStatus = this.statusManager.calculateShowStatus(watchStatusShow);
+      // Calculate and update show status if needed
+      const watchStatusShow = transformWatchStatusShow(showRows[0], showSeasons);
+      const newShowStatus = this.statusManager.calculateShowStatus(watchStatusShow);
 
-        // Update show status
-        if (watchStatusShow.watchStatus !== newShowStatus) {
-          const updateShowQuery = `
-          INSERT INTO show_watch_status (profile_id, show_id, status) 
-          VALUES (?, ?, ?) 
-          ON DUPLICATE KEY UPDATE
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP;
-        `;
+      if (watchStatusShow.watchStatus !== newShowStatus) {
+        await this.updateEntityStatus(context, {
+          table: 'show_watch_status',
+          entityColumn: 'show_id',
+          entityId: showId,
+          status: newShowStatus,
+        });
 
-          const [showResult] = await connection.execute<ResultSetHeader>(updateShowQuery, [
-            profileId,
-            showId,
-            newShowStatus,
-          ]);
+        this.recordStatusChange(
+          context,
+          'show',
+          showId,
+          watchStatusShow.watchStatus,
+          newShowStatus,
+          'Content updates detected',
+        );
+      }
 
-          totalAffectedRows += showResult.affectedRows;
+      return this.createSuccessResult(context);
 
-          // Record show status change
-          changes.push({
-            entityType: 'show',
-            entityId: showId,
-            from: watchStatusShow.watchStatus,
-            to: newShowStatus,
-            timestamp: new Date(),
-            reason: `Show manually set to ${status}`,
-          });
-        }
-
-        return { success: true, changes, affectedRows: totalAffectedRows };
-      });
-    } catch (error) {
-      handleDatabaseError(error, 'updating show watch status with propagation');
-    }
+      return this.createSuccessResult(context);
+    });
   }
 }
