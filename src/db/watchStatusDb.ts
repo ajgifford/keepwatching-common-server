@@ -497,7 +497,6 @@ export class WatchStatusDbService {
 
     const newShowStatus = this.statusManager.calculateShowStatus(show);
 
-    console.log('Updating show status', seasonRow, newShowStatus);
     if (seasonRow.show_status !== newShowStatus) {
       await this.updateEntityStatus(context, {
         table: 'show_watch_status',
