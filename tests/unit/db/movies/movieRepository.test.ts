@@ -534,6 +534,70 @@ describe('movieRepository', () => {
     });
   });
 
+  describe('getMovieDetailsForProfile', () => {
+    it('should return a specific movie for a profile', async () => {
+      const profileMovie = {
+        profile_id: 123,
+        movie_id: 456,
+        tmdb_id: 12345,
+        title: 'Test Movie',
+        description: 'A test movie description',
+        release_date: '2025-01-01',
+        poster_image: '/poster.jpg',
+        backdrop_image: '/backdrop.jpg',
+        runtime: 120,
+        user_rating: 8.5,
+        mpa_rating: 'PG-13',
+        watch_status: 'WATCHED',
+        genres: 'Action, Adventure',
+        streaming_services: 'Netflix, Disney+',
+        director: 'Director 1',
+        production_companies: 'Prod Company A, Prod Company B',
+        budget: 12345600,
+        revenue: 23456700,
+      };
+      const expectedMovie = {
+        profileId: 123,
+        id: 456,
+        tmdbId: 12345,
+        title: 'Test Movie',
+        description: 'A test movie description',
+        releaseDate: '2025-01-01',
+        posterImage: '/poster.jpg',
+        backdropImage: '/backdrop.jpg',
+        runtime: 120,
+        userRating: 8.5,
+        mpaRating: 'PG-13',
+        watchStatus: 'WATCHED',
+        genres: 'Action, Adventure',
+        streamingServices: 'Netflix, Disney+',
+        director: 'Director 1',
+        productionCompanies: 'Prod Company A, Prod Company B',
+        budget: 12345600,
+        revenue: 23456700,
+      };
+
+      mockPool.execute.mockResolvedValue([[profileMovie]]);
+
+      const result = await moviesDb.getMovieDetailsForProfile(123, 456);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM profile_movies_details where profile_id = ? AND movie_id = ?',
+        [123, 456],
+      );
+      expect(result).toEqual(expectedMovie);
+    });
+
+    it('should throw DatabaseError when fetch fails', async () => {
+      const dbError = new Error('Database connection failed');
+      mockPool.execute.mockRejectedValue(dbError);
+
+      await expect(moviesDb.getMovieDetailsForProfile(123, 456)).rejects.toThrow(
+        'Database error getting a movie with details for a profile',
+      );
+    });
+  });
+
   describe('getRecentMovieReleasesForProfile', () => {
     it('should return recent movie releases for a profile', async () => {
       const recentMovies = [{ id: 1 }, { id: 2 }];
