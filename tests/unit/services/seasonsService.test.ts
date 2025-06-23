@@ -3,10 +3,12 @@ import * as seasonsDb from '@db/seasonsDb';
 import { appLogger } from '@logger/logger';
 import { errorService } from '@services/errorService';
 import { seasonsService } from '@services/seasonsService';
+import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
 
 jest.mock('@db/seasonsDb');
 jest.mock('@services/errorService');
+jest.mock('@services/showService');
 jest.mock('@services/watchStatusService');
 
 jest.mock('@logger/logger', () => ({
@@ -27,6 +29,9 @@ describe('seasonsService', () => {
 
   describe('updateSeasonWatchStatus', () => {
     it('should update season watch status', async () => {
+      const mockNextUnwatchedEpisodes = [{ show_id: 1, episodes: [{ episode_id: 789 }] }];
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+
       (watchStatusService.updateSeasonWatchStatus as jest.Mock).mockResolvedValue({
         success: true,
         message: 'Season test message',
@@ -34,7 +39,7 @@ describe('seasonsService', () => {
         changes: [{}, {}],
       });
 
-      await seasonsService.updateSeasonWatchStatus(accountId, profileId, seasonId, WatchStatus.WATCHED);
+      const result = await seasonsService.updateSeasonWatchStatus(accountId, profileId, seasonId, WatchStatus.WATCHED);
 
       expect(watchStatusService.updateSeasonWatchStatus).toHaveBeenCalledWith(
         accountId,
@@ -42,6 +47,7 @@ describe('seasonsService', () => {
         seasonId,
         WatchStatus.WATCHED,
       );
+      expect(result.nextUnwatchedEpisodes).toEqual(mockNextUnwatchedEpisodes);
       expect(appLogger.info).toHaveBeenCalledWith(`Season ${seasonId} update: Season test message`);
       expect(appLogger.info).toHaveBeenCalledWith(`Affected entities: 2`);
     });

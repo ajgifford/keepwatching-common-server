@@ -39,6 +39,7 @@ import {
   ShowStatisticsResponse,
   SimilarOrRecommendedShow,
   UpdateShowRequest,
+  UpdateWatchStatusData,
   UserWatchStatus,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
@@ -124,9 +125,12 @@ export class ShowService {
     accountId: number,
     profileId: number,
     showId: number,
+    checkWatchStatus: boolean = true,
   ): Promise<ProfileShowWithSeasons> {
     try {
-      watchStatusService.checkAndUpdateShowStatus(accountId, profileId, showId);
+      if (checkWatchStatus) {
+        watchStatusService.checkAndUpdateShowStatus(accountId, profileId, showId);
+      }
       const show = await this.cache.getOrSet(
         SHOW_KEYS.detailsForProfile(profileId, showId),
         () => showsDb.getShowWithSeasonsForProfile(profileId, showId),
@@ -136,7 +140,42 @@ export class ShowService {
       errorService.assertExists(show, 'Show', showId);
       return show;
     } catch (error) {
-      throw errorService.handleError(error, `getShowDetailsForProfile(${accountId}, ${profileId}, ${showId})`);
+      throw errorService.handleError(
+        error,
+        `getShowDetailsForProfile(${accountId}, ${profileId}, ${showId}, ${checkWatchStatus})`,
+      );
+    }
+  }
+
+  /**
+   * Retrieves a show and all its details for a specific profile using a child (episode, season) of the show
+   *
+   * @param accountId - ID of the account to get the show for
+   * @param profileId - ID of the profile to get the show for
+   * @param childId - ID of the show's child content to retrieve the show for
+   * @returns Detailed show information
+   * @throws {NotFoundError} If the show isn't found
+   */
+  public async getShowDetailsForProfileByChild(
+    accountId: number,
+    profileId: number,
+    childId: number,
+    childEntity: 'episodes' | 'seasons',
+  ): Promise<ProfileShowWithSeasons> {
+    try {
+      const show = await this.cache.getOrSet(
+        SHOW_KEYS.detailsForProfileByChild(profileId, childId, childEntity),
+        () => showsDb.getShowWithSeasonsForProfileByChild(profileId, childId, childEntity),
+        600,
+      );
+
+      errorService.assertExists(show, 'Show', childId);
+      return show;
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `getShowDetailsForProfileByChild(${accountId}, ${profileId}, ${childId}, ${childEntity})`,
+      );
     }
   }
 
@@ -401,14 +440,14 @@ export class ShowService {
    * @param profileId - ID of the profile to update the watch status for
    * @param showId - ID of the show to update
    * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
-   * @returns Success state of the update operation
+   * @returns The updated show details and the next unwatched episodes
    */
   public async updateShowWatchStatus(
     accountId: number,
     profileId: number,
     showId: number,
     status: UserWatchStatus,
-  ): Promise<KeepWatchingShow[]> {
+  ): Promise<UpdateWatchStatusData> {
     try {
       const result = await watchStatusService.updateShowWatchStatus(accountId, profileId, showId, status);
 
@@ -417,7 +456,9 @@ export class ShowService {
 
       this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
 
-      return this.getNextUnwatchedEpisodesForProfile(profileId);
+      const show = await this.getShowDetailsForProfile(accountId, profileId, showId, false);
+      const nextUnwatchedEpisodes = await this.getNextUnwatchedEpisodesForProfile(profileId);
+      return { show, nextUnwatchedEpisodes };
     } catch (error) {
       throw errorService.handleError(error, `updateShowWatchStatus(${accountId}, ${profileId}, ${showId}, ${status})`);
     }

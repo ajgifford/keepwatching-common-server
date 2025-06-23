@@ -83,6 +83,13 @@ export const SHOW_KEYS = {
   detailsForProfile: (profileId: number | string, showId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_show_details_${showId}`,
 
+  /** Gets the cache key for detailed show information for a profile by child */
+  detailsForProfileByChild: (
+    profileId: number | string,
+    childId: number | string,
+    childEntity: 'episodes' | 'seasons',
+  ) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_show_details_${childEntity}_${childId}`,
+
   /** Gets the cache key for show recommendations */
   recommendations: (showId: number | string) => `${CACHE_KEY_PATTERNS.RECOMMENDATIONS}_show_${showId}`,
 

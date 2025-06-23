@@ -4,11 +4,11 @@ import { errorService } from './errorService';
 import { showService } from './showService';
 import { watchStatusService } from './watchStatusService';
 import {
-  KeepWatchingShow,
   ProfileEpisode,
   RecentUpcomingEpisode,
   SimpleWatchStatus,
   UpdateEpisodeRequest,
+  UpdateWatchStatusData,
   UserWatchStatus,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
@@ -23,7 +23,7 @@ export class EpisodesService {
    * @param profileId - ID of the profile to update the watch status for
    * @param episodeId - ID of the episode to update
    * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
-   * @returns Object containing next unwatched episodes after the update
+   * @returns The updated show details (to which the episode belongs) and the next unwatched episodes
    * @throws {BadRequestError} If no episode watch status was updated
    */
   public async updateEpisodeWatchStatus(
@@ -31,15 +31,16 @@ export class EpisodesService {
     profileId: number,
     episodeId: number,
     status: UserWatchStatus,
-  ): Promise<KeepWatchingShow[]> {
+  ): Promise<UpdateWatchStatusData> {
     try {
       const result = await watchStatusService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
       appLogger.info(`Episode ${episodeId} update: ${result.message}`);
       appLogger.info(`Affected entities: ${result.changes.length}`);
 
-      // Get fresh data for next unwatched episodes
-      return await showService.getNextUnwatchedEpisodesForProfile(profileId);
+      const show = await showService.getShowDetailsForProfileByChild(accountId, profileId, episodeId, 'episodes');
+      const nextUnwatchedEpisodes = await showService.getNextUnwatchedEpisodesForProfile(profileId);
+      return { show, nextUnwatchedEpisodes };
     } catch (error) {
       throw errorService.handleError(
         error,

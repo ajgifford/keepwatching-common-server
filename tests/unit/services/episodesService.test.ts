@@ -47,7 +47,7 @@ describe('episodesService', () => {
       const result = await episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
       expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
-      expect(result).toEqual(mockNextUnwatchedEpisodes);
+      expect(result.nextUnwatchedEpisodes).toEqual(mockNextUnwatchedEpisodes);
 
       expect(appLogger.info).toHaveBeenCalledWith(`Episode ${episodeId} update: Episode test message`);
       expect(appLogger.info).toHaveBeenCalledWith(`Affected entities: 2`);

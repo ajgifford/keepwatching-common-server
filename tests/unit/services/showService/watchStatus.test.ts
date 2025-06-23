@@ -39,7 +39,7 @@ describe('ShowService - Watch Status', () => {
       const result = await service.updateShowWatchStatus(accountId, profileId, showId, status);
 
       expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_show_details_1');
-      expect(result).toEqual(mockNextUnwatchedEpisodes);
+      expect(result.nextUnwatchedEpisodes).toEqual(mockNextUnwatchedEpisodes);
 
       expect(appLogger.info).toHaveBeenCalledWith(`Show ${showId} update: Show test message`);
       expect(appLogger.info).toHaveBeenCalledWith(`Affected entities: 2`);
