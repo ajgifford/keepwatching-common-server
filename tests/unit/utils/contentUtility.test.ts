@@ -1,4 +1,5 @@
 import {
+  getDirectors,
   getEpisodeToAirId,
   getInProduction,
   getStreamingPremieredDate,
@@ -6,10 +7,12 @@ import {
   getTMDBPremieredDate,
   getUSMPARating,
   getUSNetwork,
+  getUSProductionCompanies,
   getUSRating,
   isFutureSeason,
   stripPrefix,
 } from '@utils/contentUtility';
+import { TMDBMovie } from 'dist/types/tmdbTypes';
 import { Show, ShowType } from 'streaming-availability';
 
 describe('contentUtility', () => {
@@ -203,6 +206,173 @@ describe('contentUtility', () => {
       };
 
       expect(getUSMPARating(releaseDates)).toBe('Unknown');
+    });
+  });
+
+  describe('getDirectors', () => {
+    it('should return the director when present', () => {
+      const movie = {
+        credits: {
+          crew: [
+            {
+              id: 1,
+              department: 'Movie',
+              job: 'Director',
+              name: 'John Smith',
+              credit_id: '',
+              gender: 1,
+              profile_path: 'image.png',
+            },
+          ],
+        },
+      } as TMDBMovie;
+
+      expect(getDirectors(movie)).toBe('John Smith');
+    });
+
+    it('should return multiple directors when present', () => {
+      const movie = {
+        credits: {
+          crew: [
+            {
+              id: 1,
+              department: 'Movie',
+              job: 'Director',
+              name: 'John Smith',
+              credit_id: '',
+              gender: 1,
+              profile_path: 'image.png',
+            },
+            {
+              id: 2,
+              department: 'Movie',
+              job: 'Director',
+              name: 'John Doe',
+              credit_id: '',
+              gender: 1,
+              profile_path: 'image.png',
+            },
+          ],
+        },
+      } as TMDBMovie;
+
+      expect(getDirectors(movie)).toBe('John Smith, John Doe');
+    });
+
+    it('should return default "unknown" when no director is present', () => {
+      const movie = {
+        credits: {
+          crew: [
+            {
+              id: 1,
+              department: 'Movie',
+              job: 'Camera Operator',
+              name: 'Tyson Jones',
+              credit_id: '',
+              gender: 1,
+              profile_path: 'image.png',
+            },
+          ],
+        },
+      } as TMDBMovie;
+
+      expect(getDirectors(movie)).toBe('Unknown');
+    });
+  });
+
+  describe('getUSProductionCompanies', () => {
+    it('should return the US production company when present', () => {
+      const productionCompanies = [
+        {
+          id: 1,
+          logo_path: '',
+          name: 'MGM',
+          origin_country: 'US',
+        },
+        {
+          id: 2,
+          logo_path: '',
+          name: 'MGM Global',
+          origin_country: 'FR',
+        },
+      ];
+
+      expect(getUSProductionCompanies(productionCompanies)).toBe('MGM');
+    });
+
+    it('should return multiple production companies when present', () => {
+      const productionCompanies = [
+        {
+          id: 1,
+          logo_path: '',
+          name: 'MGM',
+          origin_country: 'US',
+        },
+        {
+          id: 2,
+          logo_path: '',
+          name: 'MGM Global',
+          origin_country: 'FR',
+        },
+        {
+          id: 3,
+          logo_path: '',
+          name: 'Blue Sky',
+          origin_country: 'US',
+        },
+      ];
+
+      expect(getUSProductionCompanies(productionCompanies)).toBe('MGM, Blue Sky');
+    });
+
+    it('should return the first three production companies when multiple are present', () => {
+      const productionCompanies = [
+        {
+          id: 1,
+          logo_path: '',
+          name: 'MGM',
+          origin_country: 'US',
+        },
+        {
+          id: 2,
+          logo_path: '',
+          name: 'MGM Global',
+          origin_country: 'US',
+        },
+        {
+          id: 3,
+          logo_path: '',
+          name: 'Blue Sky',
+          origin_country: 'US',
+        },
+        {
+          id: 4,
+          logo_path: '',
+          name: 'Red Sky',
+          origin_country: 'US',
+        },
+        {
+          id: 5,
+          logo_path: '',
+          name: 'Purple Sky',
+          origin_country: 'US',
+        },
+      ];
+
+      expect(getUSProductionCompanies(productionCompanies)).toBe('MGM, MGM Global, Blue Sky');
+    });
+
+    it('should return default "unknown" when no US production company is present', () => {
+      const productionCompanies = [
+        {
+          id: 2,
+          logo_path: '',
+          name: 'MGM Global',
+          origin_country: 'FR',
+        },
+      ];
+
+      expect(getUSProductionCompanies(productionCompanies)).toBe('Unknown');
     });
   });
 
