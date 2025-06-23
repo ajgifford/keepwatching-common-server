@@ -1,7 +1,7 @@
 import * as episodesDb from '../db/episodesDb';
-import * as showsDb from '../db/showsDb';
 import { appLogger } from '../logger/logger';
 import { errorService } from './errorService';
+import { showService } from './showService';
 import { watchStatusService } from './watchStatusService';
 import {
   KeepWatchingShow,
@@ -39,7 +39,7 @@ export class EpisodesService {
       appLogger.info(`Affected entities: ${result.changes.length}`);
 
       // Get fresh data for next unwatched episodes
-      return await showsDb.getNextUnwatchedEpisodesForProfile(profileId);
+      return await showService.getNextUnwatchedEpisodesForProfile(profileId);
     } catch (error) {
       throw errorService.handleError(
         error,

@@ -1,9 +1,9 @@
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodesDb from '@db/episodesDb';
-import * as showsDb from '@db/showsDb';
 import { appLogger } from '@logger/logger';
 import { episodesService } from '@services/episodesService';
 import { errorService } from '@services/errorService';
+import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
 
 jest.mock('@db/episodesDb');
@@ -42,11 +42,11 @@ describe('episodesService', () => {
         changes: [{}, {}],
       });
 
-      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
 
       const result = await episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
-      expect(showsDb.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
+      expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
       expect(result).toEqual(mockNextUnwatchedEpisodes);
 
       expect(appLogger.info).toHaveBeenCalledWith(`Episode ${episodeId} update: Episode test message`);
