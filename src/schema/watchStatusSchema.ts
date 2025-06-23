@@ -14,15 +14,6 @@ export const watchStatusSchema = z.enum(
 );
 
 /**
- * Schema specifically for Movies and Episodes which can only be UNAIRED, NOT_WATCHED or WATCHED
- */
-export const simpleWatchStatusSchema = z.enum([WatchStatus.UNAIRED, WatchStatus.NOT_WATCHED, WatchStatus.WATCHED], {
-  errorMap: () => ({
-    message: 'Status must be one of UNAIRED, NOT_WATCHED or WATCHED',
-  }),
-});
-
-/**
  * Schema specifically for user based actions that change the watch statuses of content, which can only be NOT_WATCHED or WATCHED
  */
 export const userWatchStatusSchema = z.enum([WatchStatus.NOT_WATCHED, WatchStatus.WATCHED], {

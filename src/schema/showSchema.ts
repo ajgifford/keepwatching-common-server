@@ -1,5 +1,5 @@
 import { createPositiveIntegerSchema } from './schemaUtil';
-import { watchStatusSchema } from './watchStatusSchema';
+import { userWatchStatusSchema } from './watchStatusSchema';
 import { z } from 'zod';
 
 export const addShowFavoriteBodySchema = z.object({
@@ -14,8 +14,7 @@ export const showParamsSchema = z.object({
 
 export const showWatchStatusBodySchema = z.object({
   showId: z.number().int().positive('Show ID must be a positive integer'),
-  status: watchStatusSchema,
-  recursive: z.boolean().default(false).optional(),
+  status: userWatchStatusSchema,
 });
 
 export type ShowWatchStatusBody = z.infer<typeof showWatchStatusBodySchema>;
