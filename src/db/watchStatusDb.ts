@@ -613,22 +613,24 @@ export class WatchStatusDbService {
       const season = transformWatchStatusSeason(seasonRow, episodes);
       const calculatedSeasonStatus = this.statusManager.calculateSeasonStatus(season);
 
-      // Update the season status
-      await this.updateEntityStatus(context, {
-        table: 'season_watch_status',
-        entityColumn: 'season_id',
-        entityId: seasonRow.id,
-        status: calculatedSeasonStatus,
-      });
+      if (season.watchStatus !== calculatedSeasonStatus) {
+        // Update the season status
+        await this.updateEntityStatus(context, {
+          table: 'season_watch_status',
+          entityColumn: 'season_id',
+          entityId: seasonRow.id,
+          status: calculatedSeasonStatus,
+        });
 
-      this.recordStatusChange(
-        context,
-        'season',
-        seasonRow.id,
-        seasonRow.status,
-        calculatedSeasonStatus,
-        `Show manually set to ${status}`,
-      );
+        this.recordStatusChange(
+          context,
+          'season',
+          seasonRow.id,
+          seasonRow.status,
+          calculatedSeasonStatus,
+          `Show manually set to ${status}`,
+        );
+      }
     }
 
     // Re-query to get the actual current season statuses after updates
@@ -714,11 +716,6 @@ export class WatchStatusDbService {
         context.timestamp,
       ]);
 
-      // If no episodes changed, the show status remains the same
-      if (episodesResult.affectedRows <= 0) {
-        return this.createSuccessResult(context);
-      }
-
       context.totalAffectedRows += episodesResult.affectedRows;
 
       // Get all seasons for the show and recalculate their statuses
@@ -797,8 +794,6 @@ export class WatchStatusDbService {
           'Content updates detected',
         );
       }
-
-      return this.createSuccessResult(context);
 
       return this.createSuccessResult(context);
     });
