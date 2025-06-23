@@ -12,6 +12,7 @@ import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import {
   KeepWatchingShow,
   ProfileEpisode,
+  ProfileSeason,
   ProfileShow,
   ProfileShowWithSeasons,
   ProfilesForShowResponse,
@@ -59,6 +60,31 @@ export async function getShowForProfile(profileId: number, showId: number): Prom
 }
 
 /**
+ * Gets a specific show for a profile with watch status information using a child (episode or season) of the show
+ *
+ * This function retrieves a single show from a profile's watchlist
+ * along with its watch status.
+ *
+ * @param profileId - ID of the profile
+ * @param childId - ID of the child content (episode or season) to retrieve the show for
+ * @returns Show with watch status information
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getShowForProfileByChild(
+  profileId: number,
+  childId: number,
+  childEntity: 'episodes' | 'seasons',
+): Promise<ProfileShow> {
+  try {
+    const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
+    const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
+    return transformProfileShow(shows[0]);
+  } catch (error) {
+    handleDatabaseError(error, 'getting a show for a profile by child');
+  }
+}
+
+/**
  * Retrieves a show with all its seasons and episodes for a specific profile
  *
  * This function fetches a show with all its associated metadata and watch status, along with
@@ -82,40 +108,81 @@ export async function getShowWithSeasonsForProfile(
     }
 
     const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
-    const seasonQuery = 'SELECT * FROM profile_seasons WHERE profile_id = ? AND show_id = ? ORDER BY season_number';
-    const [seasonRows] = await getDbPool().execute<ProfileSeasonRow[]>(seasonQuery, [profileId, showId]);
-
-    if (seasonRows.length > 0) {
-      const seasonIds = seasonRows.map((season) => season.season_id);
-      const placeholders = seasonIds.map(() => '?').join(',');
-
-      const episodeQuery = `
-            SELECT * FROM profile_episodes 
-            WHERE profile_id = ? AND season_id IN (${placeholders}) 
-            ORDER BY season_id, episode_number
-          `;
-
-      const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(episodeQuery, [profileId, ...seasonIds]);
-
-      const episodesBySeasonId: Record<number, ProfileEpisode[]> = {};
-      episodeRows.forEach((episode) => {
-        if (!episodesBySeasonId[episode.season_id]) {
-          episodesBySeasonId[episode.season_id] = [];
-        }
-        episodesBySeasonId[episode.season_id].push(transformProfileEpisode(episode));
-      });
-
-      show.seasons = seasonRows.map((season) =>
-        transformProfileSeason(season, episodesBySeasonId[season.season_id] || []),
-      );
-    } else {
-      show.seasons = [];
-    }
+    show.seasons = await getShowSeasons(profileId, showId);
 
     return show;
   } catch (error) {
     handleDatabaseError(error, 'getting a show and its seasons for a profile');
   }
+}
+
+/**
+ * Retrieves a show with all its seasons and episodes for a specific profile using a child (episode or season) of the show
+ *
+ * This function fetches a show with all its associated metadata and watch status, along with
+ * all seasons and their episodes. The resulting hierarchical structure provides a complete
+ * view of the show's content with watch status for the specified profile.
+ *
+ * @param profileId - ID of the profile to get the show for
+ * @param childId - ID of the child content (episode or season) to retrieve a show for
+ * @returns Complete show object with seasons and episodes or null if not found
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getShowWithSeasonsForProfileByChild(
+  profileId: number,
+  childId: number,
+  childEntity: 'episodes' | 'seasons',
+): Promise<ProfileShowWithSeasons | null> {
+  try {
+    const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
+    const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
+    show.seasons = await getShowSeasons(profileId, show.id);
+
+    return show;
+  } catch (error) {
+    handleDatabaseError(error, 'getting a show and its seasons for a profile by child');
+  }
+}
+
+/**
+ * Helper method to retrieve the seasons of a show
+ * @param profileId - ID of the profile to get the seasons for a show for
+ * @param showId - ID of the show to get seasons for
+ * @returns array of seasons for a show, empty if none found
+ */
+async function getShowSeasons(profileId: number, showId: number): Promise<ProfileSeason[]> {
+  const seasonQuery = 'SELECT * FROM profile_seasons WHERE profile_id = ? AND show_id = ? ORDER BY season_number';
+  const [seasonRows] = await getDbPool().execute<ProfileSeasonRow[]>(seasonQuery, [profileId, showId]);
+
+  if (seasonRows.length <= 0) {
+    return [];
+  }
+
+  const seasonIds = seasonRows.map((season) => season.season_id);
+  const placeholders = seasonIds.map(() => '?').join(',');
+
+  const episodeQuery = `
+            SELECT * FROM profile_episodes 
+            WHERE profile_id = ? AND season_id IN (${placeholders}) 
+            ORDER BY season_id, episode_number
+          `;
+
+  const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(episodeQuery, [profileId, ...seasonIds]);
+
+  const episodesBySeasonId: Record<number, ProfileEpisode[]> = {};
+  episodeRows.forEach((episode) => {
+    if (!episodesBySeasonId[episode.season_id]) {
+      episodesBySeasonId[episode.season_id] = [];
+    }
+    episodesBySeasonId[episode.season_id].push(transformProfileEpisode(episode));
+  });
+
+  return seasonRows.map((season) => transformProfileSeason(season, episodesBySeasonId[season.season_id] || []));
 }
 
 /**

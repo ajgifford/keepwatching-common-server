@@ -145,6 +145,56 @@ describe('profileShowRepository', () => {
     });
   });
 
+  describe('getShowForProfileByChild', () => {
+    const mockShow = {
+      show_id: 1,
+      title: 'Show 1',
+      watch_status: 'WATCHED',
+      last_episode_title: 'Last Episode',
+      last_episode_air_date: '2023-01-01',
+      last_episode_number: 10,
+      last_episode_season: 1,
+      next_episode_title: 'Next Episode',
+      next_episode_air_date: '2023-01-08',
+      next_episode_number: 11,
+      next_episode_season: 1,
+    };
+
+    it('should return a show for a profile by episode', async () => {
+      mockPool.execute.mockResolvedValueOnce([[mockShow]]);
+
+      const show = await showsDb.getShowForProfileByChild(123, 100, 'episodes');
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from episodes where id = ?)',
+        [123, 100],
+      );
+      expect(show.title).toBe('Show 1');
+    });
+
+    it('should return a show for a profile by season', async () => {
+      mockPool.execute.mockResolvedValueOnce([[mockShow]]);
+
+      const show = await showsDb.getShowForProfileByChild(123, 10, 'seasons');
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from seasons where id = ?)',
+        [123, 10],
+      );
+      expect(show.title).toBe('Show 1');
+    });
+
+    it('should throw error when show does not exist', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await expect(showsDb.getShowForProfileByChild(123, 999, 'episodes')).rejects.toThrow();
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from episodes where id = ?)',
+        [123, 999],
+      );
+    });
+  });
+
   describe('getShowWithSeasonsForProfile', () => {
     it('should return a show with its seasons and episodes', async () => {
       // Mock show data
@@ -269,6 +319,137 @@ describe('profileShowRepository', () => {
       expect(result).not.toBeNull();
       expect(result!.title).toBe('Test Show');
       expect(result!.seasons).toHaveLength(0);
+    });
+  });
+
+  describe('getShowWithSeasonsForProfileByChild', () => {
+    // Mock show data
+    const mockShow = {
+      show_id: 1,
+      title: 'Test Show',
+      watch_status: 'WATCHING',
+      profile_id: 123,
+      season_count: 2,
+      episode_count: 10,
+    };
+
+    // Mock seasons data
+    const mockSeasons = [
+      {
+        season_id: 101,
+        show_id: 1,
+        name: 'Season 1',
+        season_number: 1,
+        watch_status: 'WATCHED',
+        profile_id: 123,
+        number_of_episodes: 5,
+      },
+      {
+        season_id: 102,
+        show_id: 1,
+        name: 'Season 2',
+        season_number: 2,
+        watch_status: 'WATCHING',
+        profile_id: 123,
+        number_of_episodes: 5,
+      },
+    ];
+
+    // Mock episodes data
+    const mockEpisodes = [
+      {
+        episode_id: 1001,
+        season_id: 101,
+        show_id: 1,
+        episode_number: 1,
+        season_number: 1,
+        title: 'Episode 1',
+        watch_status: 'WATCHED',
+        profile_id: 123,
+      },
+      {
+        episode_id: 1002,
+        season_id: 101,
+        show_id: 1,
+        episode_number: 2,
+        season_number: 1,
+        title: 'Episode 2',
+        watch_status: 'WATCHED',
+        profile_id: 123,
+      },
+      {
+        episode_id: 1003,
+        season_id: 102,
+        show_id: 1,
+        episode_number: 1,
+        season_number: 2,
+        title: 'Episode 3',
+        watch_status: 'WATCHING',
+        profile_id: 123,
+      },
+    ];
+
+    it('should return a show with its seasons and episodes by a child episode', async () => {
+      mockPool.execute.mockResolvedValueOnce([[mockShow]]);
+      mockPool.execute.mockResolvedValueOnce([mockSeasons]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
+
+      const result = await showsDb.getShowWithSeasonsForProfileByChild(123, 1001, 'episodes');
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(3);
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        1,
+        'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from episodes where id = ?)',
+        [123, 1001],
+      );
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        2,
+        'SELECT * FROM profile_seasons WHERE profile_id = ? AND show_id = ? ORDER BY season_number',
+        [123, 1],
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.title).toBe('Test Show');
+      expect(result!.seasons).toHaveLength(2);
+      expect(result!.seasons![0].id).toBe(101);
+      expect(result!.seasons![0].episodes).toHaveLength(2);
+      expect(result!.seasons![1].episodes).toHaveLength(1);
+    });
+
+    it('should return a show with its seasons and episodes by a child season', async () => {
+      mockPool.execute.mockResolvedValueOnce([[mockShow]]);
+      mockPool.execute.mockResolvedValueOnce([mockSeasons]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
+
+      const result = await showsDb.getShowWithSeasonsForProfileByChild(123, 101, 'seasons');
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(3);
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        1,
+        'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from seasons where id = ?)',
+        [123, 101],
+      );
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
+        2,
+        'SELECT * FROM profile_seasons WHERE profile_id = ? AND show_id = ? ORDER BY season_number',
+        [123, 1],
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.title).toBe('Test Show');
+      expect(result!.seasons).toHaveLength(2);
+      expect(result!.seasons![0].id).toBe(101);
+      expect(result!.seasons![0].episodes).toHaveLength(2);
+      expect(result!.seasons![1].episodes).toHaveLength(1);
+    });
+
+    it('should return null when show does not exist', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      const result = await showsDb.getShowWithSeasonsForProfileByChild(123, 999, 'episodes');
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(result).toBeNull();
     });
   });
 

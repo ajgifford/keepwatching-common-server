@@ -11,7 +11,9 @@ export {
 export {
   getAllShowsForProfile,
   getShowForProfile,
+  getShowForProfileByChild,
   getShowWithSeasonsForProfile,
+  getShowWithSeasonsForProfileByChild,
   getNextUnwatchedEpisodesForProfile,
   getProfilesForShow,
 } from './shows/profileShowRepository';
