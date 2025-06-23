@@ -18,6 +18,6 @@ export const watchStatusSchema = z.enum(
  */
 export const userWatchStatusSchema = z.enum([WatchStatus.NOT_WATCHED, WatchStatus.WATCHED], {
   errorMap: () => ({
-    message: 'Status must be one of UNAIRED, NOT_WATCHED or WATCHED',
+    message: 'Status must be either NOT_WATCHED or WATCHED',
   }),
 });

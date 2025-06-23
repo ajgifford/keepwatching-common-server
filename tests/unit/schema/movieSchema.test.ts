@@ -175,7 +175,7 @@ describe('movieSchema', () => {
       const result = movieWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Status must be one of UNAIRED, NOT_WATCHED or WATCHED');
+        expect(result.error.issues[0].message).toContain('Status must be either NOT_WATCHED or WATCHED');
       }
     });
 

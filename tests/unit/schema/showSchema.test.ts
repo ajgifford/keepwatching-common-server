@@ -139,7 +139,7 @@ describe('showSchema', () => {
     });
 
     it('should validate all valid status values', () => {
-      const statuses = ['WATCHED', 'WATCHING', 'NOT_WATCHED', 'UP_TO_DATE'];
+      const statuses = ['WATCHED', 'NOT_WATCHED'];
 
       statuses.forEach((status) => {
         const input = {
@@ -152,24 +152,6 @@ describe('showSchema', () => {
       });
     });
 
-    it('should handle optional recursive flag', () => {
-      let result = showWatchStatusBodySchema.safeParse({
-        showId: 456,
-        status: 'WATCHED',
-      });
-      expect(result.success).toBe(true);
-
-      result = showWatchStatusBodySchema.safeParse({
-        showId: 456,
-        status: 'WATCHED',
-        recursive: true,
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.recursive).toBe(true);
-      }
-    });
-
     it('should reject invalid status values', () => {
       const invalidInput = {
         showId: 456,
@@ -180,9 +162,7 @@ describe('showSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.status?._errors).toContain(
-          'Status must be one of: UNAIRED, NOT_WATCHED, WATCHING, WATCHED, or UP_TO_DATE',
-        );
+        expect(formattedErrors.status?._errors).toContain('Status must be either NOT_WATCHED or WATCHED');
       }
     });
 
@@ -211,20 +191,6 @@ describe('showSchema', () => {
       if (!result.success) {
         const formattedErrors = result.error.format();
         expect(formattedErrors.showId?._errors).toContain('Expected integer, received float');
-      }
-    });
-
-    it('should reject non-boolean recursive flag', () => {
-      const invalidInput = {
-        showId: 456,
-        status: 'WATCHED',
-        recursive: 'true',
-      };
-
-      const result = showWatchStatusBodySchema.safeParse(invalidInput);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].path).toContain('recursive');
       }
     });
 
