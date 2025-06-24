@@ -150,9 +150,9 @@ export class WatchStatusDbService {
         SELECT 
           e.id, e.season_id, e.air_date,
           COALESCE(ews.status, 'NOT_WATCHED') as status,
-          s.id as season_id, s.show_id, s.air_date as season_air_date,
+          s.id as season_id, s.show_id, s.release_date as season_air_date,
           COALESCE(sws.status, 'NOT_WATCHED') as season_status,
-          sh.id as show_id, sh.air_date as show_air_date, sh.in_production as show_in_production,
+          sh.id as show_id, sh.release_date as show_air_date, sh.in_production as show_in_production,
           COALESCE(shws.status, 'NOT_WATCHED') as show_status
         FROM episodes e
         JOIN seasons s ON e.season_id = s.id
