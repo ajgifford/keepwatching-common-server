@@ -38,9 +38,14 @@ export class SeasonsService {
       appLogger.info(`Season ${seasonId} update: ${result.message}`);
       appLogger.info(`Affected entities: ${result.changes.length}`);
 
-      const show = await showService.getShowDetailsForProfileByChild(accountId, profileId, seasonId, 'seasons');
+      const showWithSeasons = await showService.getShowDetailsForProfileByChild(
+        accountId,
+        profileId,
+        seasonId,
+        'seasons',
+      );
       const nextUnwatchedEpisodes = await showService.getNextUnwatchedEpisodesForProfile(profileId);
-      return { show, nextUnwatchedEpisodes };
+      return { showWithSeasons, nextUnwatchedEpisodes };
     } catch (error) {
       throw errorService.handleError(
         error,

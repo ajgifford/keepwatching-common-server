@@ -456,9 +456,9 @@ export class ShowService {
 
       this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
 
-      const show = await this.getShowDetailsForProfile(accountId, profileId, showId, false);
+      const showWithSeasons = await this.getShowDetailsForProfile(accountId, profileId, showId, false);
       const nextUnwatchedEpisodes = await this.getNextUnwatchedEpisodesForProfile(profileId);
-      return { show, nextUnwatchedEpisodes };
+      return { showWithSeasons, nextUnwatchedEpisodes };
     } catch (error) {
       throw errorService.handleError(error, `updateShowWatchStatus(${accountId}, ${profileId}, ${showId}, ${status})`);
     }

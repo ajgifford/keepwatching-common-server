@@ -20,6 +20,7 @@ export class EpisodesService {
   /**
    * Updates the watch status of an episode
    *
+   * @param accountId - ID of the account
    * @param profileId - ID of the profile to update the watch status for
    * @param episodeId - ID of the episode to update
    * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
@@ -38,9 +39,14 @@ export class EpisodesService {
       appLogger.info(`Episode ${episodeId} update: ${result.message}`);
       appLogger.info(`Affected entities: ${result.changes.length}`);
 
-      const show = await showService.getShowDetailsForProfileByChild(accountId, profileId, episodeId, 'episodes');
+      const showWithSeasons = await showService.getShowDetailsForProfileByChild(
+        accountId,
+        profileId,
+        episodeId,
+        'episodes',
+      );
       const nextUnwatchedEpisodes = await showService.getNextUnwatchedEpisodesForProfile(profileId);
-      return { show, nextUnwatchedEpisodes };
+      return { showWithSeasons, nextUnwatchedEpisodes };
     } catch (error) {
       throw errorService.handleError(
         error,
