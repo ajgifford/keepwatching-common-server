@@ -36,10 +36,7 @@ export class WatchStatusService {
         throw new DatabaseError('Failed to update episode watch status', null);
       }
 
-      const showChanges = result.changes.filter((c) => c.entityType === 'show');
-      if (showChanges.length > 0) {
-        showService.invalidateProfileCache(accountId, profileId);
-      }
+      showService.invalidateProfileCache(accountId, profileId);
 
       return {
         success: true,

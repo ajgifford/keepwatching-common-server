@@ -93,29 +93,6 @@ describe('WatchStatusService', () => {
       expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
     });
 
-    it('should not invalidate profile cache when no show changes occur', async () => {
-      const mockResultWithoutShowChanges: StatusUpdateResult = {
-        success: true,
-        changes: [
-          {
-            entityType: 'episode',
-            entityId: episodeId,
-            from: WatchStatus.NOT_WATCHED,
-            to: WatchStatus.WATCHED,
-            timestamp: new Date(),
-            reason: 'User action',
-          },
-        ],
-        affectedRows: 1,
-      };
-
-      mockDbService.updateEpisodeWatchStatus.mockResolvedValue(mockResultWithoutShowChanges);
-
-      await service.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
-
-      expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
-    });
-
     it('should throw DatabaseError when db service returns unsuccessful result', async () => {
       const unsuccessfulResult: StatusUpdateResult = {
         success: false,
