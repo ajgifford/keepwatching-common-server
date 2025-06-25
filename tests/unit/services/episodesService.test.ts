@@ -34,6 +34,7 @@ describe('episodesService', () => {
   describe('updateEpisodeWatchStatus', () => {
     it('should update episode watch status and return next unwatched episodes', async () => {
       const mockNextUnwatchedEpisodes = [{ show_id: 1, episodes: [{ episode_id: 789 }] }];
+      const mockShow = { id: 1, title: 'Show 1' };
 
       (watchStatusService.updateEpisodeWatchStatus as jest.Mock).mockResolvedValue({
         success: true,
@@ -43,11 +44,19 @@ describe('episodesService', () => {
       });
 
       (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+      (showService.getShowDetailsForProfileByChild as jest.Mock).mockResolvedValue(mockShow);
 
       const result = await episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
       expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
+      expect(showService.getShowDetailsForProfileByChild).toHaveBeenCalledWith(
+        accountId,
+        profileId,
+        episodeId,
+        'episodes',
+      );
       expect(result.nextUnwatchedEpisodes).toEqual(mockNextUnwatchedEpisodes);
+      expect(result.showWithSeasons).toEqual(mockShow);
 
       expect(appLogger.info).toHaveBeenCalledWith(`Episode ${episodeId} update: Episode test message`);
       expect(appLogger.info).toHaveBeenCalledWith(`Affected entities: 2`);
