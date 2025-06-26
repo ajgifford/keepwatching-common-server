@@ -739,6 +739,7 @@ export class ShowService {
 
           let totalEpisodes = 0;
           let watchedEpisodes = 0;
+          let unairedEpisodes = 0;
 
           const showsProgress = await Promise.all(
             shows.map(async (show) => {
@@ -748,9 +749,13 @@ export class ShowService {
               const showWatchedCount = seasons.reduce((sum, season: ProfileSeason) => {
                 return sum + season.episodes.filter((ep) => ep.watchStatus === WatchStatus.WATCHED).length;
               }, 0);
+              const showUnairedCount = seasons.reduce((sum, season: ProfileSeason) => {
+                return sum + season.episodes.filter((ep) => ep.watchStatus === WatchStatus.UNAIRED).length;
+              }, 0);
 
               totalEpisodes += showEpisodeCount;
               watchedEpisodes += showWatchedCount;
+              unairedEpisodes += showUnairedCount;
 
               return {
                 showId: show.id,
@@ -758,7 +763,11 @@ export class ShowService {
                 status: show.watchStatus,
                 totalEpisodes: showEpisodeCount,
                 watchedEpisodes: showWatchedCount,
-                percentComplete: showEpisodeCount > 0 ? Math.round((showWatchedCount / showEpisodeCount) * 100) : 0,
+                unairedEpisodes: showUnairedCount,
+                percentComplete:
+                  showEpisodeCount > 0
+                    ? Math.round((showWatchedCount / (showEpisodeCount - showUnairedCount)) * 100)
+                    : 0,
               };
             }),
           );
@@ -766,7 +775,9 @@ export class ShowService {
           return {
             totalEpisodes,
             watchedEpisodes,
-            overallProgress: totalEpisodes > 0 ? Math.round((watchedEpisodes / totalEpisodes) * 100) : 0,
+            unairedEpisodes,
+            overallProgress:
+              totalEpisodes > 0 ? Math.round((watchedEpisodes / (totalEpisodes - unairedEpisodes)) * 100) : 0,
             showsProgress: showsProgress,
           };
         },

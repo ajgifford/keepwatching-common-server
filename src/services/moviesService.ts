@@ -514,7 +514,7 @@ export class MoviesService {
             watchStatusCounts: { unaired, watched, notWatched },
             genreDistribution: genreCounts,
             serviceDistribution: serviceCounts,
-            watchProgress: total > 0 ? Math.round((watched / total) * 100) : 0,
+            watchProgress: total > 0 ? Math.round((watched / (total - unaired)) * 100) : 0,
           };
         },
         1800,

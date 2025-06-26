@@ -141,6 +141,7 @@ export class StatisticsService {
       episodes: {
         totalEpisodes: 0,
         watchedEpisodes: 0,
+        unairedEpisodes: 0,
       },
     };
 
@@ -159,6 +160,7 @@ export class StatisticsService {
 
       aggregate.episodes.totalEpisodes += profileStats.episodeWatchProgress.totalEpisodes;
       aggregate.episodes.watchedEpisodes += profileStats.episodeWatchProgress.watchedEpisodes;
+      aggregate.episodes.unairedEpisodes += profileStats.episodeWatchProgress.unairedEpisodes;
 
       Object.entries(profileStats.showStatistics.genreDistribution).forEach(([genre, count]) => {
         aggregate.shows.genreDistribution[genre] = (aggregate.shows.genreDistribution[genre] || 0) + (count as number);
@@ -190,17 +192,29 @@ export class StatisticsService {
 
     const showWatchProgress =
       aggregate.shows.total > 0
-        ? Math.round((aggregate.shows.watchStatusCounts.watched / aggregate.shows.total) * 100)
+        ? Math.round(
+            (aggregate.shows.watchStatusCounts.watched /
+              (aggregate.shows.total - aggregate.shows.watchStatusCounts.unaired)) *
+              100,
+          )
         : 0;
 
     const movieWatchProgress =
       aggregate.movies.total > 0
-        ? Math.round((aggregate.movies.watchStatusCounts.watched / aggregate.movies.total) * 100)
+        ? Math.round(
+            (aggregate.movies.watchStatusCounts.watched /
+              (aggregate.movies.total - aggregate.movies.watchStatusCounts.unaired)) *
+              100,
+          )
         : 0;
 
     const episodeWatchProgress =
       aggregate.episodes.totalEpisodes > 0
-        ? Math.round((aggregate.episodes.watchedEpisodes / aggregate.episodes.totalEpisodes) * 100)
+        ? Math.round(
+            (aggregate.episodes.watchedEpisodes /
+              (aggregate.episodes.totalEpisodes - aggregate.episodes.unairedEpisodes)) *
+              100,
+          )
         : 0;
 
     return {
