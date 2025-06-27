@@ -30,10 +30,29 @@ export class WatchStatusManager {
   }
 
   /**
+   * Helper method to check if a date is valid and in the past
+   */
+  private hasAired(date: Date, now: Date = new Date()): boolean {
+    // Check if date is valid and not in the future
+    return date instanceof Date && !isNaN(date.getTime()) && date <= now;
+  }
+
+  /**
+   * Helper method to check if a date is valid and in the future
+   */
+  private isUnaired(date: Date, now: Date = new Date()): boolean {
+    // If date is invalid (null/undefined/invalid string), treat as unaired
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return true;
+    }
+    return date > now;
+  }
+
+  /**
    * Calculate the current status of an episode
    */
   public calculateEpisodeStatus(episode: WatchStatusEpisode, now: Date = new Date()): WatchStatus {
-    if (new Date(episode.airDate) > now) {
+    if (this.isUnaired(episode.airDate, now)) {
       return WatchStatus.UNAIRED;
     }
 
@@ -46,12 +65,12 @@ export class WatchStatusManager {
   public calculateSeasonStatus(season: WatchStatusSeason, now: Date = new Date()): WatchStatus {
     const { episodes } = season;
 
-    if (season.airDate > now) {
+    if (this.isUnaired(season.airDate, now)) {
       return WatchStatus.UNAIRED;
     }
 
-    const airedEpisodes = episodes.filter((e) => new Date(e.airDate) <= now);
-    const unairedEpisodes = episodes.filter((e) => new Date(e.airDate) > now);
+    const airedEpisodes = episodes.filter((e) => this.hasAired(e.airDate, now));
+    const unairedEpisodes = episodes.filter((e) => this.isUnaired(e.airDate, now));
     const watchedAiredEpisodes = airedEpisodes.filter((e) => e.watchStatus === WatchStatus.WATCHED);
 
     // No aired episodes means season hasn't really started
@@ -85,13 +104,13 @@ export class WatchStatusManager {
     const { seasons, inProduction } = show;
 
     // If show hasn't aired yet
-    if (show.airDate > now) {
+    if (this.isUnaired(show.airDate, now)) {
       return WatchStatus.UNAIRED;
     }
 
     // Filter seasons by air status
-    const airedSeasons = seasons?.filter((s) => s.airDate <= now) || [];
-    const unairedSeasons = seasons?.filter((s) => s.airDate > now) || [];
+    const airedSeasons = seasons?.filter((s) => this.hasAired(s.airDate, now)) || [];
+    const unairedSeasons = seasons?.filter((s) => this.isUnaired(s.airDate, now)) || [];
 
     // No aired seasons
     if (airedSeasons.length === 0) {
@@ -142,18 +161,18 @@ export class WatchStatusManager {
   public generateStatusSummary(show: WatchStatusShow, now: Date = new Date()): string {
     const showStatus = this.calculateShowStatus(show, now);
     let summary = `Show "${show.id}" - Status: ${showStatus}\n`;
-    summary += `  Air Date: ${show.airDate.toISOString()}\n`;
+    summary += `  Air Date: ${this.isUnaired(show.airDate, now) ? 'INVALID/UNAIRED' : show.airDate.toISOString()}\n`;
     summary += `  In Production: ${show.inProduction}\n`;
     summary += `  Seasons: ${show.seasons?.length}\n\n`;
 
     show.seasons!.forEach((season) => {
       const seasonStatus = this.calculateSeasonStatus(season, now);
       summary += `  Season "${season.id}" - Status: ${seasonStatus}\n`;
-      summary += `    Air Date: ${season.airDate.toISOString()}\n`;
+      summary += `    Air Date: ${this.isUnaired(season.airDate, now) ? 'INVALID/UNAIRED' : season.airDate.toISOString()}\n`;
       summary += `    Episodes: ${season.episodes.length}\n`;
 
       const watchedCount = season.episodes.filter((e) => e.watchStatus === WatchStatus.WATCHED).length;
-      const airedCount = season.episodes.filter((e) => new Date(e.airDate) <= now).length;
+      const airedCount = season.episodes.filter((e) => this.hasAired(e.airDate, now)).length;
       summary += `    Progress: ${watchedCount}/${airedCount} aired episodes watched\n\n`;
     });
 

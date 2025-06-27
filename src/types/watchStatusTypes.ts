@@ -96,7 +96,7 @@ export function transformWatchStatusEpisode(episodeRow: WatchStatusEpisodeRow): 
   return {
     id: episodeRow.id,
     seasonId: episodeRow.season_id,
-    airDate: new Date(episodeRow.air_date),
+    airDate: safeParseDate(episodeRow.air_date),
     watchStatus: episodeRow.status,
   };
 }
@@ -106,15 +106,15 @@ export function transformWatchStatusExtendedEpisode(
 ): WatchStatusExtendedEpisode {
   return {
     id: episodeRow.id,
-    airDate: new Date(episodeRow.air_date),
+    airDate: safeParseDate(episodeRow.air_date),
     watchStatus: episodeRow.status,
     seasonId: episodeRow.season_id,
     seasonWatchStatus: episodeRow.season_status,
-    seasonAirDate: new Date(episodeRow.season_air_date),
+    seasonAirDate: safeParseDate(episodeRow.season_air_date),
     showId: episodeRow.show_id,
     showInProduction: episodeRow.show_in_production === 1,
     showWatchStatus: episodeRow.show_status,
-    showAirDate: new Date(episodeRow.show_air_date),
+    showAirDate: safeParseDate(episodeRow.show_air_date),
   };
 }
 
@@ -125,7 +125,7 @@ export function transformWatchStatusSeason(
   return {
     id: seasonRow.id,
     showId: seasonRow.show_id,
-    airDate: new Date(seasonRow.release_date),
+    airDate: safeParseDate(seasonRow.release_date),
     episodes,
     watchStatus: seasonRow.status,
   };
@@ -138,10 +138,10 @@ export function transformWatchStatusExtendedSeason(
   return {
     id: seasonRow.id,
     showId: seasonRow.show_id,
-    airDate: new Date(seasonRow.release_date),
+    airDate: safeParseDate(seasonRow.release_date),
     episodes,
     watchStatus: seasonRow.status,
-    showAirDate: new Date(seasonRow.show_air_date),
+    showAirDate: safeParseDate(seasonRow.show_air_date),
     showInProduction: seasonRow.show_in_production === 1,
     showWatchStatus: seasonRow.show_status,
   };
@@ -150,9 +150,27 @@ export function transformWatchStatusExtendedSeason(
 export function transformWatchStatusShow(showRow: WatchStatusShowRow, seasons: WatchStatusSeason[]): WatchStatusShow {
   return {
     id: showRow.id,
-    airDate: new Date(showRow.release_date),
+    airDate: safeParseDate(showRow.release_date),
     inProduction: showRow.in_production === 1,
     watchStatus: showRow.status,
     seasons,
   };
+}
+
+function safeParseDate(dateString: string | null | undefined): Date {
+  // Handle null, undefined, or empty strings
+  if (!dateString || dateString.trim() === '') {
+    // Return a date far in the future to represent "unaired" content
+    return new Date('9999-12-31');
+  }
+
+  const parsedDate = new Date(dateString);
+
+  // Check if the parsed date is valid
+  if (isNaN(parsedDate.getTime())) {
+    // Return a date far in the future for invalid dates
+    return new Date('9999-12-31');
+  }
+
+  return parsedDate;
 }
