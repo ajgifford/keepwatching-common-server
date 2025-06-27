@@ -177,6 +177,7 @@ initScheduledJobs(
 
 // Manually trigger email digest
 await runEmailDigestJob();
+```
 
 ### Database Operations
 
@@ -348,7 +349,7 @@ yarn test
 yarn test:coverage
 
 # Run specific test file
-yarn test src/services/accountService.test.ts
+yarn test test/unit/services/accountService.test.ts
 
 # Watch mode
 yarn test --watch
@@ -363,13 +364,6 @@ import { EmailService } from '@ajgifford/keepwatching-common-server';
 const emailService = new EmailService(testConfig);
 await emailService.sendTestEmail('test@example.com');
 ```
-
-### Development Endpoints
-
-In development mode, the following endpoints are available:
-
-- `POST /api/admin/test-email` - Send a test email
-- `POST /api/admin/trigger-email-digest` - Manually trigger weekly digest
 
 ## 🚀 Deployment
 
@@ -403,6 +397,8 @@ The library is optimized for deployment on Raspberry Pi 5:
 | `yarn lint` | Run ESLint |
 | `yarn format` | Format code with Prettier |
 | `yarn version:patch` | Bump patch version |
+| `yarn version:minor` | Bump minor version |
+| `yarn version:major` | Bump major version |
 
 ## 🤝 Contributing
 
