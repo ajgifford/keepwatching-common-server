@@ -113,11 +113,19 @@ export class AdminMovieService {
       };
 
       const updated = await moviesDb.updateMovie(updateMovieRequest);
+      if (updated) {
+        this.invalidateAllMovies();
+        this.invalidateMovieCache(movieId);
+      }
       return updated;
     } catch (error) {
       appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
       throw errorService.handleError(error, `updateMovieById(${movieId})`);
     }
+  }
+
+  public invalidateAllMovies(): void {
+    this.cache.invalidatePattern('allMovies_');
   }
 
   /**
