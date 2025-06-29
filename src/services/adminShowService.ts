@@ -228,6 +228,9 @@ export class AdminShowService {
         return false;
       }
 
+      this.invalidateAllShows();
+      this.invalidateShowCache(showId);
+
       const seasons = showDetails.seasons || [];
       const validSeasons = seasons
         .filter((season: TMDBShowSeason) => season.season_number > 0)
@@ -295,6 +298,10 @@ export class AdminShowService {
       appLogger.error(ErrorMessages.ShowChangeFail, { error, showId });
       throw errorService.handleError(error, `updateShowById(${showId})`);
     }
+  }
+
+  public invalidateAllShows(): void {
+    this.cache.invalidatePattern('allShows_');
   }
 
   /**
