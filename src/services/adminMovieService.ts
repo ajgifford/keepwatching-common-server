@@ -8,7 +8,7 @@ import { getUSWatchProviders } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
-import { UpdateMovieRequest } from '@ajgifford/keepwatching-types';
+import { AdminMovieDetails, ContentProfiles, UpdateMovieRequest } from '@ajgifford/keepwatching-types';
 
 export class AdminMovieService {
   private cache: CacheService;
@@ -42,7 +42,7 @@ export class AdminMovieService {
     }
   }
 
-  public async getMovieDetails(movieId: number) {
+  public async getMovieDetails(movieId: number): Promise<AdminMovieDetails> {
     try {
       return await this.cache.getOrSet(
         ADMIN_KEYS.movieDetails(movieId),
@@ -54,7 +54,7 @@ export class AdminMovieService {
     }
   }
 
-  public async getMovieProfiles(movieId: number) {
+  public async getMovieProfiles(movieId: number): Promise<ContentProfiles[]> {
     try {
       return await this.cache.getOrSet(
         ADMIN_KEYS.movieProfiles(movieId),

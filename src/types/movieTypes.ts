@@ -1,5 +1,6 @@
 import {
   AdminMovie,
+  AdminMovieDetails,
   MovieReference,
   ProfileMovie,
   ProfileMovieWithDetails,
@@ -121,6 +122,35 @@ export function transformAdminMovie(movie: AdminMovieRow): AdminMovie {
     mpaRating: movie.mpa_rating,
     streamingServices: movie.streaming_services,
     genres: movie.genres,
+    lastUpdated: movie.updated_at.toISOString(),
+  };
+}
+
+export interface AdminMovieDetailsRow extends AdminMovieRow {
+  director: string;
+  production_companies: string;
+  budget: number;
+  revenue: number;
+}
+
+export function transformAdminMovieDetails(movie: AdminMovieDetailsRow): AdminMovieDetails {
+  return {
+    id: movie.id,
+    tmdbId: movie.tmdb_id,
+    title: movie.title,
+    description: movie.description,
+    releaseDate: movie.release_date,
+    runtime: movie.runtime,
+    posterImage: movie.poster_image,
+    backdropImage: movie.backdrop_image,
+    userRating: movie.user_rating,
+    mpaRating: movie.mpa_rating,
+    streamingServices: movie.streaming_services,
+    genres: movie.genres,
+    director: movie.director,
+    productionCompanies: movie.production_companies,
+    budget: movie.budget,
+    revenue: movie.revenue,
     lastUpdated: movie.updated_at.toISOString(),
   };
 }

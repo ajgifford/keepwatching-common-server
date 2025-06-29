@@ -1,10 +1,15 @@
 import { NotFoundError } from '../../middleware/errorMiddleware';
 import { ContentCountRow } from '../../types/contentTypes';
-import { AdminMovieRow, transformAdminMovie } from '../../types/movieTypes';
+import {
+  AdminMovieDetailsRow,
+  AdminMovieRow,
+  transformAdminMovie,
+  transformAdminMovieDetails,
+} from '../../types/movieTypes';
 import { ContentProfilesRow, transformContentProfiles } from '../../types/profileTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
-import { AdminMovie, ContentProfiles } from '@ajgifford/keepwatching-types';
+import { AdminMovie, AdminMovieDetails, ContentProfiles } from '@ajgifford/keepwatching-types';
 
 export async function getMoviesCount(): Promise<number> {
   try {
@@ -57,7 +62,7 @@ export async function getAllMovies(limit: number = 50, offset: number = 0): Prom
   }
 }
 
-export async function getMovieDetails(movieId: number): Promise<AdminMovie> {
+export async function getMovieDetails(movieId: number): Promise<AdminMovieDetails> {
   try {
     const query = `SELECT 
       m.id,
@@ -70,6 +75,10 @@ export async function getMovieDetails(movieId: number): Promise<AdminMovie> {
       m.backdrop_image,
       m.user_rating,
       m.mpa_rating,
+      m.director,
+      m.production_companies,
+      m.budget,
+      m.revenue,
       m.created_at,
       m.updated_at,
       GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
@@ -89,12 +98,12 @@ export async function getMovieDetails(movieId: number): Promise<AdminMovie> {
     GROUP BY 
       m.id`;
 
-    const [movieRows] = await getDbPool().execute<AdminMovieRow[]>(query, [movieId]);
+    const [movieRows] = await getDbPool().execute<AdminMovieDetailsRow[]>(query, [movieId]);
     if (movieRows.length === 0) {
       throw new NotFoundError(`Movie with ID ${movieId} not found`);
     }
 
-    return transformAdminMovie(movieRows[0]);
+    return transformAdminMovieDetails(movieRows[0]);
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw error;
