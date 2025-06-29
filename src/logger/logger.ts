@@ -9,6 +9,7 @@ import { HTTPHeaders, HTTPMethods, SensitiveKeys, SpecialMessages, SuccessMessag
 import { randomBytes } from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import util from 'util';
 import winston from 'winston';
 import { format, transports } from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
@@ -66,7 +67,10 @@ export const cliLogger = winston.createLogger({
   format: combine(
     label({ label: appVersion }),
     timestamp({ format: timestampFormat }),
-    printf(({ level, message, label, timestamp }) => `[${timestamp}] ${level} (${label}): ${message}`),
+    printf(({ level, message, label, timestamp, ...meta }) => {
+      const metaString = Object.keys(meta).length ? '\n' + util.inspect(meta, { depth: null, colors: false }) : '';
+      return `[${timestamp}] ${level} (${label}): ${message} ${metaString}`;
+    }),
   ),
   transports: [new winston.transports.Console()],
 });
