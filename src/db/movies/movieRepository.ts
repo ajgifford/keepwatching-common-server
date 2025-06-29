@@ -107,11 +107,11 @@ export async function updateMovie(updateRequest: UpdateMovieRequest): Promise<bo
         updateRequest.backdrop_image,
         updateRequest.user_rating,
         updateRequest.mpa_rating,
-        updateRequest.tmdb_id,
         updateRequest.director,
         updateRequest.production_companies,
         updateRequest.budget,
         updateRequest.revenue,
+        updateRequest.tmdb_id,
       ]);
 
       const success = result.affectedRows !== undefined;
