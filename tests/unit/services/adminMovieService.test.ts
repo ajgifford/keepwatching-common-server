@@ -11,8 +11,8 @@ import { getUSWatchProviders } from '@utils/watchProvidersUtility';
 
 // Mock the repositories and services
 jest.mock('@db/moviesDb');
-jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
 jest.mock('@services/socketService');
 jest.mock('@services/tmdbService');
 jest.mock('@utils/contentUtility');
@@ -83,6 +83,7 @@ describe('AdminMovieService', () => {
     mockCacheService = {
       getOrSet: jest.fn(),
       invalidate: jest.fn(),
+      invalidatePattern: jest.fn(),
     };
 
     jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);

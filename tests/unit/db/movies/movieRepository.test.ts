@@ -193,11 +193,11 @@ describe('movieRepository', () => {
         '/updated-backdrop.jpg',
         9.0,
         'R',
-        12345,
         'Director A',
         'Production A',
         50000,
         123456,
+        12345,
       ]);
 
       expect(mockConnection.execute).toHaveBeenCalledWith(
