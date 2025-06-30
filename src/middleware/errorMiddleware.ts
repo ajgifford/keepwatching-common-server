@@ -141,6 +141,13 @@ export class DatabaseError extends CustomError {
   }
 }
 
+export class FirebaseError extends CustomError {
+  constructor() {
+    super('Firebase Admin Not Initialized', 400, 'FIREBASE_ADMIN_ERROR');
+    Object.setPrototypeOf(this, FirebaseError.prototype);
+  }
+}
+
 export class NotVerifiedError extends CustomError {
   constructor() {
     super('Email not verified', 400, 'EMAIL_NOT_VERIFIED');

@@ -1,6 +1,7 @@
+import { getServiceName } from '../config/config';
 import * as accountsDb from '../db/accountsDb';
 import { appLogger, cliLogger } from '../logger/logger';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../middleware/errorMiddleware';
+import { BadRequestError, FirebaseError, ForbiddenError, NotFoundError } from '../middleware/errorMiddleware';
 import { AccountRow } from '../types/accountTypes';
 import { getFirebaseAdmin } from '../utils/firebaseUtil';
 import { getAccountImage, getPhotoForGoogleAccount } from '../utils/imageUtility';
@@ -25,9 +26,11 @@ export interface GoogleLoginResponse {
  */
 export class AccountService {
   private cache: CacheService;
+  private serviceName: string;
 
   constructor() {
     this.cache = CacheService.getInstance();
+    this.serviceName = getServiceName();
   }
 
   public async invalidateAccountCache(accountId: number): Promise<void> {
@@ -278,8 +281,7 @@ export class AccountService {
 
       if (account.uid) {
         try {
-          const admin = getFirebaseAdmin();
-          await admin.auth().deleteUser(account.uid);
+          await this.getAdmin().auth().deleteUser(account.uid);
           cliLogger.info(`Firebase user deleted: ${account.uid}`);
         } catch (firebaseError) {
           cliLogger.error(`Error deleting Firebase user: ${account.uid}`, firebaseError);
@@ -348,8 +350,7 @@ export class AccountService {
         return null;
       }
 
-      const admin = getFirebaseAdmin();
-      const firebaseUser = await admin.auth().getUserByEmail(email);
+      const firebaseUser = await this.getAdmin().auth().getUserByEmail(email);
 
       return {
         uid: firebaseUser.uid,
@@ -379,8 +380,7 @@ export class AccountService {
     let allUsers: UserRecord[] = [];
 
     do {
-      const admin = getFirebaseAdmin();
-      const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+      const listUsersResult = await this.getAdmin().auth().listUsers(1000, nextPageToken);
       allUsers = allUsers.concat(listUsersResult.users);
       nextPageToken = listUsersResult.pageToken;
     } while (nextPageToken);
@@ -415,6 +415,14 @@ export class AccountService {
       });
 
     return combinedUsers;
+  }
+
+  private getAdmin() {
+    const admin = getFirebaseAdmin(this.serviceName);
+    if (admin) {
+      return admin;
+    }
+    throw new FirebaseError();
   }
 }
 

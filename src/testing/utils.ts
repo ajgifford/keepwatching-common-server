@@ -13,5 +13,4 @@ export const loadStreamingService = jest.fn();
 
 // Firebase mocks
 export const initializeFirebase = jest.fn();
-export const isFirebaseInitialized = jest.fn(() => true);
 export const getFirebaseAdmin = jest.fn();

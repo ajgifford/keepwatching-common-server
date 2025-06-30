@@ -1,8 +1,6 @@
 import { cliLogger } from '../logger/logger';
 import admin from 'firebase-admin';
 
-let firebaseInitialized = false;
-
 /**
  * Initialize Firebase Admin SDK if not already initialized
  *
@@ -11,59 +9,52 @@ let firebaseInitialized = false;
  *
  * @returns True if initialization was successful
  */
-export function initializeFirebase(serviceAccount: object): boolean {
-  if (firebaseInitialized) {
+export function initializeFirebase(serviceAccount: object, name: string): boolean {
+  const apps: admin.app.App[] = (admin.apps || []).filter((app) => app !== null);
+  if (apps.some((app) => app.name === name)) {
+    cliLogger.info(`Firebase Admin SDK already initialized for "${name}"`);
     return true;
   }
 
   try {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
+    admin.initializeApp(
+      {
+        credential: admin.credential.cert(serviceAccount),
+      },
+      name,
+    );
 
-    firebaseInitialized = true;
-    cliLogger.info('Firebase Admin SDK initialized successfully');
+    cliLogger.info(`Firebase Admin SDK initialized for "${name}"`);
     return true;
   } catch (error) {
-    cliLogger.error('Failed to initialize Firebase Admin SDK', error);
+    cliLogger.error(`Failed to initialize Firebase Admin SDK "${name}`, error);
     return false;
   }
 }
 
-export async function shutdownFirebase() {
-  if (!firebaseInitialized) {
-    cliLogger.info('Firebase Admin SDK is not initialized');
+export async function shutdownFirebase(name: string) {
+  const apps: admin.app.App[] = (admin.apps || []).filter((app) => app !== null);
+  const app = apps.find((app) => app.name === name);
+  if (!app) {
+    cliLogger.info(`Firebase Admin SDK app "${name}" is not initialized`);
     return;
   }
 
   try {
-    await admin.app().delete();
-    firebaseInitialized = false;
+    await admin.app(name).delete();
+    cliLogger.info(`Firebase Admin SDK app "${name}" deleted`);
   } catch (error) {
-    cliLogger.error('Failed to initialize Firebase Admin SDK', error);
+    cliLogger.error(`Error shutting down Firebase app "${name}"`, error);
     return;
   }
-}
-
-/**
- * Check if Firebase Admin SDK is initialized
- *
- * @returns True if Firebase is initialized and available
- */
-export function isFirebaseInitialized(): boolean {
-  return firebaseInitialized;
 }
 
 /**
  * Get Firebase Admin SDK instance
  *
- * @returns Firebase Admin SDK instance
- * @throws Error if Firebase is not initialized
+ * @returns Firebase Admin SDK instance or null if not initialized
  */
-export function getFirebaseAdmin(): typeof admin {
-  if (!firebaseInitialized) {
-    throw new Error('Firebase Admin SDK is not initialized');
-  }
-
-  return admin;
+export function getFirebaseAdmin(name: string): admin.app.App | null {
+  const apps: admin.app.App[] = (admin.apps || []).filter((app) => app !== null);
+  return apps.find((app) => app.name === name) ?? null;
 }
