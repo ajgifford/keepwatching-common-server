@@ -15,7 +15,7 @@ import {
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { filterUSOrEnglishShows } from '../utils/usSearchFilter';
-import { getUSWatchProviders } from '../utils/watchProvidersUtility';
+import { getUSWatchProvidersShow } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { profileService } from './profileService';
@@ -307,7 +307,7 @@ export class ShowService {
       content_rating: getUSRating(responseShow.content_ratings),
       season_count: responseShow.number_of_seasons,
       episode_count: responseShow.number_of_episodes,
-      streaming_service_ids: getUSWatchProviders(responseShow, 9999),
+      streaming_service_ids: getUSWatchProvidersShow(responseShow),
       genre_ids: responseShow.genres.map((genre: TMDBGenre) => genre.id),
       status: responseShow.status,
       type: responseShow.type,
@@ -630,7 +630,7 @@ export class ShowService {
           backdrop_image: showDetails.backdrop_path,
           user_rating: showDetails.vote_average,
           content_rating: getUSRating(showDetails.content_ratings),
-          streaming_service_ids: getUSWatchProviders(showDetails, 9999),
+          streaming_service_ids: getUSWatchProvidersShow(showDetails),
           season_count: showDetails.number_of_seasons,
           episode_count: showDetails.number_of_episodes,
           genre_ids: showDetails.genres.map((genre: TMDBGenre) => genre.id),

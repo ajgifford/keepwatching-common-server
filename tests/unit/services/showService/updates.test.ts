@@ -43,7 +43,7 @@ describe('ShowService - Content Updates', () => {
       (contentUtility.getInProduction as jest.Mock).mockReturnValue(1);
       (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValue(null);
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('HBO');
-      (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+      (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([8, 9]);
 
       (watchStatusService.checkAndUpdateShowStatus as jest.Mock).mockResolvedValue({
         success: true,

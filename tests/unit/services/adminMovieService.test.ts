@@ -7,7 +7,7 @@ import { errorService } from '@services/errorService';
 import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import { getUSMPARating } from '@utils/contentUtility';
-import { getUSWatchProviders } from '@utils/watchProvidersUtility';
+import { getUSWatchProvidersMovie } from '@utils/watchProvidersUtility';
 
 // Mock the repositories and services
 jest.mock('@db/moviesDb');
@@ -334,7 +334,7 @@ describe('AdminMovieService', () => {
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
 
       (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
 
@@ -342,7 +342,7 @@ describe('AdminMovieService', () => {
 
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(mockTMDBId);
       expect(getUSMPARating).toHaveBeenCalledWith(mockTMDBMovie.release_dates);
-      expect(getUSWatchProviders).toHaveBeenCalledWith(mockTMDBMovie, 9998);
+      expect(getUSWatchProvidersMovie).toHaveBeenCalledWith(mockTMDBMovie);
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
       expect(result).toBe(true);
     });
@@ -370,7 +370,7 @@ describe('AdminMovieService', () => {
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
 
       const mockError = new Error('Database error');
       (moviesDb.updateMovie as jest.Mock).mockRejectedValue(mockError);

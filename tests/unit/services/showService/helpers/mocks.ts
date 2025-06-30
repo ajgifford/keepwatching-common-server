@@ -79,7 +79,7 @@ export function setupMocks() {
   (contentUtility.getInProduction as jest.Mock).mockReturnValue(1);
   (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValue(null);
   (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('HBO');
-  (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+  (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([8, 9]);
 
   // Set up TMDB service mock with default implementation
   (getTMDBService as jest.Mock).mockReturnValue({

@@ -116,12 +116,16 @@ export async function updateMovie(updateRequest: UpdateMovieRequest): Promise<bo
 
       const success = result.affectedRows !== undefined;
       if (success && updateRequest.id) {
+        await clearMovieGenres(updateRequest.id, connection);
+
         if (updateRequest.genre_ids && updateRequest.genre_ids.length > 0) {
           const genrePromises = updateRequest.genre_ids.map((genreId) =>
             saveMovieGenre(updateRequest.id, genreId, connection),
           );
           await Promise.all(genrePromises);
         }
+
+        await clearMovieStreamingServices(updateRequest.id, connection);
 
         if (updateRequest.streaming_service_ids && updateRequest.streaming_service_ids.length > 0) {
           const servicePromises = updateRequest.streaming_service_ids.map((serviceId) =>
@@ -157,6 +161,23 @@ async function saveMovieGenre(movieId: number, genreId: number, connection: Pool
 }
 
 /**
+ * Clears all genres associated with a movie
+ *
+ * @param movieId - ID of the movie
+ * @param connection - Existing connection for transaction support
+ * @returns A promise that resolves when the genres are cleared
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+async function clearMovieGenres(movieId: number, connection: PoolConnection): Promise<void> {
+  try {
+    const query = 'DELETE FROM movie_genres WHERE movie_id = ?';
+    await connection.execute(query, [movieId]);
+  } catch (error) {
+    handleDatabaseError(error, 'clearing genres for a movie');
+  }
+}
+
+/**
  * Associates a streaming service with a movie
  *
  * @param movieId - ID of the movie
@@ -175,6 +196,23 @@ async function saveMovieStreamingService(
     await connection.execute(query, [movieId, streamingServiceId]);
   } catch (error) {
     handleDatabaseError(error, 'saving a streaming service for a movie');
+  }
+}
+
+/**
+ * Clears all streaming services associated with a movie
+ *
+ * @param movieId - ID of the movie
+ * @param connection - Existing connection for transaction support
+ * @returns A promise that resolves when the streaming services are cleared
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+async function clearMovieStreamingServices(movieId: number, connection: PoolConnection): Promise<void> {
+  try {
+    const query = 'DELETE FROM movie_services WHERE movie_id = ?';
+    await connection.execute(query, [movieId]);
+  } catch (error) {
+    handleDatabaseError(error, 'clearing streaming services for a movie');
   }
 }
 

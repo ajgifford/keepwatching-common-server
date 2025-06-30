@@ -7,7 +7,7 @@ import { ErrorMessages } from '../logger/loggerModel';
 import { TMDBGenre, TMDBShowSeason } from '../types/tmdbTypes';
 import { sleep } from '../utils/changesUtility';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
-import { getUSWatchProviders } from '../utils/watchProvidersUtility';
+import { getUSWatchProvidersShow } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { showService } from './showService';
@@ -210,7 +210,7 @@ export class AdminShowService {
         backdrop_image: showDetails.backdrop_path,
         user_rating: showDetails.vote_average,
         content_rating: getUSRating(showDetails.content_ratings),
-        streaming_service_ids: getUSWatchProviders(showDetails, 9999),
+        streaming_service_ids: getUSWatchProvidersShow(showDetails),
         season_count: showDetails.number_of_seasons,
         episode_count: showDetails.number_of_episodes,
         genre_ids: showDetails.genres.map((genre: TMDBGenre) => genre.id),

@@ -4,7 +4,7 @@ import { appLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { TMDBGenre } from '../types/tmdbTypes';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils/contentUtility';
-import { getUSWatchProviders } from '../utils/watchProvidersUtility';
+import { getUSWatchProvidersMovie } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
@@ -108,7 +108,7 @@ export class AdminMovieService {
         production_companies: getUSProductionCompanies(movieDetails.production_companies),
         budget: movieDetails.budget,
         revenue: movieDetails.revenue,
-        streaming_service_ids: getUSWatchProviders(movieDetails, 9998),
+        streaming_service_ids: getUSWatchProvidersMovie(movieDetails),
         genre_ids: movieDetails.genres.map((genre: TMDBGenre) => genre.id),
       };
 

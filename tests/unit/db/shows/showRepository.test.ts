@@ -225,23 +225,25 @@ describe('showRepository', () => {
       expect(mockConnection.commit).toHaveBeenCalled();
       expect(result).toBe(true);
 
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, 'DELETE FROM show_genres WHERE show_id = ?', [5]);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        2,
+        3,
         'INSERT IGNORE INTO show_genres (show_id, genre_id) VALUES (?,?)',
         [5, 28],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        3,
+        4,
         'INSERT IGNORE INTO show_genres (show_id, genre_id) VALUES (?,?)',
         [5, 18],
       );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(5, 'DELETE FROM show_services WHERE show_id = ?', [5]);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        4,
+        6,
         'INSERT IGNORE INTO show_services (show_id, streaming_service_id) VALUES (?, ?)',
         [5, 8],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        5,
+        7,
         'INSERT IGNORE INTO show_services (show_id, streaming_service_id) VALUES (?, ?)',
         [5, 9],
       );

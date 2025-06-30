@@ -88,7 +88,7 @@ describe('AdminShowService', () => {
     (contentUtility.getInProduction as jest.Mock).mockReturnValue(1);
     (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValue(null);
     (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('HBO');
-    (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+    (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([8, 9]);
 
     // Set up TMDB service mock with default implementation
     (getTMDBService as jest.Mock).mockReturnValue({
@@ -567,7 +567,7 @@ describe('AdminShowService', () => {
         .mockReturnValueOnce(100) // last_episode_to_air
         .mockReturnValueOnce(101); // next_episode_to_air
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('Netflix');
-      (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([9999]);
+      (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([9999]);
 
       (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
       (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
@@ -608,7 +608,7 @@ describe('AdminShowService', () => {
       expect(contentUtility.getEpisodeToAirId).toHaveBeenCalledWith(mockTMDBShow.last_episode_to_air);
       expect(contentUtility.getEpisodeToAirId).toHaveBeenCalledWith(mockTMDBShow.next_episode_to_air);
       expect(contentUtility.getUSNetwork).toHaveBeenCalledWith(mockTMDBShow.networks);
-      expect(watchProvidersUtility.getUSWatchProviders).toHaveBeenCalledWith(mockTMDBShow, 9999);
+      expect(watchProvidersUtility.getUSWatchProvidersShow).toHaveBeenCalledWith(mockTMDBShow);
 
       expect(showsDb.updateShow).toHaveBeenCalled();
       expect(showsDb.getProfilesForShow).toHaveBeenCalledWith(showId);
@@ -637,7 +637,7 @@ describe('AdminShowService', () => {
       (contentUtility.getInProduction as jest.Mock).mockReturnValue(1);
       (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValueOnce(100).mockReturnValueOnce(101);
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('Netflix');
-      (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([9999]);
+      (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([9999]);
 
       (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
       (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
@@ -702,7 +702,7 @@ describe('AdminShowService', () => {
       (contentUtility.getInProduction as jest.Mock).mockReturnValue(1);
       (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValueOnce(100).mockReturnValueOnce(101);
       (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('Netflix');
-      (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([9999]);
+      (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([9999]);
 
       (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
       (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({

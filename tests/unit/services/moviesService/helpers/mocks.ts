@@ -13,7 +13,7 @@ jest.mock('@utils/contentUtility', () => ({
   getUSMPARating: jest.fn().mockReturnValue('PG-13'),
 }));
 jest.mock('@utils/watchProvidersUtility', () => ({
-  getUSWatchProviders: jest.fn().mockReturnValue([8, 9]),
+  getUSWatchProvidersMovie: jest.fn().mockReturnValue([8, 9]),
 }));
 jest.mock('@services/tmdbService', () => ({
   getTMDBService: jest.fn(),
@@ -63,7 +63,7 @@ export function setupMocks() {
   });
 
   (contentUtility.getUSMPARating as jest.Mock).mockReturnValue('PG13');
-  (watchProvidersUtility.getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+  (watchProvidersUtility.getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
 
   (getTMDBService as jest.Mock).mockReturnValue({
     getMovieRecommendations: jest.fn().mockResolvedValue(mockTMDBResponses.movieRecommendations),

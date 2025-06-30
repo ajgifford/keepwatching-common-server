@@ -10,7 +10,7 @@ import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { filterEnglishMovies } from '../utils/usSearchFilter';
-import { getUSWatchProviders } from '../utils/watchProvidersUtility';
+import { getUSWatchProvidersMovie } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { profileService } from './profileService';
@@ -229,7 +229,7 @@ export class MoviesService {
       production_companies: getUSProductionCompanies(movieResponse.production_companies),
       budget: movieResponse.budget,
       revenue: movieResponse.revenue,
-      streaming_service_ids: getUSWatchProviders(movieResponse, 9998),
+      streaming_service_ids: getUSWatchProvidersMovie(movieResponse),
       genre_ids: movieResponse.genres.map((genre: TMDBGenre) => genre.id),
     };
 
@@ -446,7 +446,7 @@ export class MoviesService {
           production_companies: getUSProductionCompanies(movieDetails.production_companies),
           budget: movieDetails.budget,
           revenue: movieDetails.revenue,
-          streaming_service_ids: getUSWatchProviders(movieDetails, 9998),
+          streaming_service_ids: getUSWatchProvidersMovie(movieDetails),
           genre_ids: movieDetails.genres.map((genre: TMDBGenre) => genre.id),
         };
 

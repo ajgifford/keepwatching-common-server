@@ -10,7 +10,7 @@ import { moviesService } from '@services/moviesService';
 import { profileService } from '@services/profileService';
 import { getTMDBService } from '@services/tmdbService';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '@utils/contentUtility';
-import { getUSWatchProviders } from '@utils/watchProvidersUtility';
+import { getUSWatchProvidersMovie } from '@utils/watchProvidersUtility';
 
 jest.mock('@db/moviesDb');
 jest.mock('@services/cacheService');
@@ -22,7 +22,7 @@ jest.mock('@utils/contentUtility', () => ({
   getUSProductionCompanies: jest.fn().mockReturnValue('Production A'),
 }));
 jest.mock('@utils/watchProvidersUtility', () => ({
-  getUSWatchProviders: jest.fn().mockReturnValue([8, 9]),
+  getUSWatchProvidersMovie: jest.fn().mockReturnValue([8, 9]),
 }));
 jest.mock('@services/tmdbService', () => ({
   getTMDBService: jest.fn(),
@@ -245,7 +245,7 @@ describe('MoviesService', () => {
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getDirectors as jest.Mock).mockReturnValue('Steven Jones');
       (getUSProductionCompanies as jest.Mock).mockReturnValue('MGM Global');
-      (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
 
@@ -298,7 +298,7 @@ describe('MoviesService', () => {
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getDirectors as jest.Mock).mockReturnValue('Steven Jones');
       (getUSProductionCompanies as jest.Mock).mockReturnValue('MGM Global');
-      (getUSWatchProviders as jest.Mock).mockReturnValue([8, 9]);
+      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
       (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });

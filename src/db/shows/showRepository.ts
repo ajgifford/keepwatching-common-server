@@ -102,12 +102,16 @@ export async function updateShow(showRequest: UpdateShowRequest): Promise<boolea
 
       const success = result.affectedRows > 0;
       if (success && showRequest.id) {
+        await clearShowGenres(showRequest.id, connection);
+
         if (showRequest.genre_ids && showRequest.genre_ids.length > 0) {
           const genrePromises = showRequest.genre_ids.map((genreId) =>
             saveShowGenre(showRequest.id!, genreId, connection),
           );
           await Promise.all(genrePromises);
         }
+
+        await clearShowStreamingServices(showRequest.id, connection);
 
         if (showRequest.streaming_service_ids && showRequest.streaming_service_ids.length > 0) {
           const servicePromises = showRequest.streaming_service_ids.map((serviceId) =>
@@ -143,6 +147,23 @@ export async function saveShowGenre(showId: number, genreId: number, connection:
 }
 
 /**
+ * Clears all genres associated with a show
+ *
+ * @param showId - ID of the show
+ * @param connection - Existing connection for transaction support
+ * @returns A promise that resolves when the genres are cleared
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+async function clearShowGenres(showId: number, connection: PoolConnection): Promise<void> {
+  try {
+    const query = 'DELETE FROM show_genres WHERE show_id = ?';
+    await connection.execute(query, [showId]);
+  } catch (error) {
+    handleDatabaseError(error, 'clearing genres for a show');
+  }
+}
+
+/**
  * Associates a streaming service with a show
  *
  * @param showId - ID of the show
@@ -161,6 +182,23 @@ export async function saveShowStreamingService(
     await connection.execute(query, [showId, streamingServiceId]);
   } catch (error) {
     handleDatabaseError(error, 'saving the streaming service for a show');
+  }
+}
+
+/**
+ * Clears all streaming services associated with a show
+ *
+ * @param showId - ID of the show
+ * @param connection - Existing connection for transaction support
+ * @returns A promise that resolves when the streaming services are cleared
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+async function clearShowStreamingServices(showId: number, connection: PoolConnection): Promise<void> {
+  try {
+    const query = 'DELETE FROM show_services WHERE show_id = ?';
+    await connection.execute(query, [showId]);
+  } catch (error) {
+    handleDatabaseError(error, 'clearing streaming services for a show');
   }
 }
 
