@@ -118,8 +118,7 @@ describe('adminShowRepository', () => {
       const offset = 20;
       const shows = await adminShowRepository.getAllShows(limit, offset);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`));
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`));
+      expect(mockPool.execute).toHaveBeenCalledWith(`SELECT * FROM admin_shows LIMIT ${limit} OFFSET ${offset}`);
       expect(shows).toHaveLength(1);
     });
 
@@ -183,7 +182,7 @@ describe('adminShowRepository', () => {
 
       const result = await adminShowRepository.getAdminShowDetails(mockShowId);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM admin_show_details WHERE id = ?`, [mockShowId]);
       expect(result).toEqual({
         id: mockShowId,
         tmdbId: 45678,
@@ -213,7 +212,7 @@ describe('adminShowRepository', () => {
       await expect(adminShowRepository.getAdminShowDetails(mockShowId)).rejects.toThrow(
         new NotFoundError(`Show with ID ${mockShowId} not found`),
       );
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM admin_show_details WHERE id = ?`, [mockShowId]);
     });
 
     it('should handle database errors', async () => {
@@ -221,7 +220,7 @@ describe('adminShowRepository', () => {
       mockExecute.mockRejectedValue(error);
 
       await expect(adminShowRepository.getAdminShowDetails(mockShowId)).rejects.toThrow();
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM admin_show_details WHERE id = ?`, [mockShowId]);
     });
   });
 
@@ -261,7 +260,9 @@ describe('adminShowRepository', () => {
 
       const result = await adminShowRepository.getAdminShowSeasons(mockShowId);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`, [
+        mockShowId,
+      ]);
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
         id: 1,
@@ -283,7 +284,9 @@ describe('adminShowRepository', () => {
 
       const result = await adminShowRepository.getAdminShowSeasons(mockShowId);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`, [
+        mockShowId,
+      ]);
       expect(result).toEqual([]);
     });
 
@@ -292,7 +295,9 @@ describe('adminShowRepository', () => {
       mockExecute.mockRejectedValue(error);
 
       await expect(adminShowRepository.getAdminShowSeasons(mockShowId)).rejects.toThrow();
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`, [
+        mockShowId,
+      ]);
     });
   });
 
@@ -549,7 +554,9 @@ describe('adminShowRepository', () => {
 
       const result = await adminShowRepository.getAdminSeasonEpisodes(mockSeasonId);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockSeasonId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM episodes WHERE season_id = ? ORDER BY episode_number`, [
+        mockSeasonId,
+      ]);
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
         id: 101,
@@ -574,7 +581,9 @@ describe('adminShowRepository', () => {
 
       const result = await adminShowRepository.getAdminSeasonEpisodes(mockSeasonId);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockSeasonId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM episodes WHERE season_id = ? ORDER BY episode_number`, [
+        mockSeasonId,
+      ]);
       expect(result).toEqual([]);
     });
 
@@ -583,7 +592,9 @@ describe('adminShowRepository', () => {
       mockExecute.mockRejectedValue(error);
 
       await expect(adminShowRepository.getAdminSeasonEpisodes(mockSeasonId)).rejects.toThrow();
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockSeasonId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM episodes WHERE season_id = ? ORDER BY episode_number`, [
+        mockSeasonId,
+      ]);
     });
   });
 
@@ -617,7 +628,7 @@ describe('adminShowRepository', () => {
 
       const result = await adminShowRepository.getAdminShowProfiles(mockShowId);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM admin_show_profiles WHERE show_id = ?`, [mockShowId]);
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
         profileId: 1001,
@@ -636,7 +647,7 @@ describe('adminShowRepository', () => {
 
       const result = await adminShowRepository.getAdminShowProfiles(mockShowId);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM admin_show_profiles WHERE show_id = ?`, [mockShowId]);
       expect(result).toEqual([]);
     });
 
@@ -645,7 +656,7 @@ describe('adminShowRepository', () => {
       mockExecute.mockRejectedValue(error);
 
       await expect(adminShowRepository.getAdminShowProfiles(mockShowId)).rejects.toThrow();
-      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [mockShowId]);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM admin_show_profiles WHERE show_id = ?`, [mockShowId]);
     });
   });
 

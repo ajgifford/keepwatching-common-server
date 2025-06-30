@@ -486,6 +486,205 @@ AND e.air_date IS NOT NULL
 AND e.air_date <= CURDATE()
 GROUP BY e.id, sws.profile_id;
 
+CREATE VIEW admin_movie_profiles AS
+SELECT 
+        mws.movie_id,
+        p.profile_id,
+        p.name,
+        p.image,
+        p.account_id,
+        a.account_name,
+        mws.status as watch_status,
+        mws.created_at as added_date,
+        mws.updated_at as status_updated_date
+      FROM 
+        movie_watch_status mws
+      JOIN
+        profiles p ON mws.profile_id = p.profile_id
+      JOIN
+        accounts a ON p.account_id = a.account_id
+      ORDER BY 
+        a.account_name, p.name;
+		
+CREATE VIEW admin_movie_details AS
+SELECT 
+      m.id,
+      m.tmdb_id,
+      m.title,
+      m.description,
+      m.release_date,
+      m.runtime,
+      m.poster_image,
+      m.backdrop_image,
+      m.user_rating,
+      m.mpa_rating,
+      m.director,
+      m.production_companies,
+      m.budget,
+      m.revenue,
+      m.created_at,
+      m.updated_at,
+      GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
+	    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+    FROM 
+      movies m
+    LEFT JOIN 
+      movie_genres mg ON m.id = mg.movie_id
+    LEFT JOIN 
+      genres g ON mg.genre_id = g.id
+    LEFT JOIN
+      movie_services ms ON m.id = ms.movie_id
+    LEFT JOIN
+      streaming_services ss on ms.streaming_service_id = ss.id
+    GROUP BY 
+      m.id;
+	  
+CREATE VIEW admin_movies AS
+SELECT 
+    m.id,
+    m.tmdb_id,
+    m.title,
+    m.description,
+    m.release_date,
+    m.runtime,
+    m.poster_image,
+    m.backdrop_image,
+    m.user_rating,
+    m.mpa_rating,
+    m.created_at,
+    m.updated_at,
+    GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
+    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+FROM 
+    movies m
+LEFT JOIN 
+    movie_genres mg ON m.id = mg.movie_id
+LEFT JOIN 
+    genres g ON mg.genre_id = g.id
+LEFT JOIN
+    movie_services ms ON m.id = ms.movie_id
+LEFT JOIN
+    streaming_services ss ON ms.streaming_service_id = ss.id
+GROUP BY 
+    m.id
+ORDER BY
+    m.title;
+	
+CREATE VIEW admin_shows AS
+SELECT 
+      s.id,
+      s.tmdb_id,
+      s.title,
+      s.description,
+      s.release_date,
+      s.poster_image,
+      s.backdrop_image,
+      s.network,
+      s.season_count,
+      s.episode_count,
+      s.user_rating,
+      s.content_rating,
+      s.status,
+      s.type,
+      s.in_production,
+      s.last_air_date,
+      s.updated_at,
+    GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
+    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+    FROM 
+      shows s
+    LEFT JOIN 
+      show_genres sg ON s.id = sg.show_id
+    LEFT JOIN 
+      genres g ON sg.genre_id = g.id
+    LEFT JOIN
+      show_services shs ON s.id = shs.show_id
+    LEFT JOIN
+      streaming_services ss on shs.streaming_service_id = ss.id
+    GROUP BY 
+      s.id
+    ORDER BY
+        s.title
+		
+CREATE VIEW admin_show_details AS
+SELECT 
+      s.id,
+      s.tmdb_id,
+      s.title,
+      s.description,
+      s.release_date,
+      s.poster_image,
+      s.backdrop_image,
+      s.network,
+      s.season_count,
+      s.episode_count,
+      s.user_rating,
+      s.content_rating,
+      s.status,
+      s.type,
+      s.in_production,
+      s.last_air_date,
+      s.created_at,
+      s.updated_at,
+      GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
+      GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
+    FROM 
+      shows s
+    LEFT JOIN 
+      show_genres sg ON s.id = sg.show_id
+    LEFT JOIN 
+      genres g ON sg.genre_id = g.id
+    LEFT JOIN
+      show_services shs ON s.id = shs.show_id
+    LEFT JOIN
+      streaming_services ss on shs.streaming_service_id = ss.id
+    GROUP BY 
+      s.id;
+	  
+CREATE VIEW admin_show_profiles AS
+SELECT 
+        sws.show_id,
+        p.profile_id,
+        p.name,
+        p.image,
+        p.account_id,
+        a.account_name,
+        sws.status as watch_status,
+        sws.created_at as added_date,
+        sws.updated_at as status_updated_date
+      FROM 
+        show_watch_status sws
+      JOIN
+        profiles p ON sws.profile_id = p.profile_id
+      JOIN
+        accounts a ON p.account_id = a.account_id
+      ORDER BY 
+        a.account_name, p.name;
+		
+CREATE VIEW admin_season_watch_progress AS
+SELECT 
+    s.show_id,
+    sws.profile_id,
+    s.id as season_id,
+    s.name,
+    s.season_number,
+    s.number_of_episodes,
+    sws.status as season_status,
+    (
+        SELECT COUNT(*) 
+        FROM episode_watch_status ews
+        JOIN episodes e ON ews.episode_id = e.id
+        WHERE e.season_id = s.id 
+        AND ews.profile_id = sws.profile_id 
+        AND ews.status = 'WATCHED'
+    ) as watched_episodes
+FROM 
+    seasons s
+LEFT JOIN
+    season_watch_status sws ON s.id = sws.season_id
+ORDER BY 
+    s.season_number;
+
 -- Reference Data
 
 INSERT INTO `genres` VALUES (12,'Adventure'),(14,'Fantasy'),(16,'Animation'),(18,'Drama'),(27,'Horror'),(28,'Action'),(35,'Comedy'),(36,'History'),(37,'Western'),(53,'Thriller'),(80,'Crime'),(99,'Documentary'),(878,'Science Fiction'),(9648,'Mystery'),(10402,'Music'),(10749,'Romance'),(10751,'Family'),(10752,'War'),(10759,'Action & Adventure'),(10762,'Kids'),(10763,'News'),(10764,'Reality'),(10765,'Sci-fi & Fantasy'),(10766,'Soap'),(10767,'Talk'),(10768,'War & Politics'),(10770,'TV Movie');

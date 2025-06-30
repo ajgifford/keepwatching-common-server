@@ -80,6 +80,7 @@ describe('adminMovieRepository', () => {
       const movies = await moviesDb.getAllMovies();
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movies LIMIT 50 OFFSET 0');
       expect(movies).toHaveLength(2);
       expect(movies[0].id).toBe(1);
       expect(movies[0].tmdbId).toBe(12345);
@@ -154,7 +155,7 @@ describe('adminMovieRepository', () => {
 
       const movie = await moviesDb.getMovieDetails(movieId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('m.id = ?'), [movieId]);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_details WHERE id = ?', [movieId]);
       expect(movie).toEqual({
         id: movieId,
         tmdbId: 45678,
@@ -176,7 +177,7 @@ describe('adminMovieRepository', () => {
       mockPool.execute.mockResolvedValueOnce([[]]);
 
       await expect(moviesDb.getMovieDetails(movieId)).rejects.toThrow(`Movie with ID ${movieId} not found`);
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('m.id = ?'), [movieId]);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_details WHERE id = ?', [movieId]);
     });
 
     it('should throw DatabaseError when query fails', async () => {
@@ -219,7 +220,7 @@ describe('adminMovieRepository', () => {
 
       const profiles = await moviesDb.getMovieProfiles(movieId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('mws.movie_id = ?'), [movieId]);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_profiles WHERE movie_id = ?', [movieId]);
       expect(profiles).toHaveLength(2);
       expect(profiles[0]).toEqual({
         profileId: 1,
@@ -239,7 +240,7 @@ describe('adminMovieRepository', () => {
 
       const profiles = await moviesDb.getMovieProfiles(movieId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('mws.movie_id = ?'), [movieId]);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_profiles WHERE movie_id = ?', [movieId]);
       expect(profiles).toEqual([]);
     });
 

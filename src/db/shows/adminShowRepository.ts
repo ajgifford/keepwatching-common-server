@@ -35,43 +35,7 @@ export async function getShowsCount(): Promise<number> {
 
 export async function getAllShows(limit: number = 50, offset: number = 0): Promise<AdminShow[]> {
   try {
-    const query = `SELECT 
-      s.id,
-      s.tmdb_id,
-      s.title,
-      s.description,
-      s.release_date,
-      s.poster_image,
-      s.backdrop_image,
-      s.network,
-      s.season_count,
-      s.episode_count,
-      s.user_rating,
-      s.content_rating,
-      s.status,
-      s.type,
-      s.in_production,
-      s.last_air_date,
-      s.updated_at,
-    GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
-    FROM 
-      shows s
-    LEFT JOIN 
-      show_genres sg ON s.id = sg.show_id
-    LEFT JOIN 
-      genres g ON sg.genre_id = g.id
-    LEFT JOIN
-      show_services shs ON s.id = shs.show_id
-    LEFT JOIN
-      streaming_services ss on shs.streaming_service_id = ss.id
-    GROUP BY 
-      s.id
-    ORDER BY
-        s.title
-    LIMIT ${limit} 
-    OFFSET ${offset}`;
-
+    const query = `SELECT * FROM admin_shows LIMIT ${limit} OFFSET ${offset}`;
     const [shows] = await getDbPool().execute<AdminShowRow[]>(query);
     return shows.map(transformAdminShow);
   } catch (error) {
@@ -89,42 +53,7 @@ export async function getAllShows(limit: number = 50, offset: number = 0): Promi
  */
 export async function getAdminShowDetails(showId: number): Promise<AdminShow> {
   try {
-    const query = `SELECT 
-      s.id,
-      s.tmdb_id,
-      s.title,
-      s.description,
-      s.release_date,
-      s.poster_image,
-      s.backdrop_image,
-      s.network,
-      s.season_count,
-      s.episode_count,
-      s.user_rating,
-      s.content_rating,
-      s.status,
-      s.type,
-      s.in_production,
-      s.last_air_date,
-      s.created_at,
-      s.updated_at,
-      GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-      GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
-    FROM 
-      shows s
-    LEFT JOIN 
-      show_genres sg ON s.id = sg.show_id
-    LEFT JOIN 
-      genres g ON sg.genre_id = g.id
-    LEFT JOIN
-      show_services shs ON s.id = shs.show_id
-    LEFT JOIN
-      streaming_services ss on shs.streaming_service_id = ss.id
-    WHERE
-      s.id = ?
-    GROUP BY 
-      s.id`;
-
+    const query = `SELECT * FROM admin_show_details WHERE id = ?`;
     const [rows] = await getDbPool().execute<AdminShowRow[]>(query, [showId]);
 
     if (rows.length === 0) {
@@ -149,26 +78,7 @@ export async function getAdminShowDetails(showId: number): Promise<AdminShow> {
  */
 export async function getAdminShowSeasons(showId: number): Promise<AdminSeason[]> {
   try {
-    const query = `
-      SELECT 
-        id,
-        show_id,
-        tmdb_id,
-        name,
-        overview,
-        season_number,
-        release_date,
-        poster_image,
-        number_of_episodes,
-        created_at,
-        updated_at
-      FROM 
-        seasons
-      WHERE 
-        show_id = ?
-      ORDER BY 
-        season_number`;
-
+    const query = `SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`;
     const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(query, [showId]);
     return seasonRows.map(transformAdminSeason);
   } catch (error) {
@@ -185,26 +95,7 @@ export async function getAdminShowSeasons(showId: number): Promise<AdminSeason[]
  */
 export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<AdminSeasonWithEpisodes[]> {
   try {
-    const seasonsQuery = `
-      SELECT 
-        id,
-        show_id,
-        tmdb_id,
-        name,
-        overview,
-        season_number,
-        release_date,
-        poster_image,
-        number_of_episodes,
-        created_at,
-        updated_at
-      FROM 
-        seasons
-      WHERE 
-        show_id = ?
-      ORDER BY 
-        season_number`;
-
+    const seasonsQuery = `SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`;
     const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(seasonsQuery, [showId]);
 
     if (seasonRows.length === 0) {
@@ -213,29 +104,7 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<A
 
     const seasonIds = seasonRows.map((row) => row.id);
     const placeholders = seasonIds.map(() => '?').join(',');
-    const episodesQuery = `
-      SELECT 
-        id,
-        tmdb_id,
-        season_id,
-        episode_number,
-        episode_type,
-        season_number,
-        title,
-        overview,
-        air_date,
-        runtime,
-        still_image,
-        created_at,
-        updated_at
-        FROM 
-        episodes
-      WHERE 
-        season_id IN (${placeholders})
-      ORDER BY 
-      season_id, 
-        episode_number`;
-
+    const episodesQuery = `SELECT * FROM episodes WHERE season_id IN (${placeholders}) ORDER BY season_id, episode_number`;
     const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(episodesQuery, seasonIds);
 
     const episodesBySeason: Record<number, AdminEpisode[]> = {};
@@ -262,29 +131,7 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<A
  */
 export async function getAdminSeasonEpisodes(seasonId: number): Promise<AdminEpisode[]> {
   try {
-    const query = `
-      SELECT 
-        id,
-        tmdb_id,
-        season_id,
-        show_id,
-        episode_number,
-        episode_type,
-        season_number,
-        title,
-        overview,
-        air_date,
-        runtime,
-        still_image,
-        created_at,
-        updated_at
-      FROM 
-        episodes
-      WHERE 
-        season_id = ?
-      ORDER BY 
-        episode_number`;
-
+    const query = `SELECT * FROM episodes WHERE season_id = ? ORDER BY episode_number`;
     const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(query, [seasonId]);
     return episodeRows.map(transformAdminEpisode);
   } catch (error) {
@@ -301,27 +148,7 @@ export async function getAdminSeasonEpisodes(seasonId: number): Promise<AdminEpi
  */
 export async function getAdminShowProfiles(showId: number): Promise<ContentProfiles[]> {
   try {
-    const query = `
-      SELECT 
-        p.profile_id,
-        p.name,
-        p.image,
-        p.account_id,
-        a.account_name,
-        sws.status as watch_status,
-        sws.created_at as added_date,
-        sws.updated_at as status_updated_date
-      FROM 
-        show_watch_status sws
-      JOIN
-        profiles p ON sws.profile_id = p.profile_id
-      JOIN
-        accounts a ON p.account_id = a.account_id
-      WHERE 
-        sws.show_id = ?
-      ORDER BY 
-        a.account_name, p.name`;
-
+    const query = `SELECT * FROM admin_show_profiles WHERE show_id = ?`;
     const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [showId]);
     return profileRows.map(transformContentProfiles);
   } catch (error) {
@@ -358,32 +185,10 @@ export async function getAdminShowWatchProgress(showId: number): Promise<AdminSh
 
     const results = await Promise.all(
       profileRows.map(async (profile) => {
-        const seasonQuery = `
-        SELECT 
-          s.id,
-          s.name,
-          s.season_number,
-          s.number_of_episodes,
-          sws.status as season_status,
-          (
-            SELECT COUNT(*) 
-            FROM episode_watch_status ews
-            JOIN episodes e ON ews.episode_id = e.id
-            WHERE e.season_id = s.id AND ews.profile_id = ? AND ews.status = 'WATCHED'
-          ) as watched_episodes
-        FROM 
-          seasons s
-        LEFT JOIN
-          season_watch_status sws ON s.id = sws.season_id AND sws.profile_id = ?
-        WHERE 
-          s.show_id = ?
-        ORDER BY 
-          s.season_number`;
-
+        const seasonQuery = `SELECT * FROM admin_season_watch_progress WHERE show_id = ? and profile_id = ?`;
         const [seasonRows] = await getDbPool().execute<AdminSeasonWatchProgressRow[]>(seasonQuery, [
-          profile.profile_id,
-          profile.profile_id,
           showId,
+          profile.profile_id,
         ]);
 
         const seasons = seasonRows.map(transformAdminSeasonWatchProgress);

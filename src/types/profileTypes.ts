@@ -89,7 +89,9 @@ export interface ProfileShowStatusRow extends RowDataPacket {
 }
 
 export interface AdminSeasonWatchProgressRow extends RowDataPacket {
-  id: number;
+  show_id: number;
+  profile_id: number;
+  season_id: number;
   name: string;
   season_number: number;
   number_of_episodes: number;

@@ -23,38 +23,7 @@ export async function getMoviesCount(): Promise<number> {
 
 export async function getAllMovies(limit: number = 50, offset: number = 0): Promise<AdminMovie[]> {
   try {
-    const query = `SELECT 
-      m.id,
-      m.tmdb_id,
-      m.title,
-      m.description,
-      m.release_date,
-      m.runtime,
-      m.poster_image,
-      m.backdrop_image,
-      m.user_rating,
-      m.mpa_rating,
-      m.created_at,
-      m.updated_at,
-      GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-	    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
-    FROM 
-      movies m
-    LEFT JOIN 
-      movie_genres mg ON m.id = mg.movie_id
-    LEFT JOIN 
-      genres g ON mg.genre_id = g.id
-    LEFT JOIN
-      movie_services ms ON m.id = ms.movie_id
-    LEFT JOIN
-      streaming_services ss on ms.streaming_service_id = ss.id
-    GROUP BY 
-      m.id
-    ORDER BY
-      m.title
-    LIMIT ${limit}
-    OFFSET ${offset}`;
-
+    const query = `SELECT * FROM admin_movies LIMIT ${limit} OFFSET ${offset}`;
     const [movieRows] = await getDbPool().execute<AdminMovieRow[]>(query);
     return movieRows.map(transformAdminMovie);
   } catch (error) {
@@ -64,40 +33,7 @@ export async function getAllMovies(limit: number = 50, offset: number = 0): Prom
 
 export async function getMovieDetails(movieId: number): Promise<AdminMovieDetails> {
   try {
-    const query = `SELECT 
-      m.id,
-      m.tmdb_id,
-      m.title,
-      m.description,
-      m.release_date,
-      m.runtime,
-      m.poster_image,
-      m.backdrop_image,
-      m.user_rating,
-      m.mpa_rating,
-      m.director,
-      m.production_companies,
-      m.budget,
-      m.revenue,
-      m.created_at,
-      m.updated_at,
-      GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-	    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
-    FROM 
-      movies m
-    LEFT JOIN 
-      movie_genres mg ON m.id = mg.movie_id
-    LEFT JOIN 
-      genres g ON mg.genre_id = g.id
-    LEFT JOIN
-      movie_services ms ON m.id = ms.movie_id
-    LEFT JOIN
-      streaming_services ss on ms.streaming_service_id = ss.id
-    WHERE
-      m.id = ?
-    GROUP BY 
-      m.id`;
-
+    const query = `SELECT * FROM admin_movie_details WHERE id = ?`;
     const [movieRows] = await getDbPool().execute<AdminMovieDetailsRow[]>(query, [movieId]);
     if (movieRows.length === 0) {
       throw new NotFoundError(`Movie with ID ${movieId} not found`);
@@ -114,27 +50,7 @@ export async function getMovieDetails(movieId: number): Promise<AdminMovieDetail
 
 export async function getMovieProfiles(movieId: number): Promise<ContentProfiles[]> {
   try {
-    const query = `
-      SELECT 
-        p.profile_id,
-        p.name,
-        p.image,
-        p.account_id,
-        a.account_name,
-        mws.status as watch_status,
-        mws.created_at as added_date,
-        mws.updated_at as status_updated_date
-      FROM 
-        movie_watch_status mws
-      JOIN
-        profiles p ON mws.profile_id = p.profile_id
-      JOIN
-        accounts a ON p.account_id = a.account_id
-      WHERE 
-        mws.movie_id = ?
-      ORDER BY 
-        a.account_name, p.name`;
-
+    const query = `SELECT * FROM admin_movie_profiles WHERE movie_id = ?`;
     const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [movieId]);
     return profileRows.map(transformContentProfiles);
   } catch (error) {
