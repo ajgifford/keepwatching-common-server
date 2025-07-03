@@ -1,4 +1,5 @@
 import { appLogger, cliLogger } from '../logger/logger';
+import { TimestampUtil } from './timestampUtil';
 
 /**
  * Global error handler for uncaught exceptions and unhandled Promise rejections
@@ -84,6 +85,30 @@ export class GlobalErrorHandler {
       errorInfo: (error as any).errorInfo || undefined,
       codePrefix: (error as any).codePrefix || undefined,
     });
+  }
+
+  /**
+   * Override console.error to ensure timestamps in all console output
+   * This ensures any library errors that use console.error get timestamps
+   */
+  public static overrideConsoleError(): void {
+    const originalConsoleError = console.error;
+    console.error = (...args: any[]) => {
+      const timestamp = TimestampUtil.forConsoleLogging();
+      originalConsoleError(`[${timestamp}] ERROR:`, ...args);
+    };
+
+    const originalConsoleWarn = console.warn;
+    console.warn = (...args: any[]) => {
+      const timestamp = TimestampUtil.forConsoleLogging();
+      originalConsoleWarn(`[${timestamp}] WARN:`, ...args);
+    };
+
+    const originalConsoleLog = console.log;
+    console.log = (...args: any[]) => {
+      const timestamp = TimestampUtil.forConsoleLogging();
+      originalConsoleLog(`[${timestamp}] INFO:`, ...args);
+    };
   }
 
   /**
