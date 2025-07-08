@@ -11,6 +11,7 @@ export const CACHE_KEY_PATTERNS = {
   SEASON: 'season',
   EPISODE: 'episode',
   MOVIE: 'movie',
+  PERSON: 'person',
   STREAMING: 'streaming',
   STATISTICS: 'statistics',
   DISCOVER: 'discover',
@@ -90,6 +91,9 @@ export const SHOW_KEYS = {
     childEntity: 'episodes' | 'seasons',
   ) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_show_details_${childEntity}_${childId}`,
 
+  /** Gets the cache key for a specific show and its cast members */
+  castMembers: (showId: number | string) => `${CACHE_KEY_PATTERNS.SHOW}_cast_${showId}`,
+
   /** Gets the cache key for show recommendations */
   recommendations: (showId: number | string) => `${CACHE_KEY_PATTERNS.RECOMMENDATIONS}_show_${showId}`,
 
@@ -101,8 +105,12 @@ export const ADMIN_KEYS = {
   /** Gets the cache key for all shows */
   allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
 
+  allShowReferences: () => `allShowReferences`,
+
   /** Gets the cache key for all movies */
   allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
+
+  allMovieReferences: () => `allMovieReferences`,
 
   /** Gets the cache key for admin show details */
   showDetails: (showId: number | string) => `${CACHE_KEY_PATTERNS.ADMIN}_show_details_${showId}`,
@@ -145,11 +153,18 @@ export const MOVIE_KEYS = {
   details: (profileId: number | string, movieId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_movie_${movieId}`,
 
+  /** Gets the cache key for a specific movie and its cast members */
+  castMembers: (movieId: number | string) => `${CACHE_KEY_PATTERNS.MOVIE}_cast_${movieId}`,
+
   /** Gets the cache key for movie recommendations */
   recommendations: (movieId: number | string) => `${CACHE_KEY_PATTERNS.RECOMMENDATIONS}_movie_${movieId}`,
 
   /** Gets the cache key for similar movies */
   similar: (movieId: number | string) => `${CACHE_KEY_PATTERNS.SIMILAR}_movie_${movieId}`,
+};
+
+export const PERSON_KEYS = {
+  details: (personId: number | string) => `${CACHE_KEY_PATTERNS.PERSON}_details_${personId}`,
 };
 
 // Discovery keys

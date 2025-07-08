@@ -92,6 +92,7 @@ describe('emailUtility', () => {
               id: 1,
               tmdbId: 120,
               title: 'Dune: Part Two',
+              releaseDate: '',
             },
           ],
           continueWatching: [
@@ -289,6 +290,7 @@ describe('emailUtility', () => {
               id: 2,
               tmdbId: 122,
               title: 'Dune: Part Two',
+              releaseDate: '',
             },
           ],
           continueWatching: [
@@ -369,7 +371,14 @@ describe('emailUtility', () => {
           {
             profile: { id: 2, name: 'Jane' },
             upcomingEpisodes: [],
-            upcomingMovies: [{ id: 3, tmdbId: 123, title: 'Avatar 3' }],
+            upcomingMovies: [
+              {
+                id: 3,
+                tmdbId: 123,
+                title: 'Avatar 3',
+                releaseDate: '',
+              },
+            ],
             continueWatching: [],
           },
         ],
@@ -400,16 +409,46 @@ describe('emailUtility', () => {
         ],
         featuredContent: {
           trendingShows: [
-            { id: 4, tmdbId: 124, title: 'Wednesday' },
-            { id: 5, tmdbId: 125, title: 'Stranger Things' },
+            {
+              id: 4,
+              tmdbId: 124,
+              title: 'Wednesday',
+              releaseDate: '',
+            },
+            {
+              id: 5,
+              tmdbId: 125,
+              title: 'Stranger Things',
+              releaseDate: '',
+            },
           ],
           newReleases: [
-            { id: 6, tmdbId: 126, title: 'The Last of Us' },
-            { id: 7, tmdbId: 127, title: 'House of the Dragon' },
+            {
+              id: 6,
+              tmdbId: 126,
+              title: 'The Last of Us',
+              releaseDate: '',
+            },
+            {
+              id: 7,
+              tmdbId: 127,
+              title: 'House of the Dragon',
+              releaseDate: '',
+            },
           ],
           popularMovies: [
-            { id: 8, tmdbId: 128, title: 'Top Gun: Maverick' },
-            { id: 9, tmdbId: 129, title: 'Avatar: The Way of Water' },
+            {
+              id: 8,
+              tmdbId: 128,
+              title: 'Top Gun: Maverick',
+              releaseDate: '',
+            },
+            {
+              id: 9,
+              tmdbId: 129,
+              title: 'Avatar: The Way of Water',
+              releaseDate: '',
+            },
           ],
         },
         weekRange: {
@@ -501,11 +540,35 @@ describe('emailUtility', () => {
         ],
         featuredContent: {
           trendingShows: [
-            { id: 4, tmdbId: 124, title: 'Wednesday' },
-            { id: 5, tmdbId: 125, title: 'Stranger Things' },
+            {
+              id: 4,
+              tmdbId: 124,
+              title: 'Wednesday',
+              releaseDate: '',
+            },
+            {
+              id: 5,
+              tmdbId: 125,
+              title: 'Stranger Things',
+              releaseDate: '',
+            },
           ],
-          newReleases: [{ id: 6, tmdbId: 126, title: 'The Last of Us' }],
-          popularMovies: [{ id: 8, tmdbId: 128, title: 'Top Gun: Maverick' }],
+          newReleases: [
+            {
+              id: 6,
+              tmdbId: 126,
+              title: 'The Last of Us',
+              releaseDate: '',
+            },
+          ],
+          popularMovies: [
+            {
+              id: 8,
+              tmdbId: 128,
+              title: 'Top Gun: Maverick',
+              releaseDate: '',
+            },
+          ],
         },
         weekRange: {
           start: '2024-03-16',
@@ -573,7 +636,14 @@ describe('emailUtility', () => {
           ...mockDiscoveryEmail.data,
           featuredContent: {
             trendingShows: [],
-            newReleases: [{ id: 30, tmdbId: 135, title: 'Test Show' }],
+            newReleases: [
+              {
+                id: 30,
+                tmdbId: 135,
+                title: 'Test Show',
+                releaseDate: '',
+              },
+            ],
             popularMovies: [],
           },
         },

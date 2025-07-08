@@ -14,6 +14,12 @@ export {
   getMoviesForUpdates,
 } from './movies/movieRepository';
 
-export { getAllMovies, getMoviesCount, getMovieDetails, getMovieProfiles } from './movies/adminMovieRepository';
+export {
+  getAllMovies,
+  getAllMoviesReferences,
+  getMoviesCount,
+  getMovieDetails,
+  getMovieProfiles,
+} from './movies/adminMovieRepository';
 
 export { getRecentlyReleasedMovies, getTopRatedMovies, getTrendingMovies } from './movies/digestMovieRepository';

@@ -1,4 +1,4 @@
-import { ACCOUNT_KEYS, INVALIDATION_PATTERNS, PROFILE_KEYS } from '../constants/cacheKeys';
+import { ACCOUNT_KEYS, INVALIDATION_PATTERNS, PERSON_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import { cliLogger } from '../logger/logger';
 import NodeCache from 'node-cache';
 
@@ -163,6 +163,10 @@ export class CacheService {
    */
   public invalidateProfile(profileId: number): number {
     return this.invalidatePattern(INVALIDATION_PATTERNS.allProfileData(profileId));
+  }
+
+  public invalidatePerson(personId: number) {
+    this.invalidate(PERSON_KEYS.details(personId));
   }
 
   /**

@@ -109,6 +109,12 @@ describe('processSeasonChanges', () => {
         },
       },
     },
+    credits: {
+      cast: [],
+    },
+    aggregate_credits: {
+      cast: [],
+    },
   };
 
   const mockContent: ContentUpdates = {

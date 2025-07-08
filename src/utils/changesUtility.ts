@@ -7,6 +7,7 @@ import { TMDBChange } from '../types/tmdbTypes';
 export const SUPPORTED_CHANGE_KEYS = [
   'air_date',
   'budget',
+  'cast',
   'episode',
   'episode_number',
   'episode_run_time',
@@ -30,6 +31,7 @@ export const LANGUAGE_SPECIFIC_KEYS = new Set(['name', 'overview', 'title']);
 export const GLOBAL_KEYS = new Set([
   'air_date',
   'budget',
+  'cast',
   'episode',
   'episode_number',
   'episode_run_time',

@@ -3,13 +3,15 @@ import { ContentCountRow } from '../../types/contentTypes';
 import {
   AdminMovieDetailsRow,
   AdminMovieRow,
+  MovieReferenceRow,
   transformAdminMovie,
   transformAdminMovieDetails,
+  transformMovieReferenceRow,
 } from '../../types/movieTypes';
 import { ContentProfilesRow, transformContentProfiles } from '../../types/profileTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
-import { AdminMovie, AdminMovieDetails, ContentProfiles } from '@ajgifford/keepwatching-types';
+import { AdminMovie, AdminMovieDetails, ContentProfiles, MovieReference } from '@ajgifford/keepwatching-types';
 
 export async function getMoviesCount(): Promise<number> {
   try {
@@ -28,6 +30,16 @@ export async function getAllMovies(limit: number = 50, offset: number = 0): Prom
     return movieRows.map(transformAdminMovie);
   } catch (error) {
     handleDatabaseError(error, 'getting all movies');
+  }
+}
+
+export async function getAllMoviesReferences(): Promise<MovieReference[]> {
+  try {
+    const query = `SELECT id, tmdb_id, title, release_date FROM movies`;
+    const [movieRows] = await getDbPool().execute<MovieReferenceRow[]>(query);
+    return movieRows.map(transformMovieReferenceRow);
+  } catch (error) {
+    handleDatabaseError(error, 'getting all movies references');
   }
 }
 

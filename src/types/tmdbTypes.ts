@@ -75,7 +75,32 @@ export interface TMDBCastMember {
   credit_id: string;
   gender: number | null;
   profile_path: string | null;
-  cast_id: number;
+}
+
+export interface TMDBShowCastMember {
+  id: number;
+  name: string;
+  order: number;
+  gender: number | null;
+  profile_path: string | null;
+  roles: TMDBShowRole[];
+}
+
+export interface TMDBShowRole {
+  credit_id: string;
+  character: string;
+  episode_count: number;
+}
+
+export interface TMDBPerson {
+  id: number;
+  name: string;
+  gender: number;
+  biography: string;
+  profile_path: string;
+  birthday: string;
+  deathday: string | null;
+  place_of_birth: string;
 }
 
 export interface TMDBContent {
@@ -107,6 +132,8 @@ export interface TMDBShow extends TMDBContent {
   backdrop_path: string;
   first_air_date: string;
   genres: TMDBGenre[];
+  credits: { cast: TMDBCastMember[] };
+  aggregate_credits: { cast: TMDBShowCastMember[] };
   in_production: boolean;
   last_air_date: string;
   last_episode_to_air: TMDBEpisodeToAir | null;

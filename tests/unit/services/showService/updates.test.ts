@@ -289,7 +289,7 @@ describe('ShowService - Content Updates', () => {
     });
 
     it('should handle empty changes array', async () => {
-      mockTMDBService.getShowChanges.mockResolvedValue({});
+      mockTMDBService.getShowChanges.mockResolvedValue({ changes: [] });
 
       await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
 

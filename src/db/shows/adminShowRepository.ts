@@ -9,7 +9,7 @@ import {
   transformContentProfiles,
 } from '../../types/profileTypes';
 import { AdminSeasonRow, transformAdminSeason, transformAdminSeasonWithEpisodes } from '../../types/seasonTypes';
-import { AdminShowRow, transformAdminShow } from '../../types/showTypes';
+import { AdminShowRow, ShowReferenceRow, transformAdminShow, transformShowReferenceRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import {
@@ -20,6 +20,7 @@ import {
   AdminShow,
   AdminShowWatchProgressResult,
   ContentProfiles,
+  ShowReference,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
 
@@ -40,6 +41,16 @@ export async function getAllShows(limit: number = 50, offset: number = 0): Promi
     return shows.map(transformAdminShow);
   } catch (error) {
     handleDatabaseError(error, 'get all shows');
+  }
+}
+
+export async function getAllShowReferences(): Promise<ShowReference[]> {
+  try {
+    const query = `SELECT id, tmdb_id, title, release_date FROM shows`;
+    const [shows] = await getDbPool().execute<ShowReferenceRow[]>(query);
+    return shows.map(transformShowReferenceRow);
+  } catch (error) {
+    handleDatabaseError(error, 'get all show references');
   }
 }
 

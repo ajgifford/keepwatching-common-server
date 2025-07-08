@@ -2,6 +2,7 @@ import {
   TMDBChangesResponse,
   TMDBMovie,
   TMDBPaginatedResponse,
+  TMDBPerson,
   TMDBRelatedMovie,
   TMDBRelatedShow,
   TMDBSearchMovieParams,
@@ -20,6 +21,7 @@ export const TMDB_CACHE_KEYS = {
   showDetails: (id: number) => `tmdb_show_details_${id}`,
   movieDetails: (id: number) => `tmdb_movie_details_${id}`,
   seasonDetails: (showId: number, seasonNumber: number) => `tmdb_season_details_${showId}_${seasonNumber}`,
+  personDetails: (personId: number) => `tmdb_person_details_${personId}`,
   trending: (mediaType: 'tv' | 'movie', page: string = '1') => `tmdb_trending_${mediaType}_${page}`,
   showRecommendations: (showId: number) => `tmdb_show_recommendations_${showId}`,
   movieRecommendations: (movieId: number) => `tmdb_movie_recommendations_${movieId}`,
@@ -81,6 +83,13 @@ export interface TMDBService {
    * @returns Season details including episodes
    */
   getSeasonDetails(showId: number, seasonNumber: number): Promise<TMDBSeasonDetails>;
+
+  /**
+   * Get detailed information about a specific person
+   * @param personId - TMDB ID of the person
+   * @returns Person details
+   */
+  getPersonDetails(personId: number): Promise<TMDBPerson>;
 
   /**
    * Get trending shows or movies for the week
@@ -251,7 +260,7 @@ export class DefaultTMDBService implements TMDBService {
         return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get<TMDBShow>(
-              `/tv/${id}?append_to_response=content_ratings,watch/providers`,
+              `/tv/${id}?append_to_response=credits,aggregate_credits,content_ratings,watch/providers`,
               { timeout: 10000 },
             );
             return response.data;
@@ -276,7 +285,7 @@ export class DefaultTMDBService implements TMDBService {
         return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get<TMDBMovie>(
-              `/movie/${id}?append_to_response=credits%2Crelease_dates%2Cwatch%2Fproviders&language=en-US`,
+              `/movie/${id}?append_to_response=credits,release_dates,watch/providers&language=en-US`,
               { timeout: 10000 },
             );
             return response.data;
@@ -310,6 +319,29 @@ export class DefaultTMDBService implements TMDBService {
             baseDelay: 1000,
           },
           `getSeasonDetails(${showId}, ${seasonNumber})`,
+        );
+      },
+      3600, // 1 hour TTL
+    );
+  }
+
+  async getPersonDetails(personId: number): Promise<TMDBPerson> {
+    const cacheKey = TMDB_CACHE_KEYS.personDetails(personId);
+    return await this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        return await withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get<TMDBPerson>(`/person/${personId}`, {
+              timeout: 10000,
+            });
+            return response.data;
+          },
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
+          `getPersonDetails(${personId})`,
         );
       },
       3600, // 1 hour TTL

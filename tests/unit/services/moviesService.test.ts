@@ -31,6 +31,9 @@ jest.mock('@logger/logger', () => ({
   appLogger: {
     error: jest.fn(),
   },
+  cliLogger: {
+    error: jest.fn(),
+  },
 }));
 
 describe('MoviesService', () => {

@@ -1,8 +1,9 @@
 import { ADMIN_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
-import { appLogger } from '../logger/logger';
+import * as personsDb from '../db/personsDb';
+import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { TMDBGenre } from '../types/tmdbTypes';
+import { TMDBGenre, TMDBMovie } from '../types/tmdbTypes';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils/contentUtility';
 import { getUSWatchProvidersMovie } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
@@ -10,6 +11,10 @@ import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
 import { AdminMovieDetails, ContentProfiles, UpdateMovieRequest } from '@ajgifford/keepwatching-types';
 
+/**
+ * Service for handling admin-specific movie operations
+ * Provides caching and error handling on top of the repository layer
+ */
 export class AdminMovieService {
   private cache: CacheService;
 
@@ -39,6 +44,16 @@ export class AdminMovieService {
       });
     } catch (error) {
       throw errorService.handleError(error, `getAllMovies(${page}, ${offset}, ${limit})`);
+    }
+  }
+
+  public async getAllMovieReferences() {
+    try {
+      return await this.cache.getOrSet(ADMIN_KEYS.allMovieReferences(), async () => {
+        return await moviesDb.getAllMoviesReferences();
+      });
+    } catch (error) {
+      throw errorService.handleError(error, `getAllMovieReferences()`);
     }
   }
 
@@ -88,6 +103,23 @@ export class AdminMovieService {
     }
   }
 
+  public async updateAllMovies() {
+    try {
+      appLogger.info('updateAllMovies -- Started');
+      cliLogger.info('updateAllMovies -- Started');
+      const movieReferences = await this.getAllMovieReferences();
+      for (const reference of movieReferences) {
+        this.updateMovieById(reference.id, reference.tmdbId);
+      }
+      appLogger.info('updateAllMovies -- Ended');
+      cliLogger.info('updateAllMovies -- Ended');
+    } catch (error) {
+      appLogger.info('updateAllMovies -- Error');
+      cliLogger.info('updateAllMovies -- Error');
+      throw errorService.handleError(error, `updateAllMovies()`);
+    }
+  }
+
   public async updateMovieById(movieId: number, tmdbId: number): Promise<boolean> {
     try {
       const tmdbService = getTMDBService();
@@ -117,10 +149,47 @@ export class AdminMovieService {
         this.invalidateAllMovies();
         this.invalidateMovieCache(movieId);
       }
+
+      this.processMovieCast(movieDetails, movieId);
+
       return updated;
     } catch (error) {
       appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
       throw errorService.handleError(error, `updateMovieById(${movieId})`);
+    }
+  }
+
+  private async processMovieCast(movie: TMDBMovie, movieId: number) {
+    try {
+      const cast = movie.credits.cast ?? [];
+      for (const castMember of cast) {
+        const person = await personsDb.findPersonByTMDBId(castMember.id);
+        let personId = null;
+        if (person) {
+          personId = person.id;
+        } else {
+          const tmdbPerson = await getTMDBService().getPersonDetails(castMember.id);
+          personId = await personsDb.savePerson({
+            tmdb_id: tmdbPerson.id,
+            name: tmdbPerson.name,
+            gender: tmdbPerson.gender,
+            biography: tmdbPerson.biography,
+            profile_image: tmdbPerson.profile_path,
+            birthdate: tmdbPerson.birthday,
+            deathdate: tmdbPerson.deathday,
+            place_of_birth: tmdbPerson.place_of_birth,
+          });
+        }
+        personsDb.saveMovieCast({
+          content_id: movieId,
+          person_id: personId,
+          credit_id: castMember.credit_id,
+          character_name: castMember.character,
+          cast_order: castMember.order,
+        });
+      }
+    } catch (error) {
+      cliLogger.error('Error fetching movie cast:', error);
     }
   }
 

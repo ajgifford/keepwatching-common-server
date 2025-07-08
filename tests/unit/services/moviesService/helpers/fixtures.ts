@@ -2,11 +2,36 @@ import { TMDBRelatedMovie } from '../../../../../src/types/tmdbTypes';
 import { MovieReference } from '@ajgifford/keepwatching-types';
 
 export const mockMovieReferences: MovieReference[] = [
-  { id: 1, tmdbId: 101, title: 'Movie 1' },
-  { id: 2, tmdbId: 102, title: 'Movie 2' },
-  { id: 3, tmdbId: 103, title: 'Movie 3' },
-  { id: 4, tmdbId: 104, title: 'Movie 4' },
-  { id: 5, tmdbId: 105, title: 'Movie 5' },
+  {
+    id: 1,
+    tmdbId: 101,
+    title: 'Movie 1',
+    releaseDate: '',
+  },
+  {
+    id: 2,
+    tmdbId: 102,
+    title: 'Movie 2',
+    releaseDate: '',
+  },
+  {
+    id: 3,
+    tmdbId: 103,
+    title: 'Movie 3',
+    releaseDate: '',
+  },
+  {
+    id: 4,
+    tmdbId: 104,
+    title: 'Movie 4',
+    releaseDate: '',
+  },
+  {
+    id: 5,
+    tmdbId: 105,
+    title: 'Movie 5',
+    releaseDate: '',
+  },
 ];
 
 export const mockTMDBResponses = {

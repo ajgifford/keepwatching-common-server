@@ -1,10 +1,11 @@
 import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
-import { appLogger } from '../logger/logger';
+import * as personsDb from '../db/personsDb';
+import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NoAffectedRowsError } from '../middleware/errorMiddleware';
 import { ContentUpdates } from '../types/contentTypes';
-import { TMDBPaginatedResponse, TMDBRelatedMovie } from '../types/tmdbTypes';
+import { TMDBMovie, TMDBPaginatedResponse, TMDBRelatedMovie } from '../types/tmdbTypes';
 import { TMDBGenre } from '../types/tmdbTypes';
 import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils/contentUtility';
@@ -17,6 +18,7 @@ import { profileService } from './profileService';
 import { getTMDBService } from './tmdbService';
 import {
   AddMovieFavorite,
+  CastMember,
   ContentReference,
   CreateMovieRequest,
   MovieReference,
@@ -95,6 +97,24 @@ export class MoviesService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getMovieDetailsForProfile(${profileId}, ${movieId})`);
+    }
+  }
+
+  /**
+   * Retrieve the cast members for the given movie
+   *
+   * @param movieId - ID of the movie to get
+   * @returns the cast members of the movie
+   */
+  public async getMovieCastMembers(movieId: number): Promise<CastMember[]> {
+    try {
+      return await this.cache.getOrSet(
+        MOVIE_KEYS.castMembers(movieId),
+        () => personsDb.getMovieCastMembers(movieId),
+        600,
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getMovieCastMembers(${movieId})`);
     }
   }
 
@@ -248,11 +268,48 @@ export class MoviesService {
     const upcomingMovies = await this.getUpcomingMoviesForProfile(profileId);
 
     this.invalidateProfileMovieCache(profileId);
+    this.processMovieCast(movieResponse, savedMovieId);
 
     return {
       favoritedMovie,
       recentUpcomingMovies: { recentMovies, upcomingMovies },
     };
+  }
+
+  private async processMovieCast(movie: TMDBMovie, movieId: number) {
+    try {
+      const cast = movie.credits.cast ?? [];
+      for (const castMember of cast) {
+        const person = await personsDb.findPersonByTMDBId(castMember.id);
+        let personId = null;
+        if (person) {
+          personId = person.id;
+        } else {
+          const tmdbPerson = await getTMDBService().getPersonDetails(castMember.id);
+          personId = await personsDb.savePerson({
+            tmdb_id: tmdbPerson.id,
+            name: tmdbPerson.name,
+            gender: tmdbPerson.gender,
+            biography: tmdbPerson.biography,
+            profile_image: tmdbPerson.profile_path,
+            birthdate: tmdbPerson.birthday,
+            deathdate: tmdbPerson.deathday,
+            place_of_birth: tmdbPerson.place_of_birth,
+          });
+        }
+        personsDb.saveMovieCast({
+          content_id: movieId,
+          person_id: personId,
+          character_name: castMember.character,
+          credit_id: castMember.credit_id,
+          cast_order: castMember.order,
+        });
+
+        this.cache.invalidatePerson(personId);
+      }
+    } catch (error) {
+      cliLogger.error('Error fetching movie cast:', error);
+    }
   }
 
   /**
@@ -451,6 +508,10 @@ export class MoviesService {
         };
 
         await moviesDb.updateMovie(updateMovieRequest);
+
+        if (supportedChanges.filter((item) => 'cast'.includes(item.key))) {
+          this.processMovieCast(movieDetails, content.id);
+        }
       }
     } catch (error) {
       appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId: content.id });

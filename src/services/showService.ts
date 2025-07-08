@@ -1,11 +1,19 @@
 import { PROFILE_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
 import * as episodesDb from '../db/episodesDb';
+import * as personsDb from '../db/personsDb';
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { ContentUpdates } from '../types/contentTypes';
-import { TMDBGenre, TMDBPaginatedResponse, TMDBRelatedShow, TMDBShow, TMDBShowSeason } from '../types/tmdbTypes';
+import {
+  TMDBGenre,
+  TMDBPaginatedResponse,
+  TMDBRelatedShow,
+  TMDBShow,
+  TMDBShowCastMember,
+  TMDBShowSeason,
+} from '../types/tmdbTypes';
 import {
   GLOBAL_KEYS,
   LANGUAGE_SPECIFIC_KEYS,
@@ -26,6 +34,7 @@ import { watchStatusService } from './watchStatusService';
 import {
   AddShowFavorite,
   ContentReference,
+  CreateShowCast,
   CreateShowRequest,
   EpisodesForProfile,
   KeepWatchingShow,
@@ -35,6 +44,7 @@ import {
   ProfileShowWithSeasons,
   ProfileWatchProgressResponse,
   RemoveShowFavorite,
+  ShowCast,
   ShowReference,
   ShowStatisticsResponse,
   SimilarOrRecommendedShow,
@@ -177,6 +187,26 @@ export class ShowService {
         `getShowDetailsForProfileByChild(${accountId}, ${profileId}, ${childId}, ${childEntity})`,
       );
     }
+  }
+
+  /**
+   * Retrieve the cast members for the given show
+   *
+   * @param showId - ID of the show to get
+   * @returns the cast members of the show
+   */
+  public async getShowCastMembers(showId: number): Promise<ShowCast> {
+    try {
+      return await this.cache.getOrSet(SHOW_KEYS.castMembers(showId), () => this.getCastMember(showId), 600);
+    } catch (error) {
+      throw errorService.handleError(error, `getShowCastMembers(${showId})`);
+    }
+  }
+
+  private async getCastMember(showId: number): Promise<ShowCast> {
+    const activeCast = await personsDb.getShowCastMembers(showId, 1);
+    const priorCast = await personsDb.getShowCastMembers(showId, 0);
+    return { activeCast, priorCast };
   }
 
   /**
@@ -327,9 +357,11 @@ export class ShowService {
     );
     this.invalidateProfileCache(accountId, profileId);
 
-    // Start background process to fetch seasons and episodes
     const show = await showsDb.getShowForProfile(profileId, savedShowId);
+
+    // Start background process to fetch seasons and episodes and process the show's cast
     this.fetchSeasonsAndEpisodes(responseShow, savedShowId, profileId);
+    this.processShowCast(responseShow, savedShowId);
 
     return { favoritedShow: show };
   }
@@ -399,6 +431,70 @@ export class ShowService {
     } catch (error) {
       cliLogger.error('Error fetching seasons and episodes:', error);
     }
+  }
+
+  private async processShowCast(show: TMDBShow, showId: number) {
+    try {
+      const activeCast = show.credits.cast ?? [];
+      const activeCreditIds = activeCast.map((member) => member.credit_id);
+      const allCast = show.aggregate_credits.cast ?? [];
+      const filteredCast = this.filterShowCastMembers(allCast, showId, activeCreditIds);
+
+      for (const castMember of filteredCast) {
+        const person = await personsDb.findPersonByTMDBId(castMember.person_id);
+        let personId = null;
+        if (person) {
+          personId = person.id;
+        } else {
+          const tmdbPerson = await getTMDBService().getPersonDetails(castMember.person_id);
+          personId = await personsDb.savePerson({
+            tmdb_id: tmdbPerson.id,
+            name: tmdbPerson.name,
+            gender: tmdbPerson.gender,
+            biography: tmdbPerson.biography,
+            profile_image: tmdbPerson.profile_path,
+            birthdate: tmdbPerson.birthday,
+            deathdate: tmdbPerson.deathday,
+            place_of_birth: tmdbPerson.place_of_birth,
+          });
+        }
+        personsDb.saveShowCast({
+          content_id: showId,
+          person_id: personId,
+          character_name: castMember.character_name,
+          credit_id: castMember.credit_id,
+          cast_order: castMember.cast_order,
+          total_episodes: castMember.total_episodes,
+          active: castMember.active,
+        });
+
+        this.cache.invalidatePerson(personId);
+      }
+    } catch (error) {
+      cliLogger.error('Error fetching show cast:', error);
+    }
+  }
+
+  private filterShowCastMembers(
+    showCastMembers: TMDBShowCastMember[],
+    contentId: number,
+    activeCreditIds: string[],
+  ): CreateShowCast[] {
+    const activeCreditIdSet = new Set(activeCreditIds);
+
+    return showCastMembers.flatMap((showMember) =>
+      showMember.roles
+        .filter((role) => role.episode_count >= 2)
+        .map((role) => ({
+          content_id: contentId,
+          person_id: showMember.id,
+          character_name: role.character,
+          credit_id: role.credit_id,
+          cast_order: showMember.order,
+          total_episodes: role.episode_count,
+          active: activeCreditIdSet.has(role.credit_id) ? 1 : 0,
+        })),
+    );
   }
 
   /**
@@ -600,8 +696,7 @@ export class ShowService {
     const tmdbService = getTMDBService();
 
     try {
-      const changesData = await tmdbService.getShowChanges(content.tmdb_id, pastDate, currentDate);
-      const changes = changesData.changes || [];
+      const { changes } = await tmdbService.getShowChanges(content.tmdb_id, pastDate, currentDate);
       const hasRelevantChange = changes.some((change) => {
         if (!SUPPORTED_CHANGE_KEYS.includes(change.key)) return false;
 
@@ -644,6 +739,10 @@ export class ShowService {
         };
 
         await showsDb.updateShow(updatedShow);
+
+        if (changes.filter((item) => 'cast'.includes(item.key))) {
+          this.processShowCast(showDetails, content.id);
+        }
 
         const profilesForShow = await showsDb.getProfilesForShow(updatedShow.id);
 
