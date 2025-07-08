@@ -55,6 +55,7 @@ export const adminMovieService = createTypedServiceMock<MockAdminMovieService>([
 
 export const adminShowService = createTypedServiceMock<MockAdminShowService>([
   'getAllShows',
+  'getAllShowReferences',
   'getShowDetails',
   'getShowSeasons',
   'getShowSeasonsWithEpisodes',
@@ -68,6 +69,7 @@ export const adminShowService = createTypedServiceMock<MockAdminShowService>([
 export const showService = createTypedServiceMock<MockShowService>([
   'getShowsForProfile',
   'getShowDetailsForProfile',
+  'getShowCastMembers',
   'getEpisodesForProfile',
   'getNextUnwatchedEpisodesForProfile',
   'addShowToFavorites',
@@ -84,6 +86,7 @@ export const showService = createTypedServiceMock<MockShowService>([
 
 export const moviesService = createTypedServiceMock<MockMoviesService>([
   'getMoviesForProfile',
+  'getMovieCastMembers',
   'getRecentMoviesForProfile',
   'getUpcomingMoviesForProfile',
   'addMovieToFavorites',

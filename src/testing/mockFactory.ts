@@ -41,6 +41,7 @@ export interface MockProfileService {
 
 export interface MockAdminShowService {
   getAllShows: jest.Mock;
+  getAllShowReferences: jest.Mock;
   getShowDetails: jest.Mock;
   getShowSeasons: jest.Mock;
   getShowSeasonsWithEpisodes: jest.Mock;
@@ -63,6 +64,7 @@ export interface MockAdminMovieService {
 export interface MockShowService {
   getShowsForProfile: jest.Mock;
   getShowDetailsForProfile: jest.Mock;
+  getShowCastMembers: jest.Mock;
   getEpisodesForProfile: jest.Mock;
   getNextUnwatchedEpisodesForProfile: jest.Mock;
   addShowToFavorites: jest.Mock;
@@ -79,6 +81,7 @@ export interface MockShowService {
 
 export interface MockMoviesService {
   getMoviesForProfile: jest.Mock;
+  getMovieCastMembers: jest.Mock;
   getRecentMoviesForProfile: jest.Mock;
   getUpcomingMoviesForProfile: jest.Mock;
   addMovieToFavorites: jest.Mock;
