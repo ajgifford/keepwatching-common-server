@@ -14,7 +14,13 @@ import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { StreamingAvailabilityService } from './streamingAvailabilityService';
 import { getTMDBService } from './tmdbService';
-import { DiscoverAndSearchResponse, DiscoverAndSearchResult, MediaType } from '@ajgifford/keepwatching-types';
+import {
+  DiscoverAndSearchResponse,
+  DiscoverAndSearchResult,
+  MediaType,
+  PersonSearchResponse,
+  PersonSearchResult,
+} from '@ajgifford/keepwatching-types';
 
 export class ContentDiscoveryService {
   private cache: CacheService;
@@ -205,6 +211,38 @@ export class ContentDiscoveryService {
       return searchResults;
     } catch (error) {
       throw errorService.handleError(error, `searchMedia(${mediaType}, ${searchString}, ${year || 'no year'}, ${page}`);
+    }
+  }
+
+  public async searchPeople(searchString: string, page: number): Promise<PersonSearchResponse> {
+    try {
+      const searchResults = this.cache.getOrSet(SEARCH_KEYS.peopleResults(searchString, page), async () => {
+        const tmdbService = getTMDBService();
+        const response = await tmdbService.searchPeople(searchString, page);
+
+        const results = response.results.map((result) => {
+          return {
+            id: result.id,
+            name: result.name,
+            profileImage: result.profile_path,
+            knownFor: result.known_for.map((item) => item.title || item.name),
+            department: result.known_for_department,
+            popularity: result.popularity,
+          } as PersonSearchResult;
+        });
+
+        const searchResponse = {
+          message: `Search results for '${searchString}'`,
+          results,
+          totalResults: response.total_results,
+          totalPages: response.total_pages,
+          currentPage: page,
+        };
+        return searchResponse;
+      });
+      return searchResults;
+    } catch (error) {
+      throw errorService.handleError(error, `searchPeople(${searchString}, ${page}`);
     }
   }
 }

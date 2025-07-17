@@ -3,10 +3,13 @@ import {
   TMDBMovie,
   TMDBPaginatedResponse,
   TMDBPerson,
+  TMDBPersonCredits,
   TMDBRelatedMovie,
   TMDBRelatedShow,
   TMDBSearchMovieParams,
   TMDBSearchMovieResult,
+  TMDBSearchPersonParams,
+  TMDBSearchPersonResult,
   TMDBSearchShowResult,
   TMDBSearchTVParams,
   TMDBSeasonDetails,
@@ -22,6 +25,7 @@ export const TMDB_CACHE_KEYS = {
   movieDetails: (id: number) => `tmdb_movie_details_${id}`,
   seasonDetails: (showId: number, seasonNumber: number) => `tmdb_season_details_${showId}_${seasonNumber}`,
   personDetails: (personId: number) => `tmdb_person_details_${personId}`,
+  personCredits: (personId: number) => `tmdb_person_credits_${personId}`,
   trending: (mediaType: 'tv' | 'movie', page: string = '1') => `tmdb_trending_${mediaType}_${page}`,
   showRecommendations: (showId: number) => `tmdb_show_recommendations_${showId}`,
   movieRecommendations: (movieId: number) => `tmdb_movie_recommendations_${movieId}`,
@@ -36,6 +40,7 @@ export const TMDB_CACHE_KEYS = {
   search: {
     shows: (query: string, page: number, year?: string) => `tmdb_search_shows_${query}_${page}_${year || ''}`,
     movies: (query: string, page: number, year?: string) => `tmdb_search_movies_${query}_${page}_${year || ''}`,
+    people: (query: string, page: number) => `tmdb_search_people_${query}_${page}`,
   },
 };
 
@@ -61,6 +66,14 @@ export interface TMDBService {
    * @returns Search results from TMDB
    */
   searchMovies(query: string, page?: number, year?: string): Promise<TMDBPaginatedResponse<TMDBSearchMovieResult>>;
+
+  /**
+   * Search for people matching the provided query
+   * @param query - Search term
+   * @param page - Page number of results (default: 1)
+   * @returns Search results from TMDB
+   */
+  searchPeople(query: string, page?: number): Promise<TMDBPaginatedResponse<TMDBSearchPersonResult>>;
 
   /**
    * Get detailed information about a TV show
@@ -90,6 +103,13 @@ export interface TMDBService {
    * @returns Person details
    */
   getPersonDetails(personId: number): Promise<TMDBPerson>;
+
+  /**
+   * Get credits for a specific person
+   * @param personId - TMDB ID of the person
+   * @returns Person credits
+   */
+  getPersonCredits(personId: number): Promise<TMDBPersonCredits>;
 
   /**
    * Get trending shows or movies for the week
@@ -251,6 +271,38 @@ export class DefaultTMDBService implements TMDBService {
     );
   }
 
+  async searchPeople(query: string, page: number = 1): Promise<TMDBPaginatedResponse<TMDBSearchPersonResult>> {
+    const cacheKey = TMDB_CACHE_KEYS.search.people(query, page);
+
+    return await this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        return await withRetry(
+          async () => {
+            const params: TMDBSearchPersonParams = {
+              query,
+              page,
+              include_adult: false,
+              language: 'en-US',
+            };
+
+            const response = await axiosTMDBAPIInstance.get<TMDBPaginatedResponse<TMDBSearchPersonResult>>(
+              '/search/person',
+              { params },
+            );
+            return response.data;
+          },
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
+          `searchPeople(${query})`,
+        );
+      },
+      600, // 10 minute TTL for search results
+    );
+  }
+
   async getShowDetails(id: number): Promise<TMDBShow> {
     const cacheKey = TMDB_CACHE_KEYS.showDetails(id);
 
@@ -342,6 +394,29 @@ export class DefaultTMDBService implements TMDBService {
             baseDelay: 1000,
           },
           `getPersonDetails(${personId})`,
+        );
+      },
+      3600, // 1 hour TTL
+    );
+  }
+
+  async getPersonCredits(personId: number): Promise<TMDBPersonCredits> {
+    const cacheKey = TMDB_CACHE_KEYS.personCredits(personId);
+    return await this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        return await withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get<TMDBPersonCredits>(`/person/${personId}/combined_credits`, {
+              timeout: 10000,
+            });
+            return response.data;
+          },
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
+          `getPersonCredits(${personId})`,
         );
       },
       3600, // 1 hour TTL

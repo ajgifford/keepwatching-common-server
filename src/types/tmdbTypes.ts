@@ -101,6 +101,25 @@ export interface TMDBPerson {
   birthday: string;
   deathday: string | null;
   place_of_birth: string;
+  popularity: number;
+  known_for_department: string;
+}
+
+export interface TMDBCredit {
+  id: number;
+  title: string;
+  name: string;
+  poster_path: string;
+  release_date: string;
+  first_air_date: string;
+  character: string;
+  job: string;
+  media_type: 'movie' | 'tv';
+}
+
+export interface TMDBPersonCredits {
+  cast: TMDBCredit[];
+  crew: TMDBCredit[];
 }
 
 export interface TMDBContent {
@@ -274,6 +293,30 @@ export interface TMDBSearchMovieResult {
   video: boolean;
   vote_average: number;
   vote_count: number;
+}
+
+export interface TMDBSearchPersonParams {
+  query: string;
+  page?: number;
+  include_adult?: boolean;
+  language?: string;
+}
+
+export interface TMDBSearchPersonResult {
+  adult: boolean;
+  gender: number;
+  id: number;
+  known_for_department: string;
+  name: string;
+  original_name: string;
+  popularity: number;
+  profile_path: string;
+  known_for: TMDBKnownForResult[];
+}
+
+export interface TMDBKnownForResult {
+  name: string;
+  title: string;
 }
 
 export interface TMDBRelatedShow {

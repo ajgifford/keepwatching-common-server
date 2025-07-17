@@ -165,6 +165,10 @@ export const MOVIE_KEYS = {
 
 export const PERSON_KEYS = {
   details: (personId: number | string) => `${CACHE_KEY_PATTERNS.PERSON}_details_${personId}`,
+
+  tmdbDetails: (personId: number | string) => `${CACHE_KEY_PATTERNS.PERSON}_tmdb_details_${personId}`,
+
+  tmdbCredits: (personId: number | string) => `${CACHE_KEY_PATTERNS.PERSON}_tmdb_credits_${personId}`,
 };
 
 // Discovery keys
@@ -185,6 +189,8 @@ export const SEARCH_KEYS = {
   /** Gets the cache key for search results */
   results: (mediaType: string, searchString: string, year?: string, page: number = 1) =>
     `${mediaType}_search_${searchString}_${year || ''}_${page}`,
+
+  peopleResults: (searchString: string, page: number) => `peopleSearch_${searchString}_${page}`,
 };
 
 // Base patterns for invalidation
