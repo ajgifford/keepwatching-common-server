@@ -180,7 +180,7 @@ describe('notificationDb', () => {
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)',
-        ['Test notification', '2025-05-01', '2025-05-31', true, null],
+        ['Test notification', '2025-05-01 00:00:00', '2025-05-31 00:00:00', true, null],
       );
 
       expect(mockConnection.query).toHaveBeenNthCalledWith(1, 'SELECT account_id FROM accounts');
@@ -220,7 +220,7 @@ describe('notificationDb', () => {
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)',
-        ['Test notification', '2025-05-01', '2025-05-31', false, 5],
+        ['Test notification', '2025-05-01 00:00:00', '2025-05-31 00:00:00', false, 5],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
@@ -283,7 +283,7 @@ describe('notificationDb', () => {
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
-        ['Updated message', '2025-05-01', '2025-05-31', true, null, 123],
+        ['Updated message', '2025-05-01 00:00:00', '2025-05-31 00:00:00', true, null, 123],
       );
     });
 

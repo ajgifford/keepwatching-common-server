@@ -96,8 +96,8 @@ export async function addNotification(notificationRequest: CreateNotificationReq
         'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)';
       const [result] = await connection.execute<ResultSetHeader>(notificationQuery, [
         notificationRequest.message,
-        notificationRequest.startDate,
-        notificationRequest.endDate,
+        formatDateForMySql(notificationRequest.startDate),
+        formatDateForMySql(notificationRequest.endDate),
         notificationRequest.sendToAll,
         notificationRequest.accountId,
       ]);
@@ -133,8 +133,8 @@ export async function updateNotification(notificationRequest: UpdateNotification
       'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
       [
         notificationRequest.message,
-        notificationRequest.startDate,
-        notificationRequest.endDate,
+        formatDateForMySql(notificationRequest.startDate),
+        formatDateForMySql(notificationRequest.endDate),
         notificationRequest.sendToAll,
         notificationRequest.accountId,
         notificationRequest.id,
@@ -174,4 +174,9 @@ export async function deleteNotification(notification_id: number): Promise<void>
   } catch (error) {
     handleDatabaseError(error, 'deleting a notification');
   }
+}
+
+function formatDateForMySql(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toISOString().slice(0, 19).replace('T', ' ');
 }
