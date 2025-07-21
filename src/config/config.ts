@@ -67,6 +67,11 @@ export function getServiceAccountPath() {
   return process.env.SERVICE_ACCOUNT_PATH || '/certs/keepwatching-service-account-dev.json';
 }
 
+export function getNotificationPollingInterval() {
+  // Default: Every 5 minutes
+  return process.env.NOTIFICATION_POLLING_INTERVAL || '*/5 * * * *';
+}
+
 export function getDBConfig(): DBConfig {
   return {
     host: process.env.MYSQL_HOST || 'localhost',
