@@ -29,6 +29,18 @@ export class NotificationsService {
     }
   }
 
+  public async dismissAllNotifications(accountId: number): Promise<AccountNotification[]> {
+    try {
+      const dismissed = await notificationsDb.dismissAllNotifications(accountId);
+      if (!dismissed) {
+        throw new NoAffectedRowsError('No notifications were dismissed');
+      }
+      return await notificationsDb.getNotificationsForAccount(accountId);
+    } catch (error) {
+      throw errorService.handleError(error, `dismissNotification(${accountId})`);
+    }
+  }
+
   public async getAllNotifications(expired: boolean): Promise<AdminNotification[]> {
     try {
       return await notificationsDb.getAllNotifications(expired);

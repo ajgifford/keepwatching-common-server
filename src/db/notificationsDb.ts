@@ -88,6 +88,42 @@ export async function dismissNotification(notificationId: number, accountId: num
   }
 }
 
+/**
+ * Marks all notifications as dismissed for a specific account
+ *
+ * This method updates the account_notifications junction table to mark all notifications
+ * as dismissed for a particular account, preventing them from being shown again to that user.
+ *
+ * @param accountId - ID of the account that is dismissing the notifications
+ * @returns `True` if the notifications were successfully dismissed, `false` otherwise
+ * @throws {DatabaseError} If a database error occurs during the operation
+ *
+ * @example
+ * try {
+ *   // Dismiss all notifications for account ID 123
+ *   const dismissed = await notificationDb.dismissAllNotifications(123);
+ *
+ *   if (dismissed) {
+ *     console.log('Notifications dismissed successfully');
+ *   } else {
+ *     console.log('Notifications not dismissed');
+ *   }
+ * } catch (error) {
+ *   console.error('Error dismissing notifications:', error);
+ * }
+ */
+export async function dismissAllNotifications(accountId: number): Promise<boolean> {
+  try {
+    const query = `UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;`;
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId]);
+
+    // Return true if at least one row was affected (notifications were dismissed)
+    return result.affectedRows > 0;
+  } catch (error) {
+    handleDatabaseError(error, 'dismissing a notification');
+  }
+}
+
 export async function addNotification(notificationRequest: CreateNotificationRequest): Promise<void> {
   const transactionHelper = new TransactionHelper();
   try {
