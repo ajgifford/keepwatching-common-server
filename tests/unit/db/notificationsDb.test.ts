@@ -180,20 +180,15 @@ describe('notificationDb', () => {
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)',
-        ['Test notification', '2025-05-01 00:00:00', '2025-05-31 00:00:00', true, null],
+        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null],
       );
 
       expect(mockConnection.query).toHaveBeenNthCalledWith(1, 'SELECT account_id FROM accounts');
 
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
-        'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES ?',
-        [
-          [
-            [123, 1, false],
-            [123, 2, false],
-          ],
-        ],
+        'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES (?,?,?),(?,?,?)',
+        [123, 1, false, 123, 2, false],
       );
     });
 
@@ -220,7 +215,7 @@ describe('notificationDb', () => {
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)',
-        ['Test notification', '2025-05-01 00:00:00', '2025-05-31 00:00:00', false, 5],
+        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 0, 5],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
@@ -283,7 +278,7 @@ describe('notificationDb', () => {
 
       expect(mockPool.execute).toHaveBeenCalledWith(
         'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
-        ['Updated message', '2025-05-01 00:00:00', '2025-05-31 00:00:00', true, null, 123],
+        ['Updated message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null, 123],
       );
     });
 
@@ -341,7 +336,7 @@ describe('notificationDb', () => {
       const result = await notificationsDb.getAllNotifications(false);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'SELECT * FROM notifications WHERE NOW() BETWEEN start_date AND end_date',
+        'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date ASC',
       );
 
       expect(result).toEqual([
@@ -380,7 +375,7 @@ describe('notificationDb', () => {
 
       const result = await notificationsDb.getAllNotifications(true);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM notifications');
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM notifications ORDER BY start_date ASC');
 
       expect(result).toEqual([
         {
