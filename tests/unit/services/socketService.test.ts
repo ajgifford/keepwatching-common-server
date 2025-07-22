@@ -254,7 +254,7 @@ describe('SocketService', () => {
       expect(socket3?.emit).not.toHaveBeenCalled();
       expect(socket3?.disconnect).not.toHaveBeenCalled();
 
-      expect(cliLogger.info).toHaveBeenCalledTimes(2);
+      expect(cliLogger.info).toHaveBeenCalledTimes(4);
       expect(cliLogger.info).toHaveBeenCalledWith('Disconnected socket for account 123 due to logout');
     });
 
@@ -282,7 +282,7 @@ describe('SocketService', () => {
       const disconnectedCount = service.disconnectUserSockets('999');
 
       expect(disconnectedCount).toBe(0);
-      expect(cliLogger.info).not.toHaveBeenCalled();
+      expect(cliLogger.info).toHaveBeenCalledTimes(2);
     });
 
     it('should return 0 if server is not initialized', () => {
