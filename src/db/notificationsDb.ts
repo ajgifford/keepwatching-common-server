@@ -98,8 +98,8 @@ export async function addNotification(notificationRequest: CreateNotificationReq
         notificationRequest.message,
         formatDateForMySql(notificationRequest.startDate),
         formatDateForMySql(notificationRequest.endDate),
-        notificationRequest.sendToAll,
-        notificationRequest.accountId,
+        notificationRequest.sendToAll ? 1 : 0,
+        notificationRequest.accountId ?? null,
       ]);
       const notificationId = result.insertId;
 
@@ -110,11 +110,12 @@ export async function addNotification(notificationRequest: CreateNotificationReq
           throw new NotFoundError('No accounts found when sending a notification to all accounts');
         }
 
-        const values = accounts.map((account) => [notificationId, account.account_id, false]);
-        await connection.execute(
-          'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES ?',
-          [values],
-        );
+        const placeholders = accounts.map(() => '(?,?,?)').join(',');
+        const bulkInsertQuery = `INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES ${placeholders}`;
+
+        const flatValues = accounts.flatMap((account) => [notificationId, account.account_id, false]);
+
+        await connection.execute(bulkInsertQuery, flatValues);
       } else {
         await connection.execute(
           'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES (?,?,?)',
@@ -135,7 +136,7 @@ export async function updateNotification(notificationRequest: UpdateNotification
         notificationRequest.message,
         formatDateForMySql(notificationRequest.startDate),
         formatDateForMySql(notificationRequest.endDate),
-        notificationRequest.sendToAll,
+        notificationRequest.sendToAll ? 1 : 0,
         notificationRequest.accountId,
         notificationRequest.id,
       ],
@@ -152,8 +153,8 @@ export async function updateNotification(notificationRequest: UpdateNotification
 export async function getAllNotifications(expired: boolean): Promise<AdminNotification[]> {
   try {
     const query = expired
-      ? 'SELECT * FROM notifications'
-      : 'SELECT * FROM notifications WHERE NOW() BETWEEN start_date AND end_date';
+      ? 'SELECT * FROM notifications ORDER BY start_date ASC'
+      : 'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date ASC';
 
     const [notifications] = await getDbPool().execute<NotificationRow[]>(query);
     return notifications.map(transformAdminNotificationRow);
@@ -178,5 +179,9 @@ export async function deleteNotification(notification_id: number): Promise<void>
 
 function formatDateForMySql(dateString: string): string {
   const date = new Date(dateString);
-  return date.toISOString().slice(0, 19).replace('T', ' ');
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  );
 }
