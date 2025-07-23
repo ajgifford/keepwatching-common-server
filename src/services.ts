@@ -9,6 +9,7 @@ export * from './services/episodesService';
 export * from './services/moviesService';
 export * from './services/notificationsService';
 export * from './services/personService';
+export * from './services/preferencesService';
 export * from './services/profileService';
 export * from './services/seasonsService';
 export * from './services/scheduledJobsService';
