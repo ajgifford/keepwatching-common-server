@@ -1,3 +1,4 @@
+import { cliLogger } from '../logger/logger';
 import { AccountReferenceRow, transformAccountReferenceRow } from '../types/accountTypes';
 import { AccountPreferenceRow } from '../types/preferenceTypes';
 import { getDbPool } from '../utils/db';
@@ -14,7 +15,34 @@ import {
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
 
-export async function getAccountPreferences(accountId: number) {
+/**
+ * Safely handles preference data from MySQL JSON column
+ * MySQL JSON columns are automatically parsed by the driver, so we don't need JSON.parse()
+ */
+function processPreferenceData(preferences: unknown): PreferenceData {
+  if (typeof preferences === 'object' && preferences !== null && !Array.isArray(preferences)) {
+    return preferences as PreferenceData;
+  }
+
+  if (typeof preferences === 'string') {
+    try {
+      const parsed = JSON.parse(preferences);
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        return parsed as PreferenceData;
+      }
+      cliLogger.error('Parsed preference data is not an object:', parsed);
+      return {};
+    } catch (error) {
+      cliLogger.error('Failed to parse preference string:', error);
+      return {};
+    }
+  }
+
+  cliLogger.warn('Unexpected preference data type:', typeof preferences, preferences);
+  return {};
+}
+
+export async function getAccountPreferences(accountId: number): Promise<AccountPreferences> {
   try {
     const query = `SELECT * FROM account_preferences WHERE account_id = ?`;
 
@@ -22,7 +50,8 @@ export async function getAccountPreferences(accountId: number) {
     const preferences: AccountPreferences = {};
 
     for (const row of rows) {
-      preferences[row.preference_type as PreferenceType] = JSON.parse(row.preferences);
+      const processedPreferences = processPreferenceData(row.preferences);
+      preferences[row.preference_type as PreferenceType] = processedPreferences;
     }
 
     for (const [type, defaultPrefs] of Object.entries(DEFAULT_PREFERENCES)) {
@@ -50,7 +79,8 @@ export async function getPreferencesByType<T extends PreferenceData>(
       return DEFAULT_PREFERENCES[preferenceType] as T;
     }
 
-    return JSON.parse(rows[0].preferences);
+    const processedPreferences = processPreferenceData(rows[0].preferences);
+    return processedPreferences as T;
   } catch (error) {
     handleDatabaseError(error, 'getting account preferences by type');
   }
@@ -69,15 +99,11 @@ export async function updatePreferences<T extends PreferenceData>(
       INSERT INTO account_preferences (account_id, preference_type, preferences)
       VALUES (?, ?, ?)
       ON DUPLICATE KEY UPDATE 
-      preferences = VALUES(preferences),
-      updated_at = CURRENT_TIMESTAMP
+        preferences = VALUES(preferences),
+        updated_at = CURRENT_TIMESTAMP
     `;
 
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [
-      accountId,
-      preferenceType,
-      JSON.stringify(merged),
-    ]);
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId, preferenceType, merged]);
     return result.affectedRows > 0;
   } catch (error) {
     handleDatabaseError(error, 'updating account preferences');
@@ -95,28 +121,29 @@ export async function updateMultiplePreferences(
       for (const [type, prefs] of Object.entries(updates)) {
         if (prefs && Object.keys(prefs).length > 0) {
           const existing = await getPreferencesByType(accountId, type as PreferenceType);
-          const merged = { ...existing, ...updates };
+          const merged = { ...existing, ...prefs };
 
           const query = `
             INSERT INTO account_preferences (account_id, preference_type, preferences)
             VALUES (?, ?, ?)
             ON DUPLICATE KEY UPDATE 
-            preferences = VALUES(preferences),
-            updated_at = CURRENT_TIMESTAMP`;
+              preferences = VALUES(preferences),
+              updated_at = CURRENT_TIMESTAMP`;
 
-          await connection.execute(query, [accountId, type, JSON.stringify(merged)]);
+          await connection.execute(query, [accountId, type, merged]);
         }
       }
       return true;
     });
   } catch (error) {
-    handleDatabaseError(error, 'deleting account preferences');
+    handleDatabaseError(error, 'updating multiple account preferences');
   }
 }
 
 export async function initializeDefaultPreferences(accountId: number): Promise<void> {
   try {
-    const values = Object.entries(DEFAULT_PREFERENCES).map(([type, prefs]) => [accountId, type, JSON.stringify(prefs)]);
+    const values = Object.entries(DEFAULT_PREFERENCES).map(([type, prefs]) => [accountId, type, prefs]);
+
     const query = `INSERT INTO account_preferences (account_id, preference_type, preferences) VALUES ?`;
     await getDbPool().query(query, [values]);
   } catch (error) {
