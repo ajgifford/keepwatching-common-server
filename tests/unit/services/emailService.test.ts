@@ -14,6 +14,7 @@ import { EmailService, getEmailService, initializeEmailService } from '@services
 import { episodesService } from '@services/episodesService';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
+import { preferencesService } from '@services/preferencesService';
 import { profileService } from '@services/profileService';
 import { showService } from '@services/showService';
 import { getUpcomingWeekRange } from '@utils/emailUtility';
@@ -24,6 +25,7 @@ jest.mock('@services/accountService');
 jest.mock('@services/profileService');
 jest.mock('@services/episodesService');
 jest.mock('@services/moviesService');
+jest.mock('@services/preferencesService');
 jest.mock('@services/showService');
 jest.mock('@services/errorService');
 jest.mock('@utils/emailUtility');
@@ -361,6 +363,9 @@ describe('EmailService', () => {
       { id: 3, name: 'Account 3', email: 'account3@example.com', emailVerified: true },
     ];
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const accountRefs = mockAccounts.map(({ emailVerified, ...rest }) => rest);
+
     beforeEach(() => {
       jest.clearAllMocks();
     });
@@ -389,6 +394,7 @@ describe('EmailService', () => {
           return Promise.resolve([]); // default
         }
       });
+      (preferencesService.getAccountsWithEmailPreference as jest.Mock).mockResolvedValue(accountRefs);
       (showService.getTopRatedShows as jest.Mock).mockResolvedValue(mockTopRatedShows);
       (showService.getTrendingShows as jest.Mock).mockResolvedValue(mockTrendingShows);
       (showService.getNewlyAddedShows as jest.Mock).mockResolvedValue(mockNewShows);
@@ -473,6 +479,30 @@ describe('EmailService', () => {
         digestEmails: 0,
         discoveryEmails: 0,
         emailsSent: 0,
+        emailsFailed: 0,
+      });
+    });
+
+    it('should not send digest and discovery emails when the accounts preference is off', async () => {
+      mockSendMail.mockResolvedValue({ messageId: 'test-id' });
+      (preferencesService.getAccountsWithEmailPreference as jest.Mock).mockResolvedValueOnce([
+        { id: 1, name: 'Account 1', email: 'account1@example.com' },
+        { id: 2, name: 'Account 2', email: 'account2@example.com' },
+      ]);
+
+      await emailService.sendWeeklyDigests();
+
+      expect(cliLogger.info).toHaveBeenCalledWith('Starting weekly digest email job');
+      expect(cliLogger.info).toHaveBeenCalledWith(
+        `Account: account3@example.com is configured not to receive the weekly digest`,
+      );
+      expect(cliLogger.info).toHaveBeenCalledWith('Weekly email job completed: 2 sent, 0 failed');
+
+      expect(appLogger.info).toHaveBeenCalledWith('Weekly digest email job started');
+      expect(appLogger.info).toHaveBeenCalledWith('Weekly email job completed', {
+        digestEmails: 2,
+        discoveryEmails: 0,
+        emailsSent: 2,
         emailsFailed: 0,
       });
     });

@@ -21,6 +21,7 @@ import { accountService } from './accountService';
 import { episodesService } from './episodesService';
 import { errorService } from './errorService';
 import { moviesService } from './moviesService';
+import { preferencesService } from './preferencesService';
 import { profileService } from './profileService';
 import { showService } from './showService';
 import { ContentReference, Profile } from '@ajgifford/keepwatching-types';
@@ -122,6 +123,7 @@ export class EmailService {
   private async generateAllEmails(weekRange: { start: string; end: string }): Promise<EmailBatch> {
     try {
       const accounts = await accountService.getAccounts();
+      const accountsWithEmailPref = await preferencesService.getAccountsWithEmailPreference('weeklyDigest');
       const digestEmails: DigestEmail[] = [];
       const discoveryEmails: DiscoveryEmail[] = [];
 
@@ -136,6 +138,11 @@ export class EmailService {
         try {
           if (!account.emailVerified) {
             throw new NotVerifiedError();
+          }
+
+          if (!accountsWithEmailPref.some((a) => a.id === account.id)) {
+            cliLogger.info(`Account: ${account.email} is configured not to receive the weekly digest`);
+            continue;
           }
 
           const profiles = await profileService.getProfilesByAccountId(account.id);
