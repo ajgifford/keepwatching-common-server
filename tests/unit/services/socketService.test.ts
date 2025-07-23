@@ -1,6 +1,8 @@
 import { cliLogger } from '@logger/logger';
 import { accountService } from '@services/accountService';
+import { notificationsService } from '@services/notificationsService';
 import { SocketService, socketService } from '@services/socketService';
+import * as cron from 'node-cron';
 import { Server, Socket } from 'socket.io';
 
 jest.mock('@logger/logger', () => ({
@@ -10,19 +12,58 @@ jest.mock('@logger/logger', () => ({
   },
 }));
 
-jest.mock('@services/accountService');
+jest.mock('@services/accountService', () => ({
+  accountService: {
+    findAccountIdByProfileId: jest.fn(),
+    login: jest.fn(),
+    createGoogleAccount: jest.fn(),
+    updateAccount: jest.fn(),
+    deleteAccount: jest.fn(),
+    invalidateAccountCache: jest.fn(),
+  },
+}));
+
+jest.mock('@services/notificationsService', () => ({
+  notificationsService: {
+    getNotifications: jest.fn(),
+    createNotification: jest.fn(),
+    markAsRead: jest.fn(),
+    deleteNotification: jest.fn(),
+  },
+}));
+jest.mock('node-cron');
+jest.mock('@config/config', () => ({
+  getNotificationPollingInterval: jest.fn(() => '*/5 * * * *'), // Every 5 minutes
+  getDBConfig: jest.fn(() => ({})),
+  isEmailEnabled: jest.fn(() => false),
+  getServiceName: jest.fn(() => 'test-service'),
+}));
 
 describe('SocketService', () => {
   let mockServer: Partial<Server>;
   let mockSocket: Partial<Socket>;
   let mockSocketsMap: Map<string, any>;
+  let mockCronJob: {
+    start: jest.Mock;
+    stop: jest.Mock;
+    destroy: jest.Mock;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+
     mockSocketsMap = new Map();
 
-    // Create mock socket with properly typed handshake
+    mockCronJob = {
+      start: jest.fn(),
+      stop: jest.fn(),
+      destroy: jest.fn(),
+    };
+    (cron.schedule as jest.Mock).mockReturnValue(mockCronJob);
+
     mockSocket = {
+      id: 'test-socket-id',
       data: {
         userId: 'test-user-id',
         email: 'test@example.com',
@@ -47,7 +88,6 @@ describe('SocketService', () => {
       disconnect: jest.fn(),
     };
 
-    // Create mock server with proper structure for Socket.IO Server
     mockServer = {
       use: jest.fn().mockImplementation((fn) => {
         fn(mockSocket as Socket, jest.fn());
@@ -55,10 +95,9 @@ describe('SocketService', () => {
       }),
       on: jest.fn().mockReturnThis(),
       emit: jest.fn().mockReturnThis(),
-      // Use a getter for sockets to allow modification of the underlying Map
+
       get sockets() {
         return {
-          // Use the mockSocketsMap variable we can modify
           sockets: mockSocketsMap,
           adapter: {},
           server: {},
@@ -83,8 +122,11 @@ describe('SocketService', () => {
       },
     };
 
-    // Reset the singleton for each test
     Object.defineProperty(SocketService, 'instance', { value: null, writable: true });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('getInstance', () => {
@@ -97,7 +139,7 @@ describe('SocketService', () => {
   });
 
   describe('initialize', () => {
-    it('should initialize the Socket.IO server', () => {
+    it('should initialize the Socket.IO server and start polling', () => {
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);
 
@@ -105,6 +147,35 @@ describe('SocketService', () => {
       expect(mockServer.on).toHaveBeenCalledWith('connection', expect.any(Function));
       expect(service.isInitialized()).toBe(true);
       expect(service.getServer()).toBe(mockServer);
+      expect(cron.schedule).toHaveBeenCalledWith('*/5 * * * *', expect.any(Function), {
+        scheduled: false,
+        timezone: 'UTC',
+      });
+      expect(mockCronJob.start).toHaveBeenCalled();
+      expect(cliLogger.info).toHaveBeenCalledWith('Socket service initialized with notification polling');
+    });
+
+    it('should handle polling job timeout with this.pollingJob.start()', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      expect(cron.schedule).toHaveBeenCalled();
+      expect(mockCronJob.start).toHaveBeenCalled();
+
+      const cronCallback = (cron.schedule as jest.Mock).mock.calls[0][1] as () => void;
+
+      jest
+        .spyOn(global, 'setTimeout')
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .mockImplementation((callback: (...args: any[]) => void, delay: number | undefined) => {
+          if (typeof callback === 'function') {
+            callback();
+          }
+          return {} as NodeJS.Timeout;
+        });
+
+      expect(() => cronCallback()).not.toThrow();
+      expect(mockCronJob.start).toHaveBeenCalled();
     });
   });
 
@@ -151,13 +222,18 @@ describe('SocketService', () => {
 
       expect(mockServer.emit).toHaveBeenCalledWith('moviesUpdate', { message: 'Movie updates made!' });
     });
+
+    it('should do nothing if server is not initialized', () => {
+      const service = SocketService.getInstance();
+      service.notifyMoviesUpdate();
+
+      expect(mockServer.emit).not.toHaveBeenCalled();
+    });
   });
 
   describe('notifyShowDataLoaded', () => {
     beforeEach(() => {
       (accountService.findAccountIdByProfileId as jest.Mock).mockResolvedValue(123);
-
-      // Set up a mock socket in the server's socket map
       mockSocketsMap.set('socket-id', { ...mockSocket, data: { accountId: 123 } });
     });
 
@@ -197,33 +273,73 @@ describe('SocketService', () => {
 
       expect(mockSocket.emit).not.toHaveBeenCalled();
     });
+
+    it('should do nothing if server is not initialized', async () => {
+      const service = SocketService.getInstance();
+      await service.notifyShowDataLoaded(123, {} as any);
+
+      expect(accountService.findAccountIdByProfileId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('clearNotificationCache', () => {
+    it('should clear cache for specific account', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      (service as any).notificationCache = {
+        123: { notifications: [], lastChecked: new Date() },
+        456: { notifications: [], lastChecked: new Date() },
+      };
+
+      service.clearNotificationCache(123);
+
+      expect((service as any).notificationCache[123]).toBeUndefined();
+      expect((service as any).notificationCache[456]).toBeDefined();
+    });
+
+    it('should clear entire cache if no account ID provided', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      (service as any).notificationCache = {
+        123: { notifications: [], lastChecked: new Date() },
+        456: { notifications: [], lastChecked: new Date() },
+      };
+
+      service.clearNotificationCache();
+
+      expect(Object.keys((service as any).notificationCache)).toHaveLength(0);
+    });
   });
 
   describe('disconnectUserSockets', () => {
     beforeEach(() => {
-      // Set up multiple mock sockets in the server's socket map
-      const mockSocket1 = {
+      const socket1 = {
         ...mockSocket,
-        data: { accountId: '123' },
+        id: 'socket-id-1',
+        data: { accountId: 123 },
         emit: jest.fn(),
         disconnect: jest.fn(),
       };
-      const mockSocket2 = {
+      const socket2 = {
         ...mockSocket,
-        data: { accountId: '123' },
+        id: 'socket-id-2',
+        data: { accountId: 123 },
         emit: jest.fn(),
         disconnect: jest.fn(),
       };
-      const mockSocket3 = {
+      const socket3 = {
         ...mockSocket,
-        data: { accountId: '456' },
+        id: 'socket-id-3',
+        data: { accountId: 456 },
         emit: jest.fn(),
         disconnect: jest.fn(),
       };
 
-      mockSocketsMap.set('socket-id-1', mockSocket1);
-      mockSocketsMap.set('socket-id-2', mockSocket2);
-      mockSocketsMap.set('socket-id-3', mockSocket3);
+      mockSocketsMap.set('socket-id-1', socket1);
+      mockSocketsMap.set('socket-id-2', socket2);
+      mockSocketsMap.set('socket-id-3', socket3);
     });
 
     it('should disconnect all sockets for the specified account', () => {
@@ -234,23 +350,19 @@ describe('SocketService', () => {
 
       expect(disconnectedCount).toBe(2);
 
-      // Get the sockets from the Map
       const socket1 = mockSocketsMap.get('socket-id-1');
       const socket2 = mockSocketsMap.get('socket-id-2');
       const socket3 = mockSocketsMap.get('socket-id-3');
 
-      // Verify the right sockets were disconnected
       expect(socket1?.emit).toHaveBeenCalledWith('forceLogout', {
         message: 'You have been logged out from this device',
       });
       expect(socket1?.disconnect).toHaveBeenCalledWith(true);
-
       expect(socket2?.emit).toHaveBeenCalledWith('forceLogout', {
         message: 'You have been logged out from this device',
       });
       expect(socket2?.disconnect).toHaveBeenCalledWith(true);
 
-      // This socket should not have been disconnected
       expect(socket3?.emit).not.toHaveBeenCalled();
       expect(socket3?.disconnect).not.toHaveBeenCalled();
 
@@ -266,11 +378,9 @@ describe('SocketService', () => {
 
       expect(disconnectedCount).toBe(2);
 
-      // Get the sockets from the Map
       const socket1 = mockSocketsMap.get('socket-id-1');
       const socket2 = mockSocketsMap.get('socket-id-2');
 
-      // Verify the right sockets were disconnected
       expect(socket1?.disconnect).toHaveBeenCalledWith(true);
       expect(socket2?.disconnect).toHaveBeenCalledWith(true);
     });
@@ -291,6 +401,146 @@ describe('SocketService', () => {
       const disconnectedCount = service.disconnectUserSockets('123');
 
       expect(disconnectedCount).toBe(0);
+    });
+  });
+
+  describe('isInitialized', () => {
+    it('should return false when server is not initialized', () => {
+      const service = SocketService.getInstance();
+      expect(service.isInitialized()).toBe(false);
+    });
+
+    it('should return true when server is initialized', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+      expect(service.isInitialized()).toBe(true);
+    });
+  });
+
+  describe('getServer', () => {
+    it('should return null when server is not initialized', () => {
+      const service = SocketService.getInstance();
+      expect(service.getServer()).toBeNull();
+    });
+
+    it('should return the server when initialized', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+      expect(service.getServer()).toBe(mockServer);
+    });
+  });
+
+  describe('shutdown', () => {
+    it('should stop polling, clear connections, and cache', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      (service as any).connectedUsers.set('test-socket', { accountId: 123 });
+      (service as any).notificationCache = { 123: { notifications: [], lastChecked: new Date() } };
+
+      service.shutdown();
+
+      expect(mockCronJob.stop).toHaveBeenCalled();
+      expect((service as any).connectedUsers.size).toBe(0);
+      expect(Object.keys((service as any).notificationCache)).toHaveLength(0);
+      expect(cliLogger.info).toHaveBeenCalledWith('Socket service shutdown complete');
+    });
+
+    it('should handle shutdown when polling job is null', () => {
+      const service = SocketService.getInstance();
+
+      expect(() => service.shutdown()).not.toThrow();
+      expect(cliLogger.info).toHaveBeenCalledWith('Socket service shutdown complete');
+    });
+  });
+
+  describe('notification polling', () => {
+    beforeEach(() => {
+      (notificationsService.getNotifications as jest.Mock).mockResolvedValue([
+        { id: 1, message: 'Test notification', created_at: new Date() },
+      ]);
+    });
+
+    it('should poll notifications for connected users', async () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      (service as any).connectedUsers.set('socket-1', { accountId: 123, socketId: 'socket-1' });
+      (service as any).connectedUsers.set('socket-2', { accountId: 456, socketId: 'socket-2' });
+
+      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1];
+
+      await pollingFunction();
+
+      expect(notificationsService.getNotifications).toHaveBeenCalledWith(123);
+      expect(notificationsService.getNotifications).toHaveBeenCalledWith(456);
+      expect(cliLogger.info).toHaveBeenCalledWith('Polling notifications for 2 connected users');
+    });
+
+    it('should skip polling when no users are connected', async () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1];
+
+      await pollingFunction();
+
+      expect(notificationsService.getNotifications).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors during polling gracefully', async () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      (service as any).connectedUsers.set('socket-1', { accountId: 123, socketId: 'socket-1' });
+
+      const error = new Error('Database connection failed');
+      (notificationsService.getNotifications as jest.Mock).mockRejectedValue(error);
+
+      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1];
+
+      await pollingFunction();
+
+      expect(cliLogger.error).toHaveBeenCalledWith(`Failed to check notifications for account 123:`, error);
+    });
+
+    it('should handle timeout scenarios during polling with graceful recovery', async () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      (service as any).connectedUsers.set('socket-1', { accountId: 123, socketId: 'socket-1' });
+
+      const originalSetTimeout = global.setTimeout;
+
+      jest
+        .spyOn(global, 'setTimeout')
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .mockImplementation((callback: (...args: any[]) => void, delay: number | undefined) => {
+          if (callback) {
+            callback();
+          }
+          return {} as NodeJS.Timeout;
+        });
+
+      const originalPromiseAllSettled = Promise.allSettled;
+      jest.spyOn(Promise, 'allSettled').mockImplementation(async (promises) => {
+        await new Promise((resolve) => {
+          const timer = originalSetTimeout(resolve, 100);
+          return timer;
+        });
+        return originalPromiseAllSettled(promises);
+      });
+
+      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1] as () => Promise<void>;
+
+      const pollingPromise = pollingFunction();
+
+      jest.advanceTimersByTime(5000);
+
+      await pollingPromise;
+
+      expect(mockCronJob.start).toHaveBeenCalled();
+      expect(() => service.initialize(mockServer as Server)).not.toThrow();
     });
   });
 
