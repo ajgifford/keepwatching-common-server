@@ -69,9 +69,9 @@ export class PersonService {
           const transformCredits = (credits: TMDBCredit[]) =>
             credits.map((credit) => ({
               tmdbId: credit.id,
-              title: credit.title || credit.name,
+              title: credit.title || credit.name || '',
               posterImage: credit.poster_path,
-              releaseDate: credit.release_date || credit.first_air_date,
+              releaseDate: credit.release_date || credit.first_air_date || '',
               character: credit.character,
               job: credit.job,
               mediaType: credit.media_type,

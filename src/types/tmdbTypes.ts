@@ -107,11 +107,11 @@ export interface TMDBPerson {
 
 export interface TMDBCredit {
   id: number;
-  title: string;
-  name: string;
+  title?: string;
+  name?: string;
   poster_path: string;
-  release_date: string;
-  first_air_date: string;
+  release_date?: string;
+  first_air_date?: string;
   character: string;
   job: string;
   media_type: 'movie' | 'tv';
