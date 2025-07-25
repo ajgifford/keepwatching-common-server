@@ -1,6 +1,7 @@
 import { NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
+import { AccountReferenceRow } from '../types/accountTypes';
 import {
-  AccountRow,
+  CurrentNotificationRow,
   NotificationRow,
   transformAccountNotificationRow,
   transformAdminNotificationRow,
@@ -23,6 +24,7 @@ import { ResultSetHeader } from 'mysql2';
  * their active date range (between start_date and end_date) for a specific account.
  *
  * @param accountId - The account ID to fetch notifications for
+ * @param includeDismissed - Flag indicating if dismissed notifications should also be retrieved, default false
  * @returns Array of active notifications for the account
  * @throws {DatabaseError} If a database error occurs during the operation
  *
@@ -40,14 +42,95 @@ import { ResultSetHeader } from 'mysql2';
  *   console.error('Error fetching notifications:', error);
  * }
  */
-export async function getNotificationsForAccount(accountId: number): Promise<AccountNotification[]> {
+export async function getNotificationsForAccount(
+  accountId: number,
+  includeDismissed: boolean = false,
+): Promise<AccountNotification[]> {
   try {
-    const query = `SELECT n.notification_id, n.message, n.start_date, n.end_date FROM notifications n JOIN account_notifications an ON n.notification_id = an.notification_id WHERE an.account_id = ? AND an.dismissed = 0 AND NOW() BETWEEN n.start_date AND n.end_date;`;
-    const [notifications] = await getDbPool().execute<NotificationRow[]>(query, [accountId]);
-
-    return notifications.map(transformAccountNotificationRow);
+    if (includeDismissed) {
+      const query = `SELECT * FROM current_notifications WHERE account_id = ?`;
+      const [notifications] = await getDbPool().execute<CurrentNotificationRow[]>(query, [accountId]);
+      return notifications.map(transformAccountNotificationRow);
+    } else {
+      const query = `SELECT * FROM current_notifications WHERE account_id = ? AND dismissed = 0`;
+      const [notifications] = await getDbPool().execute<CurrentNotificationRow[]>(query, [accountId]);
+      return notifications.map(transformAccountNotificationRow);
+    }
   } catch (error) {
     handleDatabaseError(error, 'getting notifications for an account');
+  }
+}
+
+/**
+ * Marks a notification as read for a specific account
+ *
+ * This method updates the account_notifications junction table to mark a notification
+ * as read for a particular account.
+ *
+ * @param notificationId - ID of the notification to mark read
+ * @param accountId - ID of the account
+ * @returns `True` if the notification was successfully marked read, `false` otherwise
+ * @throws {DatabaseError} If a database error occurs during the operation
+ *
+ * @example
+ * try {
+ *   // Mark read notification ID 456 for account ID 123
+ *   const markedRead = await notificationDb.markNotificationRead(456, 123);
+ *
+ *   if (markedRead) {
+ *     console.log('Notification marked read successfully');
+ *   } else {
+ *     console.log('Notification not found or already marked read');
+ *   }
+ * } catch (error) {
+ *   console.error('Error marking notification read:', error);
+ * }
+ */
+export async function markNotificationRead(notificationId: number, accountId: number): Promise<boolean> {
+  try {
+    const query = `UPDATE account_notifications SET read = 1 WHERE notification_id = ? AND account_id = ?;`;
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [notificationId, accountId]);
+
+    // Return true if at least one row was affected (notification was marked read)
+    return result.affectedRows > 0;
+  } catch (error) {
+    handleDatabaseError(error, 'marking a notification read');
+  }
+}
+
+/**
+ * Marks all notifications as read for a specific account
+ *
+ * This method updates the account_notifications junction table to mark all notifications
+ * as read for a particular account.
+ *
+ * @param accountId - ID of the account that is marking read the notifications
+ * @returns `True` if the notifications were successfully marked read, `false` otherwise
+ * @throws {DatabaseError} If a database error occurs during the operation
+ *
+ * @example
+ * try {
+ *   // Mark all notifications read for account ID 123
+ *   const markedRead = await notificationDb.markAllNotificationsRead(123);
+ *
+ *   if (markedRead) {
+ *     console.log('Notifications marked read successfully');
+ *   } else {
+ *     console.log('Notifications not marked read');
+ *   }
+ * } catch (error) {
+ *   console.error('Error marking all notifications read:', error);
+ * }
+ */
+export async function markAllNotificationsRead(accountId: number): Promise<boolean> {
+  try {
+    const query = `UPDATE account_notifications SET read = 1 WHERE account_id = ?;`;
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId]);
+
+    // Return true if at least one row was affected (notifications were marked read)
+    return result.affectedRows > 0;
+  } catch (error) {
+    handleDatabaseError(error, 'marking all notifications read');
   }
 }
 
@@ -120,7 +203,7 @@ export async function dismissAllNotifications(accountId: number): Promise<boolea
     // Return true if at least one row was affected (notifications were dismissed)
     return result.affectedRows > 0;
   } catch (error) {
-    handleDatabaseError(error, 'dismissing a notification');
+    handleDatabaseError(error, 'dismissing all notifications');
   }
 }
 
@@ -140,7 +223,9 @@ export async function addNotification(notificationRequest: CreateNotificationReq
       const notificationId = result.insertId;
 
       if (notificationRequest.sendToAll) {
-        const [accounts] = await connection.query<AccountRow[]>('SELECT account_id FROM accounts');
+        const [accounts] = await connection.query<AccountReferenceRow[]>(
+          'SELECT account_id, account_name, email FROM accounts',
+        );
 
         if (accounts.length === 0) {
           throw new NotFoundError('No accounts found when sending a notification to all accounts');

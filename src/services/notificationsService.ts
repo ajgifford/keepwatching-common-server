@@ -9,35 +9,79 @@ import {
 } from '@ajgifford/keepwatching-types';
 
 export class NotificationsService {
-  public async getNotifications(accountId: number): Promise<AccountNotification[]> {
+  public async getNotifications(accountId: number, includeDismissed: boolean = false): Promise<AccountNotification[]> {
     try {
-      return await notificationsDb.getNotificationsForAccount(accountId);
+      return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
-      throw errorService.handleError(error, `getNotifications(${accountId})`);
+      throw errorService.handleError(error, `getNotifications(${accountId}, ${includeDismissed})`);
     }
   }
 
-  public async dismissNotification(notificationId: number, accountId: number): Promise<AccountNotification[]> {
+  public async markNotificationRead(
+    notificationId: number,
+    accountId: number,
+    includeDismissed: boolean = false,
+  ): Promise<AccountNotification[]> {
     try {
-      const dismissed = await notificationsDb.dismissNotification(notificationId, accountId);
-      if (!dismissed) {
+      const markedRead = await notificationsDb.markNotificationRead(notificationId, accountId);
+      if (!markedRead) {
+        throw new NoAffectedRowsError('No notification was marked read');
+      }
+      return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `markNotificationRead(${notificationId}, ${accountId}, ${includeDismissed})`,
+      );
+    }
+  }
+
+  public async markAllNotificationsRead(
+    accountId: number,
+    includeDismissed: boolean = false,
+  ): Promise<AccountNotification[]> {
+    try {
+      const markedRead = await notificationsDb.markAllNotificationsRead(accountId);
+      if (!markedRead) {
+        throw new NoAffectedRowsError('No notifications were marked read');
+      }
+      return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
+    } catch (error) {
+      throw errorService.handleError(error, `markAllNotificationsRead(${accountId}, ${includeDismissed})`);
+    }
+  }
+
+  public async dismissNotification(
+    notificationId: number,
+    accountId: number,
+    includeDismissed: boolean = false,
+  ): Promise<AccountNotification[]> {
+    try {
+      const notificationDismissed = await notificationsDb.dismissNotification(notificationId, accountId);
+      if (!notificationDismissed) {
         throw new NoAffectedRowsError('No notification was dismissed');
       }
-      return await notificationsDb.getNotificationsForAccount(accountId);
+      return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
-      throw errorService.handleError(error, `dismissNotification(${notificationId}, ${accountId})`);
+      throw errorService.handleError(
+        error,
+        `dismissNotification(${notificationId}, ${accountId}, ${includeDismissed})`,
+      );
     }
   }
 
-  public async dismissAllNotifications(accountId: number): Promise<AccountNotification[]> {
+  public async dismissAllNotifications(
+    accountId: number,
+    includeDismissed: boolean = false,
+  ): Promise<AccountNotification[]> {
     try {
-      const dismissed = await notificationsDb.dismissAllNotifications(accountId);
-      if (!dismissed) {
+      const notificationsDismissed = await notificationsDb.dismissAllNotifications(accountId);
+      if (!notificationsDismissed) {
         throw new NoAffectedRowsError('No notifications were dismissed');
       }
-      return await notificationsDb.getNotificationsForAccount(accountId);
+      return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
-      throw errorService.handleError(error, `dismissNotification(${accountId})`);
+      throw errorService.handleError(error, `dismissAllNotifications(${accountId}, ${includeDismissed})`);
     }
   }
 

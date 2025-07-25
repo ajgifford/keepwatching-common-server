@@ -14,12 +14,43 @@ describe('notificationsService', () => {
       message: 'Test notification 1',
       startDate: new Date('2025-04-01'),
       endDate: new Date('2025-04-30'),
+      dismissed: false,
+      read: false,
     },
     {
       id: 2,
       message: 'Test notification 2',
       startDate: new Date('2025-04-05'),
       endDate: new Date('2025-04-25'),
+      dismissed: false,
+      read: false,
+    },
+  ];
+
+  const mockAllAccountNotifications = [
+    {
+      id: 1,
+      message: 'Test notification 1',
+      startDate: new Date('2025-04-01'),
+      endDate: new Date('2025-04-30'),
+      dismissed: false,
+      read: false,
+    },
+    {
+      id: 2,
+      message: 'Test notification 2',
+      startDate: new Date('2025-04-05'),
+      endDate: new Date('2025-04-25'),
+      dismissed: false,
+      read: false,
+    },
+    {
+      id: 3,
+      message: 'Test notification 3',
+      startDate: new Date('2025-04-05'),
+      endDate: new Date('2025-04-25'),
+      dismissed: true,
+      read: false,
     },
   ];
 
@@ -59,13 +90,22 @@ describe('notificationsService', () => {
   });
 
   describe('getNotifications', () => {
-    it('should return notifications for an account', async () => {
+    it('should return notifications for an account that are not dismissed', async () => {
       (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await notificationsService.getNotifications(123);
 
-      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
       expect(result).toEqual(mockAccountNotifications);
+    });
+
+    it('should return all notifications for an account (dismissed or not)', async () => {
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAllAccountNotifications);
+
+      const result = await notificationsService.getNotifications(123, true);
+
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, true);
+      expect(result).toEqual(mockAllAccountNotifications);
     });
 
     it('should handle empty notifications array', async () => {
@@ -73,7 +113,7 @@ describe('notificationsService', () => {
 
       const result = await notificationsService.getNotifications(123);
 
-      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
       expect(result).toEqual([]);
     });
 
@@ -82,7 +122,73 @@ describe('notificationsService', () => {
       (notificationsDb.getNotificationsForAccount as jest.Mock).mockRejectedValue(mockError);
 
       await expect(notificationsService.getNotifications(123)).rejects.toThrow('Database error');
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getNotifications(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getNotifications(123, false)');
+    });
+  });
+
+  describe('markNotificationRead', () => {
+    it('should mark a notification read successfully', async () => {
+      (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
+
+      const result = await notificationsService.markNotificationRead(1, 123);
+
+      expect(notificationsDb.markNotificationRead).toHaveBeenCalledWith(1, 123);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
+      expect(result).toEqual(mockAccountNotifications);
+    });
+
+    it('should fail to mark a notification read', async () => {
+      (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(false);
+      const mockError = new NoAffectedRowsError('No notification was marked read');
+
+      await expect(notificationsService.markNotificationRead(1, 123)).rejects.toThrow(
+        'No notification was marked read',
+      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, false)');
+    });
+
+    it('should propagate database errors through errorService', async () => {
+      const mockError = new Error('Database error during mark read');
+      (notificationsDb.markNotificationRead as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(notificationsService.markNotificationRead(1, 123)).rejects.toThrow(
+        'Database error during mark read',
+      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, false)');
+    });
+  });
+
+  describe('markAllNotificationsRead', () => {
+    it('should mark all notifications read successfully', async () => {
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
+
+      const result = await notificationsService.markAllNotificationsRead(123);
+
+      expect(notificationsDb.markAllNotificationsRead).toHaveBeenCalledWith(123);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
+      expect(result).toEqual(mockAccountNotifications);
+    });
+
+    it('should fail to mark all notifications read', async () => {
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(false);
+      const mockError = new NoAffectedRowsError('No notifications were marked read');
+
+      await expect(notificationsService.markAllNotificationsRead(123)).rejects.toThrow(
+        'No notifications were marked read',
+      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, false)');
+    });
+
+    it('should propagate database errors through errorService', async () => {
+      const mockError = new Error('Database error during marking read');
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(notificationsService.markAllNotificationsRead(123)).rejects.toThrow(
+        'Database error during marking read',
+      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, false)');
     });
   });
 
@@ -94,7 +200,7 @@ describe('notificationsService', () => {
       const result = await notificationsService.dismissNotification(1, 123);
 
       expect(notificationsDb.dismissNotification).toHaveBeenCalledWith(1, 123);
-      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
       expect(result).toEqual(mockAccountNotifications);
     });
 
@@ -103,7 +209,7 @@ describe('notificationsService', () => {
       const mockError = new NoAffectedRowsError('No notification was dismissed');
 
       await expect(notificationsService.dismissNotification(1, 123)).rejects.toThrow('No notification was dismissed');
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123, false)');
     });
 
     it('should propagate database errors through errorService', async () => {
@@ -111,7 +217,40 @@ describe('notificationsService', () => {
       (notificationsDb.dismissNotification as jest.Mock).mockRejectedValue(mockError);
 
       await expect(notificationsService.dismissNotification(1, 123)).rejects.toThrow('Database error during dismissal');
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123, false)');
+    });
+  });
+
+  describe('dismissAllNotifications', () => {
+    it('should dismiss all notifications successfully', async () => {
+      (notificationsDb.dismissAllNotifications as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
+
+      const result = await notificationsService.dismissAllNotifications(123);
+
+      expect(notificationsDb.dismissAllNotifications).toHaveBeenCalledWith(123);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
+      expect(result).toEqual(mockAccountNotifications);
+    });
+
+    it('should fail to dismiss all notifications', async () => {
+      (notificationsDb.dismissAllNotifications as jest.Mock).mockResolvedValue(false);
+      const mockError = new NoAffectedRowsError('No notifications were dismissed');
+
+      await expect(notificationsService.dismissAllNotifications(123)).rejects.toThrow(
+        'No notifications were dismissed',
+      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissAllNotifications(123, false)');
+    });
+
+    it('should propagate database errors through errorService', async () => {
+      const mockError = new Error('Database error during dismissal');
+      (notificationsDb.dismissAllNotifications as jest.Mock).mockRejectedValue(mockError);
+
+      await expect(notificationsService.dismissAllNotifications(123)).rejects.toThrow(
+        'Database error during dismissal',
+      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissAllNotifications(123, false)');
     });
   });
 

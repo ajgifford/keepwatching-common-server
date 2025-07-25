@@ -1,8 +1,8 @@
-import { dismissParamSchema } from '@schema/notificationsSchema';
+import { notificationActionParamSchema } from '@schema/notificationsSchema';
 
 describe('notificationsSchema', () => {
-  describe('dismissParamSchema', () => {
-    it('should validate valid dismiss parameters', () => {
+  describe('notificationActionParamSchema', () => {
+    it('should validate valid notification action parameters', () => {
       const validInput = {
         accountId: '123',
         notificationId: '456',
@@ -13,7 +13,7 @@ describe('notificationsSchema', () => {
         notificationId: 456,
       };
 
-      const result = dismissParamSchema.safeParse(validInput);
+      const result = notificationActionParamSchema.safeParse(validInput);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data).toEqual(expectedOutput);
@@ -26,7 +26,7 @@ describe('notificationsSchema', () => {
         notificationId: '456',
       };
 
-      const result = dismissParamSchema.safeParse(invalidInput);
+      const result = notificationActionParamSchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -40,7 +40,7 @@ describe('notificationsSchema', () => {
         notificationId: 'xyz',
       };
 
-      const result = dismissParamSchema.safeParse(invalidInput);
+      const result = notificationActionParamSchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
@@ -53,7 +53,7 @@ describe('notificationsSchema', () => {
         notificationId: '456',
       };
 
-      const result = dismissParamSchema.safeParse(invalidInput);
+      const result = notificationActionParamSchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toContain('accountId');
@@ -65,7 +65,7 @@ describe('notificationsSchema', () => {
         accountId: '123',
       };
 
-      const result = dismissParamSchema.safeParse(invalidInput);
+      const result = notificationActionParamSchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toContain('notificationId');
@@ -80,7 +80,7 @@ describe('notificationsSchema', () => {
       ];
 
       testCases.forEach((invalidInput) => {
-        const result = dismissParamSchema.safeParse(invalidInput);
+        const result = notificationActionParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
     });
@@ -91,7 +91,7 @@ describe('notificationsSchema', () => {
         notificationId: '456',
       };
 
-      const result = dismissParamSchema.safeParse(invalidInput);
+      const result = notificationActionParamSchema.safeParse(invalidInput);
       expect(result.success).toBe(true);
       if (!result.success) {
         expect(result.error.issues.length).toBe(2);
@@ -107,7 +107,7 @@ describe('notificationsSchema', () => {
       ];
 
       testCases.forEach((invalidInput) => {
-        const result = dismissParamSchema.safeParse(invalidInput);
+        const result = notificationActionParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
     });
@@ -121,7 +121,7 @@ describe('notificationsSchema', () => {
       ];
 
       testCases.forEach((invalidInput) => {
-        const result = dismissParamSchema.safeParse(invalidInput);
+        const result = notificationActionParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
     });
