@@ -212,13 +212,14 @@ export async function addNotification(notificationRequest: CreateNotificationReq
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
       const notificationQuery =
-        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)';
+        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?)';
       const [result] = await connection.execute<ResultSetHeader>(notificationQuery, [
         notificationRequest.message,
         formatDateForMySql(notificationRequest.startDate),
         formatDateForMySql(notificationRequest.endDate),
         notificationRequest.sendToAll ? 1 : 0,
         notificationRequest.accountId ?? null,
+        notificationRequest.type,
       ]);
       const notificationId = result.insertId;
 

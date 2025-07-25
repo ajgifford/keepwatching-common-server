@@ -299,6 +299,7 @@ describe('notificationsService', () => {
         endDate: '2025-04-25',
         sendToAll: true,
         accountId: null,
+        type: 'general',
       };
 
       (notificationsDb.addNotification as jest.Mock).mockResolvedValue(undefined);
@@ -315,6 +316,7 @@ describe('notificationsService', () => {
         endDate: '2025-04-25',
         sendToAll: false,
         accountId: 1,
+        type: 'general',
       };
 
       (notificationsDb.addNotification as jest.Mock).mockResolvedValue(undefined);
@@ -335,11 +337,12 @@ describe('notificationsService', () => {
           endDate: '2025-05-01',
           sendToAll: true,
           accountId: null,
+          type: 'general',
         }),
       ).rejects.toThrow('Database error during add');
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'addNotification({"message":"message","startDate":"2025-04-01","endDate":"2025-05-01","sendToAll":true,"accountId":null})',
+        'addNotification({"message":"message","startDate":"2025-04-01","endDate":"2025-05-01","sendToAll":true,"accountId":null,"type":"general"})',
       );
     });
   });
@@ -352,6 +355,7 @@ describe('notificationsService', () => {
         endDate: '2025-04-25',
         sendToAll: true,
         accountId: null,
+        type: 'general',
         id: 13,
       };
 
@@ -380,6 +384,7 @@ describe('notificationsService', () => {
         endDate: '2025-04-25',
         sendToAll: true,
         accountId: null,
+        type: 'general',
         id: 13,
       };
       await notificationsService.updateNotification(updateRequest);
@@ -397,6 +402,7 @@ describe('notificationsService', () => {
         endDate: '2025-04-25',
         sendToAll: true,
         accountId: null,
+        type: 'general',
         id: 13,
       };
       await expect(notificationsService.updateNotification(updateRequest)).rejects.toThrow(
@@ -404,7 +410,7 @@ describe('notificationsService', () => {
       );
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'updateNotification({"message":"message","startDate":"2025-04-05","endDate":"2025-04-25","sendToAll":true,"accountId":null,"id":13})',
+        'updateNotification({"message":"message","startDate":"2025-04-05","endDate":"2025-04-25","sendToAll":true,"accountId":null,"type":"general","id":13})',
       );
     });
   });

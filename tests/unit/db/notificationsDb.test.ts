@@ -307,6 +307,7 @@ describe('notificationDb', () => {
         endDate: '2025-05-31',
         sendToAll: true,
         accountId: null,
+        type: 'general',
       };
 
       const mockAccounts = [{ account_id: 1 }, { account_id: 2 }];
@@ -325,8 +326,8 @@ describe('notificationDb', () => {
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
-        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)',
-        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null],
+        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?)',
+        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null, 'general'],
       );
 
       expect(mockConnection.query).toHaveBeenNthCalledWith(1, 'SELECT account_id, account_name, email FROM accounts');
@@ -344,6 +345,7 @@ describe('notificationDb', () => {
         endDate: '2025-05-31',
         sendToAll: false,
         accountId: 5,
+        type: 'general',
       };
 
       const notificationInsertResult: [ResultSetHeader, any] = [
@@ -359,8 +361,8 @@ describe('notificationDb', () => {
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
-        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id) VALUES (?,?,?,?,?)',
-        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 0, 5],
+        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?)',
+        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 0, 5, 'general'],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
@@ -376,6 +378,7 @@ describe('notificationDb', () => {
         endDate: '2025-05-31',
         sendToAll: true,
         accountId: null,
+        type: 'general',
       };
 
       mockConnection.execute.mockResolvedValueOnce([{ insertId: 123 }]);
@@ -394,6 +397,7 @@ describe('notificationDb', () => {
         endDate: '2025-05-31',
         sendToAll: false,
         accountId: 5,
+        type: 'general',
       };
 
       const error = new Error('Database error');
@@ -415,6 +419,7 @@ describe('notificationDb', () => {
         endDate: '2025-05-31',
         sendToAll: true,
         accountId: null,
+        type: 'general',
       };
 
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
@@ -435,6 +440,7 @@ describe('notificationDb', () => {
         endDate: '2025-05-31',
         sendToAll: true,
         accountId: null,
+        type: 'general',
       };
 
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
@@ -452,6 +458,7 @@ describe('notificationDb', () => {
         endDate: '2025-05-31',
         sendToAll: true,
         accountId: null,
+        type: 'general',
       };
 
       const error = new Error('Database error');
@@ -473,6 +480,7 @@ describe('notificationDb', () => {
           end_date: new Date('2025-04-30'),
           send_to_all: 1,
           account_id: null,
+          type: 'general',
         },
       ] as NotificationRow[];
 
@@ -492,6 +500,7 @@ describe('notificationDb', () => {
           endDate: new Date('2025-04-30'),
           sendToAll: true,
           accountId: null,
+          type: 'general',
         },
       ]);
     });
@@ -505,6 +514,7 @@ describe('notificationDb', () => {
           end_date: new Date('2025-04-30'),
           send_to_all: 1,
           account_id: null,
+          type: 'general',
         },
         {
           notification_id: 2,
@@ -513,6 +523,7 @@ describe('notificationDb', () => {
           end_date: new Date('2025-03-31'),
           send_to_all: 0,
           account_id: 5,
+          type: 'general',
         },
       ] as NotificationRow[];
 
@@ -530,6 +541,7 @@ describe('notificationDb', () => {
           endDate: new Date('2025-04-30'),
           sendToAll: true,
           accountId: null,
+          type: 'general',
         },
         {
           id: 2,
@@ -538,6 +550,7 @@ describe('notificationDb', () => {
           endDate: new Date('2025-03-31'),
           sendToAll: false,
           accountId: 5,
+          type: 'general',
         },
       ]);
     });
