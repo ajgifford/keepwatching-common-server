@@ -8,7 +8,7 @@ export interface CurrentNotificationRow extends RowDataPacket {
   end_date: Date;
   type: NotificationType;
   dismissed: number;
-  read: number;
+  has_been_read: number;
 }
 
 export interface NotificationRow extends RowDataPacket {
@@ -29,7 +29,7 @@ export function transformAccountNotificationRow(notificationRow: CurrentNotifica
     endDate: notificationRow.end_date,
     type: notificationRow.type,
     dismissed: Boolean(notificationRow.dismissed),
-    read: Boolean(notificationRow.read),
+    read: Boolean(notificationRow.has_been_read),
   };
 }
 

@@ -127,13 +127,24 @@ describe('notificationsService', () => {
   });
 
   describe('markNotificationRead', () => {
-    it('should mark a notification read successfully', async () => {
+    it('should mark a notification as read successfully', async () => {
       (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await notificationsService.markNotificationRead(1, 123);
 
-      expect(notificationsDb.markNotificationRead).toHaveBeenCalledWith(1, 123);
+      expect(notificationsDb.markNotificationRead).toHaveBeenCalledWith(1, 123, true);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
+      expect(result).toEqual(mockAccountNotifications);
+    });
+
+    it('should mark a notification as unread successfully', async () => {
+      (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
+
+      const result = await notificationsService.markNotificationRead(1, 123, false);
+
+      expect(notificationsDb.markNotificationRead).toHaveBeenCalledWith(1, 123, false);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
       expect(result).toEqual(mockAccountNotifications);
     });
@@ -145,7 +156,7 @@ describe('notificationsService', () => {
       await expect(notificationsService.markNotificationRead(1, 123)).rejects.toThrow(
         'No notification was marked read',
       );
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, false)');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, true, false)');
     });
 
     it('should propagate database errors through errorService', async () => {
@@ -155,18 +166,29 @@ describe('notificationsService', () => {
       await expect(notificationsService.markNotificationRead(1, 123)).rejects.toThrow(
         'Database error during mark read',
       );
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, false)');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, true, false)');
     });
   });
 
   describe('markAllNotificationsRead', () => {
-    it('should mark all notifications read successfully', async () => {
+    it('should mark all notifications as read successfully', async () => {
       (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await notificationsService.markAllNotificationsRead(123);
 
-      expect(notificationsDb.markAllNotificationsRead).toHaveBeenCalledWith(123);
+      expect(notificationsDb.markAllNotificationsRead).toHaveBeenCalledWith(123, true);
+      expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
+      expect(result).toEqual(mockAccountNotifications);
+    });
+
+    it('should mark all notifications as unread successfully', async () => {
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
+
+      const result = await notificationsService.markAllNotificationsRead(123, false);
+
+      expect(notificationsDb.markAllNotificationsRead).toHaveBeenCalledWith(123, false);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
       expect(result).toEqual(mockAccountNotifications);
     });
@@ -178,7 +200,7 @@ describe('notificationsService', () => {
       await expect(notificationsService.markAllNotificationsRead(123)).rejects.toThrow(
         'No notifications were marked read',
       );
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, false)');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, true, false)');
     });
 
     it('should propagate database errors through errorService', async () => {
@@ -188,7 +210,7 @@ describe('notificationsService', () => {
       await expect(notificationsService.markAllNotificationsRead(123)).rejects.toThrow(
         'Database error during marking read',
       );
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, false)');
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, true, false)');
     });
   });
 

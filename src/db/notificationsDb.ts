@@ -62,75 +62,89 @@ export async function getNotificationsForAccount(
 }
 
 /**
- * Marks a notification as read for a specific account
+ * Marks a notification read/unread status for a specific account
  *
  * This method updates the account_notifications junction table to mark a notification
- * as read for a particular account.
+ * as read or unread for a particular account.
  *
- * @param notificationId - ID of the notification to mark read
+ * @param notificationId - ID of the notification to update
  * @param accountId - ID of the account
- * @returns `True` if the notification was successfully marked read, `false` otherwise
+ * @param hasBeenRead - Boolean indicating read status (true = read, false = unread)
+ * @returns `True` if the notification status was successfully updated, `false` otherwise
  * @throws {DatabaseError} If a database error occurs during the operation
  *
  * @example
  * try {
- *   // Mark read notification ID 456 for account ID 123
- *   const markedRead = await notificationDb.markNotificationRead(456, 123);
+ *   // Mark notification ID 456 as read for account ID 123
+ *   const updated = await notificationDb.markNotificationRead(456, 123, true);
  *
- *   if (markedRead) {
- *     console.log('Notification marked read successfully');
+ *   // Mark notification ID 456 as unread for account ID 123
+ *   const updated = await notificationDb.markNotificationRead(456, 123, false);
+ *
+ *   if (updated) {
+ *     console.log('Notification status updated successfully');
  *   } else {
- *     console.log('Notification not found or already marked read');
+ *     console.log('Notification not found');
  *   }
  * } catch (error) {
- *   console.error('Error marking notification read:', error);
+ *   console.error('Error updating notification status:', error);
  * }
  */
-export async function markNotificationRead(notificationId: number, accountId: number): Promise<boolean> {
+export async function markNotificationRead(
+  notificationId: number,
+  accountId: number,
+  hasBeenRead: boolean = true,
+): Promise<boolean> {
   try {
-    const query = `UPDATE account_notifications SET read = 1 WHERE notification_id = ? AND account_id = ?;`;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [notificationId, accountId]);
+    const readValue = hasBeenRead ? 1 : 0;
+    const query = `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`;
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [readValue, notificationId, accountId]);
 
-    // Return true if at least one row was affected (notification was marked read)
+    // Return true if at least one row was affected (notification status was updated)
     return result.affectedRows > 0;
   } catch (error) {
-    handleDatabaseError(error, 'marking a notification read');
+    handleDatabaseError(error, `marking a notification ${hasBeenRead ? 'read' : 'unread'}`);
   }
 }
 
 /**
- * Marks all notifications as read for a specific account
+ * Marks all notifications read/unread status for a specific account
  *
  * This method updates the account_notifications junction table to mark all notifications
- * as read for a particular account.
+ * as read or unread for a particular account.
  *
- * @param accountId - ID of the account that is marking read the notifications
- * @returns `True` if the notifications were successfully marked read, `false` otherwise
+ * @param accountId - ID of the account that is updating the notifications
+ * @param hasBeenRead - Boolean indicating read status (true = read, false = unread)
+ * @returns `True` if the notifications were successfully updated, `false` otherwise
  * @throws {DatabaseError} If a database error occurs during the operation
  *
  * @example
  * try {
- *   // Mark all notifications read for account ID 123
- *   const markedRead = await notificationDb.markAllNotificationsRead(123);
+ *   // Mark all notifications as read for account ID 123
+ *   const updated = await notificationDb.markAllNotificationsRead(123, true);
  *
- *   if (markedRead) {
- *     console.log('Notifications marked read successfully');
+ *   // Mark all notifications as unread for account ID 123
+ *   const updated = await notificationDb.markAllNotificationsRead(123, false);
+ *
+ *   if (updated) {
+ *     console.log('All notifications status updated successfully');
  *   } else {
- *     console.log('Notifications not marked read');
+ *     console.log('No notifications to update');
  *   }
  * } catch (error) {
- *   console.error('Error marking all notifications read:', error);
+ *   console.error('Error updating all notifications status:', error);
  * }
  */
-export async function markAllNotificationsRead(accountId: number): Promise<boolean> {
+export async function markAllNotificationsRead(accountId: number, hasBeenRead: boolean = true): Promise<boolean> {
   try {
-    const query = `UPDATE account_notifications SET read = 1 WHERE account_id = ?;`;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId]);
+    const readValue = hasBeenRead ? 1 : 0;
+    const query = `UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;`;
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [readValue, accountId]);
 
-    // Return true if at least one row was affected (notifications were marked read)
+    // Return true if at least one row was affected (notifications were updated)
     return result.affectedRows > 0;
   } catch (error) {
-    handleDatabaseError(error, 'marking all notifications read');
+    handleDatabaseError(error, `marking all notifications ${hasBeenRead ? 'read' : 'unread'}`);
   }
 }
 
@@ -253,11 +267,12 @@ export async function addNotification(notificationRequest: CreateNotificationReq
 export async function updateNotification(notificationRequest: UpdateNotificationRequest): Promise<void> {
   try {
     const [result] = await getDbPool().execute<ResultSetHeader>(
-      'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
+      'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
       [
         notificationRequest.message,
         formatDateForMySql(notificationRequest.startDate),
         formatDateForMySql(notificationRequest.endDate),
+        notificationRequest.type,
         notificationRequest.sendToAll ? 1 : 0,
         notificationRequest.accountId,
         notificationRequest.id,

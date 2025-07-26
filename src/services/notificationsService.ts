@@ -20,34 +20,39 @@ export class NotificationsService {
   public async markNotificationRead(
     notificationId: number,
     accountId: number,
+    hasBeenRead: boolean = true,
     includeDismissed: boolean = false,
   ): Promise<AccountNotification[]> {
     try {
-      const markedRead = await notificationsDb.markNotificationRead(notificationId, accountId);
-      if (!markedRead) {
-        throw new NoAffectedRowsError('No notification was marked read');
+      const updated = await notificationsDb.markNotificationRead(notificationId, accountId, hasBeenRead);
+      if (!updated) {
+        throw new NoAffectedRowsError(`No notification was marked ${hasBeenRead ? 'read' : 'unread'}`);
       }
       return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
       throw errorService.handleError(
         error,
-        `markNotificationRead(${notificationId}, ${accountId}, ${includeDismissed})`,
+        `markNotificationRead(${notificationId}, ${accountId}, ${hasBeenRead}, ${includeDismissed})`,
       );
     }
   }
 
   public async markAllNotificationsRead(
     accountId: number,
+    hasBeenRead: boolean = true,
     includeDismissed: boolean = false,
   ): Promise<AccountNotification[]> {
     try {
-      const markedRead = await notificationsDb.markAllNotificationsRead(accountId);
-      if (!markedRead) {
-        throw new NoAffectedRowsError('No notifications were marked read');
+      const updated = await notificationsDb.markAllNotificationsRead(accountId, hasBeenRead);
+      if (!updated) {
+        throw new NoAffectedRowsError(`No notifications were marked ${hasBeenRead ? 'read' : 'unread'}`);
       }
       return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
-      throw errorService.handleError(error, `markAllNotificationsRead(${accountId}, ${includeDismissed})`);
+      throw errorService.handleError(
+        error,
+        `markAllNotificationsRead(${accountId}, ${hasBeenRead}, ${includeDismissed})`,
+      );
     }
   }
 

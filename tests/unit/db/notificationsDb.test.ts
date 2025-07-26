@@ -129,20 +129,33 @@ describe('notificationDb', () => {
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE account_notifications SET read = 1 WHERE notification_id = ? AND account_id = ?;',
-        [1, 1],
+        `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`,
+        [1, 1, 1],
       );
       expect(updated).toBe(true);
     });
 
-    it('should verify a notification that is not read', async () => {
+    it('should mark a notification unread', async () => {
+      mockPool.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+
+      const updated = await notificationsDb.markNotificationRead(1, 1, false);
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`,
+        [0, 1, 1],
+      );
+      expect(updated).toBe(true);
+    });
+
+    it('should verify no update to notification read status', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markNotificationRead(2, 1);
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE account_notifications SET read = 1 WHERE notification_id = ? AND account_id = ?;',
-        [2, 1],
+        `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`,
+        [1, 2, 1],
       );
       expect(updated).toBe(false);
     });
@@ -170,20 +183,35 @@ describe('notificationDb', () => {
       const updated = await notificationsDb.markAllNotificationsRead(1);
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith('UPDATE account_notifications SET read = 1 WHERE account_id = ?;', [
-        1,
-      ]);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;',
+        [1, 1],
+      );
       expect(updated).toBe(true);
     });
 
-    it('should verify notifications that are read', async () => {
+    it('should mark all notifications unread', async () => {
+      mockPool.execute.mockResolvedValue([{ affectedRows: 3 } as ResultSetHeader]);
+
+      const updated = await notificationsDb.markAllNotificationsRead(1, false);
+
+      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;',
+        [0, 1],
+      );
+      expect(updated).toBe(true);
+    });
+
+    it('should verify no updates to notifications read status', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markAllNotificationsRead(2);
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith('UPDATE account_notifications SET read = 1 WHERE account_id = ?;', [
-        2,
-      ]);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;',
+        [1, 2],
+      );
       expect(updated).toBe(false);
     });
 
@@ -217,7 +245,7 @@ describe('notificationDb', () => {
       expect(updated).toBe(true);
     });
 
-    it('should verify a notification that is not dismissed', async () => {
+    it('should verify no update to notification dismissed status', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.dismissNotification(2, 1);
@@ -259,7 +287,7 @@ describe('notificationDb', () => {
       expect(updated).toBe(true);
     });
 
-    it('should verify all notifications that are not dismissed', async () => {
+    it('should verify no updates to notifications dismissed status', async () => {
       mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.dismissAllNotifications(2);
@@ -427,8 +455,8 @@ describe('notificationDb', () => {
       await notificationsDb.updateNotification(notification);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
-        ['Updated message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null, 123],
+        'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
+        ['Updated message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 'general', 1, null, 123],
       );
     });
 
