@@ -138,7 +138,7 @@ export async function markNotificationRead(
 export async function markAllNotificationsRead(accountId: number, hasBeenRead: boolean = true): Promise<boolean> {
   try {
     const readValue = hasBeenRead ? 1 : 0;
-    const query = `UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;`;
+    const query = `UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;`;
     const [result] = await getDbPool().execute<ResultSetHeader>(query, [readValue, accountId]);
 
     // Return true if at least one row was affected (notifications were updated)

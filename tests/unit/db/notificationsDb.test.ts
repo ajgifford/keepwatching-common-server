@@ -184,7 +184,7 @@ describe('notificationDb', () => {
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;',
+        'UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;',
         [1, 1],
       );
       expect(updated).toBe(true);
@@ -197,7 +197,7 @@ describe('notificationDb', () => {
 
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;',
+        'UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;',
         [0, 1],
       );
       expect(updated).toBe(true);
@@ -209,7 +209,7 @@ describe('notificationDb', () => {
       const updated = await notificationsDb.markAllNotificationsRead(2);
       expect(mockPool.execute).toHaveBeenCalledTimes(1);
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE account_notifications SET has_bean_read = ? WHERE account_id = ?;',
+        'UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;',
         [1, 2],
       );
       expect(updated).toBe(false);
