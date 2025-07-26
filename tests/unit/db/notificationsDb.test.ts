@@ -330,7 +330,8 @@ describe('notificationDb', () => {
 
     it('should successfully save a notification for all accounts', async () => {
       const notification: CreateNotificationRequest = {
-        message: 'Test notification',
+        title: 'Test title',
+        message: 'Test message',
         startDate: '2025-05-01',
         endDate: '2025-05-31',
         sendToAll: true,
@@ -354,8 +355,8 @@ describe('notificationDb', () => {
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
-        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?)',
-        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null, 'general'],
+        'INSERT INTO notifications (title, message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?,?)',
+        ['Test title', 'Test message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null, 'general'],
       );
 
       expect(mockConnection.query).toHaveBeenNthCalledWith(1, 'SELECT account_id, account_name, email FROM accounts');
@@ -368,7 +369,8 @@ describe('notificationDb', () => {
 
     it('should successfully save a notification for a specific account', async () => {
       const notification: CreateNotificationRequest = {
-        message: 'Test notification',
+        title: 'Test title',
+        message: 'Test message',
         startDate: '2025-05-01',
         endDate: '2025-05-31',
         sendToAll: false,
@@ -389,8 +391,8 @@ describe('notificationDb', () => {
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
-        'INSERT INTO notifications (message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?)',
-        ['Test notification', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 0, 5, 'general'],
+        'INSERT INTO notifications (title, message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?,?)',
+        ['Test title', 'Test message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 0, 5, 'general'],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
@@ -401,6 +403,7 @@ describe('notificationDb', () => {
 
     it('should throw an error when no accounts found for all-account notification', async () => {
       const notification: CreateNotificationRequest = {
+        title: 'Test title',
         message: 'Test notification',
         startDate: '2025-05-01',
         endDate: '2025-05-31',
@@ -420,6 +423,7 @@ describe('notificationDb', () => {
 
     it('should handle database errors correctly', async () => {
       const notification: CreateNotificationRequest = {
+        title: 'Test title',
         message: 'Test notification',
         startDate: '2025-05-01',
         endDate: '2025-05-31',
@@ -442,6 +446,7 @@ describe('notificationDb', () => {
     it('should successfully update a notification', async () => {
       const notification: UpdateNotificationRequest = {
         id: 123,
+        title: 'Updated title',
         message: 'Updated message',
         startDate: '2025-05-01',
         endDate: '2025-05-31',
@@ -455,14 +460,15 @@ describe('notificationDb', () => {
       await notificationsDb.updateNotification(notification);
 
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE notifications SET message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
-        ['Updated message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 'general', 1, null, 123],
+        'UPDATE notifications SET title = ?, message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
+        ['Updated title', 'Updated message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 'general', 1, null, 123],
       );
     });
 
     it('should throw a NoAffectedRowsError when a notification not found', async () => {
       const notification: UpdateNotificationRequest = {
         id: 999,
+        title: 'Updated title',
         message: 'Updated message',
         startDate: '2025-05-01',
         endDate: '2025-05-31',
@@ -481,6 +487,7 @@ describe('notificationDb', () => {
     it('should handle database errors correctly', async () => {
       const notification: UpdateNotificationRequest = {
         id: 123,
+        title: 'Updated title',
         message: 'Updated message',
         startDate: '2025-05-01',
         endDate: '2025-05-31',

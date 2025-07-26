@@ -3,6 +3,7 @@ import { RowDataPacket } from 'mysql2';
 
 export interface CurrentNotificationRow extends RowDataPacket {
   notification_id: number;
+  title: string;
   message: string;
   start_date: Date;
   end_date: Date;
@@ -13,6 +14,7 @@ export interface CurrentNotificationRow extends RowDataPacket {
 
 export interface NotificationRow extends RowDataPacket {
   notification_id: number;
+  title: string;
   message: string;
   start_date: Date;
   end_date: Date;
@@ -24,6 +26,7 @@ export interface NotificationRow extends RowDataPacket {
 export function transformAccountNotificationRow(notificationRow: CurrentNotificationRow): AccountNotification {
   return {
     id: notificationRow.notification_id,
+    title: notificationRow.title,
     message: notificationRow.message,
     startDate: notificationRow.start_date,
     endDate: notificationRow.end_date,
@@ -36,6 +39,7 @@ export function transformAccountNotificationRow(notificationRow: CurrentNotifica
 export function transformAdminNotificationRow(notificationRow: NotificationRow): AdminNotification {
   return {
     id: notificationRow.notification_id,
+    title: notificationRow.title,
     message: notificationRow.message,
     startDate: notificationRow.start_date,
     endDate: notificationRow.end_date,

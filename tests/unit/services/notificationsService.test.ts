@@ -316,7 +316,8 @@ describe('notificationsService', () => {
   describe('addNotification', () => {
     it('should add a notification for all accounts successfully', async () => {
       const mockNotification: CreateNotificationRequest = {
-        message: 'Test notification 13',
+        title: 'Test title',
+        message: 'Test message 13',
         startDate: '2025-04-05',
         endDate: '2025-04-25',
         sendToAll: true,
@@ -333,7 +334,8 @@ describe('notificationsService', () => {
 
     it('should add a notification for a single account successfully', async () => {
       const mockNotification: CreateNotificationRequest = {
-        message: 'Test notification 13',
+        title: 'Test title',
+        message: 'Test message 13',
         startDate: '2025-04-05',
         endDate: '2025-04-25',
         sendToAll: false,
@@ -354,6 +356,7 @@ describe('notificationsService', () => {
 
       await expect(
         notificationsService.addNotification({
+          title: 'title',
           message: 'message',
           startDate: '2025-04-01',
           endDate: '2025-05-01',
@@ -364,7 +367,7 @@ describe('notificationsService', () => {
       ).rejects.toThrow('Database error during add');
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'addNotification({"message":"message","startDate":"2025-04-01","endDate":"2025-05-01","sendToAll":true,"accountId":null,"type":"general"})',
+        'addNotification({"title":"title","message":"message","startDate":"2025-04-01","endDate":"2025-05-01","sendToAll":true,"accountId":null,"type":"general"})',
       );
     });
   });
@@ -372,7 +375,8 @@ describe('notificationsService', () => {
   describe('updateNotification', () => {
     it('should update a notification for all accounts successfully', async () => {
       const mockNotification: UpdateNotificationRequest = {
-        message: 'Test notification 13',
+        title: 'Test title',
+        message: 'Test message 13',
         startDate: '2025-04-05',
         endDate: '2025-04-25',
         sendToAll: true,
@@ -401,7 +405,8 @@ describe('notificationsService', () => {
       (notificationsDb.updateNotification as jest.Mock).mockResolvedValue(mockNotification);
 
       const updateRequest: UpdateNotificationRequest = {
-        message: 'Test notification 13',
+        title: 'Test title',
+        message: 'Test message 13',
         startDate: '2025-04-05',
         endDate: '2025-04-25',
         sendToAll: true,
@@ -419,6 +424,7 @@ describe('notificationsService', () => {
       (notificationsDb.updateNotification as jest.Mock).mockRejectedValue(mockError);
 
       const updateRequest: UpdateNotificationRequest = {
+        title: 'title',
         message: 'message',
         startDate: '2025-04-05',
         endDate: '2025-04-25',
@@ -432,7 +438,7 @@ describe('notificationsService', () => {
       );
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
-        'updateNotification({"message":"message","startDate":"2025-04-05","endDate":"2025-04-25","sendToAll":true,"accountId":null,"type":"general","id":13})',
+        'updateNotification({"title":"title","message":"message","startDate":"2025-04-05","endDate":"2025-04-25","sendToAll":true,"accountId":null,"type":"general","id":13})',
       );
     });
   });
