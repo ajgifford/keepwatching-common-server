@@ -18,29 +18,46 @@ import {
 import { ResultSetHeader } from 'mysql2';
 
 /**
- * Retrieves all active notifications for a specific account
+ * @fileoverview Database access layer for notification management in KeepWatching application.
+ * This module provides direct database operations for creating, reading, updating, and deleting
+ * notifications, as well as managing notification states for user accounts.
  *
- * This method fetches all current, non-dismissed notifications that are within
- * their active date range (between start_date and end_date) for a specific account.
+ * @module notificationsDb
+ */
+
+/**
+ * Retrieves all active notifications for a specific account.
  *
- * @param accountId - The account ID to fetch notifications for
- * @param includeDismissed - Flag indicating if dismissed notifications should also be retrieved, default false
- * @returns Array of active notifications for the account
- * @throws {DatabaseError} If a database error occurs during the operation
+ * This function fetches notifications from the `current_notifications` view, which provides
+ * a pre-filtered view of notifications that are currently active (within their date range).
+ * The function can optionally include dismissed notifications based on the `includeDismissed` parameter.
+ *
+ * @async
+ * @function getNotificationsForAccount
+ * @param {number} accountId - The unique identifier of the account to fetch notifications for
+ * @param {boolean} [includeDismissed=false] - Whether to include previously dismissed notifications
+ * @returns {Promise<AccountNotification[]>} Promise that resolves to an array of account notifications
+ * @throws {Error} Throws database error if the query fails or connection issues occur
  *
  * @example
+ * ```typescript
+ * // Get active notifications for account 123
  * try {
- *   // Get all active notifications for account ID 123
- *   const notifications = await notificationDb.getNotificationsForAccount(123);
+ *   const notifications = await getNotificationsForAccount(123);
+ *   console.log(`Found ${notifications.length} active notifications`);
  *
- *   console.log(`Found ${notifications.length} active notifications:`);
  *   notifications.forEach(notification => {
- *     console.log(`- ID ${notification.notification_id}: ${notification.message}`);
- *     console.log(`  Active from ${notification.start_date} to ${notification.end_date}`);
+ *     console.log(`ID: ${notification.id}, Message: ${notification.message}`);
+ *     console.log(`Read: ${notification.read}, Dismissed: ${notification.dismissed}`);
  *   });
  * } catch (error) {
- *   console.error('Error fetching notifications:', error);
+ *   console.error('Failed to fetch notifications:', error);
  * }
+ *
+ * // Get all notifications including dismissed ones
+ * const allNotifications = await getNotificationsForAccount(123, true);
+ * ```
+ *
  */
 export async function getNotificationsForAccount(
   accountId: number,
@@ -62,33 +79,36 @@ export async function getNotificationsForAccount(
 }
 
 /**
- * Marks a notification read/unread status for a specific account
+ * Updates the read status of a specific notification for an account.
  *
- * This method updates the account_notifications junction table to mark a notification
- * as read or unread for a particular account.
+ * This function modifies the `account_notifications` junction table to track whether a user
+ * has read a particular notification. This is used for UI state management and analytics.
  *
- * @param notificationId - ID of the notification to update
- * @param accountId - ID of the account
- * @param hasBeenRead - Boolean indicating read status (true = read, false = unread)
- * @returns `True` if the notification status was successfully updated, `false` otherwise
- * @throws {DatabaseError} If a database error occurs during the operation
+ * @async
+ * @function markNotificationRead
+ * @param {number} notificationId - The unique identifier of the notification to update
+ * @param {number} accountId - The unique identifier of the account
+ * @param {boolean} [hasBeenRead=true] - The read status to set (true = read, false = unread)
+ * @returns {Promise<boolean>} Promise that resolves to true if the update was successful, false if no rows were affected
+ * @throws {Error} Throws database error if the query fails or connection issues occur
  *
  * @example
+ * ```typescript
+ * // Mark notification 456 as read for account 123
  * try {
- *   // Mark notification ID 456 as read for account ID 123
- *   const updated = await notificationDb.markNotificationRead(456, 123, true);
- *
- *   // Mark notification ID 456 as unread for account ID 123
- *   const updated = await notificationDb.markNotificationRead(456, 123, false);
- *
- *   if (updated) {
- *     console.log('Notification status updated successfully');
+ *   const wasUpdated = await markNotificationRead(456, 123, true);
+ *   if (wasUpdated) {
+ *     console.log('Notification marked as read successfully');
  *   } else {
- *     console.log('Notification not found');
+ *     console.log('Notification not found or already in the requested state');
  *   }
  * } catch (error) {
- *   console.error('Error updating notification status:', error);
+ *   console.error('Failed to update notification read status:', error);
  * }
+ *
+ * // Mark notification as unread
+ * await markNotificationRead(456, 123, false);
+ * ```
  */
 export async function markNotificationRead(
   notificationId: number,
@@ -108,32 +128,35 @@ export async function markNotificationRead(
 }
 
 /**
- * Marks all notifications read/unread status for a specific account
+ * Updates the read status of all notifications for a specific account.
  *
- * This method updates the account_notifications junction table to mark all notifications
- * as read or unread for a particular account.
+ * This function provides a bulk operation to mark all notifications as read or unread
+ * for a particular account. This is useful for "mark all as read" functionality.
  *
- * @param accountId - ID of the account that is updating the notifications
- * @param hasBeenRead - Boolean indicating read status (true = read, false = unread)
- * @returns `True` if the notifications were successfully updated, `false` otherwise
- * @throws {DatabaseError} If a database error occurs during the operation
+ * @async
+ * @function markAllNotificationsRead
+ * @param {number} accountId - The unique identifier of the account
+ * @param {boolean} [hasBeenRead=true] - The read status to set for all notifications
+ * @returns {Promise<boolean>} Promise that resolves to true if any notifications were updated, false otherwise
+ * @throws {Error} Throws database error if the query fails or connection issues occur
  *
  * @example
+ * ```typescript
+ * // Mark all notifications as read for account 123
  * try {
- *   // Mark all notifications as read for account ID 123
- *   const updated = await notificationDb.markAllNotificationsRead(123, true);
- *
- *   // Mark all notifications as unread for account ID 123
- *   const updated = await notificationDb.markAllNotificationsRead(123, false);
- *
- *   if (updated) {
- *     console.log('All notifications status updated successfully');
+ *   const wereUpdated = await markAllNotificationsRead(123, true);
+ *   if (wereUpdated) {
+ *     console.log('All notifications marked as read');
  *   } else {
- *     console.log('No notifications to update');
+ *     console.log('No notifications to update or all already read');
  *   }
  * } catch (error) {
- *   console.error('Error updating all notifications status:', error);
+ *   console.error('Failed to mark all notifications as read:', error);
  * }
+ *
+ * // Mark all notifications as unread (less common use case)
+ * await markAllNotificationsRead(123, false);
+ * ```
  */
 export async function markAllNotificationsRead(accountId: number, hasBeenRead: boolean = true): Promise<boolean> {
   try {
@@ -149,29 +172,33 @@ export async function markAllNotificationsRead(accountId: number, hasBeenRead: b
 }
 
 /**
- * Marks a notification as dismissed for a specific account
+ * Dismisses a specific notification for an account.
  *
- * This method updates the account_notifications junction table to mark a notification
- * as dismissed for a particular account, preventing it from being shown again to that user.
+ * Dismissing a notification hides it from the user's notification list in future queries
+ * (unless specifically requested). This is different from marking as read - dismissed
+ * notifications are typically removed from the UI entirely.
  *
- * @param notificationId - ID of the notification to dismiss
- * @param accountId - ID of the account that is dismissing the notification
- * @returns `True` if the notification was successfully dismissed, `false` otherwise
- * @throws {DatabaseError} If a database error occurs during the operation
+ * @async
+ * @function dismissNotification
+ * @param {number} notificationId - The unique identifier of the notification to dismiss
+ * @param {number} accountId - The unique identifier of the account dismissing the notification
+ * @returns {Promise<boolean>} Promise that resolves to true if the notification was dismissed, false if not found
+ * @throws {Error} Throws database error if the query fails or connection issues occur
  *
  * @example
+ * ```typescript
+ * // Dismiss notification 456 for account 123
  * try {
- *   // Dismiss notification ID 456 for account ID 123
- *   const dismissed = await notificationDb.dismissNotification(456, 123);
- *
- *   if (dismissed) {
+ *   const wasDismissed = await dismissNotification(456, 123);
+ *   if (wasDismissed) {
  *     console.log('Notification dismissed successfully');
  *   } else {
  *     console.log('Notification not found or already dismissed');
  *   }
  * } catch (error) {
- *   console.error('Error dismissing notification:', error);
+ *   console.error('Failed to dismiss notification:', error);
  * }
+ * ```
  */
 export async function dismissNotification(notificationId: number, accountId: number): Promise<boolean> {
   try {
@@ -186,28 +213,31 @@ export async function dismissNotification(notificationId: number, accountId: num
 }
 
 /**
- * Marks all notifications as dismissed for a specific account
+ * Dismisses all notifications for a specific account.
  *
- * This method updates the account_notifications junction table to mark all notifications
- * as dismissed for a particular account, preventing them from being shown again to that user.
+ * This function provides a bulk operation to dismiss all notifications for an account.
+ * This is useful for "dismiss all" functionality or account cleanup operations.
  *
- * @param accountId - ID of the account that is dismissing the notifications
- * @returns `True` if the notifications were successfully dismissed, `false` otherwise
- * @throws {DatabaseError} If a database error occurs during the operation
+ * @async
+ * @function dismissAllNotifications
+ * @param {number} accountId - The unique identifier of the account
+ * @returns {Promise<boolean>} Promise that resolves to true if any notifications were dismissed, false otherwise
+ * @throws {Error} Throws database error if the query fails or connection issues occur
  *
  * @example
+ * ```typescript
+ * // Dismiss all notifications for account 123
  * try {
- *   // Dismiss all notifications for account ID 123
- *   const dismissed = await notificationDb.dismissAllNotifications(123);
- *
- *   if (dismissed) {
- *     console.log('Notifications dismissed successfully');
+ *   const wereDismissed = await dismissAllNotifications(123);
+ *   if (wereDismissed) {
+ *     console.log('All notifications dismissed successfully');
  *   } else {
- *     console.log('Notifications not dismissed');
+ *     console.log('No notifications to dismiss or all already dismissed');
  *   }
  * } catch (error) {
- *   console.error('Error dismissing notifications:', error);
+ *   console.error('Failed to dismiss all notifications:', error);
  * }
+ * ```
  */
 export async function dismissAllNotifications(accountId: number): Promise<boolean> {
   try {
@@ -221,6 +251,107 @@ export async function dismissAllNotifications(accountId: number): Promise<boolea
   }
 }
 
+/**
+ * Retrieves all system notifications for administrative purposes.
+ *
+ * This function is used by administrators to view and manage system-wide notifications.
+ * It can include expired notifications for historical purposes or exclude them for
+ * active management.
+ *
+ * @async
+ * @function getAllNotifications
+ * @param {boolean} expired - Whether to include expired notifications in the results
+ * @returns {Promise<AdminNotification[]>} Promise that resolves to an array of admin notifications
+ * @throws {Error} Throws database error if the query fails or connection issues occur
+ *
+ * @example
+ * ```typescript
+ * // Get all active notifications for admin panel
+ * try {
+ *   const activeNotifications = await getAllNotifications(false);
+ *   console.log(`Found ${activeNotifications.length} active notifications`);
+ *
+ *   activeNotifications.forEach(notification => {
+ *     console.log(`ID: ${notification.id}, Title: ${notification.title}`);
+ *     console.log(`Send to all: ${notification.sendToAll}, Account: ${notification.accountId}`);
+ *     console.log(`Active: ${notification.startDate} to ${notification.endDate}`);
+ *   });
+ * } catch (error) {
+ *   console.error('Failed to fetch admin notifications:', error);
+ * }
+ *
+ * // Get all notifications including expired ones for reporting
+ * const allNotifications = await getAllNotifications(true);
+ * ```
+ */
+export async function getAllNotifications(expired: boolean): Promise<AdminNotification[]> {
+  try {
+    const query = expired
+      ? 'SELECT * FROM notifications ORDER BY start_date ASC'
+      : 'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date ASC';
+
+    const [notifications] = await getDbPool().execute<NotificationRow[]>(query);
+    return notifications.map(transformAdminNotificationRow);
+  } catch (error) {
+    handleDatabaseError(error, 'getting all notifications');
+  }
+}
+
+/**
+ * Creates a new notification in the system with proper account associations.
+ *
+ * This function uses a database transaction to ensure data consistency when creating
+ * notifications. If the notification is marked to send to all accounts, it will
+ * automatically create entries in the account_notifications junction table for
+ * all existing accounts. For single-account notifications, it creates a single
+ * association entry.
+ *
+ * @async
+ * @function addNotification
+ * @param {CreateNotificationRequest} notificationRequest - The notification creation request object
+ * @param {string} notificationRequest.title - The title of the notification
+ * @param {string} notificationRequest.message - The message content of the notification
+ * @param {string} notificationRequest.startDate - The start date for the notification (ISO date string)
+ * @param {string} notificationRequest.endDate - The end date for the notification (ISO date string)
+ * @param {boolean} notificationRequest.sendToAll - Whether to send to all users or specific account
+ * @param {number|null} notificationRequest.accountId - Target account ID (null if sendToAll is true)
+ * @param {string} notificationRequest.type - The type/category of the notification
+ * @returns {Promise<void>} Promise that resolves when the notification is successfully created
+ * @throws {NotFoundError} Throws when no accounts are found for sendToAll notifications
+ * @throws {Error} Throws database error if the transaction fails or connection issues occur
+ *
+ * @example
+ * ```typescript
+ * // Create a system-wide notification
+ * try {
+ *   await addNotification({
+ *     title: 'System Maintenance',
+ *     message: 'Scheduled maintenance tonight from 2-4 AM EST',
+ *     startDate: '2025-07-26T00:00:00Z',
+ *     endDate: '2025-07-27T06:00:00Z',
+ *     sendToAll: true,
+ *     accountId: null,
+ *     type: 'maintenance'
+ *   });
+ *   console.log('System notification created successfully');
+ * } catch (error) {
+ *   console.error('Failed to create notification:', error);
+ * }
+ *
+ * // Create a user-specific notification
+ * await addNotification({
+ *   title: 'Welcome!',
+ *   message: 'Welcome to KeepWatching! Start tracking your favorite shows.',
+ *   startDate: '2025-07-26T00:00:00Z',
+ *   endDate: '2025-08-26T00:00:00Z',
+ *   sendToAll: false,
+ *   accountId: 123,
+ *   type: 'welcome'
+ * });
+ * ```
+ *
+ * @see {@link TransactionHelper} For transaction management details
+ */
 export async function addNotification(notificationRequest: CreateNotificationRequest): Promise<void> {
   const transactionHelper = new TransactionHelper();
   try {
@@ -265,6 +396,50 @@ export async function addNotification(notificationRequest: CreateNotificationReq
   }
 }
 
+/**
+ * Updates an existing notification with new information.
+ *
+ * This function modifies an existing notification record in the database.
+ * Note that this only updates the notification metadata - it does not
+ * modify existing account associations in the junction table.
+ *
+ * @async
+ * @function updateNotification
+ * @param {UpdateNotificationRequest} notificationRequest - The notification update request object
+ * @param {number} notificationRequest.id - The unique identifier of the notification to update
+ * @param {string} notificationRequest.title - The updated title of the notification
+ * @param {string} notificationRequest.message - The updated message content
+ * @param {string} notificationRequest.startDate - The updated start date (ISO date string)
+ * @param {string} notificationRequest.endDate - The updated end date (ISO date string)
+ * @param {boolean} notificationRequest.sendToAll - Updated targeting configuration
+ * @param {number|null} notificationRequest.accountId - Updated target account ID
+ * @param {string} notificationRequest.type - The updated type/category
+ * @returns {Promise<void>} Promise that resolves when the notification is successfully updated
+ * @throws {NoAffectedRowsError} Throws when no notification is found with the given ID
+ * @throws {Error} Throws database error if the query fails or connection issues occur
+ *
+ * @example
+ * ```typescript
+ * // Update an existing notification
+ * try {
+ *   await updateNotification({
+ *     id: 456,
+ *     title: 'Updated: System Maintenance',
+ *     message: 'Maintenance rescheduled to 3-5 AM EST due to technical issues',
+ *     startDate: '2025-07-26T00:00:00Z',
+ *     endDate: '2025-07-27T06:00:00Z',
+ *     sendToAll: true,
+ *     accountId: null,
+ *     type: 'maintenance'
+ *   });
+ *   console.log('Notification updated successfully');
+ * } catch (NoAffectedRowsError) {
+ *   console.error('Notification not found');
+ * } catch (error) {
+ *   console.error('Failed to update notification:', error);
+ * }
+ * ```
+ */
 export async function updateNotification(notificationRequest: UpdateNotificationRequest): Promise<void> {
   try {
     const [result] = await getDbPool().execute<ResultSetHeader>(
@@ -289,19 +464,35 @@ export async function updateNotification(notificationRequest: UpdateNotification
   }
 }
 
-export async function getAllNotifications(expired: boolean): Promise<AdminNotification[]> {
-  try {
-    const query = expired
-      ? 'SELECT * FROM notifications ORDER BY start_date ASC'
-      : 'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date ASC';
-
-    const [notifications] = await getDbPool().execute<NotificationRow[]>(query);
-    return notifications.map(transformAdminNotificationRow);
-  } catch (error) {
-    handleDatabaseError(error, 'getting all notifications');
-  }
-}
-
+/**
+ * Permanently deletes a notification from the system.
+ *
+ * This function removes a notification record from the database. Due to foreign key
+ * constraints, this will also cascade delete all associated entries in the
+ * account_notifications junction table.
+ *
+ * @async
+ * @function deleteNotification
+ * @param {number} notification_id - The unique identifier of the notification to delete
+ * @returns {Promise<void>} Promise that resolves when the notification is successfully deleted
+ * @throws {NoAffectedRowsError} Throws when no notification is found with the given ID
+ * @throws {Error} Throws database error if the query fails or connection issues occur
+ *
+ * @example
+ * ```typescript
+ * // Delete notification with ID 456
+ * try {
+ *   await deleteNotification(456);
+ *   console.log('Notification deleted successfully');
+ * } catch (NoAffectedRowsError) {
+ *   console.error('Notification not found');
+ * } catch (error) {
+ *   console.error('Failed to delete notification:', error);
+ * }
+ * ```
+ *
+ * @warning This operation is irreversible and will cascade delete all user associations
+ */
 export async function deleteNotification(notification_id: number): Promise<void> {
   try {
     const [result] = await getDbPool().execute<ResultSetHeader>('DELETE FROM notifications WHERE notification_id = ?', [
@@ -316,6 +507,27 @@ export async function deleteNotification(notification_id: number): Promise<void>
   }
 }
 
+/**
+ * Formats a date string for MySQL datetime storage.
+ *
+ * This utility function converts JavaScript date strings into the format
+ * expected by MySQL DATETIME columns (YYYY-MM-DD HH:MM:SS).
+ *
+ * @private
+ * @function formatDateForMySql
+ * @param {string} dateString - ISO date string or other valid date format
+ * @returns {string} MySQL-formatted datetime string (YYYY-MM-DD HH:MM:SS)
+ *
+ * @example
+ * ```typescript
+ * const mysqlDate = formatDateForMySql('2025-07-26T14:30:00Z');
+ * // Returns: '2025-07-26 14:30:00'
+ *
+ * const mysqlDate2 = formatDateForMySql('2025-07-26');
+ * // Returns: '2025-07-26 00:00:00'
+ * ```
+ *
+ */
 function formatDateForMySql(dateString: string): string {
   const date = new Date(dateString);
   const pad = (n: number) => n.toString().padStart(2, '0');
