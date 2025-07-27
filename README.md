@@ -235,6 +235,7 @@ app.put('/shows/:id/status',
 - `moviesService` - Movie management and tracking
 - `episodesService` - Episode tracking and progress
 - `seasonsService` - Season management
+- `preferencesService` - Account preferences
 
 ### Communication Services
 - `emailService` - Email notifications and weekly digests
