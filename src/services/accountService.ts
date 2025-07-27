@@ -7,6 +7,7 @@ import { getFirebaseAdmin } from '../utils/firebaseUtil';
 import { getAccountImage, getPhotoForGoogleAccount } from '../utils/imageUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
+import { preferencesService } from './preferencesService';
 import { profileService } from './profileService';
 import { socketService } from './socketService';
 import { Account, CombinedAccount, CreateAccountRequest, UpdateAccountRequest } from '@ajgifford/keepwatching-types';
@@ -93,6 +94,8 @@ export class AccountService {
 
       appLogger.info(`New user registered: ${email}`, { userId: uid });
       cliLogger.info(`New account created: ${email}`);
+
+      preferencesService.initializeDefaultPreferences(account.id);
 
       return {
         ...account,
