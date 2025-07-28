@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@ajgifford/keepwatching-types@^0.3.1":
-  version "0.3.1"
-  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.3.1/34b101b5b382f8e745b31d5eb10e009887f9e3b2#34b101b5b382f8e745b31d5eb10e009887f9e3b2"
-  integrity sha512-+j9gewRdJPc1nymFxM6LtggNNxkLyRwtx4HizJfyxcg4ZpAbt/VA1H7JRllojN8BNp8uufwCmYP5g1vnCNyeDQ==
+"@ajgifford/keepwatching-types@^0.4.0":
+  version "0.4.0"
+  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.4.0/82a81e59fd83e007b7f67cb0587a9468a188dcc9#82a81e59fd83e007b7f67cb0587a9468a188dcc9"
+  integrity sha512-xPMUX6r/N/sZwHKji0lnTE8T+v8HShjDcowqXrJkoWhn+BdYU6t0ZjAz4YxnsIFsQSh5gsFEHjrxTF5Y560w6g==
 
 "@ampproject/remapping@^2.2.0":
   version "2.3.0"
