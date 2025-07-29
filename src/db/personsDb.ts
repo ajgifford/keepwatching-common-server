@@ -21,6 +21,7 @@ import {
   Person,
   PersonReference,
   ShowCastMember,
+  UpdatePerson,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
 
@@ -41,6 +42,26 @@ export async function savePerson(createPerson: CreatePerson): Promise<number> {
     return result.insertId;
   } catch (error) {
     handleDatabaseError(error, 'saving a person');
+  }
+}
+
+export async function updatePerson(updatePerson: UpdatePerson): Promise<boolean> {
+  try {
+    const query =
+      'UPDATE people SET name = ?, gender = ?, biography = ?, profile_image = ?, birthdate = ?, deathdate = ?, place_of_birth = ? WHERE id = ?';
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+      updatePerson.name,
+      updatePerson.gender,
+      updatePerson.biography,
+      updatePerson.profile_image,
+      updatePerson.birthdate,
+      updatePerson.deathdate,
+      updatePerson.place_of_birth,
+      updatePerson.id,
+    ]);
+    return result.affectedRows > 0;
+  } catch (error) {
+    handleDatabaseError(error, 'updating a person');
   }
 }
 
@@ -149,5 +170,29 @@ export async function getShowCastMembers(showId: number, active: number): Promis
     return shows.map(transformShowCastMemberRow);
   } catch (error) {
     handleDatabaseError(error, `getting a show's cast members`);
+  }
+}
+
+export async function getPeopleForUpdates(blockNumber: number): Promise<Person[]> {
+  try {
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0];
+
+    const query = `
+        SELECT * FROM people 
+        WHERE tmdb_id IS NOT NULL
+          AND (id % 12) = ?
+          AND (
+            deathdate IS NULL 
+            OR deathdate = '' 
+            OR deathdate > ?
+          )
+        ORDER BY id`;
+
+    const [people] = await getDbPool().query<PersonRow[]>(query, [blockNumber, oneYearAgoStr]);
+    return people.map((person) => transformPersonRow(person, [], []));
+  } catch (error) {
+    handleDatabaseError(error, 'getting people for updates');
   }
 }

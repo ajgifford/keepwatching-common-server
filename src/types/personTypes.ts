@@ -57,6 +57,13 @@ export interface ShowCastMemberRow extends RowDataPacket {
   profile_image: string;
 }
 
+export interface UpdatePersonResult {
+  personId: number;
+  success: boolean;
+  hadUpdates: boolean;
+  error?: string;
+}
+
 export function transformPersonReferenceRow(row: PersonReferenceRow): PersonReference {
   return {
     id: row.id,
@@ -67,7 +74,7 @@ export function transformPersonReferenceRow(row: PersonReferenceRow): PersonRefe
 
 export function transformPersonRow(
   row: PersonRow,
-  movieCredits: MovieCreditRow[],
+  movieCredits: MovieCreditRow[] = [],
   showCredits: ShowCreditRow[] = [],
 ): Person {
   return {

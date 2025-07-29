@@ -1,10 +1,13 @@
 import { CACHE_KEY_PATTERNS, PERSON_KEYS } from '../constants/cacheKeys';
 import * as personsDb from '../db/personsDb';
-import { TMDBCredit } from '../types/tmdbTypes';
+import { appLogger, cliLogger } from '../logger/logger';
+import { ErrorMessages } from '../logger/loggerModel';
+import { TMDBCredit, TMDBPerson } from '../types/tmdbTypes';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
 import { Person, SearchPerson, SearchPersonCredits } from '@ajgifford/keepwatching-types';
+import { UpdatePersonResult } from 'src/types/personTypes';
 
 export class PersonService {
   private cache: CacheService;
@@ -87,6 +90,120 @@ export class PersonService {
     } catch (error) {
       throw errorService.handleError(error, `getTMDBPersonCredits(${personId})`);
     }
+  }
+
+  public async getPeopleForUpdates(blockNumber: number): Promise<Person[]> {
+    try {
+      return await personsDb.getPeopleForUpdates(blockNumber);
+    } catch (error) {
+      throw errorService.handleError(error, `getMoviesForUpdates()`);
+    }
+  }
+
+  public async checkAndUpdatePerson(person: Person): Promise<UpdatePersonResult> {
+    const tmdbService = getTMDBService();
+    try {
+      const tmdbPerson = await tmdbService.getPersonDetails(person.tmdbId);
+      const fieldsUpdated = await this.compareAndUpdate(person, tmdbPerson);
+      return {
+        personId: person.id,
+        success: true,
+        hadUpdates: fieldsUpdated.length > 0,
+      };
+    } catch (error) {
+      appLogger.error(ErrorMessages.MovieChangeFail, { error, personId: person.id });
+      throw errorService.handleError(error, `checkPersonForChanges(${person.id})`);
+    }
+  }
+
+  public async getTodayBlockInfo(): Promise<{
+    blockNumber: number;
+    date: string;
+    totalPeople: number;
+    nextBlockDate: string;
+  }> {
+    const today = new Date();
+    const blockNumber = this.calculateBlockNumber(today);
+    const people = await this.getPeopleForUpdates(blockNumber);
+
+    // Calculate next time this block will run (12 days from now)
+    const nextRun = new Date(today);
+    nextRun.setDate(nextRun.getDate() + 12);
+
+    return {
+      blockNumber,
+      date: today.toISOString().split('T')[0],
+      totalPeople: people.length,
+      nextBlockDate: nextRun.toISOString().split('T')[0],
+    };
+  }
+
+  public calculateBlockNumber(date: Date): number {
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date.getTime() - start.getTime();
+    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    return dayOfYear % 12;
+  }
+
+  private async compareAndUpdate(currentPerson: Person, tmdbPerson: TMDBPerson): Promise<string[]> {
+    const fieldComparisons = [
+      {
+        tmdbField: 'name' as keyof TMDBPerson,
+        dbField: 'name' as keyof Person,
+      },
+      {
+        tmdbField: 'biography' as keyof TMDBPerson,
+        dbField: 'biography' as keyof Person,
+      },
+      {
+        tmdbField: 'profile_path' as keyof TMDBPerson,
+        dbField: 'profileImage' as keyof Person,
+      },
+      {
+        tmdbField: 'birthday' as keyof TMDBPerson,
+        dbField: 'birthdate' as keyof Person,
+      },
+      {
+        tmdbField: 'deathday' as keyof TMDBPerson,
+        dbField: 'deathdate' as keyof Person,
+      },
+      {
+        tmdbField: 'place_of_birth' as keyof TMDBPerson,
+        dbField: 'placeOfBirth' as keyof Person,
+      },
+      {
+        tmdbField: 'gender' as keyof TMDBPerson,
+        dbField: 'gender' as keyof Person,
+      },
+    ];
+
+    const fieldsUpdated: string[] = [];
+    for (const { tmdbField, dbField } of fieldComparisons) {
+      const tmdbValue = tmdbPerson[tmdbField];
+      const currentValue = currentPerson[dbField];
+
+      if (tmdbValue && String(currentValue || '') !== String(tmdbValue)) {
+        fieldsUpdated.push(tmdbField);
+      }
+    }
+
+    if (fieldsUpdated.length > 0) {
+      await personsDb.updatePerson({
+        id: currentPerson.id,
+        tmdb_id: tmdbPerson.id,
+        name: tmdbPerson.name,
+        gender: tmdbPerson.gender,
+        biography: tmdbPerson.biography,
+        profile_image: tmdbPerson.profile_path,
+        birthdate: tmdbPerson.birthday,
+        deathdate: tmdbPerson.deathday,
+        place_of_birth: tmdbPerson.place_of_birth,
+      });
+      cliLogger.debug(`Updated person ${currentPerson.id}`, { fieldsUpdated });
+    }
+
+    return fieldsUpdated;
   }
 }
 

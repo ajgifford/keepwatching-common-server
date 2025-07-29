@@ -1,8 +1,13 @@
-import { getEmailSchedule, isEmailEnabled } from '../config';
-import { getMoviesUpdateSchedule, getShowsUpdateSchedule } from '../config/config';
+import {
+  getEmailSchedule,
+  getMoviesUpdateSchedule,
+  getPersonUpdateSchedule,
+  getShowsUpdateSchedule,
+  isEmailEnabled,
+} from '../config';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { updateMovies, updateShows } from './contentUpdatesService';
+import { updateMovies, updatePeople, updateShows } from './contentUpdatesService';
 import { getEmailService } from './emailService';
 import { errorService } from './errorService';
 import parser from 'cron-parser';
@@ -31,6 +36,13 @@ const jobs: Record<string, ScheduledJob> = {
     lastRunStatus: 'never_run',
     isRunning: false,
   },
+  peopleUpdate: {
+    job: null as unknown as CronJob.ScheduledTask,
+    cronExpression: '',
+    lastRunTime: null,
+    lastRunStatus: 'never_run',
+    isRunning: false,
+  },
   emailDigest: {
     job: null as unknown as CronJob.ScheduledTask,
     cronExpression: '',
@@ -43,12 +55,14 @@ const jobs: Record<string, ScheduledJob> = {
 type NotificationCallback = () => void;
 let showUpdatesCallback: NotificationCallback | null = null;
 let movieUpdatesCallback: NotificationCallback | null = null;
+let peopleUpdatesCallback: NotificationCallback | null = null;
 let emailDigestCallback: NotificationCallback | null = null;
 
 const getScheduleConfig = () => {
   return {
     showsUpdateSchedule: getShowsUpdateSchedule(),
     moviesUpdateSchedule: getMoviesUpdateSchedule(),
+    peopleUpdateSchedule: getPersonUpdateSchedule(),
     emailSchedule: getEmailSchedule(),
   };
 };
@@ -78,7 +92,7 @@ export async function runShowsUpdateJob(): Promise<boolean> {
 
     jobs.showsUpdate.lastRunStatus = 'success';
     cliLogger.info('Shows update job completed successfully');
-    appLogger.info('Shows update job completed');
+    appLogger.info('Shows update job completed successfully');
     return true;
   } catch (error) {
     jobs.showsUpdate.lastRunStatus = 'failed';
@@ -116,7 +130,7 @@ export async function runMoviesUpdateJob(): Promise<boolean> {
 
     jobs.moviesUpdate.lastRunStatus = 'success';
     cliLogger.info('Movies update job completed successfully');
-    appLogger.info('Movies update job completed');
+    appLogger.info('Movies update job completed successfully');
     return true;
   } catch (error) {
     jobs.moviesUpdate.lastRunStatus = 'failed';
@@ -126,6 +140,44 @@ export async function runMoviesUpdateJob(): Promise<boolean> {
   } finally {
     jobs.moviesUpdate.isRunning = false;
     cliLogger.info('Ending the movie change job');
+  }
+}
+
+/**
+ * Run the people update job
+ * Extracted into a separate function to allow manual triggering
+ */
+export async function runPeopleUpdateJob(): Promise<boolean> {
+  if (jobs.peopleUpdate.isRunning) {
+    cliLogger.warn('People update job already running, skipping this execution');
+    return false;
+  }
+
+  jobs.peopleUpdate.isRunning = true;
+  jobs.peopleUpdate.lastRunTime = new Date();
+
+  cliLogger.info('Starting the people change job');
+  appLogger.info('People update job started');
+
+  try {
+    await updatePeople();
+
+    if (peopleUpdatesCallback) {
+      peopleUpdatesCallback();
+    }
+
+    jobs.peopleUpdate.lastRunStatus = 'success';
+    cliLogger.info('People update job completed successfully');
+    appLogger.info('People update job completed successfully');
+    return true;
+  } catch (error) {
+    jobs.peopleUpdate.lastRunStatus = 'failed';
+    cliLogger.error('Failed to complete people update job', error);
+    appLogger.error(ErrorMessages.PeopleChangeFail, { error });
+    return false;
+  } finally {
+    jobs.peopleUpdate.isRunning = false;
+    cliLogger.info('Ending the people change job');
   }
 }
 
@@ -160,7 +212,7 @@ export async function runEmailDigestJob(): Promise<boolean> {
 
     jobs.emailDigest.lastRunStatus = 'success';
     cliLogger.info('Weekly email digest job completed successfully');
-    appLogger.info('Weekly email digest job completed');
+    appLogger.info('Weekly email digest job completed successfully');
     return true;
   } catch (error) {
     jobs.emailDigest.lastRunStatus = 'failed';
@@ -199,13 +251,15 @@ function getNextScheduledRun(cronExpression: string): Date | null {
 export function initScheduledJobs(
   notifyShowUpdates: NotificationCallback,
   notifyMovieUpdates: NotificationCallback,
+  notifyPeopleUpdates?: NotificationCallback,
   notifyEmailDigest?: NotificationCallback,
 ): void {
   showUpdatesCallback = notifyShowUpdates;
   movieUpdatesCallback = notifyMovieUpdates;
+  peopleUpdatesCallback = notifyPeopleUpdates || null;
   emailDigestCallback = notifyEmailDigest || null;
 
-  const { showsUpdateSchedule, moviesUpdateSchedule, emailSchedule } = getScheduleConfig();
+  const { showsUpdateSchedule, moviesUpdateSchedule, peopleUpdateSchedule, emailSchedule } = getScheduleConfig();
 
   if (!CronJob.validate(showsUpdateSchedule)) {
     cliLogger.error(`Invalid CRON expression for shows update: ${showsUpdateSchedule}`);
@@ -219,6 +273,14 @@ export function initScheduledJobs(
     cliLogger.error(`Invalid CRON expression for movies update: ${moviesUpdateSchedule}`);
     throw errorService.handleError(
       new Error(`Invalid CRON expression for movies update: ${moviesUpdateSchedule}`),
+      'initScheduledJobs',
+    );
+  }
+
+  if (!CronJob.validate(peopleUpdateSchedule)) {
+    cliLogger.error(`Invalid CRON expression for people update: ${peopleUpdateSchedule}`);
+    throw errorService.handleError(
+      new Error(`Invalid CRON expression for people update: ${peopleUpdateSchedule}`),
       'initScheduledJobs',
     );
   }
@@ -249,6 +311,15 @@ export function initScheduledJobs(
   });
   jobs.moviesUpdate.cronExpression = moviesUpdateSchedule;
 
+  jobs.peopleUpdate.job = CronJob.schedule(peopleUpdateSchedule, async () => {
+    try {
+      await runPeopleUpdateJob();
+    } catch (error) {
+      cliLogger.error('Unhandled error in people update job', error);
+    }
+  });
+  jobs.peopleUpdate.cronExpression = peopleUpdateSchedule;
+
   if (isEmailEnabled()) {
     jobs.emailDigest.job = CronJob.schedule(emailSchedule, async () => {
       try {
@@ -267,10 +338,12 @@ export function initScheduledJobs(
   // Start all jobs
   jobs.showsUpdate.job.start();
   jobs.moviesUpdate.job.start();
+  jobs.peopleUpdate.job.start();
 
   cliLogger.info('Job Scheduler Initialized');
   cliLogger.info(`Shows update scheduled with CRON: ${showsUpdateSchedule}`);
   cliLogger.info(`Movies update scheduled with CRON: ${moviesUpdateSchedule}`);
+  cliLogger.info(`People update scheduled with CRON: ${peopleUpdateSchedule}`);
 }
 
 /**
@@ -302,6 +375,13 @@ export function getJobsStatus(): Record<
       nextRunTime: getNextScheduledRun(jobs.moviesUpdate.cronExpression),
       cronExpression: jobs.moviesUpdate.cronExpression,
     },
+    peopleUpdate: {
+      lastRunTime: jobs.peopleUpdate.lastRunTime,
+      lastRunStatus: jobs.peopleUpdate.lastRunStatus,
+      isRunning: jobs.peopleUpdate.isRunning,
+      nextRunTime: getNextScheduledRun(jobs.peopleUpdate.cronExpression),
+      cronExpression: jobs.peopleUpdate.cronExpression,
+    },
     emailDigest: {
       lastRunTime: jobs.emailDigest.lastRunTime,
       lastRunStatus: jobs.emailDigest.lastRunStatus,
@@ -325,6 +405,10 @@ export function pauseJobs(): void {
     jobs.moviesUpdate.job.stop();
   }
 
+  if (jobs.peopleUpdate.job) {
+    jobs.peopleUpdate.job.stop();
+  }
+
   if (jobs.emailDigest.job) {
     jobs.emailDigest.job.stop();
   }
@@ -342,6 +426,10 @@ export function resumeJobs(): void {
 
   if (jobs.moviesUpdate.job) {
     jobs.moviesUpdate.job.start();
+  }
+
+  if (jobs.peopleUpdate.job) {
+    jobs.peopleUpdate.job.start();
   }
 
   if (jobs.emailDigest.job && isEmailEnabled()) {

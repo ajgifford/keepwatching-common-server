@@ -1,8 +1,10 @@
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
+import { UpdatePersonResult } from '../types/personTypes';
 import { generateDateRange, sleep } from '../utils/changesUtility';
 import { errorService } from './errorService';
 import { moviesService } from './moviesService';
+import { personService } from './personService';
 import { showService } from './showService';
 
 /**
@@ -55,4 +57,69 @@ export async function updateShows() {
     appLogger.error(ErrorMessages.ShowsChangeFail, { error });
     throw errorService.handleError(error, 'updateShows()');
   }
+}
+
+/**
+ * Updates people that might have changes
+ */
+export async function updatePeople() {
+  try {
+    const results: UpdatePersonResult[] = [];
+    const startTime = new Date();
+
+    const blockNumber = personService.calculateBlockNumber(startTime);
+    const blockInfo = await personService.getTodayBlockInfo();
+    cliLogger.info(`Starting daily person update for block ${blockInfo.blockNumber}`, {
+      totalPeople: blockInfo.totalPeople,
+      date: blockInfo.date,
+    });
+
+    const people = await personService.getPeopleForUpdates(blockNumber);
+    for (const person of people) {
+      try {
+        await sleep(500);
+        const result = await personService.checkAndUpdatePerson(person);
+        results.push(result);
+      } catch (error) {
+        // Log error but continue with next person
+        cliLogger.error(`Failed to check for changes in person ID ${person.id}`, error);
+      }
+    }
+    await showService.invalidateAllShowsCache();
+
+    const endTime = new Date();
+    const stats = createPersonJobStats(blockInfo, results, startTime, endTime);
+    cliLogger.info('Daily person update completed', {
+      blockNumber: stats.blockNumber,
+      processed: stats.processed,
+      successful: stats.successful,
+      updated: stats.updated,
+      failed: stats.failed,
+      duration: `${stats.duration}ms`,
+    });
+  } catch (error) {
+    cliLogger.error('Unexpected error while checking for person updates', error);
+    appLogger.error(ErrorMessages.PeopleChangeFail, { error });
+    throw errorService.handleError(error, 'updatePeople()');
+  }
+}
+
+function createPersonJobStats(
+  blockInfo: { date: string; blockNumber: number; totalPeople: number },
+  results: UpdatePersonResult[],
+  startTime: Date,
+  endTime: Date,
+) {
+  return {
+    date: blockInfo.date,
+    blockNumber: blockInfo.blockNumber,
+    totalPeople: blockInfo.totalPeople,
+    processed: results.length,
+    successful: results.filter((r) => r.success).length,
+    updated: results.filter((r) => r.hadUpdates).length,
+    failed: results.filter((r) => !r.success).length,
+    duration: endTime.getTime() - startTime.getTime(),
+    startTime,
+    endTime,
+  };
 }

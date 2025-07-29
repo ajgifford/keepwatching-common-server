@@ -81,6 +81,8 @@ export enum ErrorMessages {
   MovieChangeFail = 'Unexpected error while checking for movie changes',
   ShowsChangeFail = 'Unexpected error while updating shows',
   ShowChangeFail = 'Unexpected error while checking for show changes',
+  PeopleChangeFail = 'Unexpected error while updating people',
+  PersonChangeFail = 'Unexpected error while checking for person changes',
   SeasonChangeFail = 'Unexpected error while checking for season changes',
   DatabaseConnectionFail = 'Unable to connect to database',
   AuthenticationFail = 'Authentication failure',

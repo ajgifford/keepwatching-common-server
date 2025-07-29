@@ -98,6 +98,11 @@ export function getMoviesUpdateSchedule() {
   return process.env.MOVIES_UPDATE_SCHEDULE || '0 1 7,14,21,28 * *';
 }
 
+export function getPersonUpdateSchedule() {
+  // Default: Daily at 3 AM
+  return process.env.PERSON_UPDATE_SCHEDULE || '0 3 * * *';
+}
+
 export function getStreamingAPIKey() {
   return process.env.STREAMING_API_KEY;
 }
