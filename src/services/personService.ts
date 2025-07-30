@@ -6,7 +6,7 @@ import { TMDBCredit, TMDBPerson } from '../types/tmdbTypes';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
-import { Person, SearchPerson, SearchPersonCredits } from '@ajgifford/keepwatching-types';
+import { Person, PersonDetails, SearchPerson, SearchPersonCredits } from '@ajgifford/keepwatching-types';
 import { UpdatePersonResult } from 'src/types/personTypes';
 
 export class PersonService {
@@ -27,7 +27,7 @@ export class PersonService {
     this.cache.invalidatePattern(CACHE_KEY_PATTERNS.PERSON);
   }
 
-  public async getPersonDetails(personId: number): Promise<Person> {
+  public async getPersonDetails(personId: number): Promise<PersonDetails> {
     try {
       return await this.cache.getOrSet(PERSON_KEYS.details(personId), () => personsDb.getPersonDetails(personId), 600);
     } catch (error) {
@@ -92,11 +92,61 @@ export class PersonService {
     }
   }
 
+  public async getPersons(firstLetter: string, page: number, offset: number, limit: number) {
+    try {
+      return await this.cache.getOrSet(PERSON_KEYS.list(firstLetter, page, offset, limit), async () => {
+        const [totalCount, persons] = await Promise.all([
+          personsDb.getPersonsAlphaCount(firstLetter),
+          personsDb.getPersons(firstLetter, offset, limit),
+        ]);
+        const totalPages = Math.ceil(totalCount / limit);
+        return {
+          persons,
+          pagination: {
+            totalCount,
+            totalPages,
+            currentPage: page,
+            limit,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+        };
+      });
+    } catch (error) {
+      throw errorService.handleError(error, `getPersons(${firstLetter}, ${page}, ${offset}, ${limit})`);
+    }
+  }
+
+  public async getPersonsCount(): Promise<number> {
+    try {
+      return await personsDb.getPersonsCount();
+    } catch (error) {
+      throw errorService.handleError(error, `getPersonsCount()`);
+    }
+  }
+
   public async getPeopleForUpdates(blockNumber: number): Promise<Person[]> {
     try {
       return await personsDb.getPeopleForUpdates(blockNumber);
     } catch (error) {
       throw errorService.handleError(error, `getMoviesForUpdates()`);
+    }
+  }
+
+  public async updatePerson(personId: number, tmdbId: number) {
+    const tmdbService = getTMDBService();
+    try {
+      const person = await personsDb.getPerson(personId);
+      const tmdbPerson = await tmdbService.getPersonDetails(tmdbId);
+      const fieldsUpdated = await this.compareAndUpdate(person, tmdbPerson);
+      return {
+        personId: person.id,
+        success: true,
+        hadUpdates: fieldsUpdated.length > 0,
+      };
+    } catch (error) {
+      appLogger.error(ErrorMessages.MovieChangeFail, { error, personId });
+      throw errorService.handleError(error, `checkPersonForChanges(${personId})`);
     }
   }
 

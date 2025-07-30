@@ -5,25 +5,29 @@ import {
   PersonRow,
   ShowCastMemberRow,
   ShowCreditRow,
+  transformAdminPersonRow,
   transformMovieCastMemberRow,
   transformPersonReferenceRow,
   transformPersonRow,
+  transformPersonRowWithCredits,
   transformShowCastMemberRow,
 } from '../types/personTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import {
+  AdminPerson,
   CastMember,
   CreateCast,
   CreatePerson,
   CreateShowCast,
   Person,
+  PersonDetails,
   PersonReference,
   ShowCastMember,
   UpdatePerson,
 } from '@ajgifford/keepwatching-types';
-import { ResultSetHeader } from 'mysql2';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 export async function savePerson(createPerson: CreatePerson): Promise<number> {
   try {
@@ -133,7 +137,7 @@ export async function findPersonByTMDBId(tmdbId: number): Promise<PersonReferenc
   }
 }
 
-export async function getPersonDetails(personId: number): Promise<Person> {
+export async function getPersonDetails(personId: number): Promise<PersonDetails> {
   const transactionHelper = new TransactionHelper();
   try {
     return await transactionHelper.executeInTransaction(async (connection) => {
@@ -146,7 +150,7 @@ export async function getPersonDetails(personId: number): Promise<Person> {
       const showCreditsQuery = 'SELECT * FROM people_show_credits WHERE person_id = ?';
       const [showCredits] = await connection.execute<ShowCreditRow[]>(showCreditsQuery, [personId]);
 
-      return transformPersonRow(people[0], movieCredits, showCredits);
+      return transformPersonRowWithCredits(people[0], movieCredits, showCredits);
     });
   } catch (error) {
     handleDatabaseError(error, 'getting a person details');
@@ -173,6 +177,46 @@ export async function getShowCastMembers(showId: number, active: number): Promis
   }
 }
 
+export async function getPerson(personId: number): Promise<Person> {
+  try {
+    const dataQuery = `SELECT * FROM people WHERE id = ?`;
+    const [people] = await getDbPool().execute<PersonRow[]>(dataQuery, [personId]);
+    return transformPersonRow(people[0]);
+  } catch (error) {
+    handleDatabaseError(error, 'getting person');
+  }
+}
+
+export async function getPersons(firstLetter: string, offset: number = 0, limit: number = 50): Promise<AdminPerson[]> {
+  try {
+    const query = `SELECT * FROM people WHERE UPPER(LEFT(name, 1)) = UPPER(?) ORDER BY name ASC LIMIT ${limit} OFFSET ${offset}`;
+    const [dataResult] = await getDbPool().execute<PersonRow[]>(query, [firstLetter]);
+    return dataResult.map(transformAdminPersonRow);
+  } catch (error) {
+    handleDatabaseError(error, 'getting persons with pagination');
+  }
+}
+
+export async function getPersonsAlphaCount(firstLetter: string): Promise<number> {
+  try {
+    const query = 'SELECT COUNT(*) as total FROM people WHERE UPPER(LEFT(name, 1)) = UPPER(?)';
+    const [result] = await getDbPool().execute<RowDataPacket[]>(query, [firstLetter]);
+    return result[0].total as number;
+  } catch (error) {
+    handleDatabaseError(error, 'getting persons count for alpha');
+  }
+}
+
+export async function getPersonsCount(): Promise<number> {
+  try {
+    const query = 'SELECT COUNT(*) as total FROM people';
+    const [result] = await getDbPool().execute<RowDataPacket[]>(query);
+    return result[0].total as number;
+  } catch (error) {
+    handleDatabaseError(error, 'getting persons count');
+  }
+}
+
 export async function getPeopleForUpdates(blockNumber: number): Promise<Person[]> {
   try {
     const oneYearAgo = new Date();
@@ -191,7 +235,7 @@ export async function getPeopleForUpdates(blockNumber: number): Promise<Person[]
         ORDER BY id`;
 
     const [people] = await getDbPool().query<PersonRow[]>(query, [blockNumber, oneYearAgoStr]);
-    return people.map((person) => transformPersonRow(person, [], []));
+    return people.map((person) => transformPersonRowWithCredits(person, [], []));
   } catch (error) {
     handleDatabaseError(error, 'getting people for updates');
   }

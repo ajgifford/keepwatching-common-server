@@ -90,8 +90,6 @@ describe('PersonService', () => {
       birthdate: '1980-01-01',
       deathdate: null,
       placeOfBirth: 'New York, NY',
-      movieCredits: [],
-      showCredits: [],
     };
 
     it('should return person details from cache', async () => {

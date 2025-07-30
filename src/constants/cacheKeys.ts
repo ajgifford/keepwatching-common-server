@@ -169,6 +169,9 @@ export const PERSON_KEYS = {
   tmdbDetails: (personId: number | string) => `${CACHE_KEY_PATTERNS.PERSON}_tmdb_details_${personId}`,
 
   tmdbCredits: (personId: number | string) => `${CACHE_KEY_PATTERNS.PERSON}_tmdb_credits_${personId}`,
+
+  list: (firstLetter: string, page: number, limit: number, offset: number) =>
+    `person:list:${firstLetter}:${page}:${limit}:${offset}`,
 };
 
 // Discovery keys
