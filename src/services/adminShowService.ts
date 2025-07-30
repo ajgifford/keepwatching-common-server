@@ -27,6 +27,14 @@ export class AdminShowService {
     this.cache = CacheService.getInstance();
   }
 
+  /**
+   * Get all shows with pagination for administrative purposes
+   *
+   * @param page - Current page number
+   * @param offset - Number of items to skip
+   * @param limit - Maximum number of items to return
+   * @returns Paginated shows data with pagination metadata
+   */
   public async getAllShows(page: number, offset: number, limit: number) {
     try {
       return await this.cache.getOrSet(ADMIN_KEYS.allShows(page, offset, limit), async () => {
@@ -49,6 +57,11 @@ export class AdminShowService {
     }
   }
 
+  /**
+   * Get all show references (id and tmdbId pairs) for batch operations
+   *
+   * @returns Array of show references containing id and tmdbId
+   */
   public async getAllShowReferences() {
     try {
       return await this.cache.getOrSet(ADMIN_KEYS.allShowReferences(), async () => {
@@ -201,6 +214,10 @@ export class AdminShowService {
     }
   }
 
+  /**
+   * Update all shows in the database by fetching latest data from TMDB
+   * This method processes all shows sequentially to avoid rate limiting
+   */
   public async updateAllShows() {
     try {
       cliLogger.info('updateAllShows -- Started');
@@ -215,6 +232,15 @@ export class AdminShowService {
     }
   }
 
+  /**
+   * Update a specific show by fetching latest data from TMDB
+   * Includes updating show details, cast, seasons, and episodes
+   *
+   * @param showId - Database ID of the show to update
+   * @param tmdbId - TMDB ID of the show
+   * @param updateMode - Whether to update 'all' seasons or just the 'latest' season
+   * @returns Promise that resolves to true if update was successful, false otherwise
+   */
   public async updateShowById(
     showId: number,
     tmdbId: number,
@@ -326,6 +352,13 @@ export class AdminShowService {
     }
   }
 
+  /**
+   * Process and save cast information for a show
+   * Creates person records if they don't exist and saves cast relationships
+   *
+   * @param show - TMDB show data containing cast information
+   * @param showId - Database ID of the show
+   */
   private async processShowCast(show: TMDBShow, showId: number) {
     try {
       const activeCast = show.credits.cast ?? [];
@@ -368,6 +401,15 @@ export class AdminShowService {
     }
   }
 
+  /**
+   * Filter and transform TMDB cast members into database format
+   * Only includes roles with 2 or more episodes and marks active cast members
+   *
+   * @param showCastMembers - Raw TMDB cast member data
+   * @param contentId - Database ID of the content (show)
+   * @param activeCreditIds - Array of credit IDs for currently active cast members
+   * @returns Array of filtered cast members ready for database insertion
+   */
   private filterShowCastMembers(
     showCastMembers: TMDBShowCastMember[],
     contentId: number,
@@ -390,6 +432,9 @@ export class AdminShowService {
     );
   }
 
+  /**
+   * Invalidate all cached show data across the application
+   */
   public invalidateAllShows(): void {
     this.cache.invalidatePattern('allShows_');
   }
