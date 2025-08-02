@@ -25,6 +25,7 @@ jest.mock('@db/accountsDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
 jest.mock('@services/profileService');
+jest.mock('@services/preferencesService');
 jest.mock('@utils/imageUtility');
 jest.mock('@utils/firebaseUtil');
 
