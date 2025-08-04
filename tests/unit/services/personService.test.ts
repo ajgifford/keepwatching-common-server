@@ -386,6 +386,460 @@ describe('PersonService', () => {
     });
   });
 
+  describe('getPersons', () => {
+    it('should return paginated persons list', async () => {
+      const firstLetter = 'A';
+      const page = 1;
+      const offset = 0;
+      const limit = 10;
+      const totalCount = 25;
+      const mockPersons = [
+        {
+          id: 1,
+          tmdbId: 456,
+          name: 'Alice Johnson',
+          gender: 1,
+          biography: 'Actor biography',
+          profileImage: '/alice.jpg',
+          birthdate: '1985-01-01',
+          deathdate: null,
+          placeOfBirth: 'Los Angeles, CA',
+        },
+      ];
+
+      const expectedResult = {
+        persons: mockPersons,
+        pagination: {
+          totalCount,
+          totalPages: 3,
+          currentPage: page,
+          limit,
+          hasNextPage: true,
+          hasPrevPage: false,
+        },
+      };
+
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (personsDb.getPersonsAlphaCount as jest.Mock).mockResolvedValue(totalCount);
+      (personsDb.getPersons as jest.Mock).mockResolvedValue(mockPersons);
+
+      const result = await service.getPersons(firstLetter, page, offset, limit);
+
+      expect(mockCache.getOrSet).toHaveBeenCalledWith(
+        PERSON_KEYS.list(firstLetter, page, offset, limit),
+        expect.any(Function),
+      );
+      expect(personsDb.getPersonsAlphaCount).toHaveBeenCalledWith(firstLetter);
+      expect(personsDb.getPersons).toHaveBeenCalledWith(firstLetter, offset, limit);
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should calculate pagination correctly for last page', async () => {
+      const firstLetter = 'B';
+      const page = 3;
+      const offset = 20;
+      const limit = 10;
+      const totalCount = 25;
+      const mockPersons: Person[] = [];
+
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (personsDb.getPersonsAlphaCount as jest.Mock).mockResolvedValue(totalCount);
+      (personsDb.getPersons as jest.Mock).mockResolvedValue(mockPersons);
+
+      const result = await service.getPersons(firstLetter, page, offset, limit);
+
+      expect(result.pagination).toEqual({
+        totalCount,
+        totalPages: 3,
+        currentPage: page,
+        limit,
+        hasNextPage: false,
+        hasPrevPage: true,
+      });
+    });
+
+    it('should handle errors properly', async () => {
+      const error = new Error('Database error');
+      mockCache.getOrSet.mockRejectedValue(error);
+
+      await expect(service.getPersons('A', 1, 0, 10)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getPersons(A, 1, 0, 10)');
+    });
+  });
+
+  describe('getPersonsCount', () => {
+    it('should return total persons count', async () => {
+      const expectedCount = 150;
+      (personsDb.getPersonsCount as jest.Mock).mockResolvedValue(expectedCount);
+
+      const result = await service.getPersonsCount();
+
+      expect(result).toBe(expectedCount);
+      expect(personsDb.getPersonsCount).toHaveBeenCalled();
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Count query failed');
+      (personsDb.getPersonsCount as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.getPersonsCount()).rejects.toThrow('Count query failed');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getPersonsCount()');
+    });
+  });
+
+  describe('getPeopleForUpdates', () => {
+    it('should return people for specific block number', async () => {
+      const blockNumber = 5;
+      const mockPeople = [
+        {
+          id: 1,
+          tmdbId: 456,
+          name: 'John Doe',
+          gender: 2,
+          biography: 'Actor',
+          profileImage: '/john.jpg',
+          birthdate: '1980-01-01',
+          deathdate: null,
+          placeOfBirth: 'New York, NY',
+        },
+      ];
+
+      (personsDb.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
+
+      const result = await service.getPeopleForUpdates(blockNumber);
+
+      expect(result).toEqual(mockPeople);
+      expect(personsDb.getPeopleForUpdates).toHaveBeenCalledWith(blockNumber);
+    });
+
+    it('should handle database errors', async () => {
+      const blockNumber = 3;
+      const error = new Error('Update query failed');
+      (personsDb.getPeopleForUpdates as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.getPeopleForUpdates(blockNumber)).rejects.toThrow('Update query failed');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getMoviesForUpdates()');
+    });
+  });
+
+  describe('updatePerson', () => {
+    const mockPerson: Person = {
+      id: 123,
+      tmdbId: 456,
+      name: 'John Doe',
+      gender: 2,
+      biography: 'Actor biography',
+      profileImage: '/profile.jpg',
+      birthdate: '1980-01-01',
+      deathdate: null,
+      placeOfBirth: 'New York, NY',
+    };
+
+    const mockTMDBPerson: TMDBPerson = {
+      id: 456,
+      name: 'John Doe Updated',
+      gender: 2,
+      biography: 'Updated biography',
+      profile_path: '/new-profile.jpg',
+      birthday: '1980-01-01',
+      deathday: null,
+      place_of_birth: 'New York, NY',
+      popularity: 85.5,
+      known_for_department: 'Acting',
+    };
+
+    it('should update person successfully with changes', async () => {
+      (personsDb.getPerson as jest.Mock).mockResolvedValue(mockPerson);
+      mockTMDBService.getPersonDetails.mockResolvedValue(mockTMDBPerson);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await service.updatePerson(123, 456);
+
+      expect(result).toEqual({
+        personId: 123,
+        success: true,
+        hadUpdates: true,
+      });
+      expect(personsDb.getPerson).toHaveBeenCalledWith(123);
+      expect(mockTMDBService.getPersonDetails).toHaveBeenCalledWith(456);
+      expect(personsDb.updatePerson).toHaveBeenCalled();
+    });
+
+    it('should update person successfully without changes', async () => {
+      const unchangedTMDBPerson = {
+        ...mockTMDBPerson,
+        name: 'John Doe',
+        biography: 'Actor biography',
+        profile_path: '/profile.jpg',
+      };
+      (personsDb.getPerson as jest.Mock).mockResolvedValue(mockPerson);
+      mockTMDBService.getPersonDetails.mockResolvedValue(unchangedTMDBPerson);
+
+      const result = await service.updatePerson(123, 456);
+
+      expect(result).toEqual({
+        personId: 123,
+        success: true,
+        hadUpdates: false,
+      });
+      expect(personsDb.updatePerson).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors and log them', async () => {
+      const error = new Error('Update failed');
+      (personsDb.getPerson as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.updatePerson(123, 456)).rejects.toThrow('Update failed');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'checkPersonForChanges(123)');
+    });
+  });
+
+  describe('checkAndUpdatePerson', () => {
+    const mockPerson: Person = {
+      id: 123,
+      tmdbId: 456,
+      name: 'John Doe',
+      gender: 2,
+      biography: 'Actor biography',
+      profileImage: '/profile.jpg',
+      birthdate: '1980-01-01',
+      deathdate: null,
+      placeOfBirth: 'New York, NY',
+    };
+
+    const mockTMDBPerson: TMDBPerson = {
+      id: 456,
+      name: 'John Doe Updated',
+      gender: 2,
+      biography: 'Updated biography',
+      profile_path: '/new-profile.jpg',
+      birthday: '1980-01-01',
+      deathday: null,
+      place_of_birth: 'New York, NY',
+      popularity: 85.5,
+      known_for_department: 'Acting',
+    };
+
+    it('should check and update person with changes', async () => {
+      mockTMDBService.getPersonDetails.mockResolvedValue(mockTMDBPerson);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await service.checkAndUpdatePerson(mockPerson);
+
+      expect(result).toEqual({
+        personId: 123,
+        success: true,
+        hadUpdates: true,
+      });
+      expect(mockTMDBService.getPersonDetails).toHaveBeenCalledWith(456);
+      expect(personsDb.updatePerson).toHaveBeenCalled();
+    });
+
+    it('should check and update person without changes', async () => {
+      const unchangedTMDBPerson = {
+        ...mockTMDBPerson,
+        name: 'John Doe',
+        biography: 'Actor biography',
+        profile_path: '/profile.jpg',
+      };
+      mockTMDBService.getPersonDetails.mockResolvedValue(unchangedTMDBPerson);
+
+      const result = await service.checkAndUpdatePerson(mockPerson);
+
+      expect(result).toEqual({
+        personId: 123,
+        success: true,
+        hadUpdates: false,
+      });
+      expect(personsDb.updatePerson).not.toHaveBeenCalled();
+    });
+
+    it('should handle TMDB API errors', async () => {
+      const error = new Error('TMDB API error');
+      mockTMDBService.getPersonDetails.mockRejectedValue(error);
+
+      await expect(service.checkAndUpdatePerson(mockPerson)).rejects.toThrow('TMDB API error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'checkPersonForChanges(123)');
+    });
+  });
+
+  describe('getTodayBlockInfo', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should return today block information', async () => {
+      const mockDate = new Date('2023-06-15T10:00:00Z');
+      jest.setSystemTime(mockDate);
+
+      const mockPeople = [{ id: 1 }, { id: 2 }];
+      jest.spyOn(service, 'calculateBlockNumber').mockReturnValue(5);
+      jest.spyOn(service, 'getPeopleForUpdates').mockResolvedValue(mockPeople as any);
+
+      const result = await service.getTodayBlockInfo();
+
+      expect(result).toEqual({
+        blockNumber: 5,
+        date: '2023-06-15',
+        totalPeople: 2,
+        nextBlockDate: '2023-06-27',
+      });
+    });
+  });
+
+  describe('calculateBlockNumber', () => {
+    it('should calculate correct block number for different dates', () => {
+      const testCases = [
+        new Date('2023-01-01'),
+        new Date('2023-01-13'),
+        new Date('2023-06-15'),
+        new Date('2023-12-31'),
+      ];
+
+      testCases.forEach((date) => {
+        const result = service.calculateBlockNumber(date);
+        expect(result).toBeGreaterThanOrEqual(0);
+        expect(result).toBeLessThan(12);
+      });
+    });
+
+    it('should handle leap year correctly', () => {
+      const leapYearDate = new Date('2024-02-29');
+      const result = service.calculateBlockNumber(leapYearDate);
+
+      expect(result).toBeGreaterThanOrEqual(0);
+      expect(result).toBeLessThan(12);
+    });
+  });
+
+  describe('compareAndUpdate (integration through public methods)', () => {
+    const basePerson: Person = {
+      id: 123,
+      tmdbId: 456,
+      name: 'John Doe',
+      gender: 2,
+      biography: 'Original biography',
+      profileImage: '/original.jpg',
+      birthdate: '1980-01-01',
+      deathdate: null,
+      placeOfBirth: 'New York, NY',
+    };
+
+    it('should detect and update all changed fields', async () => {
+      const changedTMDBPerson: TMDBPerson = {
+        id: 456,
+        name: 'John Doe Updated',
+        gender: 1,
+        biography: 'Updated biography',
+        profile_path: '/updated.jpg',
+        birthday: '1980-01-02',
+        deathday: '2023-01-01',
+        place_of_birth: 'Los Angeles, CA',
+        popularity: 85.5,
+        known_for_department: 'Acting',
+      };
+
+      mockTMDBService.getPersonDetails.mockResolvedValue(changedTMDBPerson);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await service.checkAndUpdatePerson(basePerson);
+
+      expect(result.hadUpdates).toBe(true);
+      expect(personsDb.updatePerson).toHaveBeenCalledWith({
+        id: 123,
+        tmdb_id: 456,
+        name: 'John Doe Updated',
+        gender: 1,
+        biography: 'Updated biography',
+        profile_image: '/updated.jpg',
+        birthdate: '1980-01-02',
+        deathdate: '2023-01-01',
+        place_of_birth: 'Los Angeles, CA',
+      });
+    });
+
+    it('should not update when no changes detected', async () => {
+      const unchangedTMDBPerson: TMDBPerson = {
+        id: 456,
+        name: 'John Doe',
+        gender: 2,
+        biography: 'Original biography',
+        profile_path: '/original.jpg',
+        birthday: '1980-01-01',
+        deathday: null,
+        place_of_birth: 'New York, NY',
+        popularity: 85.5,
+        known_for_department: 'Acting',
+      };
+
+      mockTMDBService.getPersonDetails.mockResolvedValue(unchangedTMDBPerson);
+
+      const result = await service.checkAndUpdatePerson(basePerson);
+
+      expect(result.hadUpdates).toBe(false);
+      expect(personsDb.updatePerson).not.toHaveBeenCalled();
+    });
+
+    it('should handle null to value transitions', async () => {
+      const personWithNulls: Person = {
+        ...basePerson,
+        biography: null as any,
+        profileImage: null as any,
+        birthdate: null as any,
+        deathdate: null as any,
+        placeOfBirth: null as any,
+      };
+
+      const tmdbPersonWithValues: TMDBPerson = {
+        id: 456,
+        name: 'John Doe',
+        gender: 2,
+        biography: 'New biography',
+        profile_path: '/new.jpg',
+        birthday: '1980-01-01',
+        deathday: '2023-01-01',
+        place_of_birth: 'New York, NY',
+        popularity: 85.5,
+        known_for_department: 'Acting',
+      };
+
+      mockTMDBService.getPersonDetails.mockResolvedValue(tmdbPersonWithValues);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await service.checkAndUpdatePerson(personWithNulls);
+
+      expect(result.hadUpdates).toBe(true);
+      expect(personsDb.updatePerson).toHaveBeenCalled();
+    });
+
+    it('should handle value to null transitions correctly', async () => {
+      const tmdbPersonWithNulls = {
+        id: 456,
+        name: 'John Doe',
+        gender: 2,
+        biography: null,
+        profile_path: null,
+        birthday: null,
+        deathday: null,
+        place_of_birth: null,
+        popularity: 85.5,
+        known_for_department: 'Acting',
+      } as unknown as TMDBPerson;
+
+      mockTMDBService.getPersonDetails.mockResolvedValue(tmdbPersonWithNulls);
+
+      const result = await service.checkAndUpdatePerson(basePerson);
+
+      // Should not update when TMDB values are null/empty
+      expect(result.hadUpdates).toBe(false);
+      expect(personsDb.updatePerson).not.toHaveBeenCalled();
+    });
+  });
+
   describe('integration scenarios', () => {
     it('should use correct cache keys for all operations', async () => {
       const personId = 123;
@@ -421,6 +875,12 @@ describe('PersonService', () => {
       mockCache.getOrSet.mock.calls.forEach((call) => {
         expect(call[2]).toBe(expectedTTL);
       });
+    });
+  });
+
+  describe('singleton instance', () => {
+    it('should export a singleton instance', () => {
+      expect(personService).toBeInstanceOf(PersonService);
     });
   });
 });
