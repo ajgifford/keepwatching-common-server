@@ -236,6 +236,7 @@ app.put('/shows/:id/status',
 - `episodesService` - Episode tracking and progress
 - `seasonsService` - Season management
 - `preferencesService` - Account preferences
+- `watchStatusService` - Watch status management
 
 ### Communication Services
 - `emailService` - Email notifications and weekly digests
@@ -247,8 +248,19 @@ app.put('/shows/:id/status',
 - `adminMovieService` - Administrative movie operations
 - `statisticsService` - Usage analytics and statistics
 
+### External API Services
+- `tmdbService` - The Movie Database API integration
+- `streamingAvailabilityService` - Streaming platform availability
+- `personService` - Person/celebrity information
+
 ### Utility Services
+- `cacheService` - In-memory caching with TTL and pattern invalidation
+- `databaseService` - Database connection management
 - `contentDiscoveryService` - Content search and discovery
+- `contentUpdatesService` - Content update operations
+- `episodeChangesService` - Episode change tracking
+- `seasonChangesService` - Season change tracking
+- `errorService` - Error logging and tracking
 - `scheduledJobsService` - Background content updates and email jobs
 
 ## 📧 Email Features
@@ -393,10 +405,15 @@ The library is optimized for deployment on Raspberry Pi 5:
 | Script | Description |
 |--------|-------------|
 | `yarn build` | Compile TypeScript to JavaScript |
+| `yarn clean` | Remove dist/ directory |
+| `yarn rebuild` | Clean and build |
 | `yarn test` | Run Jest test suite |
 | `yarn test:coverage` | Run tests with coverage report |
 | `yarn lint` | Run ESLint |
+| `yarn lint:fix` | Auto-fix linting issues |
 | `yarn format` | Format code with Prettier |
+| `yarn format:check` | Check formatting without changes |
+| `yarn type-check` | TypeScript type checking without emit |
 | `yarn version:patch` | Bump patch version |
 | `yarn version:minor` | Bump minor version |
 | `yarn version:major` | Bump major version |

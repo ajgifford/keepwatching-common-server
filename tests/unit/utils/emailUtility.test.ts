@@ -123,6 +123,7 @@ describe('emailUtility', () => {
           ],
         },
       ],
+      accountId: 0,
     };
 
     it('should generate valid HTML structure', () => {
@@ -321,6 +322,7 @@ describe('emailUtility', () => {
           ],
         },
       ],
+      accountId: 0,
     };
 
     it('should generate plain text format', () => {
@@ -456,6 +458,7 @@ describe('emailUtility', () => {
           end: '2024-03-22T00:00:00',
         },
       },
+      accountId: 0,
     };
 
     it('should generate valid HTML structure', () => {
@@ -575,6 +578,7 @@ describe('emailUtility', () => {
           end: '2024-03-22',
         },
       },
+      accountId: 0,
     };
 
     it('should generate plain text format', () => {
@@ -670,6 +674,7 @@ describe('emailUtility', () => {
             continueWatching: [],
           },
         ],
+        accountId: 0,
       };
 
       expect(() => generateWeeklyDigestHTML(specialCharsEmail)).not.toThrow();
@@ -682,6 +687,7 @@ describe('emailUtility', () => {
         accountName: 'John Doe',
         weekRange: { start: '2024-03-16', end: '2024-03-22' },
         profiles: [],
+        accountId: 0,
       };
 
       const htmlResult = generateWeeklyDigestHTML(emptyProfilesEmail);
@@ -717,6 +723,7 @@ describe('emailUtility', () => {
             continueWatching: [],
           },
         ],
+        accountId: 0,
       };
 
       expect(() => generateWeeklyDigestHTML(longTitleEmail)).not.toThrow();

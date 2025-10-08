@@ -8,7 +8,7 @@ import {
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { updateMovies, updatePeople, updateShows } from './contentUpdatesService';
-import { getEmailService } from './emailService';
+import { emailService } from './emailService';
 import { errorService } from './errorService';
 import parser from 'cron-parser';
 import CronJob from 'node-cron';
@@ -203,7 +203,6 @@ export async function runEmailDigestJob(): Promise<boolean> {
   appLogger.info('Weekly email digest job started');
 
   try {
-    const emailService = getEmailService();
     await emailService.sendWeeklyDigests();
 
     if (emailDigestCallback) {

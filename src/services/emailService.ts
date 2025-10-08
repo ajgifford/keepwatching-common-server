@@ -1,61 +1,26 @@
-import { EmailConfig } from '../config';
+import * as emailDb from '../db/emailDb';
 import { appLogger, cliLogger } from '../logger/logger';
-import { NotVerifiedError } from '../middleware/errorMiddleware';
-import { NotFoundError } from '../middleware/errorMiddleware';
-import {
-  AccountContentAnalysis,
-  DigestData,
-  DigestEmail,
-  DiscoveryEmail,
-  EmailBatch,
-  ProfileContentAnalysis,
-} from '../types/emailTypes';
-import {
-  generateDiscoveryEmailHTML,
-  generateDiscoveryEmailText,
-  generateWeeklyDigestHTML,
-  generateWeeklyDigestText,
-  getUpcomingWeekRange,
-} from '../utils/emailUtility';
-import { accountService } from './accountService';
-import { episodesService } from './episodesService';
+import { BadRequestError, NotFoundError } from '../middleware/errorMiddleware';
+import { CreateEmailRow, EmailContentResult } from '../types/emailTypes';
+import { emailContentService } from './email/emailContentService';
+import { emailDeliveryService } from './email/emailDeliveryService';
 import { errorService } from './errorService';
-import { moviesService } from './moviesService';
-import { preferencesService } from './preferencesService';
-import { profileService } from './profileService';
-import { showService } from './showService';
-import { ContentReference, Profile } from '@ajgifford/keepwatching-types';
-import nodemailer from 'nodemailer';
+import {
+  CreateEmail,
+  CreateEmailRecipient,
+  CreateEmailTemplate,
+  EmailTemplate,
+  UpdateEmailTemplate,
+} from '@ajgifford/keepwatching-types';
 
-/**
- * Service for handling email notifications and weekly digests
- */
 export class EmailService {
-  private transporter: nodemailer.Transporter;
-  private config: EmailConfig;
-
-  constructor(config: EmailConfig) {
-    this.config = config;
-    this.transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: config.auth,
-    });
-  }
+  private scheduledJobs: Map<number, NodeJS.Timeout> = new Map();
 
   /**
    * Verify email connection
    */
   public async verifyConnection(): Promise<boolean> {
-    try {
-      await this.transporter.verify();
-      cliLogger.info('Email service connection verified successfully');
-      return true;
-    } catch (error) {
-      cliLogger.error('Email service connection failed', error);
-      return false;
-    }
+    return emailDeliveryService.verifyConnection();
   }
 
   /**
@@ -66,49 +31,104 @@ export class EmailService {
       cliLogger.info('Starting weekly digest email job');
       appLogger.info('Weekly digest email job started');
 
-      const weekRange = getUpcomingWeekRange();
+      const { digestEmails, discoveryEmails } = await emailContentService.generateBatchEmailContent();
 
-      const { digestEmails, discoveryEmails } = await this.generateAllEmails(weekRange);
+      let digestResults = { sent: 0, failed: 0, errors: [] as Array<{ email: string; error: Error }> };
+      let discoveryResults = { sent: 0, failed: 0, errors: [] as Array<{ email: string; error: Error }> };
 
-      let emailsSent = 0;
-      let emailsFailed = 0;
+      // Send digest emails
+      if (digestEmails.length > 0) {
+        const digestEmailRecord: CreateEmailRow = {
+          subject: `Your Weekly Watch Guide`,
+          message: 'Weekly digest email with upcoming content',
+          sent_to_all: false,
+          account_count: digestEmails.length,
+          scheduled_date: null,
+          sent_date: null,
+          status: 'pending',
+        };
+        const digestEmailId = await emailDb.createEmail(digestEmailRecord);
 
-      for (const email of digestEmails) {
-        try {
-          await this.sendWeeklyDigestEmail(email);
-          emailsSent++;
-          cliLogger.info(`Digest email sent to: ${email.to}`);
-        } catch (error) {
-          emailsFailed++;
-          cliLogger.error(`Failed to send digest email to: ${email.to}`, error);
-          appLogger.error('Digest email failed', {
-            email: email.to,
-            error,
-          });
+        if (digestEmailId > 0) {
+          const digestRecipients: CreateEmailRecipient[] = digestEmails.map((email) => ({
+            email_id: digestEmailId,
+            account_id: email.accountId,
+            status: 'pending',
+            sent_at: null,
+            error_message: null,
+          }));
+          await emailDb.createEmailRecipients(digestRecipients);
+
+          digestResults = await emailDeliveryService.sendDigestEmailBatch(
+            digestEmails,
+            digestEmailId,
+            async (accountId: number, success: boolean, error?: string) => {
+              if (success) {
+                await emailDb.updateEmailRecipientStatus(digestEmailId, accountId, new Date().toISOString(), 'sent');
+              } else {
+                await emailDb.updateEmailRecipientStatusFailure(digestEmailId, accountId, error || 'Unknown error');
+              }
+            },
+          );
+
+          const finalStatus = digestResults.failed === 0 ? 'sent' : digestResults.sent > 0 ? 'sent' : 'failed';
+          await emailDb.updateEmailStatus(digestEmailId, new Date().toISOString(), finalStatus);
         }
       }
 
-      for (const email of discoveryEmails) {
-        try {
-          await this.sendWeeklyDiscoveryEmail(email);
-          emailsSent++;
-          cliLogger.info(`Discovery email sent to: ${email.to}`);
-        } catch (error) {
-          emailsFailed++;
-          cliLogger.error(`Failed to send discovery email to: ${email.to}`, error);
-          appLogger.error('Discovery email failed', {
-            email: email.to,
-            error,
-          });
+      // Send discovery emails
+      if (discoveryEmails.length > 0) {
+        const discoveryEmailRecord: CreateEmailRow = {
+          subject: '🎬 Discover Something New This Week',
+          message: 'Weekly discovery email with featured content',
+          sent_to_all: false,
+          account_count: discoveryEmails.length,
+          scheduled_date: null,
+          sent_date: null,
+          status: 'pending',
+        };
+        const discoveryEmailId = await emailDb.createEmail(discoveryEmailRecord);
+
+        if (discoveryEmailId > 0) {
+          const discoveryRecipients: CreateEmailRecipient[] = discoveryEmails.map((email) => ({
+            email_id: discoveryEmailId,
+            account_id: email.accountId,
+            status: 'pending',
+            sent_at: null,
+            error_message: null,
+          }));
+          await emailDb.createEmailRecipients(discoveryRecipients);
+
+          discoveryResults = await emailDeliveryService.sendDiscoveryEmailBatch(
+            discoveryEmails,
+            discoveryEmailId,
+            async (accountId: number, success: boolean, error?: string) => {
+              if (success) {
+                await emailDb.updateEmailRecipientStatus(discoveryEmailId, accountId, new Date().toISOString(), 'sent');
+              } else {
+                await emailDb.updateEmailRecipientStatusFailure(discoveryEmailId, accountId, error || 'Unknown error');
+              }
+            },
+          );
+
+          const finalStatus = discoveryResults.failed === 0 ? 'sent' : discoveryResults.sent > 0 ? 'sent' : 'failed';
+          await emailDb.updateEmailStatus(discoveryEmailId, new Date().toISOString(), finalStatus);
         }
       }
 
-      cliLogger.info(`Weekly email job completed: ${emailsSent} sent, ${emailsFailed} failed`);
+      const totalSent = digestResults.sent + discoveryResults.sent;
+      const totalFailed = digestResults.failed + discoveryResults.failed;
+
+      cliLogger.info(`Weekly email job completed: ${totalSent} sent, ${totalFailed} failed`);
       appLogger.info('Weekly email job completed', {
         digestEmails: digestEmails.length,
         discoveryEmails: discoveryEmails.length,
-        emailsSent,
-        emailsFailed,
+        emailsSent: totalSent,
+        emailsFailed: totalFailed,
+      });
+
+      [...digestResults.errors, ...discoveryResults.errors].forEach(({ email, error }) => {
+        appLogger.error('Email delivery failed', { email, error });
       });
     } catch (error) {
       cliLogger.error('Weekly email job failed', error);
@@ -118,357 +138,28 @@ export class EmailService {
   }
 
   /**
-   * Generate both digest and discovery emails in a single pass through all accounts
-   */
-  private async generateAllEmails(weekRange: { start: string; end: string }): Promise<EmailBatch> {
-    try {
-      const accounts = await accountService.getAccounts();
-      const accountsWithEmailPref = await preferencesService.getAccountsWithEmailPreference('weeklyDigest');
-      const digestEmails: DigestEmail[] = [];
-      const discoveryEmails: DiscoveryEmail[] = [];
-
-      if (accounts.length === 0) {
-        cliLogger.error(`No accounts found, no emails will be generated`);
-        return { digestEmails, discoveryEmails };
-      }
-
-      const featuredContent = await this.getFeaturedContent();
-
-      for (const account of accounts) {
-        try {
-          if (!account.emailVerified) {
-            throw new NotVerifiedError();
-          }
-
-          if (!accountsWithEmailPref.some((a) => a.id === account.id)) {
-            cliLogger.info(`Account: ${account.email} is configured not to receive the weekly digest`);
-            continue;
-          }
-
-          const profiles = await profileService.getProfilesByAccountId(account.id);
-          if (profiles.length === 0) {
-            continue;
-          }
-
-          const contentAnalysis = await this.analyzeAccountContent(profiles, weekRange);
-
-          if (contentAnalysis.hasUpcomingContent) {
-            digestEmails.push({
-              to: account.email!,
-              accountName: account.name,
-              profiles: contentAnalysis.profileDigests,
-              weekRange,
-            });
-          } else {
-            discoveryEmails.push({
-              to: account.email!,
-              accountName: account.name,
-              data: {
-                accountName: account.name,
-                profiles: profiles.map((p) => ({ id: p.id, name: p.name })),
-                featuredContent,
-                weekRange,
-              },
-            });
-          }
-        } catch (error) {
-          cliLogger.error(`Failed to process account: ${account.email} - `, error);
-        }
-      }
-
-      return { digestEmails, discoveryEmails };
-    } catch (error) {
-      throw errorService.handleError(error, 'generateAllEmails');
-    }
-  }
-
-  /**
-   * Analyze an account's profiles for upcoming content
-   *
-   * @param profiles - Array of profiles to analyze
-   * @param weekRange - Week range to filter content by
-   * @returns Analysis of content availability for the account
-   */
-  private async analyzeAccountContent(
-    profiles: Profile[],
-    weekRange: { start: string; end: string },
-  ): Promise<AccountContentAnalysis> {
-    const profileAnalyses: ProfileContentAnalysis[] = [];
-    const profileDigests: DigestData[] = [];
-    let hasUpcomingContent = false;
-
-    for (const profile of profiles) {
-      const [upcomingEpisodes, upcomingMovies, continueWatching] = await Promise.all([
-        episodesService.getUpcomingEpisodesForProfile(profile.id),
-        moviesService.getUpcomingMoviesForProfile(profile.id),
-        showService.getNextUnwatchedEpisodesForProfile(profile.id),
-      ]);
-
-      // Filter upcoming episodes to only include this week
-      const weeklyUpcomingEpisodes = upcomingEpisodes.filter((episode) => {
-        const airDate = new Date(episode.airDate);
-        const weekStart = new Date(weekRange.start);
-        const weekEnd = new Date(weekRange.end);
-        return airDate >= weekStart && airDate <= weekEnd;
-      });
-
-      // Filter upcoming movies to only include this week's releases
-      const weeklyUpcomingMovies = upcomingMovies.filter((upcomingMovie) => {
-        const releaseDate = new Date(upcomingMovie.releaseDate);
-        const weekStart = new Date(weekRange.start);
-        const weekEnd = new Date(weekRange.end);
-        return releaseDate >= weekStart && releaseDate <= weekEnd;
-      });
-
-      const profileHasContent =
-        weeklyUpcomingEpisodes.length > 0 || weeklyUpcomingMovies.length > 0 || continueWatching.length > 0;
-
-      const profileAnalysis: ProfileContentAnalysis = {
-        profile: {
-          id: profile.id,
-          name: profile.name,
-        },
-        hasContent: profileHasContent,
-        upcomingEpisodes,
-        upcomingMovies,
-        continueWatching,
-        weeklyUpcomingEpisodes,
-        weeklyUpcomingMovies,
-      };
-
-      profileAnalyses.push(profileAnalysis);
-
-      if (profileHasContent) {
-        hasUpcomingContent = true;
-
-        profileDigests.push({
-          profile: {
-            id: profile.id,
-            name: profile.name,
-          },
-          upcomingEpisodes: weeklyUpcomingEpisodes,
-          upcomingMovies: weeklyUpcomingMovies,
-          continueWatching: continueWatching.slice(0, 5),
-        });
-      }
-    }
-
-    return {
-      hasUpcomingContent,
-      profileAnalyses,
-      profileDigests,
-    };
-  }
-
-  /**
-   * Get featured content for discovery emails
-   */
-  private async getFeaturedContent(): Promise<{
-    trendingShows: ContentReference[];
-    newReleases: ContentReference[];
-    popularMovies: ContentReference[];
-  }> {
-    try {
-      const [trendingShows, newReleases, popularMovies] = await Promise.all([
-        this.getPopularShows(),
-        this.getNewReleases(),
-        this.getPopularMovies(),
-      ]);
-
-      return {
-        trendingShows: trendingShows.slice(0, 4),
-        newReleases: newReleases.slice(0, 4),
-        popularMovies: popularMovies.slice(0, 4),
-      };
-    } catch (error) {
-      cliLogger.warn('Failed to get featured content, using empty arrays', error);
-      return {
-        trendingShows: [],
-        newReleases: [],
-        popularMovies: [],
-      };
-    }
-  }
-
-  /**
-   * Get trending shows
-   */
-  private async getPopularShows(): Promise<ContentReference[]> {
-    try {
-      const [trending, topRated] = await Promise.all([
-        showService.getTrendingShows(5),
-        showService.getTopRatedShows(5),
-      ]);
-
-      const combined = [...trending, ...topRated];
-      const unique = combined.filter((movie, index, self) => index === self.findIndex((m) => m.id === movie.id));
-
-      return unique.slice(0, 5);
-    } catch (error) {
-      cliLogger.error('Failed to get trending shows', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get new releases
-   */
-  private async getNewReleases(): Promise<ContentReference[]> {
-    try {
-      const [newShows, newMovies] = await Promise.all([
-        showService.getNewlyAddedShows(5),
-        moviesService.getRecentlyReleasedMovies(5),
-      ]);
-
-      const combined = [...newShows, ...newMovies];
-      return combined.sort(() => Math.random() - 0.5).slice(0, 5);
-    } catch (error) {
-      cliLogger.error('Failed to get new releases', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get popular movies
-   */
-  private async getPopularMovies(): Promise<ContentReference[]> {
-    try {
-      const [trending, topRated] = await Promise.all([
-        moviesService.getTrendingMovies(5),
-        moviesService.getTopRatedMovies(5),
-      ]);
-
-      const combined = [...trending, ...topRated];
-      const unique = combined.filter((movie, index, self) => index === self.findIndex((m) => m.id === movie.id));
-
-      return unique.slice(0, 5);
-    } catch (error) {
-      cliLogger.error('Failed to get popular movies', error);
-      return [];
-    }
-  }
-
-  /**
-   * Send individual weekly digest email
-   */
-  private async sendWeeklyDigestEmail(emailData: DigestEmail): Promise<void> {
-    try {
-      const htmlContent = generateWeeklyDigestHTML(emailData);
-      const textContent = generateWeeklyDigestText(emailData);
-
-      const mailOptions = {
-        from: this.config.from,
-        to: emailData.to,
-        subject: `Your Weekly Watch Guide - ${emailData.weekRange.start} to ${emailData.weekRange.end}`,
-        html: htmlContent,
-        text: textContent,
-      };
-
-      await this.transporter.sendMail(mailOptions);
-    } catch (error) {
-      throw errorService.handleError(error, `sendWeeklyDigestEmail(${emailData.to})`);
-    }
-  }
-
-  /**
-   * Send content discovery email
-   */
-  private async sendWeeklyDiscoveryEmail(emailData: DiscoveryEmail): Promise<void> {
-    try {
-      const htmlContent = generateDiscoveryEmailHTML(emailData);
-      const textContent = generateDiscoveryEmailText(emailData);
-
-      const mailOptions = {
-        from: this.config.from,
-        to: emailData.to,
-        subject: `🎬 Discover Something New This Week - ${emailData.data.weekRange.start} to ${emailData.data.weekRange.end}`,
-        html: htmlContent,
-        text: textContent,
-      };
-
-      await this.transporter.sendMail(mailOptions);
-    } catch (error) {
-      throw errorService.handleError(error, `sendWeeklyDiscoveryEmail(${emailData.to})`);
-    }
-  }
-
-  /**
    * Send digest email to a specific account
    */
-  public async sendManualDigestEmailToAccount(accountEmail: string): Promise<void> {
+  public async sendDigestEmailToAccount(accountEmail: string): Promise<void> {
     try {
-      const weekRange = getUpcomingWeekRange();
-      const account = await accountService.getCombinedAccountByEmail(accountEmail);
-
-      if (!account) {
-        throw new NotFoundError(`Account not found: ${accountEmail}`);
-      }
-
-      if (!account.emailVerified) {
-        throw new NotVerifiedError();
-      }
-
-      const profiles = await profileService.getProfilesByAccountId(account.id);
-
-      if (profiles.length === 0) {
-        throw new NotFoundError(`Account ${accountEmail} has no profiles`);
-      }
-
-      const contentAnalysis = await this.analyzeAccountContent(profiles, weekRange);
-      if (!contentAnalysis.hasUpcomingContent) {
-        throw new NotFoundError(
-          `Account ${accountEmail} has no upcoming content this week. Use sendTestDiscoveryEmail instead.`,
-        );
-      }
-
-      const digestEmail: DigestEmail = {
-        to: account.email!,
-        accountName: account.name,
-        profiles: contentAnalysis.profileDigests,
-        weekRange,
-      };
-
-      await this.sendWeeklyDigestEmail(digestEmail);
-      cliLogger.info(`Test weekly digest sent to account: ${accountEmail}`);
+      const { digestData } = await emailContentService.generateDigestContent(accountEmail);
+      await emailDeliveryService.sendDigestEmail(digestData);
+      cliLogger.info(`Weekly digest sent to account: ${accountEmail}`);
     } catch (error) {
-      throw errorService.handleError(error, `sendManualDigestEmailToAccount(${accountEmail})`);
+      throw errorService.handleError(error, `sendDigestEmailToAccount(${accountEmail})`);
     }
   }
 
   /**
    * Send discovery email to a specific account
    */
-  public async sendManualDiscoveryEmailToAccount(accountEmail: string): Promise<void> {
+  public async sendDiscoveryEmailToAccount(accountEmail: string): Promise<void> {
     try {
-      const weekRange = getUpcomingWeekRange();
-      const account = await accountService.getCombinedAccountByEmail(accountEmail);
-
-      if (!account) {
-        throw new NotFoundError(`Account not found: ${accountEmail}`);
-      }
-
-      if (!account.emailVerified) {
-        throw new NotVerifiedError();
-      }
-
-      const profiles = await profileService.getProfilesByAccountId(account.id);
-      const featuredContent = await this.getFeaturedContent();
-
-      const discoveryEmail: DiscoveryEmail = {
-        to: account.email!,
-        accountName: account.name,
-        data: {
-          accountName: account.name,
-          profiles: profiles.map((p) => ({ id: p.id, name: p.name })),
-          featuredContent,
-          weekRange,
-        },
-      };
-
-      await this.sendWeeklyDiscoveryEmail(discoveryEmail);
-      cliLogger.info(`Test weekly discovery email sent to: ${accountEmail}`);
+      const { discoveryData } = await emailContentService.generateDiscoveryContent(accountEmail);
+      await emailDeliveryService.sendDiscoveryEmail(discoveryData);
+      cliLogger.info(`Weekly discovery email sent to: ${accountEmail}`);
     } catch (error) {
-      throw errorService.handleError(error, `sendManualDiscoveryEmailToAccount(${accountEmail})`);
+      throw errorService.handleError(error, `sendDiscoveryEmailToAccount(${accountEmail})`);
     }
   }
 
@@ -476,153 +167,303 @@ export class EmailService {
    * Send weekly digest to a specific account regardless of content availability
    * If no upcoming content, sends discovery email instead
    */
-  public async sendManualEmailToAccount(
+  public async sendWeeklyEmailToAccount(
     accountEmail: string,
   ): Promise<{ emailType: 'digest' | 'discovery'; hasContent: boolean }> {
     try {
-      const weekRange = getUpcomingWeekRange();
-      const account = await accountService.getCombinedAccountByEmail(accountEmail);
+      const contentResult = await emailContentService.generateEmailContent(accountEmail);
 
-      if (!account) {
-        throw new NotFoundError(`Account not found: ${accountEmail}`);
-      }
-
-      if (!account.emailVerified) {
-        throw new NotVerifiedError();
-      }
-
-      const profiles = await profileService.getProfilesByAccountId(account.id);
-      if (profiles.length === 0) {
-        throw new NotFoundError(`Account ${accountEmail} has no profiles`);
-      }
-
-      const contentAnalysis = await this.analyzeAccountContent(profiles, weekRange);
-
-      if (contentAnalysis.hasUpcomingContent) {
-        const digestEmail: DigestEmail = {
-          to: account.email!,
-          accountName: account.name,
-          profiles: contentAnalysis.profileDigests,
-          weekRange,
-        };
-
-        await this.sendWeeklyDigestEmail(digestEmail);
-        cliLogger.info(`Test weekly digest sent to account: ${accountEmail}`);
+      if (contentResult.emailType === 'digest' && contentResult.digestData) {
+        await emailDeliveryService.sendDigestEmail(contentResult.digestData);
+        cliLogger.info(`Weekly digest email sent to account: ${accountEmail}`);
         return { emailType: 'digest', hasContent: true };
-      } else {
-        const featuredContent = await this.getFeaturedContent();
-
-        const discoveryEmail: DiscoveryEmail = {
-          to: account.email!,
-          accountName: account.name,
-          data: {
-            accountName: account.name,
-            profiles: profiles.map((p) => ({ id: p.id, name: p.name })),
-            featuredContent,
-            weekRange,
-          },
-        };
-
-        await this.sendWeeklyDiscoveryEmail(discoveryEmail);
-        cliLogger.info(`Test discovery email sent to account: ${accountEmail}`);
+      } else if (contentResult.emailType === 'discovery' && contentResult.discoveryData) {
+        await emailDeliveryService.sendDiscoveryEmail(contentResult.discoveryData);
+        cliLogger.info(`Weekly discovery email sent to account: ${accountEmail}`);
         return { emailType: 'discovery', hasContent: false };
+      } else {
+        throw new Error(`Invalid content result for account: ${accountEmail}`);
       }
     } catch (error) {
-      throw errorService.handleError(error, `sendTestEmailToAccount(${accountEmail})`);
+      throw errorService.handleError(error, `sendWeeklyEmailToAccount(${accountEmail})`);
     }
   }
 
   /**
    * Preview weekly digest data for a specific account without sending email
    */
-  public async previewWeeklyDigestForAccount(accountEmail: string): Promise<{
-    account: { email: string; name: string };
-    emailType: 'digest' | 'discovery';
-    profileCount: number;
-    profilesWithContent: number;
-    profileAnalyses: ProfileContentAnalysis[];
-    digestData?: DigestEmail;
-    discoveryData?: DiscoveryEmail;
-  }> {
+  public async previewWeeklyDigestForAccount(accountEmail: string): Promise<EmailContentResult> {
     try {
-      const weekRange = getUpcomingWeekRange();
-      const account = await accountService.getCombinedAccountByEmail(accountEmail);
-
-      if (!account) {
-        throw new NotFoundError(`Account not found: ${accountEmail}`);
-      }
-
-      if (!account.emailVerified) {
-        throw new NotVerifiedError();
-      }
-
-      const profiles = await profileService.getProfilesByAccountId(account.id);
-
-      if (profiles.length === 0) {
-        throw new NotFoundError(`Account ${accountEmail} has no profiles`);
-      }
-
-      const contentAnalysis = await this.analyzeAccountContent(profiles, weekRange);
-
-      const baseResult = {
-        account: { email: account.email!, name: account.name },
-        profileCount: profiles.length,
-        profilesWithContent: contentAnalysis.profileAnalyses.filter((p) => p.hasContent).length,
-        profileAnalyses: contentAnalysis.profileAnalyses,
-      };
-
-      if (contentAnalysis.hasUpcomingContent) {
-        return {
-          ...baseResult,
-          emailType: 'digest' as const,
-          digestData: {
-            to: account.email!,
-            accountName: account.name,
-            profiles: contentAnalysis.profileDigests,
-            weekRange,
-          },
-        };
-      } else {
-        const featuredContent = await this.getFeaturedContent();
-
-        return {
-          ...baseResult,
-          emailType: 'discovery' as const,
-          discoveryData: {
-            to: account.email!,
-            accountName: account.name,
-            data: {
-              accountName: account.name,
-              profiles: profiles.map((p) => ({ id: p.id, name: p.name })),
-              featuredContent,
-              weekRange,
-            },
-          },
-        };
-      }
+      return await emailContentService.generateEmailContent(accountEmail);
     } catch (error) {
       throw errorService.handleError(error, `previewWeeklyDigestForAccount(${accountEmail})`);
     }
   }
-}
 
-// Singleton instance
-let emailServiceInstance: EmailService | null = null;
-
-/**
- * Initialize the email service with configuration
- */
-export function initializeEmailService(config: EmailConfig): EmailService {
-  emailServiceInstance = new EmailService(config);
-  return emailServiceInstance;
-}
-
-/**
- * Get the email service instance
- */
-export function getEmailService(): EmailService {
-  if (!emailServiceInstance) {
-    throw new Error('Email service not initialized. Call initializeEmailService() first.');
+  /**
+   * Get all email templates
+   */
+  public async getEmailTemplates(): Promise<EmailTemplate[]> {
+    try {
+      return await emailDb.getEmailTemplates();
+    } catch (error) {
+      throw errorService.handleError(error, 'getEmailTemplates');
+    }
   }
-  return emailServiceInstance;
+
+  /**
+   * Create a new email template
+   */
+  public async createEmailTemplate(template: CreateEmailTemplate): Promise<boolean> {
+    try {
+      return await emailDb.createEmailTemplate(template);
+    } catch (error) {
+      throw errorService.handleError(error, 'createEmailTemplate');
+    }
+  }
+
+  /**
+   * Update an existing email template
+   */
+  public async updateEmailTemplate(template: UpdateEmailTemplate): Promise<boolean> {
+    try {
+      return await emailDb.updateEmailTemplate(template);
+    } catch (error) {
+      throw errorService.handleError(error, 'updateEmailTemplate');
+    }
+  }
+
+  /**
+   * Delete an email template
+   */
+  public async deleteEmailTemplate(templateId: number): Promise<boolean> {
+    try {
+      return await emailDb.deleteEmailTemplate(templateId);
+    } catch (error) {
+      throw errorService.handleError(error, 'deleteEmailTemplate');
+    }
+  }
+
+  /**
+   * Get emails with pagination
+   */
+  public async getAllEmails(page: number, offset: number, limit: number) {
+    try {
+      const [totalCount, emails] = await Promise.all([
+        emailDb.getAllEmailsCount(),
+        emailDb.getAllEmails(limit, offset),
+      ]);
+      const totalPages = Math.ceil(totalCount / limit);
+      return {
+        emails,
+        pagination: {
+          totalCount,
+          totalPages,
+          currentPage: page,
+          limit,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+      };
+    } catch (error) {
+      throw errorService.handleError(error, 'getAllSentEmails');
+    }
+  }
+
+  /**
+   * Send, schedule, or save an email
+   */
+  public async sendScheduleOrSaveEmail(emailData: CreateEmail): Promise<boolean> {
+    try {
+      const emailRecord: CreateEmailRow = {
+        subject: emailData.subject,
+        message: emailData.message,
+        sent_to_all: emailData.sendToAll,
+        account_count: emailData.recipients.length,
+        scheduled_date: emailData.scheduledDate,
+        sent_date: null,
+        status: 'pending',
+      };
+      const emailId = await emailDb.createEmail(emailRecord);
+
+      if (emailId === 0) {
+        throw new Error('Failed to save email record to database');
+      }
+
+      await this.saveRecipients(emailId, emailData.recipients);
+
+      switch (emailData.action) {
+        case 'send':
+          await this.sendImmediately(emailId, emailData);
+          appLogger.info('Email sent', { subject: emailData.subject });
+          break;
+        case 'schedule':
+          await this.scheduleEmail(emailId, emailData);
+          appLogger.info('Email scheduled', {
+            subject: emailData.subject,
+            scheduledDate: emailData.scheduledDate,
+          });
+          break;
+        case 'draft':
+          appLogger.info('Email draft saved', { subject: emailData.subject });
+          break;
+      }
+
+      return true;
+    } catch (error) {
+      throw errorService.handleError(error, 'sendScheduleOrSaveEmail');
+    }
+  }
+
+  /**
+   * Save email recipients
+   */
+  public async saveRecipients(emailId: number, recipients: number[]) {
+    try {
+      const emailRecipients: CreateEmailRecipient[] = recipients.map((recipient) => {
+        return { email_id: emailId, account_id: recipient, status: 'pending', sent_at: null, error_message: null };
+      });
+      await emailDb.createEmailRecipients(emailRecipients);
+    } catch (error) {
+      throw errorService.handleError(error, 'saveRecipients');
+    }
+  }
+
+  /**
+   * Send an email immediately
+   */
+  public async sendImmediately(emailId: number, emailData: CreateEmail) {
+    try {
+      const accounts = await emailDb.getEmailRecipients(emailId);
+      for (const account of accounts) {
+        try {
+          await emailDeliveryService.sendEmail(account.email, emailData.subject, emailData.message);
+          await emailDb.updateEmailRecipientStatus(emailId, account.id, new Date().toISOString(), 'sent');
+        } catch (error) {
+          await emailDb.updateEmailRecipientStatusFailure(
+            emailId,
+            account.id,
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      }
+      await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+    } catch (error) {
+      await emailDb.updateEmailStatus(emailId, null, 'failed');
+      throw errorService.handleError(error, 'sendImmediately');
+    }
+  }
+
+  /**
+   * Schedule the email for a later time
+   */
+  public async scheduleEmail(emailId: number, emailData: CreateEmail) {
+    try {
+      if (!emailData.scheduledDate) {
+        throw new BadRequestError('Scheduled date is required for scheduling emails');
+      }
+
+      const scheduledDate = new Date(emailData.scheduledDate);
+      const now = new Date();
+
+      if (scheduledDate <= now) {
+        throw new BadRequestError('Scheduled date must be in the future');
+      }
+
+      const delay = scheduledDate.getTime() - now.getTime();
+      const timeoutId = setTimeout(async () => {
+        try {
+          appLogger.info('Executing scheduled email job', {
+            emailId,
+            subject: emailData.subject,
+            scheduledDate: emailData.scheduledDate,
+          });
+
+          this.scheduledJobs.delete(emailId);
+
+          await this.sendImmediately(emailId, emailData);
+
+          appLogger.info('Scheduled email sent successfully', {
+            emailId,
+            subject: emailData.subject,
+          });
+        } catch (error) {
+          appLogger.error('Failed to send scheduled email', {
+            emailId,
+            subject: emailData.subject,
+            error: error instanceof Error ? error.message : String(error),
+          });
+
+          this.scheduledJobs.delete(emailId);
+          await emailDb.updateEmailStatus(emailId, null, 'failed');
+          throw errorService.handleError(error, 'scheduleEmail');
+        }
+      }, delay);
+
+      this.scheduledJobs.set(emailId, timeoutId);
+
+      await emailDb.updateEmailStatus(emailId, null, 'scheduled');
+
+      appLogger.info('Email job scheduled', {
+        emailId,
+        subject: emailData.subject,
+        scheduledDate: emailData.scheduledDate,
+        delayMs: delay,
+      });
+    } catch (error) {
+      await emailDb.updateEmailStatus(emailId, null, 'failed');
+      throw errorService.handleError(error, 'scheduleEmail');
+    }
+  }
+
+  /**
+   * Cancel a scheduled email
+   */
+  public async cancelScheduledEmail(emailId: number): Promise<boolean> {
+    try {
+      const timeoutId = this.scheduledJobs.get(emailId);
+
+      if (!timeoutId) {
+        throw new BadRequestError('No scheduled job found for this email ID');
+      }
+
+      clearTimeout(timeoutId);
+      this.scheduledJobs.delete(emailId);
+      await emailDb.updateEmailStatus(emailId, null, 'draft');
+      appLogger.info('Scheduled email job cancelled', { emailId });
+
+      return true;
+    } catch (error) {
+      throw errorService.handleError(error, 'cancelScheduledEmail');
+    }
+  }
+
+  /**
+   * Get all active scheduled email jobs
+   */
+  public getActiveScheduledJobs(): number[] {
+    return Array.from(this.scheduledJobs.keys());
+  }
+
+  /**
+   * Delete an email
+   */
+  public async deleteEmail(id: number): Promise<boolean> {
+    try {
+      const email = await emailDb.getEmail(id);
+      if (!email) {
+        throw new NotFoundError(`Email with id ${id} not found`);
+      }
+
+      if (email.status === 'scheduled') {
+        this.cancelScheduledEmail(id);
+      }
+
+      return await emailDb.deleteEmail(id);
+    } catch (error) {
+      throw errorService.handleError(error, 'deleteSentEmail');
+    }
+  }
 }
+
+export const emailService = new EmailService();
