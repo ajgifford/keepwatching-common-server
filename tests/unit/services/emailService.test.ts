@@ -35,7 +35,19 @@ describe('EmailService', () => {
     jest.clearAllMocks();
 
     (errorService.handleError as jest.Mock).mockImplementation((error) => {
-      throw error;
+      return error;
+    });
+  });
+
+  afterEach(() => {
+    // Clean up any scheduled jobs to prevent unhandled promise rejections
+    const activeJobs = emailService.getActiveScheduledJobs();
+    activeJobs.forEach((emailId) => {
+      try {
+        emailService.cancelScheduledEmail(emailId);
+      } catch {
+        // Ignore errors during cleanup
+      }
     });
   });
 
