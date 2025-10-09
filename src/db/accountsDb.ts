@@ -215,6 +215,33 @@ export async function updateLastLogin(uid: string): Promise<boolean> {
 }
 
 /**
+ * Updates the last activity timestamp for an account with throttling
+ *
+ * Only updates if the last activity was more than the specified throttle minutes ago,
+ * or if last_activity is NULL. This prevents excessive database writes.
+ *
+ * @param accountId - Account ID to update
+ * @param throttleMinutes - Minimum minutes between activity updates (default: 5)
+ * @returns True if the update was successful, false otherwise
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function updateLastActivity(accountId: number, throttleMinutes = 5): Promise<boolean> {
+  try {
+    const query = `
+      UPDATE accounts 
+      SET last_activity = NOW() 
+      WHERE account_id = ? 
+        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))
+    `;
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId, throttleMinutes]);
+
+    return result.affectedRows > 0;
+  } catch (error) {
+    handleDatabaseError(error, 'updating last activity');
+  }
+}
+
+/**
  * Finds the account ID associated with a specific profile
  *
  * @param profileId - Profile ID to search for

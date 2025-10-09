@@ -157,6 +157,19 @@ export function isEmailEnabled(): boolean {
 }
 
 /**
+ * Get activity tracking configuration
+ */
+export function getActivityTrackingConfig(): {
+  enabled: boolean;
+  throttleMinutes: number;
+} {
+  return {
+    enabled: process.env.ACTIVITY_TRACKING_ENABLED?.toLowerCase() !== 'false',
+    throttleMinutes: Number(process.env.ACTIVITY_TRACKING_THROTTLE_MINUTES) || 5,
+  };
+}
+
+/**
  * Validate email configuration
  */
 export function validateEmailConfig(): { isValid: boolean; errors: string[] } {

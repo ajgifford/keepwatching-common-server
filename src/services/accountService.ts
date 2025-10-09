@@ -1,4 +1,4 @@
-import { getServiceName } from '../config/config';
+import { getActivityTrackingConfig, getServiceName } from '../config/config';
 import * as accountsDb from '../db/accountsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { BadRequestError, FirebaseError, ForbiddenError, NotFoundError } from '../middleware/errorMiddleware';
@@ -351,6 +351,37 @@ export class AccountService {
   }
 
   /**
+   * Tracks user activity by updating the last_activity timestamp
+   *
+   * This method uses a fire-and-forget pattern to avoid blocking API requests.
+   * Errors are logged but do not throw to prevent disruption to the user experience.
+   *
+   * @param accountId - ID of the account to track activity for
+   * @returns Promise that resolves when tracking is complete (does not throw)
+   */
+  public async trackActivity(accountId: number): Promise<void> {
+    try {
+      const config = getActivityTrackingConfig();
+
+      if (!config.enabled) {
+        return;
+      }
+
+      const updated = await accountsDb.updateLastActivity(accountId, config.throttleMinutes);
+
+      if (updated) {
+        appLogger.debug(`Activity tracked for account ${accountId}`, { accountId });
+      }
+    } catch (error) {
+      // Log error but don't throw - activity tracking should not disrupt requests
+      appLogger.error(`Failed to track activity for account ${accountId}`, {
+        error: error instanceof Error ? error.message : String(error),
+        accountId,
+      });
+    }
+  }
+
+  /**
    * Get account by email address
    */
   public async getCombinedAccountByEmail(email: string): Promise<CombinedAccount | null> {
@@ -381,6 +412,7 @@ export class AccountService {
         image: getAccountImage(dbAccount.image, dbAccount.account_name),
         databaseCreatedAt: dbAccount.created_at,
         lastLogin: dbAccount.last_login,
+        lastActivity: dbAccount.last_activity,
       };
     } catch (error) {
       throw errorService.handleError(error, `getCombinedAccountByEmail(${email})`);
@@ -424,6 +456,7 @@ export class AccountService {
           image: getAccountImage(dbAccount.image, dbAccount.account_name),
           databaseCreatedAt: dbAccount.created_at,
           lastLogin: dbAccount.last_login,
+          lastActivity: dbAccount.last_activity,
         };
       });
 
