@@ -197,6 +197,24 @@ export async function findAccountById(id: number): Promise<Account | null> {
 }
 
 /**
+ * Updates the last login timestamp for an account
+ *
+ * @param uid - Firebase user ID of the account
+ * @returns True if the update was successful, false otherwise
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function updateLastLogin(uid: string): Promise<boolean> {
+  try {
+    const query = `UPDATE accounts SET last_login = NOW() WHERE uid = ?`;
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [uid]);
+
+    return result.affectedRows > 0;
+  } catch (error) {
+    handleDatabaseError(error, 'updating last login');
+  }
+}
+
+/**
  * Finds the account ID associated with a specific profile
  *
  * @param profileId - Profile ID to search for

@@ -9,6 +9,7 @@ export interface AccountReferenceRow extends RowDataPacket {
 
 export interface AccountRow extends AccountReferenceRow {
   uid: string;
+  last_login: Date | null;
   image: string;
   default_profile_id: number;
   created_at: Date;

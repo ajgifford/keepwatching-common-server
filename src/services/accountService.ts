@@ -55,6 +55,8 @@ export class AccountService {
       const account = await accountsDb.findAccountByUID(uid);
       errorService.assertExists(account, 'Account', uid);
 
+      await accountsDb.updateLastLogin(uid);
+
       appLogger.info(`User logged in: ${account.email}`, { userId: account.uid });
       cliLogger.info(`User authenticated: ${account.email}`);
 
@@ -92,6 +94,8 @@ export class AccountService {
 
       const account = await accountsDb.registerAccount(accountData);
 
+      await accountsDb.updateLastLogin(uid);
+
       appLogger.info(`New user registered: ${email}`, { userId: uid });
       cliLogger.info(`New account created: ${email}`);
 
@@ -125,6 +129,8 @@ export class AccountService {
       const existingAccount = await accountsDb.findAccountByUID(uid);
 
       if (existingAccount) {
+        await accountsDb.updateLastLogin(uid);
+
         appLogger.info(`User logged in via Google: ${existingAccount.email}`, { userId: existingAccount.uid });
         cliLogger.info(`Google authentication: existing user ${existingAccount.email}`);
 
@@ -151,6 +157,8 @@ export class AccountService {
       };
 
       const newAccount = await accountsDb.registerAccount(accountData);
+
+      await accountsDb.updateLastLogin(uid);
 
       appLogger.info(`New user registered via Google: ${email}`, { userId: uid });
       cliLogger.info(`Google authentication: new account created for ${email}`);
@@ -372,6 +380,7 @@ export class AccountService {
         defaultProfileId: dbAccount.default_profile_id,
         image: getAccountImage(dbAccount.image, dbAccount.account_name),
         databaseCreatedAt: dbAccount.created_at,
+        lastLogin: dbAccount.last_login,
       };
     } catch (error) {
       throw errorService.handleError(error, `getCombinedAccountByEmail(${email})`);
@@ -414,6 +423,7 @@ export class AccountService {
           defaultProfileId: dbAccount.default_profile_id,
           image: getAccountImage(dbAccount.image, dbAccount.account_name),
           databaseCreatedAt: dbAccount.created_at,
+          lastLogin: dbAccount.last_login,
         };
       });
 
