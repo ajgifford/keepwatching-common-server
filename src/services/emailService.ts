@@ -186,8 +186,52 @@ export class EmailService {
   public async sendDigestEmailToAccount(accountEmail: string): Promise<void> {
     try {
       const { digestData } = await emailContentService.generateDigestContent(accountEmail);
-      await emailDeliveryService.sendDigestEmail(digestData);
-      cliLogger.info(`Weekly digest sent to account: ${accountEmail}`);
+
+      // Create email record
+      const emailRecord: CreateEmailRow = {
+        subject: `Your Weekly Watch Guide - ${digestData.weekRange.start} to ${digestData.weekRange.end}`,
+        message: 'Weekly digest email sent to single account',
+        sent_to_all: false,
+        account_count: 1,
+        scheduled_date: null,
+        sent_date: null,
+        status: 'pending',
+      };
+      const emailId = await emailDb.createEmail(emailRecord);
+
+      if (emailId > 0) {
+        // Create recipient record
+        const recipient: CreateEmailRecipient = {
+          email_id: emailId,
+          account_id: digestData.accountId,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        };
+        await emailDb.createEmailRecipient(recipient);
+
+        try {
+          // Send email
+          await emailDeliveryService.sendDigestEmail(digestData);
+
+          // Update success status
+          await emailDb.updateEmailRecipientStatus(emailId, digestData.accountId, new Date().toISOString(), 'sent');
+          await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+
+          cliLogger.info(`Weekly digest sent to account: ${accountEmail}`);
+        } catch (sendError) {
+          // Update failure status
+          await emailDb.updateEmailRecipientStatusFailure(
+            emailId,
+            digestData.accountId,
+            sendError instanceof Error ? sendError.message : String(sendError),
+          );
+          await emailDb.updateEmailStatus(emailId, null, 'failed');
+          throw sendError;
+        }
+      } else {
+        throw new Error('Failed to create email record');
+      }
     } catch (error) {
       throw errorService.handleError(error, `sendDigestEmailToAccount(${accountEmail})`);
     }
@@ -199,8 +243,52 @@ export class EmailService {
   public async sendDiscoveryEmailToAccount(accountEmail: string): Promise<void> {
     try {
       const { discoveryData } = await emailContentService.generateDiscoveryContent(accountEmail);
-      await emailDeliveryService.sendDiscoveryEmail(discoveryData);
-      cliLogger.info(`Weekly discovery email sent to: ${accountEmail}`);
+
+      // Create email record
+      const emailRecord: CreateEmailRow = {
+        subject: `🎬 Discover Something New This Week - ${discoveryData.data.weekRange.start} to ${discoveryData.data.weekRange.end}`,
+        message: 'Weekly discovery email sent to single account',
+        sent_to_all: false,
+        account_count: 1,
+        scheduled_date: null,
+        sent_date: null,
+        status: 'pending',
+      };
+      const emailId = await emailDb.createEmail(emailRecord);
+
+      if (emailId > 0) {
+        // Create recipient record
+        const recipient: CreateEmailRecipient = {
+          email_id: emailId,
+          account_id: discoveryData.accountId,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        };
+        await emailDb.createEmailRecipient(recipient);
+
+        try {
+          // Send email
+          await emailDeliveryService.sendDiscoveryEmail(discoveryData);
+
+          // Update success status
+          await emailDb.updateEmailRecipientStatus(emailId, discoveryData.accountId, new Date().toISOString(), 'sent');
+          await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+
+          cliLogger.info(`Weekly discovery email sent to: ${accountEmail}`);
+        } catch (sendError) {
+          // Update failure status
+          await emailDb.updateEmailRecipientStatusFailure(
+            emailId,
+            discoveryData.accountId,
+            sendError instanceof Error ? sendError.message : String(sendError),
+          );
+          await emailDb.updateEmailStatus(emailId, null, 'failed');
+          throw sendError;
+        }
+      } else {
+        throw new Error('Failed to create email record');
+      }
     } catch (error) {
       throw errorService.handleError(error, `sendDiscoveryEmailToAccount(${accountEmail})`);
     }
@@ -217,12 +305,109 @@ export class EmailService {
       const contentResult = await emailContentService.generateEmailContent(accountEmail);
 
       if (contentResult.emailType === 'digest' && contentResult.digestData) {
-        await emailDeliveryService.sendDigestEmail(contentResult.digestData);
-        cliLogger.info(`Weekly digest email sent to account: ${accountEmail}`);
+        const digestData = contentResult.digestData;
+
+        // Create email record
+        const emailRecord: CreateEmailRow = {
+          subject: `Your Weekly Watch Guide - ${digestData.weekRange.start} to ${digestData.weekRange.end}`,
+          message: 'Weekly digest email sent to single account',
+          sent_to_all: false,
+          account_count: 1,
+          scheduled_date: null,
+          sent_date: null,
+          status: 'pending',
+        };
+        const emailId = await emailDb.createEmail(emailRecord);
+
+        if (emailId > 0) {
+          // Create recipient record
+          const recipient: CreateEmailRecipient = {
+            email_id: emailId,
+            account_id: digestData.accountId,
+            status: 'pending',
+            sent_at: null,
+            error_message: null,
+          };
+          await emailDb.createEmailRecipient(recipient);
+
+          try {
+            // Send email
+            await emailDeliveryService.sendDigestEmail(digestData);
+
+            // Update success status
+            await emailDb.updateEmailRecipientStatus(emailId, digestData.accountId, new Date().toISOString(), 'sent');
+            await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+
+            cliLogger.info(`Weekly digest email sent to account: ${accountEmail}`);
+          } catch (sendError) {
+            // Update failure status
+            await emailDb.updateEmailRecipientStatusFailure(
+              emailId,
+              digestData.accountId,
+              sendError instanceof Error ? sendError.message : String(sendError),
+            );
+            await emailDb.updateEmailStatus(emailId, null, 'failed');
+            throw sendError;
+          }
+        } else {
+          throw new Error('Failed to create email record');
+        }
+
         return { emailType: 'digest', hasContent: true };
       } else if (contentResult.emailType === 'discovery' && contentResult.discoveryData) {
-        await emailDeliveryService.sendDiscoveryEmail(contentResult.discoveryData);
-        cliLogger.info(`Weekly discovery email sent to account: ${accountEmail}`);
+        const discoveryData = contentResult.discoveryData;
+
+        // Create email record
+        const emailRecord: CreateEmailRow = {
+          subject: `🎬 Discover Something New This Week - ${discoveryData.data.weekRange.start} to ${discoveryData.data.weekRange.end}`,
+          message: 'Weekly discovery email sent to single account',
+          sent_to_all: false,
+          account_count: 1,
+          scheduled_date: null,
+          sent_date: null,
+          status: 'pending',
+        };
+        const emailId = await emailDb.createEmail(emailRecord);
+
+        if (emailId > 0) {
+          // Create recipient record
+          const recipient: CreateEmailRecipient = {
+            email_id: emailId,
+            account_id: discoveryData.accountId,
+            status: 'pending',
+            sent_at: null,
+            error_message: null,
+          };
+          await emailDb.createEmailRecipient(recipient);
+
+          try {
+            // Send email
+            await emailDeliveryService.sendDiscoveryEmail(discoveryData);
+
+            // Update success status
+            await emailDb.updateEmailRecipientStatus(
+              emailId,
+              discoveryData.accountId,
+              new Date().toISOString(),
+              'sent',
+            );
+            await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+
+            cliLogger.info(`Weekly discovery email sent to account: ${accountEmail}`);
+          } catch (sendError) {
+            // Update failure status
+            await emailDb.updateEmailRecipientStatusFailure(
+              emailId,
+              discoveryData.accountId,
+              sendError instanceof Error ? sendError.message : String(sendError),
+            );
+            await emailDb.updateEmailStatus(emailId, null, 'failed');
+            throw sendError;
+          }
+        } else {
+          throw new Error('Failed to create email record');
+        }
+
         return { emailType: 'discovery', hasContent: false };
       } else {
         throw new Error(`Invalid content result for account: ${accountEmail}`);

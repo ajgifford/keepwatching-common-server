@@ -180,7 +180,7 @@ export async function getEmailRecipients(emailId: number): Promise<AccountRefere
 export async function createEmailRecipient(recipient: CreateEmailRecipient) {
   try {
     const query =
-      'INSERT INTO email_recipient (email_id, account_id, status, sent_at, error_message) VALUES (?, ?, ?, ?, ?)';
+      'INSERT INTO email_recipients (email_id, account_id, status, sent_at, error_message) VALUES (?, ?, ?, ?, ?)';
     const [insertResult] = await getDbPool().execute<ResultSetHeader>(query, [
       recipient.email_id,
       recipient.account_id,
