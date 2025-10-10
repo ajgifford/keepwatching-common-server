@@ -63,16 +63,33 @@ export class EmailService {
             digestEmails,
             digestEmailId,
             async (accountId: number, success: boolean, error?: string) => {
-              if (success) {
-                await emailDb.updateEmailRecipientStatus(digestEmailId, accountId, new Date().toISOString(), 'sent');
-              } else {
-                await emailDb.updateEmailRecipientStatusFailure(digestEmailId, accountId, error || 'Unknown error');
+              try {
+                if (success) {
+                  await emailDb.updateEmailRecipientStatus(digestEmailId, accountId, new Date().toISOString(), 'sent');
+                } else {
+                  await emailDb.updateEmailRecipientStatusFailure(digestEmailId, accountId, error || 'Unknown error');
+                }
+              } catch (dbError) {
+                appLogger.error('Failed to update email recipient status', {
+                  emailId: digestEmailId,
+                  accountId,
+                  success,
+                  error: dbError instanceof Error ? dbError.message : String(dbError),
+                });
               }
             },
           );
 
           const finalStatus = digestResults.failed === 0 ? 'sent' : digestResults.sent > 0 ? 'sent' : 'failed';
-          await emailDb.updateEmailStatus(digestEmailId, new Date().toISOString(), finalStatus);
+          try {
+            await emailDb.updateEmailStatus(digestEmailId, new Date().toISOString(), finalStatus);
+          } catch (dbError) {
+            appLogger.error('Failed to update email status', {
+              emailId: digestEmailId,
+              finalStatus,
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+            });
+          }
         }
       }
 
@@ -103,16 +120,42 @@ export class EmailService {
             discoveryEmails,
             discoveryEmailId,
             async (accountId: number, success: boolean, error?: string) => {
-              if (success) {
-                await emailDb.updateEmailRecipientStatus(discoveryEmailId, accountId, new Date().toISOString(), 'sent');
-              } else {
-                await emailDb.updateEmailRecipientStatusFailure(discoveryEmailId, accountId, error || 'Unknown error');
+              try {
+                if (success) {
+                  await emailDb.updateEmailRecipientStatus(
+                    discoveryEmailId,
+                    accountId,
+                    new Date().toISOString(),
+                    'sent',
+                  );
+                } else {
+                  await emailDb.updateEmailRecipientStatusFailure(
+                    discoveryEmailId,
+                    accountId,
+                    error || 'Unknown error',
+                  );
+                }
+              } catch (dbError) {
+                appLogger.error('Failed to update email recipient status', {
+                  emailId: discoveryEmailId,
+                  accountId,
+                  success,
+                  error: dbError instanceof Error ? dbError.message : String(dbError),
+                });
               }
             },
           );
 
           const finalStatus = discoveryResults.failed === 0 ? 'sent' : discoveryResults.sent > 0 ? 'sent' : 'failed';
-          await emailDb.updateEmailStatus(discoveryEmailId, new Date().toISOString(), finalStatus);
+          try {
+            await emailDb.updateEmailStatus(discoveryEmailId, new Date().toISOString(), finalStatus);
+          } catch (dbError) {
+            appLogger.error('Failed to update email status', {
+              emailId: discoveryEmailId,
+              finalStatus,
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+            });
+          }
         }
       }
 
@@ -336,20 +379,55 @@ export class EmailService {
     try {
       const accounts = await emailDb.getEmailRecipients(emailId);
       for (const account of accounts) {
+        let emailSent = false;
         try {
           await emailDeliveryService.sendEmail(account.email, emailData.subject, emailData.message);
+          emailSent = true;
           await emailDb.updateEmailRecipientStatus(emailId, account.id, new Date().toISOString(), 'sent');
         } catch (error) {
-          await emailDb.updateEmailRecipientStatusFailure(
-            emailId,
-            account.id,
-            error instanceof Error ? error.message : String(error),
-          );
+          // Only update failure status if email actually failed to send
+          if (!emailSent) {
+            try {
+              await emailDb.updateEmailRecipientStatusFailure(
+                emailId,
+                account.id,
+                error instanceof Error ? error.message : String(error),
+              );
+            } catch (dbError) {
+              appLogger.error('Failed to update recipient failure status', {
+                emailId,
+                accountId: account.id,
+                error: dbError instanceof Error ? dbError.message : String(dbError),
+              });
+            }
+          } else {
+            // Email sent but DB update failed
+            appLogger.error('Email sent but failed to update recipient status', {
+              emailId,
+              accountId: account.id,
+              accountEmail: account.email,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
       }
-      await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+      try {
+        await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+      } catch (dbError) {
+        appLogger.error('Emails sent but failed to update overall email status', {
+          emailId,
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
     } catch (error) {
-      await emailDb.updateEmailStatus(emailId, null, 'failed');
+      try {
+        await emailDb.updateEmailStatus(emailId, null, 'failed');
+      } catch (dbError) {
+        appLogger.error('Failed to update email status to failed', {
+          emailId,
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
       throw errorService.handleError(error, 'sendImmediately');
     }
   }

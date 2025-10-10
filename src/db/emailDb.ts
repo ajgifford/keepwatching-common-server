@@ -9,6 +9,7 @@ import {
 } from '../types/emailTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
+import { TimestampUtil } from '../utils/timestampUtil';
 import {
   AccountReference,
   CreateEmailRecipient,
@@ -112,8 +113,8 @@ export async function createEmail(email: CreateEmailRow): Promise<number> {
       email.message,
       email.sent_to_all ? 1 : 0,
       email.account_count,
-      email.scheduled_date,
-      email.sent_date,
+      TimestampUtil.toMySQLDatetime(email.scheduled_date),
+      TimestampUtil.toMySQLDatetime(email.sent_date),
       email.status,
     ]);
     return insertResult.insertId;
@@ -131,8 +132,8 @@ export async function updateEmail(email: UpdateEmailRow): Promise<boolean> {
       email.message,
       email.sent_to_all ? 1 : 0,
       email.account_count,
-      email.scheduled_date,
-      email.sent_date,
+      TimestampUtil.toMySQLDatetime(email.scheduled_date),
+      TimestampUtil.toMySQLDatetime(email.sent_date),
       email.status,
       email.id,
     ]);
@@ -145,7 +146,11 @@ export async function updateEmail(email: UpdateEmailRow): Promise<boolean> {
 export async function updateEmailStatus(id: number, sentDate: string | null, status: EmailStatus): Promise<boolean> {
   try {
     const query = 'UPDATE emails SET sent_date = ?, status = ? WHERE id = ?';
-    const [updateResult] = await getDbPool().execute<ResultSetHeader>(query, [sentDate, status, id]);
+    const [updateResult] = await getDbPool().execute<ResultSetHeader>(query, [
+      TimestampUtil.toMySQLDatetime(sentDate),
+      status,
+      id,
+    ]);
     return updateResult.affectedRows > 0;
   } catch (error) {
     handleDatabaseError(error, 'updating an email status');
@@ -180,7 +185,7 @@ export async function createEmailRecipient(recipient: CreateEmailRecipient) {
       recipient.email_id,
       recipient.account_id,
       recipient.status,
-      recipient.sent_at,
+      TimestampUtil.toMySQLDatetime(recipient.sent_at),
       recipient.error_message,
     ]);
     return insertResult.affectedRows > 0;
@@ -197,7 +202,12 @@ export async function updateEmailRecipientStatus(
 ): Promise<boolean> {
   try {
     const query = 'UPDATE email_recipients SET sent_at = ?, status = ? WHERE email_id = ? AND account_id = ?';
-    const [updateResult] = await getDbPool().execute<ResultSetHeader>(query, [sentDate, status, email_id, account_id]);
+    const [updateResult] = await getDbPool().execute<ResultSetHeader>(query, [
+      TimestampUtil.toMySQLDatetime(sentDate),
+      status,
+      email_id,
+      account_id,
+    ]);
     return updateResult.affectedRows > 0;
   } catch (error) {
     handleDatabaseError(error, 'updating an email recipient status');
@@ -224,17 +234,18 @@ export async function createEmailRecipients(recipients: CreateEmailRecipient[]):
       return true;
     }
 
-    const query = 'INSERT INTO email_recipient (email_id, account_id, status, sent_at, error_message) VALUES ?';
+    const placeholders = recipients.map(() => '(?, ?, ?, ?, ?)').join(', ');
+    const query = `INSERT INTO email_recipients (email_id, account_id, status, sent_at, error_message) VALUES ${placeholders}`;
 
-    const values = recipients.map((recipient) => [
+    const flatValues = recipients.flatMap((recipient) => [
       recipient.email_id,
       recipient.account_id,
       recipient.status,
-      recipient.sent_at,
+      TimestampUtil.toMySQLDatetime(recipient.sent_at),
       recipient.error_message,
     ]);
 
-    const [insertResult] = await getDbPool().execute<ResultSetHeader>(query, [values]);
+    const [insertResult] = await getDbPool().execute<ResultSetHeader>(query, flatValues);
     return insertResult.affectedRows === recipients.length;
   } catch (error) {
     handleDatabaseError(error, 'creating email recipients');

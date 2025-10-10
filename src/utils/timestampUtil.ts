@@ -113,4 +113,16 @@ export class TimestampUtil {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return dateObj.toISOString();
   }
+
+  /**
+   * Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+   * @param isoString - ISO 8601 date string (e.g., '2025-10-10T02:16:24.077Z')
+   * @returns MySQL datetime string or null if input is null/undefined
+   */
+  static toMySQLDatetime(isoString: string | null | undefined): string | null {
+    if (!isoString) return null;
+
+    const date = new Date(isoString);
+    return TimestampUtil.formatDateToPattern(date, 'YYYY-MM-DD HH:mm:ss');
+  }
 }
