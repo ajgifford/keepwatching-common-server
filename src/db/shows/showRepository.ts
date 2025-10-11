@@ -1,4 +1,4 @@
-import { ContentUpdates, ContentUpdatesRow, transformContentUpdates } from '../../types/contentTypes';
+import { ShowContentUpdates, ShowContentUpdatesRow, transformShowContentUpdates } from '../../types/contentTypes';
 import { ShowReferenceRow, transformShowReferenceRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
@@ -254,11 +254,11 @@ export async function findShowByTMDBId(tmdbId: number): Promise<ShowReference | 
  * @returns Array of shows needing updates
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function getShowsForUpdates(): Promise<ContentUpdates[]> {
+export async function getShowsForUpdates(): Promise<ShowContentUpdates[]> {
   try {
-    const query = `SELECT id, title, tmdb_id, created_at, updated_at from shows where in_production = 1 AND status NOT IN ('Canceled', 'Ended')`;
-    const [updateRows] = await getDbPool().execute<ContentUpdatesRow[]>(query);
-    return updateRows.map(transformContentUpdates);
+    const sql = `SELECT id, title, tmdb_id, season_count, created_at, updated_at from shows where in_production = 1`;
+    const [rows] = await getDbPool().execute<ShowContentUpdatesRow[]>(sql);
+    return rows.map(transformShowContentUpdates);
   } catch (error) {
     handleDatabaseError(error, 'getting shows for updates');
   }

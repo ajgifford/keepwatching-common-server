@@ -5,7 +5,7 @@ import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { ContentUpdates } from '../types/contentTypes';
+import { ShowContentUpdates } from '../types/contentTypes';
 import {
   TMDBGenre,
   TMDBPaginatedResponse,
@@ -22,6 +22,7 @@ import {
 } from '../utils/changesUtility';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
+import { createNewSeasonNotifications } from '../utils/notificationUtility';
 import { filterUSOrEnglishShows } from '../utils/usSearchFilter';
 import { getUSWatchProvidersShow } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
@@ -96,7 +97,7 @@ export class ShowService {
    *
    * @returns Array of shows needing updates
    */
-  public async getShowsForUpdates(): Promise<ContentUpdates[]> {
+  public async getShowsForUpdates(): Promise<ShowContentUpdates[]> {
     try {
       return await showsDb.getShowsForUpdates();
     } catch (error) {
@@ -692,7 +693,7 @@ export class ShowService {
    * @param pastDate Date past date used as the start of the change window
    * @param currentDate Date current date used as the end of the change window
    */
-  public async checkShowForChanges(content: ContentUpdates, pastDate: string, currentDate: string) {
+  public async checkShowForChanges(content: ShowContentUpdates, pastDate: string, currentDate: string) {
     const tmdbService = getTMDBService();
 
     try {
@@ -714,6 +715,11 @@ export class ShowService {
 
       if (hasRelevantChange || seasonChange) {
         const showDetails = await tmdbService.getShowDetails(content.tmdb_id);
+
+        // Track if there's a new season for notifications
+        const previousSeasonCount = content.season_count;
+        const newSeasonCount = showDetails.number_of_seasons;
+        const hasNewSeason = seasonChange && newSeasonCount > previousSeasonCount;
 
         const updatedShow: UpdateShowRequest = {
           id: content.id,
@@ -756,6 +762,11 @@ export class ShowService {
             currentDate,
           );
           await this.checkAndUpdateShowStatus(updatedShow.id, profilesForShow.profileAccountMappings);
+        }
+
+        // Create notifications for new seasons
+        if (hasNewSeason) {
+          await createNewSeasonNotifications(showDetails.name, newSeasonCount, profilesForShow.profileAccountMappings);
         }
       }
     } catch (error) {

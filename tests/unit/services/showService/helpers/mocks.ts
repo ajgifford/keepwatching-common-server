@@ -15,6 +15,7 @@ jest.mock('@db/episodesDb');
 jest.mock('@services/profileService');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
+jest.mock('@services/notificationsService');
 jest.mock('@services/seasonChangesService');
 jest.mock('@services/socketService');
 jest.mock('@services/tmdbService');

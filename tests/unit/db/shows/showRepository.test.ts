@@ -1,3 +1,4 @@
+import { ShowContentUpdates } from '../../../../src/types/contentTypes';
 import { ShowReferenceRow } from '../../../../src/types/showTypes';
 import { CreateShowRequest, UpdateShowRequest } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
@@ -426,11 +427,12 @@ describe('showRepository', () => {
 
   describe('getShowsForUpdates', () => {
     it('should return shows that need updates', async () => {
-      const mockShows = [
+      const mockShows: ShowContentUpdates[] = [
         {
           id: 1,
           title: 'Show 1',
           tmdb_id: 101,
+          season_count: 3,
           created_at: '2023-01-01T10:00:00Z',
           updated_at: '2023-01-05T10:00:00Z',
         },
@@ -438,6 +440,7 @@ describe('showRepository', () => {
           id: 2,
           title: 'Show 2',
           tmdb_id: 102,
+          season_count: 2,
           created_at: '2023-01-02T10:00:00Z',
           updated_at: '2023-01-06T10:00:00Z',
         },
@@ -448,15 +451,19 @@ describe('showRepository', () => {
       const showUpdates = await showsDb.getShowsForUpdates();
 
       expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT id, title, tmdb_id, created_at, updated_at from shows where in_production = 1'),
+        expect.stringContaining(
+          'SELECT id, title, tmdb_id, season_count, created_at, updated_at from shows where in_production = 1',
+        ),
       );
       expect(showUpdates).toHaveLength(2);
       expect(showUpdates[0].id).toBe(1);
       expect(showUpdates[0].title).toBe('Show 1');
       expect(showUpdates[0].tmdb_id).toBe(101);
+      expect(showUpdates[0].season_count).toBe(3);
       expect(showUpdates[1].id).toBe(2);
       expect(showUpdates[1].title).toBe('Show 2');
       expect(showUpdates[1].tmdb_id).toBe(102);
+      expect(showUpdates[1].season_count).toBe(2);
     });
 
     it('should return empty array when no shows need updates', async () => {

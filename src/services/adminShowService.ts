@@ -8,6 +8,7 @@ import { ErrorMessages } from '../logger/loggerModel';
 import { TMDBGenre, TMDBShow, TMDBShowCastMember, TMDBShowSeason } from '../types/tmdbTypes';
 import { sleep } from '../utils/changesUtility';
 import { getEpisodeToAirId, getInProduction, getUSNetwork, getUSRating } from '../utils/contentUtility';
+import { createNewSeasonNotifications } from '../utils/notificationUtility';
 import { getUSWatchProvidersShow } from '../utils/watchProvidersUtility';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
@@ -247,8 +248,13 @@ export class AdminShowService {
     updateMode: 'all' | 'latest' = 'latest',
   ): Promise<boolean> {
     try {
+      // Get current show details to track season count changes
+      const currentShow = await showsDb.getAdminShowDetails(showId);
+      const previousSeasonCount = currentShow.seasonCount;
+
       const tmdbService = getTMDBService();
       const showDetails = await tmdbService.getShowDetails(tmdbId);
+      const newSeasonCount = showDetails.number_of_seasons;
 
       const updatedShow: UpdateShowRequest = {
         id: showId,
@@ -336,6 +342,11 @@ export class AdminShowService {
       }
 
       await showService.checkAndUpdateShowStatus(showId, profileForShow.profileAccountMappings);
+
+      // Create notifications if new seasons were added
+      if (newSeasonCount > previousSeasonCount) {
+        await createNewSeasonNotifications(showDetails.name, newSeasonCount, profileForShow.profileAccountMappings);
+      }
 
       for (const mapping of profileForShow.profileAccountMappings) {
         this.cache.invalidate(SHOW_KEYS.detailsForProfile(mapping.profileId, showId));

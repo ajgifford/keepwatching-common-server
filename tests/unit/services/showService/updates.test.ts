@@ -1,10 +1,11 @@
-import { ContentUpdates } from '../../../../src/types/contentTypes';
+import { ShowContentUpdates } from '../../../../src/types/contentTypes';
 import { TMDBChangesResponse } from '../../../../src/types/tmdbTypes';
 import { setupMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { appLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
 import { errorService } from '@services/errorService';
+import { notificationsService } from '@services/notificationsService';
 import { processSeasonChanges } from '@services/seasonChangesService';
 import { showService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
@@ -18,10 +19,11 @@ describe('ShowService - Content Updates', () => {
   });
 
   describe('showChangesService', () => {
-    const mockShowContent: ContentUpdates = {
+    const mockShowContent: ShowContentUpdates = {
       id: 123,
       title: 'Test Show',
       tmdb_id: 456,
+      season_count: 1,
       created_at: '2023-01-01',
       updated_at: '2023-01-01',
     };
@@ -197,6 +199,175 @@ describe('ShowService - Content Updates', () => {
       );
     });
 
+    it('should create notifications when a new season is added', async () => {
+      const seasonChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'season',
+            items: [
+              {
+                id: 'season1',
+                action: 'added',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: { season_id: 101, season_number: 2 },
+                original_value: undefined,
+              },
+            ],
+          },
+        ],
+      };
+
+      // Mock show with increased season count (from 1 to 2)
+      mockTMDBService.getShowChanges.mockResolvedValue(seasonChanges);
+      mockTMDBService.getShowDetails.mockResolvedValue({
+        id: 456,
+        name: 'Updated Show Title',
+        overview: 'New overview',
+        first_air_date: '2023-02-01',
+        poster_path: '/new-poster.jpg',
+        backdrop_path: '/new-backdrop.jpg',
+        vote_average: 8.5,
+        content_ratings: { results: [] },
+        number_of_episodes: 20,
+        number_of_seasons: 2, // Increased from 1 to 2
+        genres: [{ id: 28 }, { id: 12 }],
+        status: 'Returning Series',
+        type: 'Scripted',
+        in_production: true,
+        last_air_date: '2023-01-15',
+        last_episode_to_air: null,
+        next_episode_to_air: null,
+        networks: [{ origin_country: 'US', name: 'HBO' }],
+      });
+
+      (notificationsService.addNotification as jest.Mock).mockResolvedValue(undefined);
+
+      await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
+
+      expect(notificationsService.addNotification).toHaveBeenCalledTimes(2); // Once for each unique account
+      expect(notificationsService.addNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'New Season Available',
+          message: 'Season 2 of "Updated Show Title" has been added to your watchlist.',
+          sendToAll: false,
+          accountId: 1,
+          type: 'tv',
+        }),
+      );
+      expect(notificationsService.addNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'New Season Available',
+          message: 'Season 2 of "Updated Show Title" has been added to your watchlist.',
+          sendToAll: false,
+          accountId: 2,
+          type: 'tv',
+        }),
+      );
+    });
+
+    it('should not create notifications when season count does not increase', async () => {
+      const seasonChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'season',
+            items: [
+              {
+                id: 'season1',
+                action: 'updated',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: { season_id: 101, season_number: 1 },
+                original_value: undefined,
+              },
+            ],
+          },
+        ],
+      };
+
+      mockTMDBService.getShowChanges.mockResolvedValue(seasonChanges);
+      // Season count stays at 1
+      mockTMDBService.getShowDetails.mockResolvedValue({
+        id: 456,
+        name: 'Updated Show Title',
+        overview: 'New overview',
+        first_air_date: '2023-02-01',
+        poster_path: '/new-poster.jpg',
+        backdrop_path: '/new-backdrop.jpg',
+        vote_average: 8.5,
+        content_ratings: { results: [] },
+        number_of_episodes: 10,
+        number_of_seasons: 1, // Same as before
+        genres: [{ id: 28 }, { id: 12 }],
+        status: 'Returning Series',
+        type: 'Scripted',
+        in_production: true,
+        last_air_date: '2023-01-15',
+        last_episode_to_air: null,
+        next_episode_to_air: null,
+        networks: [{ origin_country: 'US', name: 'HBO' }],
+      });
+
+      await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
+
+      expect(notificationsService.addNotification).not.toHaveBeenCalled();
+    });
+
+    it('should handle notification errors gracefully', async () => {
+      const seasonChanges: TMDBChangesResponse = {
+        changes: [
+          {
+            key: 'season',
+            items: [
+              {
+                id: 'season1',
+                action: 'added',
+                time: '2023-01-05',
+                iso_639_1: 'en',
+                iso_3166_1: 'US',
+                value: { season_id: 101, season_number: 2 },
+                original_value: undefined,
+              },
+            ],
+          },
+        ],
+      };
+
+      mockTMDBService.getShowChanges.mockResolvedValue(seasonChanges);
+      mockTMDBService.getShowDetails.mockResolvedValue({
+        id: 456,
+        name: 'Updated Show Title',
+        overview: 'New overview',
+        first_air_date: '2023-02-01',
+        poster_path: '/new-poster.jpg',
+        backdrop_path: '/new-backdrop.jpg',
+        vote_average: 8.5,
+        content_ratings: { results: [] },
+        number_of_episodes: 20,
+        number_of_seasons: 2,
+        genres: [{ id: 28 }, { id: 12 }],
+        status: 'Returning Series',
+        type: 'Scripted',
+        in_production: true,
+        last_air_date: '2023-01-15',
+        last_episode_to_air: null,
+        next_episode_to_air: null,
+        networks: [{ origin_country: 'US', name: 'HBO' }],
+      });
+
+      const mockNotificationError = new Error('Notification failed');
+      (notificationsService.addNotification as jest.Mock).mockRejectedValue(mockNotificationError);
+
+      // Should not throw - notification errors are logged but don't stop the process
+      await expect(showService.checkShowForChanges(mockShowContent, pastDate, currentDate)).resolves.not.toThrow();
+
+      expect(appLogger.error).toHaveBeenCalledWith('Failed to create new season notifications for Updated Show Title', {
+        error: mockNotificationError,
+      });
+    });
+
     it('should handle errors from getShowChanges API', async () => {
       const mockError = new Error('API error');
       mockTMDBService.getShowChanges.mockRejectedValue(mockError);
@@ -337,8 +508,8 @@ describe('ShowService - Content Updates', () => {
   describe('getShowsForUpdates', () => {
     it('should return shows that need updates', async () => {
       const mockShows = [
-        { id: 1, title: 'Show 1', tmdb_id: 101, created_at: '2023-01-01', updated_at: '2023-01-10' },
-        { id: 2, title: 'Show 2', tmdb_id: 102, created_at: '2023-02-01', updated_at: '2023-02-10' },
+        { id: 1, title: 'Show 1', tmdb_id: 101, season_count: 3, created_at: '2023-01-01', updated_at: '2023-01-10' },
+        { id: 2, title: 'Show 2', tmdb_id: 102, season_count: 2, created_at: '2023-02-01', updated_at: '2023-02-10' },
       ];
 
       (showsDb.getShowsForUpdates as jest.Mock).mockResolvedValue(mockShows);

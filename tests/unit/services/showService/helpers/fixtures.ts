@@ -1,4 +1,4 @@
-import { ContentUpdates } from '../../../../../src/types/contentTypes';
+import { ShowContentUpdates } from '../../../../../src/types/contentTypes';
 import { TMDBRelatedShow } from '../../../../../src/types/tmdbTypes';
 import {
   KeepWatchingShow,
@@ -212,10 +212,11 @@ export const mockShows: Show[] = [
 /**
  * Mock content updates for testing
  */
-export const mockContentUpdates: ContentUpdates = {
+export const mockContentUpdates: ShowContentUpdates = {
   id: 123,
   title: 'Test Show',
   tmdb_id: 456,
+  season_count: 1,
   created_at: '2023-01-01',
   updated_at: '2023-01-01',
 };
