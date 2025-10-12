@@ -1,4 +1,4 @@
-import { DigestEmail, DiscoveryEmail } from '../types/emailTypes';
+import { DigestEmail, DiscoveryEmail, WelcomeEmail } from '../types/emailTypes';
 
 /**
  * Generate HTML content for weekly digest email
@@ -351,6 +351,207 @@ export function generateDiscoveryEmailText(emailData: DiscoveryEmail): string {
   text += `Happy discovering!\n\n`;
   text += `This email was generated automatically by your KeepWatching system.\n`;
   text += `You're receiving this because you have no upcoming content this week.`;
+
+  return text;
+}
+
+/**
+ * Generate HTML content for welcome email
+ */
+export function generateWelcomeEmailHTML(emailData: WelcomeEmail): string {
+  const { accountName, featuredContent } = emailData;
+
+  let html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to KeepWatching!</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 8px 8px 0 0; text-align: center; margin: -20px -20px 20px -20px; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .header p { margin: 15px 0 0 0; opacity: 0.95; font-size: 18px; }
+        .welcome-section { background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea; }
+        .welcome-text { color: #555; font-size: 16px; line-height: 1.8; margin: 0 0 15px 0; }
+        .features-section { margin-bottom: 30px; }
+        .features-title { color: #333; font-size: 20px; font-weight: bold; margin-bottom: 15px; text-align: center; }
+        .feature-grid { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; justify-content: space-between; }
+        .feature-item { background: linear-gradient(145deg, #f8f9fa, #e9ecef); padding: 20px; border-radius: 8px; flex: 0 0 calc(50% - 8px); border: 1px solid #e0e0e0; text-align: center; box-sizing: border-box; }
+        .feature-icon { font-size: 32px; margin-bottom: 10px; }
+        .feature-title { font-weight: bold; color: #333; margin-bottom: 8px; font-size: 16px; }
+        .feature-description { font-size: 14px; color: #666; line-height: 1.5; }
+        .content-section { margin-bottom: 25px; }
+        .content-title { color: #333; font-size: 18px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid #667eea; padding-left: 15px; }
+        .content-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; justify-content: space-between; }
+        .content-item { background: linear-gradient(145deg, #f1f3f4, #e8eaed); padding: 15px; border-radius: 8px; flex: 0 0 100%; border: 1px solid #e0e0e0; box-sizing: border-box; }
+        .content-item-title { font-weight: bold; color: #333; margin-bottom: 5px; }
+        .content-item-details { font-size: 14px; color: #666; }
+        .cta-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px; text-align: center; margin: 30px 0; }
+        .cta-title { color: white; font-size: 22px; font-weight: bold; margin-bottom: 15px; }
+        .cta-text { color: white; opacity: 0.95; margin-bottom: 25px; font-size: 16px; }
+        .cta-button { display: inline-block; background-color: white; color: #667eea; padding: 14px 35px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; transition: transform 0.2s; }
+        .cta-button:hover { transform: scale(1.05); }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 14px; }
+        
+        @media (max-width: 600px) {
+            .feature-grid, .content-grid { flex-direction: column; }
+            .feature-item, .content-item { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Welcome to KeepWatching!</h1>
+            <p>Hi ${accountName}! We're excited to have you here</p>
+        </div>
+
+        <div class="welcome-section">
+            <p class="welcome-text">
+                <strong>Thank you for joining KeepWatching!</strong> Your personal entertainment hub is now ready. 
+                We're here to help you track your favorite TV shows and movies, discover new content, and never miss an episode again.
+            </p>
+            <p class="welcome-text">
+                Whether you're binge-watching the latest series or catching up on movies you've been meaning to see, 
+                KeepWatching makes it easy to stay organized and up-to-date with all your entertainment.
+            </p>
+        </div>
+
+        <div class="features-section">
+            <div class="features-title">✨ What You Can Do</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">📺</div>
+                    <div class="feature-title">Track Shows & Movies</div>
+                    <div class="feature-description">Add your favorite content and mark episodes as watched</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔔</div>
+                    <div class="feature-title">Get Notifications</div>
+                    <div class="feature-description">Never miss new episodes with weekly email digests</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-title">Multiple Profiles</div>
+                    <div class="feature-description">Create profiles for family members with separate watchlists</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-title">Discover Content</div>
+                    <div class="feature-description">Explore trending shows and movies to add to your list</div>
+                </div>
+            </div>
+        </div>
+`;
+
+  // Add featured content sections
+  if (featuredContent.trendingShows.length > 0) {
+    html += `
+        <div class="content-section">
+            <div class="content-title">🔥 Trending Shows to Get Started</div>
+            <div class="content-grid">
+`;
+    featuredContent.trendingShows.slice(0, 3).forEach((show) => {
+      html += `
+                <div class="content-item">
+                    <div class="content-item-title">${show.title}</div>
+                    <div class="content-item-details">Currently trending</div>
+                </div>
+`;
+    });
+    html += `            </div>
+        </div>`;
+  }
+
+  if (featuredContent.popularMovies.length > 0) {
+    html += `
+        <div class="content-section">
+            <div class="content-title">🎬 Popular Movies</div>
+            <div class="content-grid">
+`;
+    featuredContent.popularMovies.slice(0, 3).forEach((movie) => {
+      html += `
+                <div class="content-item">
+                    <div class="content-item-title">${movie.title}</div>
+                    <div class="content-item-details">Highly rated</div>
+                </div>
+`;
+    });
+    html += `            </div>
+        </div>`;
+  }
+
+  html += `
+        <div class="cta-section">
+            <div class="cta-title">Ready to Start Watching?</div>
+            <div class="cta-text">Log in now to create your profiles and build your watchlist!</div>
+            <a href="https://keepwatching.giffordfamilydev.us/" class="cta-button">Get Started →</a>
+        </div>
+
+        <div class="footer">
+            <p>Happy watching! 🍿</p>
+            <p><small>Welcome to the KeepWatching community!<br>
+            Questions? Just reply to this email.</small></p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+  return html;
+}
+
+/**
+ * Generate plain text content for welcome email
+ */
+export function generateWelcomeEmailText(emailData: WelcomeEmail): string {
+  const { accountName, featuredContent } = emailData;
+
+  let text = `Welcome to KeepWatching!\n`;
+  text += `Hi ${accountName}! We're excited to have you here\n\n`;
+
+  text += `THANK YOU FOR JOINING!\n`;
+  text += `${'='.repeat(40)}\n\n`;
+
+  text += `Your personal entertainment hub is now ready. We're here to help you track your favorite\n`;
+  text += `TV shows and movies, discover new content, and never miss an episode again.\n\n`;
+
+  text += `Whether you're binge-watching the latest series or catching up on movies you've been\n`;
+  text += `meaning to see, KeepWatching makes it easy to stay organized and up-to-date with all\n`;
+  text += `your entertainment.\n\n`;
+
+  text += `WHAT YOU CAN DO:\n`;
+  text += `${'='.repeat(40)}\n`;
+  text += `📺 Track Shows & Movies - Add your favorites and mark episodes as watched\n`;
+  text += `🔔 Get Notifications - Never miss new episodes with weekly email digests\n`;
+  text += `👥 Multiple Profiles - Create profiles for family members with separate watchlists\n`;
+  text += `🔍 Discover Content - Explore trending shows and movies to add to your list\n\n`;
+
+  if (featuredContent.trendingShows.length > 0) {
+    text += `🔥 TRENDING SHOWS TO GET STARTED:\n`;
+    featuredContent.trendingShows.slice(0, 3).forEach((show) => {
+      text += `• ${show.title} - Currently trending\n`;
+    });
+    text += `\n`;
+  }
+
+  if (featuredContent.popularMovies.length > 0) {
+    text += `🎬 POPULAR MOVIES:\n`;
+    featuredContent.popularMovies.slice(0, 3).forEach((movie) => {
+      text += `• ${movie.title} - Highly rated\n`;
+    });
+    text += `\n`;
+  }
+
+  text += `READY TO START WATCHING?\n`;
+  text += `Log in now to create your profiles and build your watchlist!\n`;
+  text += `Visit: https://keepwatching.giffordfamilydev.us/\n\n`;
+
+  text += `Happy watching!\n\n`;
+  text += `Welcome to the KeepWatching community!\n`;
+  text += `Questions? Just reply to this email.`;
 
   return text;
 }

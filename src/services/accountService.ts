@@ -6,6 +6,7 @@ import { AccountRow } from '../types/accountTypes';
 import { getFirebaseAdmin } from '../utils/firebaseUtil';
 import { getAccountImage, getPhotoForGoogleAccount } from '../utils/imageUtility';
 import { CacheService } from './cacheService';
+import { emailService } from './emailService';
 import { errorService } from './errorService';
 import { preferencesService } from './preferencesService';
 import { profileService } from './profileService';
@@ -101,6 +102,11 @@ export class AccountService {
 
       preferencesService.initializeDefaultPreferences(account.id);
 
+      // Send welcome email asynchronously (don't await to avoid blocking registration)
+      emailService.sendWelcomeEmail(email).catch((error) => {
+        appLogger.error(`Failed to send welcome email to ${email}`, { error });
+      });
+
       return {
         ...account,
         image: getAccountImage(account.image, account.name),
@@ -162,6 +168,11 @@ export class AccountService {
 
       appLogger.info(`New user registered via Google: ${email}`, { userId: uid });
       cliLogger.info(`Google authentication: new account created for ${email}`);
+
+      // Send welcome email asynchronously (don't await to avoid blocking registration)
+      emailService.sendWelcomeEmail(email).catch((error) => {
+        appLogger.error(`Failed to send welcome email to ${email}`, { error });
+      });
 
       return {
         account: { ...newAccount, image: getPhotoForGoogleAccount(newAccount.name, photoURL, newAccount.image) },

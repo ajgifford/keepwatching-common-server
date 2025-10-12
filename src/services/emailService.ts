@@ -418,6 +418,73 @@ export class EmailService {
   }
 
   /**
+   * Send welcome email to a new account
+   */
+  public async sendWelcomeEmail(accountEmail: string): Promise<void> {
+    try {
+      const { welcomeData } = await emailContentService.generateWelcomeContent(accountEmail);
+
+      // Create email record
+      const emailRecord: CreateEmailRow = {
+        subject: 'Welcome to KeepWatching!',
+        message: 'Welcome email sent to new account',
+        sent_to_all: false,
+        account_count: 1,
+        scheduled_date: null,
+        sent_date: null,
+        status: 'pending',
+      };
+      const emailId = await emailDb.createEmail(emailRecord);
+
+      if (emailId > 0) {
+        // Create recipient record
+        const recipient: CreateEmailRecipient = {
+          email_id: emailId,
+          account_id: welcomeData.accountId,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        };
+        await emailDb.createEmailRecipient(recipient);
+
+        try {
+          // Send email
+          await emailDeliveryService.sendWelcomeEmail(welcomeData);
+
+          // Update success status
+          await emailDb.updateEmailRecipientStatus(emailId, welcomeData.accountId, new Date().toISOString(), 'sent');
+          await emailDb.updateEmailStatus(emailId, new Date().toISOString(), 'sent');
+
+          cliLogger.info(`Welcome email sent to: ${accountEmail}`);
+        } catch (sendError) {
+          // Update failure status
+          await emailDb.updateEmailRecipientStatusFailure(
+            emailId,
+            welcomeData.accountId,
+            sendError instanceof Error ? sendError.message : String(sendError),
+          );
+          await emailDb.updateEmailStatus(emailId, null, 'failed');
+          // Don't throw - welcome email failure shouldn't prevent account creation
+          cliLogger.error(`Failed to send welcome email to: ${accountEmail}`, sendError);
+          appLogger.error('Welcome email delivery failed', {
+            email: accountEmail,
+            error: sendError,
+          });
+        }
+      } else {
+        throw new Error('Failed to create email record');
+      }
+    } catch (error) {
+      // Log but don't throw - welcome email failure shouldn't prevent account creation
+      cliLogger.error(`Failed to send welcome email to: ${accountEmail}`, error);
+      appLogger.error('Welcome email failed', {
+        email: accountEmail,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
    * Preview weekly digest data for a specific account without sending email
    */
   public async previewWeeklyDigestForAccount(accountEmail: string): Promise<EmailContentResult> {

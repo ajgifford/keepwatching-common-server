@@ -1,11 +1,13 @@
 import { EmailConfig, getEmailConfig } from '../../config';
 import { appLogger, cliLogger } from '../../logger/logger';
-import { DigestEmail, DiscoveryEmail } from '../../types/emailTypes';
+import { DigestEmail, DiscoveryEmail, WelcomeEmail } from '../../types/emailTypes';
 import {
   generateDiscoveryEmailHTML,
   generateDiscoveryEmailText,
   generateWeeklyDigestHTML,
   generateWeeklyDigestText,
+  generateWelcomeEmailHTML,
+  generateWelcomeEmailText,
 } from '../../utils/emailUtility';
 import { errorService } from '../errorService';
 import nodemailer from 'nodemailer';
@@ -62,6 +64,34 @@ export class EmailDeliveryService {
     } catch (error) {
       const enhancedError = errorService.handleError(error, `sendDigestEmail(${emailData.to})`);
       appLogger.error('Digest email failed', {
+        email: emailData.to,
+        error: enhancedError,
+      });
+      throw enhancedError;
+    }
+  }
+
+  /**
+   * Send welcome email
+   */
+  public async sendWelcomeEmail(emailData: WelcomeEmail): Promise<void> {
+    try {
+      const htmlContent = generateWelcomeEmailHTML(emailData);
+      const textContent = generateWelcomeEmailText(emailData);
+
+      const mailOptions = {
+        from: this.config.from,
+        to: emailData.to,
+        subject: `Welcome to KeepWatching!`,
+        html: htmlContent,
+        text: textContent,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      cliLogger.info(`Welcome email sent to: ${emailData.to}`);
+    } catch (error) {
+      const enhancedError = errorService.handleError(error, `sendWelcomeEmail(${emailData.to})`);
+      appLogger.error('Welcome email failed', {
         email: emailData.to,
         error: enhancedError,
       });

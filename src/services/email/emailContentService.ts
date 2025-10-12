@@ -9,6 +9,7 @@ import {
   EmailContentResult,
   FeaturedContent,
   ProfileContentAnalysis,
+  WelcomeEmail,
 } from '../../types/emailTypes';
 import { getUpcomingWeekRange } from '../../utils/emailUtility';
 import { accountService } from '../accountService';
@@ -243,6 +244,35 @@ export class EmailContentService {
       };
     } catch (error) {
       throw errorService.handleError(error, `generateDiscoveryContent(${accountEmail})`);
+    }
+  }
+
+  /**
+   * Generate welcome email content for a new account
+   */
+  public async generateWelcomeContent(
+    accountEmail: string,
+  ): Promise<{ account: { id: number; email: string; name: string }; welcomeData: WelcomeEmail }> {
+    try {
+      const account = await accountService.getCombinedAccountByEmail(accountEmail);
+
+      if (!account) {
+        throw new NotFoundError(`Account not found: ${accountEmail}`);
+      }
+
+      const featuredContent = await this.getFeaturedContent();
+
+      return {
+        account: { id: account.id, email: account.email!, name: account.name },
+        welcomeData: {
+          accountId: account.id,
+          to: account.email!,
+          accountName: account.name,
+          featuredContent,
+        },
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `generateWelcomeContent(${accountEmail})`);
     }
   }
 

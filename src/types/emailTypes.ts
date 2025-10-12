@@ -61,6 +61,13 @@ export interface FeaturedContent {
   popularMovies: ContentReference[];
 }
 
+export interface WelcomeEmail {
+  accountId: number;
+  to: string;
+  accountName: string;
+  featuredContent: FeaturedContent;
+}
+
 export interface DiscoveryEmail {
   accountId: number;
   to: string;
