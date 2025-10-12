@@ -203,7 +203,7 @@ describe('preferencesDb', () => {
       expect(mockExecute).toHaveBeenNthCalledWith(2, expect.stringContaining('INSERT INTO account_preferences'), [
         accountId,
         preferenceType,
-        { weeklyDigest: false, marketingEmails: false },
+        JSON.stringify({ weeklyDigest: false, marketingEmails: false }),
       ]);
       expect(result).toBe(true);
     });
@@ -291,7 +291,11 @@ describe('preferencesDb', () => {
 
       await initializeDefaultPreferences(accountId);
 
-      const expectedValues = Object.entries(DEFAULT_PREFERENCES).map(([type, prefs]) => [accountId, type, prefs]);
+      const expectedValues = Object.entries(DEFAULT_PREFERENCES).map(([type, prefs]) => [
+        accountId,
+        type,
+        JSON.stringify(prefs),
+      ]);
       expect(mockQuery).toHaveBeenCalledWith(
         'INSERT INTO account_preferences (account_id, preference_type, preferences) VALUES ?',
         [expectedValues],

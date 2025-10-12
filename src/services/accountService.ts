@@ -100,7 +100,7 @@ export class AccountService {
       appLogger.info(`New user registered: ${email}`, { userId: uid });
       cliLogger.info(`New account created: ${email}`);
 
-      preferencesService.initializeDefaultPreferences(account.id);
+      await preferencesService.initializeDefaultPreferences(account.id);
 
       // Send welcome email asynchronously (don't await to avoid blocking registration)
       emailService.sendWelcomeEmail(email).catch((error) => {
@@ -168,6 +168,8 @@ export class AccountService {
 
       appLogger.info(`New user registered via Google: ${email}`, { userId: uid });
       cliLogger.info(`Google authentication: new account created for ${email}`);
+
+      await preferencesService.initializeDefaultPreferences(newAccount.id);
 
       // Send welcome email asynchronously (don't await to avoid blocking registration)
       emailService.sendWelcomeEmail(email).catch((error) => {

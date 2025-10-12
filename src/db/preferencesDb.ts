@@ -227,7 +227,11 @@ export async function updatePreferences<T extends PreferenceData>(
         updated_at = CURRENT_TIMESTAMP
     `;
 
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId, preferenceType, merged]);
+    const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+      accountId,
+      preferenceType,
+      JSON.stringify(merged),
+    ]);
     return result.affectedRows > 0;
   } catch (error) {
     handleDatabaseError(error, 'updating account preferences');
@@ -290,7 +294,7 @@ export async function updateMultiplePreferences(
               preferences = VALUES(preferences),
               updated_at = CURRENT_TIMESTAMP`;
 
-          await connection.execute(query, [accountId, type, merged]);
+          await connection.execute(query, [accountId, type, JSON.stringify(merged)]);
         }
       }
       return true;
@@ -329,7 +333,7 @@ export async function updateMultiplePreferences(
  */
 export async function initializeDefaultPreferences(accountId: number): Promise<void> {
   try {
-    const values = Object.entries(DEFAULT_PREFERENCES).map(([type, prefs]) => [accountId, type, prefs]);
+    const values = Object.entries(DEFAULT_PREFERENCES).map(([type, prefs]) => [accountId, type, JSON.stringify(prefs)]);
 
     const query = `INSERT INTO account_preferences (account_id, preference_type, preferences) VALUES ?`;
     await getDbPool().query(query, [values]);
