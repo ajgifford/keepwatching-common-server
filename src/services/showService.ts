@@ -140,7 +140,9 @@ export class ShowService {
   ): Promise<ProfileShowWithSeasons> {
     try {
       if (checkWatchStatus) {
-        watchStatusService.checkAndUpdateShowStatus(accountId, profileId, showId);
+        await watchStatusService.checkAndUpdateShowStatus(accountId, profileId, showId);
+        // Invalidate cache after status update to ensure fresh data
+        this.cache.invalidate(SHOW_KEYS.detailsForProfile(profileId, showId));
       }
       const show = await this.cache.getOrSet(
         SHOW_KEYS.detailsForProfile(profileId, showId),

@@ -260,9 +260,17 @@ describe('WatchStatusManager', () => {
     });
 
     it('should return NOT_WATCHED when all aired seasons are not watched', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.NOT_WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.NOT_WATCHED },
+        { id: 4, seasonId: 2, airDate: new Date('2024-02-08'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
       const seasons = [
-        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.NOT_WATCHED),
-        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.NOT_WATCHED),
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.NOT_WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), season2Episodes, WatchStatus.NOT_WATCHED),
       ];
       const show = createMockShow(seasons);
       const now = new Date('2025-06-21');
@@ -273,9 +281,17 @@ describe('WatchStatusManager', () => {
     });
 
     it('should return WATCHING when any season is currently being watched', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 4, seasonId: 2, airDate: new Date('2024-02-08'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
       const seasons = [
-        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHED),
-        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.WATCHING),
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), season2Episodes, WatchStatus.WATCHING),
       ];
       const show = createMockShow(seasons);
       const now = new Date('2025-06-21');
@@ -286,9 +302,17 @@ describe('WatchStatusManager', () => {
     });
 
     it('should return WATCHING when mix of watched and not watched seasons', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.NOT_WATCHED },
+        { id: 4, seasonId: 2, airDate: new Date('2024-02-08'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
       const seasons = [
-        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHED),
-        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.NOT_WATCHED),
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), season2Episodes, WatchStatus.NOT_WATCHED),
       ];
       const show = createMockShow(seasons);
       const now = new Date('2025-06-21');
@@ -299,9 +323,18 @@ describe('WatchStatusManager', () => {
     });
 
     it('should return UP_TO_DATE when all seasons complete and show in production', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 4, seasonId: 2, airDate: new Date('2024-02-08'), watchStatus: WatchStatus.WATCHED },
+        { id: 5, seasonId: 2, airDate: new Date('2026-01-01'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
       const seasons = [
-        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHED),
-        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.UP_TO_DATE),
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), season2Episodes, WatchStatus.UP_TO_DATE),
       ];
       const show = createMockShow(seasons, new Date('2024-01-01'), true);
       const now = new Date('2025-06-21');
@@ -312,10 +345,21 @@ describe('WatchStatusManager', () => {
     });
 
     it('should return UP_TO_DATE when all seasons complete and future seasons exist', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 4, seasonId: 2, airDate: new Date('2024-02-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const season3Episodes: WatchStatusEpisode[] = [
+        { id: 5, seasonId: 3, airDate: new Date('2026-01-01'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
       const seasons = [
-        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHED),
-        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.WATCHED),
-        createMockSeason(3, new Date('2026-01-01'), [], WatchStatus.NOT_WATCHED),
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), season2Episodes, WatchStatus.WATCHED),
+        createMockSeason(3, new Date('2026-01-01'), season3Episodes, WatchStatus.NOT_WATCHED),
       ];
       const show = createMockShow(seasons, new Date('2024-01-01'), false);
       const now = new Date('2025-06-21');
@@ -326,9 +370,17 @@ describe('WatchStatusManager', () => {
     });
 
     it('should return WATCHED when all seasons complete and show not in production with no future seasons', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 4, seasonId: 2, airDate: new Date('2024-02-08'), watchStatus: WatchStatus.WATCHED },
+      ];
       const seasons = [
-        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHED),
-        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.WATCHED),
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), season2Episodes, WatchStatus.WATCHED),
       ];
       const show = createMockShow(seasons, new Date('2024-01-01'), false);
       const now = new Date('2025-06-21');

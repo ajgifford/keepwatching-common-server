@@ -108,9 +108,25 @@ export class WatchStatusManager {
       return WatchStatus.UNAIRED;
     }
 
-    // Filter seasons by air status
-    const airedSeasons = seasons?.filter((s) => this.hasAired(s.airDate, now)) || [];
-    const unairedSeasons = seasons?.filter((s) => this.isUnaired(s.airDate, now)) || [];
+    // Filter seasons by air status - a season is only "aired" if it has episodes that have aired
+    const airedSeasons =
+      seasons?.filter((s) => {
+        // If no episodes, season should be treated as unaired regardless of air date
+        if (!s.episodes || s.episodes.length === 0) {
+          return false;
+        }
+        // Season has aired if at least one episode has aired
+        return s.episodes.some((ep) => this.hasAired(ep.airDate, now));
+      }) || [];
+    const unairedSeasons =
+      seasons?.filter((s) => {
+        // If no episodes, season should be treated as unaired
+        if (!s.episodes || s.episodes.length === 0) {
+          return true;
+        }
+        // Season is unaired if all episodes are unaired
+        return s.episodes.every((ep) => this.isUnaired(ep.airDate, now));
+      }) || [];
 
     // No aired seasons
     if (airedSeasons.length === 0) {
@@ -134,8 +150,8 @@ export class WatchStatusManager {
       return WatchStatus.WATCHING;
     }
 
-    // Mix of watched and not watched
-    if (notWatchedSeasons.length > 0) {
+    // Mix of watched/up-to-date and not watched (actual progress)
+    if (notWatchedSeasons.length > 0 && (watchedSeasons.length > 0 || upToDateSeasons.length > 0)) {
       return WatchStatus.WATCHING;
     }
 
