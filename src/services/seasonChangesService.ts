@@ -66,10 +66,12 @@ export async function processSeasonChanges(
         );
       }
 
-      // Check if there are episode changes for this season
+      // For seasons that have aired, always fetch episodes to ensure completeness
+      // This prevents gaps when TMDB doesn't report episode changes within our time window
+      const seasonHasAired = new Date(seasonInfo.air_date) <= now;
       const hasEpisodeChanges = await checkSeasonForEpisodeChanges(seasonId, pastDate, currentDate);
 
-      if (hasEpisodeChanges) {
+      if (seasonHasAired || hasEpisodeChanges) {
         // Get detailed season info including episodes
         const seasonDetails = await tmdbService.getSeasonDetails(content.tmdb_id, updatedSeason.season_number);
         const episodes = seasonDetails.episodes || [];

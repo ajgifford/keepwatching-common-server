@@ -260,9 +260,32 @@ describe('processSeasonChanges', () => {
   it('should not fetch episode details when no episode changes found', async () => {
     (checkSeasonForEpisodeChanges as jest.Mock).mockResolvedValue(false);
 
+    // Create a show with future air dates so seasonHasAired will be false
+    const futureDate = new Date();
+    futureDate.setFullYear(futureDate.getFullYear() + 1);
+    const futureDateString = futureDate.toISOString().split('T')[0];
+
+    const futureResponseShow = {
+      ...mockResponseShow,
+      seasons: [
+        {
+          ...mockResponseShow.seasons[0],
+          air_date: futureDateString,
+        },
+        {
+          ...mockResponseShow.seasons[1],
+          air_date: futureDateString,
+        },
+        {
+          ...mockResponseShow.seasons[2],
+          air_date: futureDateString,
+        },
+      ],
+    };
+
     await processSeasonChanges(
       mockChanges,
-      mockResponseShow,
+      futureResponseShow,
       mockContent,
       mockProfileAccountMappings,
       mockDates.pastDate,
@@ -273,5 +296,27 @@ describe('processSeasonChanges', () => {
     expect(mockTmdbService.getSeasonDetails).not.toHaveBeenCalled();
     expect(episodesService.updateEpisode).not.toHaveBeenCalled();
     expect(episodesService.addEpisodeToFavorites).not.toHaveBeenCalled();
+  });
+
+  it('should fetch episode details when season has aired even if no episode changes found', async () => {
+    (checkSeasonForEpisodeChanges as jest.Mock).mockResolvedValue(false);
+
+    // Use a show with past air dates (default mockResponseShow has aired dates)
+    await processSeasonChanges(
+      mockChanges,
+      mockResponseShow,
+      mockContent,
+      mockProfileAccountMappings,
+      mockDates.pastDate,
+      mockDates.currentDate,
+    );
+
+    expect(checkSeasonForEpisodeChanges).toHaveBeenCalledTimes(2);
+    // Should fetch episodes because seasons have aired, even though no changes detected
+    expect(mockTmdbService.getSeasonDetails).toHaveBeenCalledTimes(2);
+    expect(mockTmdbService.getSeasonDetails).toHaveBeenCalledWith(12345, 1);
+    expect(mockTmdbService.getSeasonDetails).toHaveBeenCalledWith(12345, 2);
+    expect(episodesService.updateEpisode).toHaveBeenCalledTimes(4); // 2 episodes × 2 seasons
+    expect(episodesService.addEpisodeToFavorites).toHaveBeenCalledTimes(8); // 2 episodes × 2 seasons × 2 profiles
   });
 });
