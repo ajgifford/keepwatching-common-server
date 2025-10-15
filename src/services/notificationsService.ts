@@ -1,10 +1,13 @@
+import { NOTIFICATION_KEYS } from '../constants/cacheKeys';
 import * as notificationsDb from '../db/notificationsDb';
 import { NoAffectedRowsError } from '../middleware/errorMiddleware';
+import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import {
   AccountNotification,
-  AdminNotification,
   CreateNotificationRequest,
+  GetAllNotificationsOptions,
+  GetAllNotificationsResponse,
   UpdateNotificationRequest,
 } from '@ajgifford/keepwatching-types';
 
@@ -12,10 +15,16 @@ import {
  * Service class for managing notifications within the KeepWatching application.
  * Provides comprehensive notification management including reading, marking read, dismissing,
  * and administrative operations for both user-specific and system-wide notifications.
+ * Includes caching support for improved performance.
  *
  * @class NotificationsService
  */
 export class NotificationsService {
+  private cache: CacheService;
+
+  constructor() {
+    this.cache = CacheService.getInstance();
+  }
   /**
    * Retrieves all notifications for a specific account.
    *
@@ -37,7 +46,11 @@ export class NotificationsService {
    */
   public async getNotifications(accountId: number, includeDismissed: boolean = false): Promise<AccountNotification[]> {
     try {
-      return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
+      return await this.cache.getOrSet(
+        NOTIFICATION_KEYS.forAccount(accountId, includeDismissed),
+        () => notificationsDb.getNotificationsForAccount(accountId, includeDismissed),
+        300, // 5 minutes TTL (shorter since this can change frequently)
+      );
     } catch (error) {
       throw errorService.handleError(error, `getNotifications(${accountId}, ${includeDismissed})`);
     }
@@ -76,6 +89,7 @@ export class NotificationsService {
       if (!updated) {
         throw new NoAffectedRowsError(`No notification was marked ${hasBeenRead ? 'read' : 'unread'}`);
       }
+      this.invalidateAccountNotifications(accountId);
       return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
       throw errorService.handleError(
@@ -116,6 +130,7 @@ export class NotificationsService {
       if (!updated) {
         throw new NoAffectedRowsError(`No notifications were marked ${hasBeenRead ? 'read' : 'unread'}`);
       }
+      this.invalidateAccountNotifications(accountId);
       return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
       throw errorService.handleError(
@@ -154,6 +169,7 @@ export class NotificationsService {
       if (!notificationDismissed) {
         throw new NoAffectedRowsError('No notification was dismissed');
       }
+      this.invalidateAccountNotifications(accountId);
       return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
       throw errorService.handleError(
@@ -189,6 +205,7 @@ export class NotificationsService {
       if (!notificationsDismissed) {
         throw new NoAffectedRowsError('No notifications were dismissed');
       }
+      this.invalidateAccountNotifications(accountId);
       return await notificationsDb.getNotificationsForAccount(accountId, includeDismissed);
     } catch (error) {
       throw errorService.handleError(error, `dismissAllNotifications(${accountId}, ${includeDismissed})`);
@@ -196,29 +213,85 @@ export class NotificationsService {
   }
 
   /**
-   * Retrieves all system notifications for administrative purposes.
+   * Retrieves all system notifications for administrative purposes with pagination and filtering.
    * This method is typically used by administrators to view and manage system-wide notifications.
    *
    * @async
    * @method getAllNotifications
-   * @param {boolean} expired - Whether to include expired notifications in the results
-   * @returns {Promise<AdminNotification[]>} Promise that resolves to an array of admin notifications
+   * @param {GetAllNotificationsOptions} options - Query options for filtering and sorting
+   * @param {boolean} options.expired - Whether to include expired notifications in the results
+   * @param {string} [options.type] - Filter by notification type
+   * @param {string} [options.startDate] - Filter by start date (ISO string)
+   * @param {string} [options.endDate] - Filter by end date (ISO string)
+   * @param {boolean} [options.sendToAll] - Filter by sendToAll status
+   * @param {string} [options.sortBy] - Field to sort by (startDate, endDate, type, sendToAll)
+   * @param {string} [options.sortOrder] - Sort order (asc or desc)
+   * @param {number} page - The current page number (1-based) for pagination
+   * @param {number} offset - The offset for database query (0-based, calculated from page and limit)
+   * @param {number} limit - The maximum number of items to return per page
+   * @returns {Promise<GetAllNotificationsResponse>} Promise that resolves to paginated notifications result
    * @throws {Error} Throws error if database operation fails
    *
    * @example
    * ```typescript
-   * // Get all active notifications for admin panel
-   * const activeNotifications = await notificationsService.getAllNotifications(false);
+   * // Get first page of active notifications with 10 items per page
+   * const result = await notificationsService.getAllNotifications(
+   *   { expired: false },
+   *   1,
+   *   0,
+   *   10
+   * );
    *
-   * // Get all notifications including expired ones
-   * const allNotifications = await notificationsService.getAllNotifications(true);
+   * // Filter by type and date range with sorting
+   * const filtered = await notificationsService.getAllNotifications(
+   *   {
+   *     expired: false,
+   *     type: 'maintenance',
+   *     startDate: '2025-01-01',
+   *     endDate: '2025-12-31',
+   *     sortBy: 'startDate',
+   *     sortOrder: 'desc'
+   *   },
+   *   1,
+   *   0,
+   *   20
+   * );
    * ```
    */
-  public async getAllNotifications(expired: boolean): Promise<AdminNotification[]> {
+  public async getAllNotifications(
+    options: GetAllNotificationsOptions,
+    page: number,
+    offset: number,
+    limit: number,
+  ): Promise<GetAllNotificationsResponse> {
     try {
-      return await notificationsDb.getAllNotifications(expired);
+      const optionsKey = JSON.stringify(options);
+      return await this.cache.getOrSet(
+        NOTIFICATION_KEYS.all(page, offset, limit, optionsKey),
+        async () => {
+          const [totalCount, notifications] = await Promise.all([
+            notificationsDb.getNotificationsCount(options),
+            notificationsDb.getAllNotifications(options, limit, offset),
+          ]);
+          const totalPages = Math.ceil(totalCount / limit);
+
+          return {
+            message: 'Notifications retrieved successfully',
+            notifications,
+            pagination: {
+              totalCount,
+              totalPages,
+              currentPage: page,
+              limit,
+              hasNextPage: page < totalPages,
+              hasPrevPage: page > 1,
+            },
+          };
+        },
+        600, // 10 minutes TTL
+      );
     } catch (error) {
-      throw errorService.handleError(error, `getAllNotifications(${expired})`);
+      throw errorService.handleError(error, `getAllNotifications(${JSON.stringify(options)})`);
     }
   }
 
@@ -267,6 +340,10 @@ export class NotificationsService {
   public async addNotification(createNotificationRequest: CreateNotificationRequest): Promise<void> {
     try {
       await notificationsDb.addNotification(createNotificationRequest);
+      this.invalidateAllNotifications();
+      if (createNotificationRequest.accountId) {
+        this.invalidateAccountNotifications(createNotificationRequest.accountId);
+      }
     } catch (error) {
       throw errorService.handleError(error, `addNotification(${JSON.stringify(createNotificationRequest)})`);
     }
@@ -308,6 +385,10 @@ export class NotificationsService {
   public async updateNotification(updateNotificationRequest: UpdateNotificationRequest): Promise<void> {
     try {
       await notificationsDb.updateNotification(updateNotificationRequest);
+      this.invalidateAllNotifications();
+      if (updateNotificationRequest.accountId) {
+        this.invalidateAccountNotifications(updateNotificationRequest.accountId);
+      }
     } catch (error) {
       throw errorService.handleError(error, `updateNotification(${JSON.stringify(updateNotificationRequest)})`);
     }
@@ -331,9 +412,27 @@ export class NotificationsService {
   public async deleteNotification(notificationId: number): Promise<void> {
     try {
       await notificationsDb.deleteNotification(notificationId);
+      this.invalidateAllNotifications();
     } catch (error) {
       throw errorService.handleError(error, `deleteNotification(${notificationId})`);
     }
+  }
+
+  /**
+   * Invalidate all cached notification data for a specific account
+   *
+   * @param accountId - ID of the account to invalidate cache for
+   */
+  public invalidateAccountNotifications(accountId: number): void {
+    this.cache.invalidate(NOTIFICATION_KEYS.forAccount(accountId, false));
+    this.cache.invalidate(NOTIFICATION_KEYS.forAccount(accountId, true));
+  }
+
+  /**
+   * Invalidate all cached admin notification data
+   */
+  public invalidateAllNotifications(): void {
+    this.cache.invalidatePattern('notification_all_');
   }
 }
 

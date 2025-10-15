@@ -506,10 +506,11 @@ describe('notificationDb', () => {
   });
 
   describe('getAllNotifications()', () => {
-    it('should get all active notifications when expired is false', async () => {
+    it('should get all active notifications with default pagination', async () => {
       const mockNotifications = [
         {
           notification_id: 1,
+          title: 'Test',
           message: 'Active notification',
           start_date: new Date('2025-04-01'),
           end_date: new Date('2025-04-30'),
@@ -521,15 +522,17 @@ describe('notificationDb', () => {
 
       mockPool.execute.mockResolvedValueOnce([mockNotifications]);
 
-      const result = await notificationsDb.getAllNotifications(false);
+      const result = await notificationsDb.getAllNotifications({ expired: false });
 
       expect(mockPool.execute).toHaveBeenCalledWith(
-        'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date ASC',
+        'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date DESC LIMIT 50 OFFSET 0',
+        [],
       );
 
       expect(result).toEqual([
         {
           id: 1,
+          title: 'Test',
           message: 'Active notification',
           startDate: new Date('2025-04-01'),
           endDate: new Date('2025-04-30'),
@@ -540,10 +543,11 @@ describe('notificationDb', () => {
       ]);
     });
 
-    it('should get all notifications including expired ones when expired is true', async () => {
+    it('should get all notifications including expired ones with custom pagination', async () => {
       const mockNotifications = [
         {
           notification_id: 1,
+          title: 'Test 1',
           message: 'Active notification',
           start_date: new Date('2025-04-01'),
           end_date: new Date('2025-04-30'),
@@ -553,6 +557,7 @@ describe('notificationDb', () => {
         },
         {
           notification_id: 2,
+          title: 'Test 2',
           message: 'Expired notification',
           start_date: new Date('2025-03-01'),
           end_date: new Date('2025-03-31'),
@@ -564,13 +569,17 @@ describe('notificationDb', () => {
 
       mockPool.execute.mockResolvedValueOnce([mockNotifications]);
 
-      const result = await notificationsDb.getAllNotifications(true);
+      const result = await notificationsDb.getAllNotifications({ expired: true }, 10, 5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM notifications ORDER BY start_date ASC');
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM notifications ORDER BY start_date DESC LIMIT 10 OFFSET 5',
+        [],
+      );
 
       expect(result).toEqual([
         {
           id: 1,
+          title: 'Test 1',
           message: 'Active notification',
           startDate: new Date('2025-04-01'),
           endDate: new Date('2025-04-30'),
@@ -580,6 +589,7 @@ describe('notificationDb', () => {
         },
         {
           id: 2,
+          title: 'Test 2',
           message: 'Expired notification',
           startDate: new Date('2025-03-01'),
           endDate: new Date('2025-03-31'),
@@ -590,12 +600,79 @@ describe('notificationDb', () => {
       ]);
     });
 
+    it('should filter by type', async () => {
+      const mockNotifications = [] as NotificationRow[];
+      mockPool.execute.mockResolvedValueOnce([mockNotifications]);
+
+      await notificationsDb.getAllNotifications({ expired: false, type: 'maintenance' });
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM notifications WHERE end_date > NOW() AND type = ? ORDER BY start_date DESC LIMIT 50 OFFSET 0',
+        ['maintenance'],
+      );
+    });
+
+    it('should filter by date range', async () => {
+      const mockNotifications = [] as NotificationRow[];
+      mockPool.execute.mockResolvedValueOnce([mockNotifications]);
+
+      await notificationsDb.getAllNotifications({
+        expired: false,
+        startDate: '2025-01-01',
+        endDate: '2025-12-31',
+      });
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM notifications WHERE end_date > NOW() AND start_date >= ? AND end_date <= ? ORDER BY start_date DESC LIMIT 50 OFFSET 0',
+        ['2024-12-31 18:00:00', '2025-12-30 18:00:00'],
+      );
+    });
+
     it('should handle database errors correctly', async () => {
       const error = new Error('Database error');
       mockPool.execute.mockRejectedValueOnce(error);
 
-      await expect(notificationsDb.getAllNotifications(false)).rejects.toThrow(
+      await expect(notificationsDb.getAllNotifications({ expired: false })).rejects.toThrow(
         'Database error getting all notifications: Database error',
+      );
+    });
+  });
+
+  describe('getNotificationsCount()', () => {
+    it('should get count of active notifications', async () => {
+      mockPool.execute.mockResolvedValueOnce([[{ total: 5 }]]);
+
+      const result = await notificationsDb.getNotificationsCount({ expired: false });
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT COUNT(*) AS total FROM notifications WHERE end_date > NOW()',
+        [],
+      );
+      expect(result).toBe(5);
+    });
+
+    it('should get count with filters', async () => {
+      mockPool.execute.mockResolvedValueOnce([[{ total: 2 }]]);
+
+      const result = await notificationsDb.getNotificationsCount({
+        expired: false,
+        type: 'maintenance',
+        startDate: '2025-01-01',
+      });
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT COUNT(*) AS total FROM notifications WHERE end_date > NOW() AND type = ? AND start_date >= ?',
+        ['maintenance', '2024-12-31 18:00:00'],
+      );
+      expect(result).toBe(2);
+    });
+
+    it('should handle database errors correctly', async () => {
+      const error = new Error('Database error');
+      mockPool.execute.mockRejectedValueOnce(error);
+
+      await expect(notificationsDb.getNotificationsCount({ expired: false })).rejects.toThrow(
+        'Database error get a count of all notifications: Database error',
       );
     });
   });

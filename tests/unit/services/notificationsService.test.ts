@@ -1,13 +1,17 @@
 import { CreateNotificationRequest, UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
 import * as notificationsDb from '@db/notificationsDb';
 import { NoAffectedRowsError } from '@middleware/errorMiddleware';
+import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { notificationsService } from '@services/notificationsService';
 
 jest.mock('@db/notificationsDb');
 jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
 
 describe('notificationsService', () => {
+  let mockCacheService: jest.Mocked<any>;
+
   const mockAccountNotifications = [
     {
       id: 1,
@@ -83,6 +87,24 @@ describe('notificationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockCacheService = {
+      getOrSet: jest.fn(),
+      invalidate: jest.fn(),
+      invalidatePattern: jest.fn(),
+    };
+
+    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
+
+    Object.defineProperty(notificationsService, 'cache', {
+      value: mockCacheService,
+      writable: true,
+    });
+
+    // Default implementation for cache.getOrSet - calls the fetch function
+    mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
+      return await fetchFn();
+    });
 
     (errorService.handleError as jest.Mock).mockImplementation((error) => {
       throw error;
@@ -278,38 +300,79 @@ describe('notificationsService', () => {
 
   describe('getAllNotifications', () => {
     it('should return all notifications, including expired', async () => {
+      (notificationsDb.getNotificationsCount as jest.Mock).mockResolvedValue(3);
       (notificationsDb.getAllNotifications as jest.Mock).mockResolvedValue(mockAdminNotifications);
 
-      const result = await notificationsService.getAllNotifications(true);
+      const result = await notificationsService.getAllNotifications({ expired: true }, 1, 1, 25);
 
-      expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith(true);
-      expect(result).toEqual(mockAdminNotifications);
+      expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith({ expired: true }, 25, 1);
+      expect(notificationsDb.getNotificationsCount).toHaveBeenCalledWith({ expired: true });
+      expect(result).toEqual({
+        message: 'Notifications retrieved successfully',
+        notifications: mockAdminNotifications,
+        pagination: {
+          totalCount: 3,
+          totalPages: 1,
+          currentPage: 1,
+          limit: 25,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
     });
 
     it('should return all notifications, excluding expired', async () => {
+      (notificationsDb.getNotificationsCount as jest.Mock).mockResolvedValue(3);
       (notificationsDb.getAllNotifications as jest.Mock).mockResolvedValue(mockAdminNotifications);
 
-      const result = await notificationsService.getAllNotifications(false);
+      const result = await notificationsService.getAllNotifications({ expired: false }, 1, 1, 25);
 
-      expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith(false);
-      expect(result).toEqual(mockAdminNotifications);
+      expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith({ expired: false }, 25, 1);
+      expect(notificationsDb.getNotificationsCount).toHaveBeenCalledWith({ expired: false });
+      expect(result).toEqual({
+        message: 'Notifications retrieved successfully',
+        notifications: mockAdminNotifications,
+        pagination: {
+          totalCount: 3,
+          totalPages: 1,
+          currentPage: 1,
+          limit: 25,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
     });
 
     it('should handle empty notifications array', async () => {
+      (notificationsDb.getNotificationsCount as jest.Mock).mockResolvedValue(0);
       (notificationsDb.getAllNotifications as jest.Mock).mockResolvedValue([]);
 
-      const result = await notificationsService.getAllNotifications(true);
+      const result = await notificationsService.getAllNotifications({ expired: true }, 1, 1, 25);
 
-      expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith(true);
-      expect(result).toEqual([]);
+      expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith({ expired: true }, 25, 1);
+      expect(notificationsDb.getNotificationsCount).toHaveBeenCalledWith({ expired: true });
+      expect(result).toEqual({
+        message: 'Notifications retrieved successfully',
+        notifications: [],
+        pagination: {
+          totalCount: 0,
+          totalPages: 0,
+          currentPage: 1,
+          limit: 25,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
     });
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error');
       (notificationsDb.getAllNotifications as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.getAllNotifications(true)).rejects.toThrow('Database error');
-      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAllNotifications(true)');
+      await expect(notificationsService.getAllNotifications({ expired: true }, 1, 1, 25)).rejects.toThrow(
+        'Database error',
+      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAllNotifications({"expired":true})');
     });
   });
 

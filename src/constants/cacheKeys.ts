@@ -19,6 +19,7 @@ export const CACHE_KEY_PATTERNS = {
   RECOMMENDATIONS: 'recommendations',
   SIMILAR: 'similar',
   ADMIN: 'admin',
+  NOTIFICATION: 'notification',
 };
 
 // Account keys
@@ -194,6 +195,17 @@ export const SEARCH_KEYS = {
     `${mediaType}_search_${searchString}_${year || ''}_${page}`,
 
   peopleResults: (searchString: string, page: number) => `peopleSearch_${searchString}_${page}`,
+};
+
+// Notification keys
+export const NOTIFICATION_KEYS = {
+  /** Gets the cache key for account notifications */
+  forAccount: (accountId: number | string, includeDismissed: boolean) =>
+    `${CACHE_KEY_PATTERNS.NOTIFICATION}_account_${accountId}_dismissed_${includeDismissed}`,
+
+  /** Gets the cache key for all notifications (admin) */
+  all: (page: number, offset: number, limit: number, options: string) =>
+    `${CACHE_KEY_PATTERNS.NOTIFICATION}_all_${page}_${offset}_${limit}_${options}`,
 };
 
 // Base patterns for invalidation

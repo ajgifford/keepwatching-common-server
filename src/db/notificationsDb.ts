@@ -1,5 +1,6 @@
 import { NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
 import { AccountReferenceRow } from '../types/accountTypes';
+import { ContentCountRow } from '../types/contentTypes';
 import {
   CurrentNotificationRow,
   NotificationRow,
@@ -13,6 +14,7 @@ import {
   AccountNotification,
   AdminNotification,
   CreateNotificationRequest,
+  GetAllNotificationsOptions,
   UpdateNotificationRequest,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
@@ -252,45 +254,166 @@ export async function dismissAllNotifications(accountId: number): Promise<boolea
 }
 
 /**
- * Retrieves all system notifications for administrative purposes.
+ * Builds WHERE clause conditions and parameters for notification queries.
  *
- * This function is used by administrators to view and manage system-wide notifications.
- * It can include expired notifications for historical purposes or exclude them for
- * active management.
+ * This helper function creates the WHERE clause components based on filter options,
+ * ensuring consistency between count and retrieval queries.
+ *
+ * @private
+ * @function buildNotificationWhereClause
+ * @param {GetAllNotificationsOptions} options - Filter options
+ * @returns {{ conditions: string[], params: (string | number)[] }} Object containing SQL conditions array and parameter values array
+ */
+function buildNotificationWhereClause(options: GetAllNotificationsOptions): {
+  conditions: string[];
+  params: (string | number)[];
+} {
+  const { expired, type, startDate, endDate, sendToAll } = options;
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (!expired) {
+    conditions.push('end_date > NOW()');
+  }
+
+  if (type) {
+    conditions.push('type = ?');
+    params.push(type);
+  }
+
+  if (startDate) {
+    conditions.push('start_date >= ?');
+    params.push(formatDateForMySql(startDate));
+  }
+
+  if (endDate) {
+    conditions.push('end_date <= ?');
+    params.push(formatDateForMySql(endDate));
+  }
+
+  if (sendToAll !== undefined) {
+    conditions.push('send_to_all = ?');
+    params.push(sendToAll ? 1 : 0);
+  }
+
+  return { conditions, params };
+}
+
+/**
+ * Retrieves a count of all system notifications matching the specified filters.
+ *
+ * This function counts notifications based on optional filters for expiration status,
+ * type, and date range. It supports the administrative pagination system by providing
+ * accurate total counts for the filtered result set.
  *
  * @async
- * @function getAllNotifications
- * @param {boolean} expired - Whether to include expired notifications in the results
- * @returns {Promise<AdminNotification[]>} Promise that resolves to an array of admin notifications
+ * @function getNotificationsCount
+ * @param {GetAllNotificationsOptions} options - Filter options
+ * @param {boolean} options.expired - Whether to include expired notifications (end_date < NOW())
+ * @param {string} [options.type] - Filter by notification type (e.g., 'maintenance', 'welcome')
+ * @param {string} [options.startDate] - Filter notifications starting on or after this date (ISO string)
+ * @param {string} [options.endDate] - Filter notifications ending on or before this date (ISO string)
+ * @returns {Promise<number>} Promise that resolves to the total count of notifications matching the filters
  * @throws {Error} Throws database error if the query fails or connection issues occur
  *
  * @example
  * ```typescript
- * // Get all active notifications for admin panel
- * try {
- *   const activeNotifications = await getAllNotifications(false);
- *   console.log(`Found ${activeNotifications.length} active notifications`);
+ * // Count all active notifications
+ * const count = await getNotificationsCount({ expired: false });
+ * console.log(`${count} active notifications`);
  *
- *   activeNotifications.forEach(notification => {
- *     console.log(`ID: ${notification.id}, Title: ${notification.title}`);
- *     console.log(`Send to all: ${notification.sendToAll}, Account: ${notification.accountId}`);
- *     console.log(`Active: ${notification.startDate} to ${notification.endDate}`);
- *   });
+ * // Count maintenance notifications in date range
+ * const maintenanceCount = await getNotificationsCount({
+ *   expired: false,
+ *   type: 'maintenance',
+ *   startDate: '2025-01-01',
+ *   endDate: '2025-12-31'
+ * });
+ * ```
+ */
+export async function getNotificationsCount(options: GetAllNotificationsOptions): Promise<number> {
+  try {
+    const { conditions, params } = buildNotificationWhereClause(options);
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const query = `SELECT COUNT(*) AS total FROM notifications ${whereClause}`;
+
+    const [result] = await getDbPool().execute<ContentCountRow[]>(query, params);
+    return result[0].total;
+  } catch (error) {
+    handleDatabaseError(error, 'get a count of all notifications');
+  }
+}
+
+/**
+ * Retrieves all system notifications for administrative purposes with filtering and pagination.
+ *
+ * This function is used by administrators to view and manage system-wide notifications.
+ * It supports filtering by type, date range, and expiration status, along with pagination
+ * for efficient data retrieval. Results are ordered by start_date in descending order (newest first).
+ *
+ * @async
+ * @function getAllNotifications
+ * @param {GetAllNotificationsOptions} options - Query options for filtering
+ * @param {boolean} options.expired - Whether to include expired notifications (end_date < NOW())
+ * @param {string} [options.type] - Filter by notification type (e.g., 'maintenance', 'welcome')
+ * @param {string} [options.startDate] - Filter notifications starting on or after this date (ISO string)
+ * @param {string} [options.endDate] - Filter notifications ending on or before this date (ISO string)
+ * @param {number} [limit=50] - The maximum number of results to retrieve (default: 50)
+ * @param {number} [offset=0] - The offset used to start retrieving results (default: 0, for first page)
+ * @returns {Promise<AdminNotification[]>} Promise that resolves to an array of admin notifications ordered by start_date DESC
+ * @throws {Error} Throws database error if the query fails or connection issues occur
+ *
+ * @example
+ * ```typescript
+ * // Get first page of active notifications (first 10)
+ * try {
+ *   const notifications = await getAllNotifications({ expired: false }, 10, 0);
+ *   console.log(`Found ${notifications.length} notifications`);
  * } catch (error) {
  *   console.error('Failed to fetch admin notifications:', error);
  * }
  *
- * // Get all notifications including expired ones for reporting
- * const allNotifications = await getAllNotifications(true);
+ * // Filter by type and date range with pagination
+ * const filtered = await getAllNotifications(
+ *   {
+ *     expired: false,
+ *     type: 'maintenance',
+ *     startDate: '2025-01-01',
+ *     endDate: '2025-12-31'
+ *   },
+ *   20,
+ *   0
+ * );
+ *
+ * // Get second page (offset 20)
+ * const secondPage = await getAllNotifications({ expired: false }, 20, 20);
  * ```
  */
-export async function getAllNotifications(expired: boolean): Promise<AdminNotification[]> {
+export async function getAllNotifications(
+  options: GetAllNotificationsOptions,
+  limit: number = 50,
+  offset: number = 0,
+): Promise<AdminNotification[]> {
   try {
-    const query = expired
-      ? 'SELECT * FROM notifications ORDER BY start_date ASC'
-      : 'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date ASC';
+    const { sortBy = 'startDate', sortOrder = 'desc' } = options;
 
-    const [notifications] = await getDbPool().execute<NotificationRow[]>(query);
+    const { conditions, params } = buildNotificationWhereClause(options);
+
+    // Map sort field to database column name
+    const sortFieldMap: Record<string, string> = {
+      startDate: 'start_date',
+      endDate: 'end_date',
+      type: 'type',
+      sendToAll: 'send_to_all',
+    };
+
+    const sortColumn = sortFieldMap[sortBy] || 'start_date';
+    const sortDirection = sortOrder.toUpperCase();
+
+    const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+    const query = `SELECT * FROM notifications${whereClause} ORDER BY ${sortColumn} ${sortDirection} LIMIT ${limit} OFFSET ${offset}`;
+
+    const [notifications] = await getDbPool().execute<NotificationRow[]>(query, params);
     return notifications.map(transformAdminNotificationRow);
   } catch (error) {
     handleDatabaseError(error, 'getting all notifications');
