@@ -23,6 +23,16 @@ export async function getMoviesCount(): Promise<number> {
   }
 }
 
+export async function getMoviesCountByProfile(profileId: number): Promise<number> {
+  try {
+    const query = `SELECT COUNT(DISTINCT m.movie_id) AS total FROM profile_movies m WHERE m.profile_id = ?`;
+    const [result] = await getDbPool().execute<ContentCountRow[]>(query, [profileId]);
+    return result[0].total;
+  } catch (error) {
+    handleDatabaseError(error, 'getting the count of movies for a profile');
+  }
+}
+
 export async function getAllMovies(limit: number = 50, offset: number = 0): Promise<AdminMovie[]> {
   try {
     const query = `SELECT * FROM admin_movies LIMIT ${limit} OFFSET ${offset}`;
@@ -30,6 +40,20 @@ export async function getAllMovies(limit: number = 50, offset: number = 0): Prom
     return movieRows.map(transformAdminMovie);
   } catch (error) {
     handleDatabaseError(error, 'getting all movies');
+  }
+}
+
+export async function getAllMoviesByProfile(
+  profileId: number,
+  limit: number = 50,
+  offset: number = 0,
+): Promise<AdminMovie[]> {
+  try {
+    const query = `SELECT * FROM admin_profile_movies WHERE profile_id = ? ORDER BY title asc LIMIT ${limit} OFFSET ${offset}`;
+    const [movieRows] = await getDbPool().execute<AdminMovieRow[]>(query, [profileId]);
+    return movieRows.map(transformAdminMovie);
+  } catch (error) {
+    handleDatabaseError(error, 'getting all movies for a profile');
   }
 }
 

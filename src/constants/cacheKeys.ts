@@ -106,10 +106,16 @@ export const ADMIN_KEYS = {
   /** Gets the cache key for all shows */
   allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
 
+  allShowsByProfile: (profileId: number, page: number, offset: number, limit: number) =>
+    `allShows_${profileId}_${page}_${offset}_${limit}`,
+
   allShowReferences: () => `allShowReferences`,
 
   /** Gets the cache key for all movies */
   allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
+
+  allMoviesByProfile: (profileId: number, page: number, offset: number, limit: number) =>
+    `allMovies_${profileId}_${page}_${offset}_${limit}`,
 
   allMovieReferences: () => `allMovieReferences`,
 

@@ -59,6 +59,40 @@ export class AdminShowService {
   }
 
   /**
+   * Get all shows with pagination for administrative purposes for a specific profile
+   *
+   * @param profileId - Profile id to get the shows for
+   * @param page - Current page number
+   * @param offset - Number of items to skip
+   * @param limit - Maximum number of items to return
+   * @returns Paginated shows data with pagination metadata
+   */
+  public async getAllShowsByProfile(profileId: number, page: number, offset: number, limit: number) {
+    try {
+      return await this.cache.getOrSet(ADMIN_KEYS.allShowsByProfile(profileId, page, offset, limit), async () => {
+        const [totalCount, shows] = await Promise.all([
+          showsDb.getShowsCountByProfile(profileId),
+          showsDb.getAllShowsByProfile(profileId, limit, offset),
+        ]);
+        const totalPages = Math.ceil(totalCount / limit);
+        return {
+          shows,
+          pagination: {
+            totalCount,
+            totalPages,
+            currentPage: page,
+            limit,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+        };
+      });
+    } catch (error) {
+      throw errorService.handleError(error, `getAllShowsByProfile(${profileId}, ${page}, ${offset}, ${limit})`);
+    }
+  }
+
+  /**
    * Get all show references (id and tmdbId pairs) for batch operations
    *
    * @returns Array of show references containing id and tmdbId

@@ -22,8 +22,10 @@ export { saveFavorite, removeFavorite } from './shows/showWatchStatusRepository'
 
 export {
   getAllShows,
+  getAllShowsByProfile,
   getAllShowReferences,
   getShowsCount,
+  getShowsCountByProfile,
   getAdminShowDetails,
   getAdminShowSeasons,
   getAdminShowSeasonsWithEpisodes,

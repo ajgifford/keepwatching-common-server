@@ -47,6 +47,31 @@ export class AdminMovieService {
     }
   }
 
+  public async getAllMoviesByProfile(profileId: number, page: number, offset: number, limit: number) {
+    try {
+      return await this.cache.getOrSet(ADMIN_KEYS.allMoviesByProfile(profileId, page, offset, limit), async () => {
+        const [totalCount, movies] = await Promise.all([
+          moviesDb.getMoviesCountByProfile(profileId),
+          moviesDb.getAllMoviesByProfile(profileId, limit, offset),
+        ]);
+        const totalPages = Math.ceil(totalCount / limit);
+        return {
+          movies,
+          pagination: {
+            totalCount,
+            totalPages,
+            currentPage: page,
+            limit,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+        };
+      });
+    } catch (error) {
+      throw errorService.handleError(error, `getAllMoviesByProfile(${profileId}, ${page}, ${offset}, ${limit})`);
+    }
+  }
+
   public async getAllMovieReferences() {
     try {
       return await this.cache.getOrSet(ADMIN_KEYS.allMovieReferences(), async () => {

@@ -16,8 +16,10 @@ export {
 
 export {
   getAllMovies,
+  getAllMoviesByProfile,
   getAllMoviesReferences,
   getMoviesCount,
+  getMoviesCountByProfile,
   getMovieDetails,
   getMovieProfiles,
 } from './movies/adminMovieRepository';

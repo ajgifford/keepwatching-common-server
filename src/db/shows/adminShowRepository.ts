@@ -34,6 +34,16 @@ export async function getShowsCount(): Promise<number> {
   }
 }
 
+export async function getShowsCountByProfile(profileId: number): Promise<number> {
+  try {
+    const query = `SELECT COUNT(DISTINCT s.show_id) AS total FROM profile_shows s WHERE s.profile_id = ?`;
+    const [result] = await getDbPool().execute<ContentCountRow[]>(query, [profileId]);
+    return result[0].total;
+  } catch (error) {
+    handleDatabaseError(error, 'getting a count of shows for a profile');
+  }
+}
+
 export async function getAllShows(limit: number = 50, offset: number = 0): Promise<AdminShow[]> {
   try {
     const query = `SELECT * FROM admin_shows LIMIT ${limit} OFFSET ${offset}`;
@@ -41,6 +51,20 @@ export async function getAllShows(limit: number = 50, offset: number = 0): Promi
     return shows.map(transformAdminShow);
   } catch (error) {
     handleDatabaseError(error, 'get all shows');
+  }
+}
+
+export async function getAllShowsByProfile(
+  profileId: number,
+  limit: number = 50,
+  offset: number = 0,
+): Promise<AdminShow[]> {
+  try {
+    const query = `SELECT * FROM admin_profile_shows WHERE profile_id = ? ORDER BY title asc LIMIT ${limit} OFFSET ${offset}`;
+    const [shows] = await getDbPool().execute<AdminShowRow[]>(query, [profileId]);
+    return shows.map(transformAdminShow);
+  } catch (error) {
+    handleDatabaseError(error, 'get all shows for a profile');
   }
 }
 
