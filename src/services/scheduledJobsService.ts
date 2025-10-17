@@ -11,10 +11,10 @@ import { updateMovies, updatePeople, updateShows } from './contentUpdatesService
 import { emailService } from './emailService';
 import { errorService } from './errorService';
 import parser from 'cron-parser';
-import CronJob from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 
 interface ScheduledJob {
-  job: CronJob.ScheduledTask;
+  job: ScheduledTask | null;
   cronExpression: string;
   lastRunTime: Date | null;
   lastRunStatus: 'success' | 'failed' | 'never_run';
@@ -23,28 +23,28 @@ interface ScheduledJob {
 
 const jobs: Record<string, ScheduledJob> = {
   showsUpdate: {
-    job: null as unknown as CronJob.ScheduledTask,
+    job: null,
     cronExpression: '',
     lastRunTime: null,
     lastRunStatus: 'never_run',
     isRunning: false,
   },
   moviesUpdate: {
-    job: null as unknown as CronJob.ScheduledTask,
+    job: null,
     cronExpression: '',
     lastRunTime: null,
     lastRunStatus: 'never_run',
     isRunning: false,
   },
   peopleUpdate: {
-    job: null as unknown as CronJob.ScheduledTask,
+    job: null,
     cronExpression: '',
     lastRunTime: null,
     lastRunStatus: 'never_run',
     isRunning: false,
   },
   emailDigest: {
-    job: null as unknown as CronJob.ScheduledTask,
+    job: null,
     cronExpression: '',
     lastRunTime: null,
     lastRunStatus: 'never_run',
@@ -260,7 +260,7 @@ export function initScheduledJobs(
 
   const { showsUpdateSchedule, moviesUpdateSchedule, peopleUpdateSchedule, emailSchedule } = getScheduleConfig();
 
-  if (!CronJob.validate(showsUpdateSchedule)) {
+  if (!cron.validate(showsUpdateSchedule)) {
     cliLogger.error(`Invalid CRON expression for shows update: ${showsUpdateSchedule}`);
     throw errorService.handleError(
       new Error(`Invalid CRON expression for shows update: ${showsUpdateSchedule}`),
@@ -268,7 +268,7 @@ export function initScheduledJobs(
     );
   }
 
-  if (!CronJob.validate(moviesUpdateSchedule)) {
+  if (!cron.validate(moviesUpdateSchedule)) {
     cliLogger.error(`Invalid CRON expression for movies update: ${moviesUpdateSchedule}`);
     throw errorService.handleError(
       new Error(`Invalid CRON expression for movies update: ${moviesUpdateSchedule}`),
@@ -276,7 +276,7 @@ export function initScheduledJobs(
     );
   }
 
-  if (!CronJob.validate(peopleUpdateSchedule)) {
+  if (!cron.validate(peopleUpdateSchedule)) {
     cliLogger.error(`Invalid CRON expression for people update: ${peopleUpdateSchedule}`);
     throw errorService.handleError(
       new Error(`Invalid CRON expression for people update: ${peopleUpdateSchedule}`),
@@ -284,7 +284,7 @@ export function initScheduledJobs(
     );
   }
 
-  if (isEmailEnabled() && !CronJob.validate(emailSchedule)) {
+  if (isEmailEnabled() && !cron.validate(emailSchedule)) {
     cliLogger.error(`Invalid CRON expression for email digest: ${emailSchedule}`);
     throw errorService.handleError(
       new Error(`Invalid CRON expression for email digest: ${emailSchedule}`),
@@ -292,7 +292,7 @@ export function initScheduledJobs(
     );
   }
 
-  jobs.showsUpdate.job = CronJob.schedule(showsUpdateSchedule, async () => {
+  jobs.showsUpdate.job = cron.schedule(showsUpdateSchedule, async () => {
     try {
       await runShowsUpdateJob();
     } catch (error) {
@@ -301,7 +301,7 @@ export function initScheduledJobs(
   });
   jobs.showsUpdate.cronExpression = showsUpdateSchedule;
 
-  jobs.moviesUpdate.job = CronJob.schedule(moviesUpdateSchedule, async () => {
+  jobs.moviesUpdate.job = cron.schedule(moviesUpdateSchedule, async () => {
     try {
       await runMoviesUpdateJob();
     } catch (error) {
@@ -310,7 +310,7 @@ export function initScheduledJobs(
   });
   jobs.moviesUpdate.cronExpression = moviesUpdateSchedule;
 
-  jobs.peopleUpdate.job = CronJob.schedule(peopleUpdateSchedule, async () => {
+  jobs.peopleUpdate.job = cron.schedule(peopleUpdateSchedule, async () => {
     try {
       await runPeopleUpdateJob();
     } catch (error) {
@@ -320,7 +320,7 @@ export function initScheduledJobs(
   jobs.peopleUpdate.cronExpression = peopleUpdateSchedule;
 
   if (isEmailEnabled()) {
-    jobs.emailDigest.job = CronJob.schedule(emailSchedule, async () => {
+    jobs.emailDigest.job = cron.schedule(emailSchedule, async () => {
       try {
         await runEmailDigestJob();
       } catch (error) {

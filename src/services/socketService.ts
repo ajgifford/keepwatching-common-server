@@ -135,7 +135,6 @@ export class SocketService {
         this.pollNotifications();
       },
       {
-        scheduled: false,
         timezone: 'UTC',
       },
     );
