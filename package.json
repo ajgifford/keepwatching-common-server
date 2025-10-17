@@ -89,7 +89,7 @@
     "nodemailer": "7.0.9",
     "socket.io": "^4.8.1",
     "streaming-availability": "^4.4.0",
-    "uuid": "13.0.0",
+    "uuid": "^11.1.0",
     "winston": "3.18.3",
     "winston-daily-rotate-file": "^5.0.0",
     "zod": "^3.24.2"

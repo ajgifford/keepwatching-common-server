@@ -148,7 +148,6 @@ describe('SocketService', () => {
       expect(service.isInitialized()).toBe(true);
       expect(service.getServer()).toBe(mockServer);
       expect(cron.schedule).toHaveBeenCalledWith('*/5 * * * *', expect.any(Function), {
-        scheduled: false,
         timezone: 'UTC',
       });
       expect(mockCronJob.start).toHaveBeenCalled();
