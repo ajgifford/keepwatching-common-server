@@ -129,6 +129,7 @@ export class ShowService {
    * @param accountId - ID of the account to get the show for
    * @param profileId - ID of the profile to get the show for
    * @param showId - ID of the show to retrieve
+   * @param checkWatchStatus - Flag indicating if the watch status of a show should be updated when retrieving the show
    * @returns Detailed show information
    * @throws {NotFoundError} If the show isn't found
    */

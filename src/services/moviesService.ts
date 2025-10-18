@@ -16,6 +16,7 @@ import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { profileService } from './profileService';
 import { getTMDBService } from './tmdbService';
+import { watchStatusService } from './watchStatusService';
 import {
   AddMovieFavorite,
   CastMember,
@@ -126,14 +127,56 @@ export class MoviesService {
    */
   public async getMoviesForProfile(profileId: number): Promise<ProfileMovie[]> {
     try {
-      return await this.cache.getOrSet(
+      const movies = await this.cache.getOrSet(
         PROFILE_KEYS.movies(profileId),
         () => moviesDb.getAllMoviesForProfile(profileId),
         600,
       );
+
+      // Check and update any UNAIRED movies that have been released
+      const updatedMovies = await this.checkAndUpdateUnairedMovies(profileId, movies);
+
+      return updatedMovies;
     } catch (error) {
       throw errorService.handleError(error, `getMoviesForProfile(${profileId})`);
     }
+  }
+
+  /**
+   * Helper method to check UNAIRED movies and update their status if they've been released
+   * Updates both the database and the in-memory movie list
+   */
+  private async checkAndUpdateUnairedMovies(profileId: number, movies: ProfileMovie[]): Promise<ProfileMovie[]> {
+    const now = new Date();
+    const unairedMovies = movies.filter(
+      (movie) => movie.watchStatus === WatchStatus.UNAIRED && new Date(movie.releaseDate) <= now,
+    );
+
+    if (unairedMovies.length === 0) {
+      return movies;
+    }
+
+    let updatedCount = 0;
+
+    for (const movie of unairedMovies) {
+      try {
+        const result = await watchStatusService.checkAndUpdateMovieStatus(profileId, movie.id);
+        if (result.affectedRows > 0) {
+          // Update the movie status in the returned list
+          movie.watchStatus = WatchStatus.NOT_WATCHED;
+          updatedCount++;
+        }
+      } catch (error) {
+        cliLogger.error(`Failed to update watch status for movie ${movie.id}`, error);
+      }
+    }
+
+    // Invalidate cache after updates so next fetch gets fresh data
+    if (updatedCount > 0) {
+      this.invalidateProfileMovieCache(profileId);
+    }
+
+    return movies;
   }
 
   /**
@@ -204,7 +247,7 @@ export class MoviesService {
     const saved = await moviesDb.saveFavorite(
       profileId,
       movie.id,
-      new Date(movie.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+      !movie.releaseDate || new Date(movie.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
     );
     if (!saved) {
       throw new NoAffectedRowsError('Failed to save a movie as a favorite');
@@ -257,7 +300,9 @@ export class MoviesService {
     const favoriteSaved = await moviesDb.saveFavorite(
       profileId,
       savedMovieId,
-      new Date(movieResponse.release_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+      !movieResponse.release_date || new Date(movieResponse.release_date) > now
+        ? WatchStatus.UNAIRED
+        : WatchStatus.NOT_WATCHED,
     );
     if (!favoriteSaved) {
       throw new NoAffectedRowsError('Failed to save a movie as a favorite');

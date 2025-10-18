@@ -163,6 +163,33 @@ export class WatchStatusService {
     }
   }
 
+  /**
+   * Checks whether any movies' status should be updated from UNAIRED to NOT_WATCHED
+   * This is called when movies are retrieved for a profile
+   *
+   * @param profileId ID of the profile
+   * @param movieId ID of the movie to check
+   * @returns Object indicating if the status was updated
+   */
+  public async checkAndUpdateMovieStatus(profileId: number, movieId: number): Promise<StatusUpdateResult> {
+    try {
+      const result = await this.dbService.checkAndUpdateMovieWatchStatus(profileId, movieId);
+
+      if (!result.success) {
+        throw new DatabaseError('Failed to check and update movie watch status', null);
+      }
+
+      return {
+        success: true,
+        changes: result.changes,
+        affectedRows: result.affectedRows,
+        message: result.affectedRows > 0 ? this.formatChangesMessage(result.changes) : 'Movie status is current',
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `checkAndUpdateMovieStatus(${profileId}, ${movieId})`);
+    }
+  }
+
   private formatChangesMessage(changes: StatusChange[]): string {
     if (changes.length === 0) {
       return 'No status changes occurred';

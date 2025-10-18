@@ -671,6 +671,54 @@ export class WatchStatusDbService {
   }
 
   /**
+   * Check for content updates and update movie watch status if necessary
+   * Transitions UNAIRED movies to NOT_WATCHED once their release date has passed
+   */
+  async checkAndUpdateMovieWatchStatus(profileId: number, movieId: number): Promise<StatusUpdateResult> {
+    return this.executeStatusUpdate('checking and updating movie watch status', async (context) => {
+      context.profileId = profileId;
+
+      // Update any previously UNAIRED movies to NOT_WATCHED if they've been released
+      const movieUpdateQuery = `
+        INSERT INTO movie_watch_status (profile_id, movie_id, status)
+        SELECT ?, m.id, 'NOT_WATCHED'
+        FROM movies m
+        LEFT JOIN movie_watch_status mws
+          ON m.id = mws.movie_id AND mws.profile_id = ?
+        WHERE m.id = ?
+          AND DATE(m.release_date) <= ?
+          AND (mws.status = 'UNAIRED' OR mws.movie_id IS NULL)
+        ON DUPLICATE KEY UPDATE
+          status = 'NOT_WATCHED',
+          updated_at = CURRENT_TIMESTAMP;
+      `;
+
+      const [result] = await context.connection.execute<ResultSetHeader>(movieUpdateQuery, [
+        profileId,
+        profileId,
+        movieId,
+        context.timestamp,
+      ]);
+
+      context.totalAffectedRows += result.affectedRows;
+
+      // Record change if status was updated
+      if (result.affectedRows > 0) {
+        this.recordStatusChange(
+          context,
+          'episode', // Using 'episode' as entity type since there's no 'movie' type defined
+          movieId,
+          WatchStatus.UNAIRED,
+          WatchStatus.NOT_WATCHED,
+          'Movie release date passed',
+        );
+      }
+
+      return this.createSuccessResult(context);
+    });
+  }
+
+  /**
    * Check for content updates and update show, season and episode watch statuses as necessary
    */
   async checkAndUpdateShowWatchStatus(profileId: number, showId: number): Promise<StatusUpdateResult> {
