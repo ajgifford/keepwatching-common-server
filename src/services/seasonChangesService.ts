@@ -62,7 +62,7 @@ export async function processSeasonChanges(
         await seasonsService.addSeasonToFavorites(
           mapping.profileId,
           seasonId,
-          new Date(seasonInfo.air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+          !seasonInfo.air_date || new Date(seasonInfo.air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
         );
       }
 
@@ -99,7 +99,9 @@ export async function processSeasonChanges(
             await episodesService.addEpisodeToFavorites(
               mapping.profileId,
               episodeId,
-              new Date(episodeData.air_date) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
+              !episodeData.air_date || new Date(episodeData.air_date) > now
+                ? WatchStatus.UNAIRED
+                : WatchStatus.NOT_WATCHED,
             );
           }
         }
