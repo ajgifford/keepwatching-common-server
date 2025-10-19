@@ -432,6 +432,14 @@ export class AccountService {
     }
   }
 
+  public async verifyEmail(accountUid: string): Promise<void> {
+    try {
+      await this.getAdmin().auth().updateUser(accountUid, { emailVerified: true });
+    } catch (error) {
+      throw errorService.handleError(error, `verifyEmail(${accountUid})`);
+    }
+  }
+
   private async getAllUsers(): Promise<UserRecord[]> {
     let nextPageToken: string | undefined;
     let allUsers: UserRecord[] = [];

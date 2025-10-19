@@ -40,6 +40,10 @@ export const profileNameBodySchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters').max(50, 'Name must be less than 50 characters').trim(),
 });
 
+export const accountUIDParamSchema = z.object({
+  accountUid: z.string().min(1, 'Account UID cannot be empty'),
+});
+
 export type RegisterAccountBody = z.infer<typeof registerAccountBodySchema>;
 export type UpdateAccountBody = z.infer<typeof updateAccountBodySchema>;
 export type AccountLoginBody = z.infer<typeof accountLoginBodySchema>;
@@ -48,3 +52,4 @@ export type AccountIdParam = z.infer<typeof accountIdParamSchema>;
 export type AccountIdBody = z.infer<typeof accountIdBodySchema>;
 export type AccountAndProfileIdsParams = z.infer<typeof accountAndProfileIdsParamSchema>;
 export type ProfileNameBody = z.infer<typeof profileNameBodySchema>;
+export type AccountUIDParams = z.infer<typeof accountUIDParamSchema>;
