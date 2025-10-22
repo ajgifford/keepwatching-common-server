@@ -15,7 +15,7 @@ import { errorService } from './errorService';
 import { showService } from './showService';
 import { socketService } from './socketService';
 import { getTMDBService } from './tmdbService';
-import { CreateShowCast, UpdateShowRequest } from '@ajgifford/keepwatching-types';
+import { CreateShowCast, UpdateShowRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 
 /**
  * Service for handling admin-specific show operations
@@ -330,6 +330,7 @@ export class AdminShowService {
       const seasonsToUpdate = updateMode === 'latest' ? validSeasons.slice(0, 1) : validSeasons;
 
       const profileForShow = await showsDb.getProfilesForShow(showId);
+      const now = new Date();
 
       for (const responseSeason of seasonsToUpdate) {
         await sleep(500);
@@ -367,7 +368,13 @@ export class AdminShowService {
               still_image: responseEpisode.still_path,
             });
             for (const mapping of profileForShow.profileAccountMappings) {
-              await episodesDb.saveFavorite(mapping.profileId, episodeId);
+              await episodesDb.saveFavorite(
+                mapping.profileId,
+                episodeId,
+                !responseEpisode.air_date || new Date(responseEpisode.air_date) > now
+                  ? WatchStatus.UNAIRED
+                  : WatchStatus.NOT_WATCHED,
+              );
             }
           }
         } catch (error) {
