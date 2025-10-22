@@ -429,6 +429,51 @@ describe('WatchStatusManager', () => {
 
       mockCalculateSeasonStatus.mockRestore();
     });
+
+    it('should handle seasons with watchStatus but no episodes (aired season)', () => {
+      // This tests the bug fix where seasons with a status but no episodes should be handled correctly
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHING),
+        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.NOT_WATCHED),
+      ];
+      const show = createMockShow(seasons);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      // Should trust the watchStatus of aired seasons even without episodes
+      expect(status).toBe(WatchStatus.WATCHING);
+    });
+
+    it('should ignore watchStatus for unaired seasons without episodes', () => {
+      // Seasons that haven't aired yet should be treated as unaired regardless of watchStatus
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHED),
+        createMockSeason(2, new Date('2026-01-01'), [], WatchStatus.NOT_WATCHED), // Future season
+      ];
+      const show = createMockShow(seasons);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      // Should return UP_TO_DATE (season 1 is watched, season 2 hasn't aired yet)
+      expect(status).toBe(WatchStatus.UP_TO_DATE);
+    });
+
+    it('should handle all aired seasons with status but no episodes', () => {
+      // All seasons have aired, have status, but no episodes
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.WATCHED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), false);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      // Should return WATCHED (all aired seasons are watched, show not in production)
+      expect(status).toBe(WatchStatus.WATCHED);
+    });
   });
 
   describe('generateStatusSummary', () => {

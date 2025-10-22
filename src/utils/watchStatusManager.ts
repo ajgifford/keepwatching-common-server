@@ -108,10 +108,21 @@ export class WatchStatusManager {
       return WatchStatus.UNAIRED;
     }
 
-    // Filter seasons by air status - a season is only "aired" if it has episodes that have aired
+    // Filter seasons by air status
+    // If a season has a watchStatus but no episodes, trust the watchStatus IF the season has aired
+    // Otherwise, determine aired status from episodes
     const airedSeasons =
       seasons?.filter((s) => {
-        // If no episodes, season should be treated as unaired regardless of air date
+        // If season has a watchStatus but no episodes
+        if ((!s.episodes || s.episodes.length === 0) && s.watchStatus) {
+          // Only trust the watchStatus if the season has actually aired
+          if (this.hasAired(s.airDate, now)) {
+            return s.watchStatus !== WatchStatus.UNAIRED;
+          }
+          // Season hasn't aired yet, so it's not an aired season
+          return false;
+        }
+        // If no episodes and no watchStatus, treat as unaired
         if (!s.episodes || s.episodes.length === 0) {
           return false;
         }
@@ -120,7 +131,12 @@ export class WatchStatusManager {
       }) || [];
     const unairedSeasons =
       seasons?.filter((s) => {
-        // If no episodes, season should be treated as unaired
+        // If season has a watchStatus but no episodes
+        if ((!s.episodes || s.episodes.length === 0) && s.watchStatus) {
+          // Check both watchStatus and air date
+          return s.watchStatus === WatchStatus.UNAIRED || this.isUnaired(s.airDate, now);
+        }
+        // If no episodes and no watchStatus, treat as unaired
         if (!s.episodes || s.episodes.length === 0) {
           return true;
         }
