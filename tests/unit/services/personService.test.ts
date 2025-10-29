@@ -518,7 +518,7 @@ describe('PersonService', () => {
       (personsDb.getPeopleForUpdates as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getPeopleForUpdates(blockNumber)).rejects.toThrow('Update query failed');
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getMoviesForUpdates()');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getPeopleForUpdates()');
     });
   });
 
@@ -590,7 +590,7 @@ describe('PersonService', () => {
       (personsDb.getPerson as jest.Mock).mockRejectedValue(error);
 
       await expect(service.updatePerson(123, 456)).rejects.toThrow('Update failed');
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'checkPersonForChanges(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'updatePerson(123)');
     });
   });
 
@@ -659,7 +659,7 @@ describe('PersonService', () => {
       mockTMDBService.getPersonDetails.mockRejectedValue(error);
 
       await expect(service.checkAndUpdatePerson(mockPerson)).rejects.toThrow('TMDB API error');
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'checkPersonForChanges(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'checkAndUpdatePerson(123)');
     });
   });
 

@@ -129,7 +129,7 @@ export class PersonService {
     try {
       return await personsDb.getPeopleForUpdates(blockNumber);
     } catch (error) {
-      throw errorService.handleError(error, `getMoviesForUpdates()`);
+      throw errorService.handleError(error, `getPeopleForUpdates()`);
     }
   }
 
@@ -145,8 +145,8 @@ export class PersonService {
         hadUpdates: fieldsUpdated.length > 0,
       };
     } catch (error) {
-      appLogger.error(ErrorMessages.MovieChangeFail, { error, personId });
-      throw errorService.handleError(error, `checkPersonForChanges(${personId})`);
+      appLogger.error(ErrorMessages.PersonChangeFail, { error, personId });
+      throw errorService.handleError(error, `updatePerson(${personId})`);
     }
   }
 
@@ -161,8 +161,8 @@ export class PersonService {
         hadUpdates: fieldsUpdated.length > 0,
       };
     } catch (error) {
-      appLogger.error(ErrorMessages.MovieChangeFail, { error, personId: person.id });
-      throw errorService.handleError(error, `checkPersonForChanges(${person.id})`);
+      appLogger.error(ErrorMessages.PersonChangeFail, { error, personId: person.id });
+      throw errorService.handleError(error, `checkAndUpdatePerson(${person.id})`);
     }
   }
 
