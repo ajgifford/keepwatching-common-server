@@ -66,7 +66,7 @@ describe('PreferencesService', () => {
       await expect(service.getAccountPreferences(accountId)).rejects.toThrow(dbError);
 
       expect(preferencesDb.getAccountPreferences).toHaveBeenCalledWith(accountId);
-      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `getAccountPreferences(${accountId}`);
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `getAccountPreferences(${accountId})`);
     });
   });
 
@@ -101,7 +101,7 @@ describe('PreferencesService', () => {
       expect(preferencesDb.getPreferencesByType).toHaveBeenCalledWith(accountId, preferenceType);
       expect(errorService.handleError).toHaveBeenCalledWith(
         dbError,
-        `getPreferencesByType(${accountId}, ${preferenceType}`,
+        `getPreferencesByType(${accountId}, ${preferenceType})`,
       );
     });
   });
@@ -164,7 +164,7 @@ describe('PreferencesService', () => {
       expect(preferencesDb.updatePreferences).toHaveBeenCalledWith(accountId, preferenceType, updates);
       expect(errorService.handleError).toHaveBeenCalledWith(
         dbError,
-        `updatePreferences(${accountId}, ${preferenceType}`,
+        `updatePreferences(${accountId}, ${preferenceType})`,
       );
     });
 
@@ -183,7 +183,7 @@ describe('PreferencesService', () => {
       expect(preferencesDb.getAccountPreferences).toHaveBeenCalledWith(accountId);
       expect(errorService.handleError).toHaveBeenCalledWith(
         dbError,
-        `updatePreferences(${accountId}, ${preferenceType}`,
+        `updatePreferences(${accountId}, ${preferenceType})`,
       );
     });
   });
@@ -248,7 +248,7 @@ describe('PreferencesService', () => {
       await expect(service.updateMultiplePreferences(accountId, updates)).rejects.toThrow(dbError);
 
       expect(preferencesDb.updateMultiplePreferences).toHaveBeenCalledWith(accountId, updates);
-      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `updateMultiplePreferences(${accountId}`);
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `updateMultiplePreferences(${accountId})`);
     });
   });
 
@@ -273,7 +273,7 @@ describe('PreferencesService', () => {
       await expect(service.initializeDefaultPreferences(accountId)).rejects.toThrow(dbError);
 
       expect(preferencesDb.initializeDefaultPreferences).toHaveBeenCalledWith(accountId);
-      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `initializeDefaultPreferences(${accountId}`);
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `initializeDefaultPreferences(${accountId})`);
     });
   });
 
@@ -298,7 +298,7 @@ describe('PreferencesService', () => {
       await expect(service.deleteAccountPreferences(accountId)).rejects.toThrow(dbError);
 
       expect(preferencesDb.deleteAccountPreferences).toHaveBeenCalledWith(accountId);
-      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `deleteAccountPreferences(${accountId}`);
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `deleteAccountPreferences(${accountId})`);
     });
   });
 
@@ -364,7 +364,7 @@ describe('PreferencesService', () => {
       expect(preferencesDb.getAccountsWithEmailPreference).toHaveBeenCalledWith(preferenceKey, value);
       expect(errorService.handleError).toHaveBeenCalledWith(
         dbError,
-        `getAccountsWithEmailPreference(${preferenceKey}, ${value}`,
+        `getAccountsWithEmailPreference(${preferenceKey}, ${value})`,
       );
     });
   });
