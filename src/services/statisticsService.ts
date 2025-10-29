@@ -1,4 +1,5 @@
 import { ACCOUNT_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
+import * as statisticsDb from '../db/statisticsDb';
 import { BadRequestError } from '../middleware/errorMiddleware';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
@@ -8,12 +9,17 @@ import { showService } from './showService';
 import {
   AccountEpisodeProgress,
   AccountStatisticsResponse,
+  DailyActivity,
+  MonthlyActivity,
   MovieReference,
   MovieStatisticsResponse,
   ProfileStatisticsResponse,
   ShowProgress,
   ShowStatisticsResponse,
   UniqueContentCounts,
+  WatchingActivityTimeline,
+  WatchingVelocityStats,
+  WeeklyActivity,
 } from '@ajgifford/keepwatching-types';
 
 /**
@@ -280,6 +286,116 @@ export class StatisticsService {
         watchProgress: 0,
       },
     };
+  }
+
+  /**
+   * Get watching velocity statistics for a profile
+   * Analyzes viewing patterns over a specified time period
+   *
+   * @param profileId - ID of the profile to get velocity stats for
+   * @param days - Number of days to analyze (default: 30)
+   * @returns Watching velocity statistics
+   */
+  public async getWatchingVelocity(profileId: number, days: number = 30): Promise<WatchingVelocityStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.watchingVelocity(profileId, days),
+        async () => {
+          return await statisticsDb.getWatchingVelocityData(profileId, days);
+        },
+        600, // 10 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getWatchingVelocity(${profileId}, ${days})`);
+    }
+  }
+
+  /**
+   * Get daily activity timeline for a profile
+   *
+   * @param profileId - ID of the profile
+   * @param days - Number of days to retrieve (default: 30)
+   * @returns Array of daily activity entries
+   */
+  public async getDailyActivity(profileId: number, days: number = 30): Promise<DailyActivity[]> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.dailyActivity(profileId, days),
+        async () => {
+          return await statisticsDb.getDailyActivityTimeline(profileId, days);
+        },
+        300, // 5 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getDailyActivity(${profileId}, ${days})`);
+    }
+  }
+
+  /**
+   * Get weekly activity timeline for a profile
+   *
+   * @param profileId - ID of the profile
+   * @param weeks - Number of weeks to retrieve (default: 12)
+   * @returns Array of weekly activity entries
+   */
+  public async getWeeklyActivity(profileId: number, weeks: number = 12): Promise<WeeklyActivity[]> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.weeklyActivity(profileId, weeks),
+        async () => {
+          return await statisticsDb.getWeeklyActivityTimeline(profileId, weeks);
+        },
+        600, // 10 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getWeeklyActivity(${profileId}, ${weeks})`);
+    }
+  }
+
+  /**
+   * Get monthly activity timeline for a profile
+   *
+   * @param profileId - ID of the profile
+   * @param months - Number of months to retrieve (default: 12)
+   * @returns Array of monthly activity entries
+   */
+  public async getMonthlyActivity(profileId: number, months: number = 12): Promise<MonthlyActivity[]> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.monthlyActivity(profileId, months),
+        async () => {
+          return await statisticsDb.getMonthlyActivityTimeline(profileId, months);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getMonthlyActivity(${profileId}, ${months})`);
+    }
+  }
+
+  /**
+   * Get comprehensive activity timeline for a profile
+   * Combines daily, weekly, and monthly activity data
+   *
+   * @param profileId - ID of the profile
+   * @returns Complete activity timeline
+   */
+  public async getActivityTimeline(profileId: number): Promise<WatchingActivityTimeline> {
+    try {
+      const [dailyActivity, weeklyActivity, monthlyActivity] = await Promise.all([
+        this.getDailyActivity(profileId, 30),
+        this.getWeeklyActivity(profileId, 12),
+        this.getMonthlyActivity(profileId, 12),
+      ]);
+
+      return {
+        dailyActivity,
+        weeklyActivity,
+        monthlyActivity,
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `getActivityTimeline(${profileId})`);
+    }
   }
 }
 

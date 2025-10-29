@@ -77,6 +77,22 @@ export const PROFILE_KEYS = {
 
   /** Gets the cache key for profile watch progress */
   watchProgress: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_watch_progress`,
+
+  /** Gets the cache key for profile watching velocity stats */
+  watchingVelocity: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_velocity_${days}`,
+
+  /** Gets the cache key for profile daily activity timeline */
+  dailyActivity: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_daily_activity_${days}`,
+
+  /** Gets the cache key for profile weekly activity timeline */
+  weeklyActivity: (profileId: number | string, weeks: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_weekly_activity_${weeks}`,
+
+  /** Gets the cache key for profile monthly activity timeline */
+  monthlyActivity: (profileId: number | string, months: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_monthly_activity_${months}`,
 };
 
 // Show keys
