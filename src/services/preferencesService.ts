@@ -60,7 +60,7 @@ export class PreferencesService {
     try {
       return await preferencesDb.getAccountPreferences(accountId);
     } catch (error) {
-      throw errorService.handleError(error, `getAccountPreferences(${accountId}`);
+      throw errorService.handleError(error, `getAccountPreferences(${accountId})`);
     }
   }
 
@@ -92,7 +92,7 @@ export class PreferencesService {
     try {
       return await preferencesDb.getPreferencesByType(accountId, preferenceType);
     } catch (error) {
-      throw errorService.handleError(error, `getPreferencesByType(${accountId}, ${preferenceType}`);
+      throw errorService.handleError(error, `getPreferencesByType(${accountId}, ${preferenceType})`);
     }
   }
 
@@ -137,7 +137,7 @@ export class PreferencesService {
       }
       return await preferencesDb.getAccountPreferences(accountId);
     } catch (error) {
-      throw errorService.handleError(error, `updatePreferences(${accountId}, ${preferenceType}`);
+      throw errorService.handleError(error, `updatePreferences(${accountId}, ${preferenceType})`);
     }
   }
 
@@ -184,7 +184,7 @@ export class PreferencesService {
       }
       return await preferencesDb.getAccountPreferences(accountId);
     } catch (error) {
-      throw errorService.handleError(error, `updateMultiplePreferences(${accountId}`);
+      throw errorService.handleError(error, `updateMultiplePreferences(${accountId})`);
     }
   }
 
@@ -213,7 +213,7 @@ export class PreferencesService {
     try {
       await preferencesDb.initializeDefaultPreferences(accountId);
     } catch (error) {
-      throw errorService.handleError(error, `initializeDefaultPreferences(${accountId}`);
+      throw errorService.handleError(error, `initializeDefaultPreferences(${accountId})`);
     }
   }
 
@@ -244,7 +244,7 @@ export class PreferencesService {
     try {
       await preferencesDb.deleteAccountPreferences(accountId);
     } catch (error) {
-      throw errorService.handleError(error, `deleteAccountPreferences(${accountId}`);
+      throw errorService.handleError(error, `deleteAccountPreferences(${accountId})`);
     }
   }
 
@@ -283,7 +283,7 @@ export class PreferencesService {
     try {
       return await preferencesDb.getAccountsWithEmailPreference(preferenceKey, value);
     } catch (error) {
-      throw errorService.handleError(error, `getAccountsWithEmailPreference(${preferenceKey}, ${value}`);
+      throw errorService.handleError(error, `getAccountsWithEmailPreference(${preferenceKey}, ${value})`);
     }
   }
 }
