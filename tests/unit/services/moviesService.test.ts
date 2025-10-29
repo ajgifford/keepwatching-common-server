@@ -195,18 +195,23 @@ describe('MoviesService', () => {
         id: 5,
         tmdb_id: 12345,
         title: 'Existing Movie',
+        releaseDate: '2099-12-31', // Future date to trigger UNAIRED status
       };
       const mockMovieForProfile = { movie_id: 5, title: 'Existing Movie' };
       const mockRecentMovies = [{ movie_id: 1 }];
       const mockUpcomingMovies = [{ movie_id: 2 }];
 
       (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovie);
+      (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(mockMovie);
       (moviesDb.saveFavorite as jest.Mock).mockResolvedValue(true);
+
+      // First call returns null (movie not yet favorited), second call returns the movie after it's favorited
+      (moviesDb.getMovieForProfile as jest.Mock)
+        .mockRejectedValueOnce(new Error('Not found'))
+        .mockResolvedValueOnce(mockMovieForProfile);
+
       mockCacheService.getOrSet.mockResolvedValueOnce(mockRecentMovies);
       mockCacheService.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
-
-      (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(mockMovie);
-      (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
 
       const result = await moviesService.addMovieToFavorites(123, 12345);
 
