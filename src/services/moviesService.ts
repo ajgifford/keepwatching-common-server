@@ -244,11 +244,18 @@ export class MoviesService {
    */
   private async favoriteExistingMovie(movie: MovieReference, profileId: number): Promise<AddMovieFavorite> {
     const now = new Date();
-    const saved = await moviesDb.saveFavorite(
-      profileId,
-      movie.id,
-      !movie.releaseDate || new Date(movie.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
-    );
+    const status =
+      !movie.releaseDate || new Date(movie.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED;
+    const existing = await moviesDb.getMovieForProfile(profileId, movie.id).catch(() => null);
+    if (existing) {
+      const recentMovies = await this.getRecentMoviesForProfile(profileId);
+      const upcomingMovies = await this.getUpcomingMoviesForProfile(profileId);
+      return {
+        favoritedMovie: existing,
+        recentUpcomingMovies: { recentMovies, upcomingMovies },
+      };
+    }
+    const saved = await moviesDb.saveFavorite(profileId, movie.id, status);
     if (!saved) {
       throw new NoAffectedRowsError('Failed to save a movie as a favorite');
     }
@@ -297,13 +304,11 @@ export class MoviesService {
     };
 
     const savedMovieId = await moviesDb.saveMovie(createMovieRequest);
-    const favoriteSaved = await moviesDb.saveFavorite(
-      profileId,
-      savedMovieId,
+    const status =
       !movieResponse.release_date || new Date(movieResponse.release_date) > now
         ? WatchStatus.UNAIRED
-        : WatchStatus.NOT_WATCHED,
-    );
+        : WatchStatus.NOT_WATCHED;
+    const favoriteSaved = await moviesDb.saveFavorite(profileId, savedMovieId, status);
     if (!favoriteSaved) {
       throw new NoAffectedRowsError('Failed to save a movie as a favorite');
     }
