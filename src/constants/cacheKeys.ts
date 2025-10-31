@@ -123,7 +123,7 @@ export const ADMIN_KEYS = {
   allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
 
   allShowsByProfile: (profileId: number, page: number, offset: number, limit: number) =>
-    `allShows_${profileId}_${page}_${offset}_${limit}`,
+    `allShowsByProfile_${profileId}_${page}_${offset}_${limit}`,
 
   allShowReferences: () => `allShowReferences`,
 
@@ -131,7 +131,7 @@ export const ADMIN_KEYS = {
   allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
 
   allMoviesByProfile: (profileId: number, page: number, offset: number, limit: number) =>
-    `allMovies_${profileId}_${page}_${offset}_${limit}`,
+    `allMoviesByProfile_${profileId}_${page}_${offset}_${limit}`,
 
   allMovieReferences: () => `allMovieReferences`,
 
