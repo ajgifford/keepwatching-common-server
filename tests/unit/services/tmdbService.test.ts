@@ -582,7 +582,7 @@ describe('TMDB Service', () => {
     };
 
     it('should return cached data when available', async () => {
-      mockCache.getOrSet.mockImplementation(async (key, fn, ttl) => {
+      mockCache.getOrSet.mockImplementation(async () => {
         return mockChangesResponse;
       });
 
