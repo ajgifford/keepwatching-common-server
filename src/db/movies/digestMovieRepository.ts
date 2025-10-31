@@ -1,5 +1,6 @@
 import { ContentReferenceRow, transformContentReferenceRow } from '../../types/contentTypes';
 import { getDbPool } from '../../utils/db';
+import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { ContentReference } from '@ajgifford/keepwatching-types';
 
@@ -8,7 +9,8 @@ import { ContentReference } from '@ajgifford/keepwatching-types';
  */
 export async function getTrendingMovies(limit: number = 10): Promise<ContentReference[]> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('getTrendingMovies', async () => {
+      const query = `
       SELECT m.id, m.title, m.tmdb_id, m.release_date
       FROM movies m
       JOIN movie_watch_status mws ON m.id = mws.movie_id
@@ -18,8 +20,9 @@ export async function getTrendingMovies(limit: number = 10): Promise<ContentRefe
       LIMIT ${limit}
     `;
 
-    const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query);
-    return movies.map(transformContentReferenceRow);
+      const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query);
+      return movies.map(transformContentReferenceRow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting trending movies');
   }
@@ -30,7 +33,8 @@ export async function getTrendingMovies(limit: number = 10): Promise<ContentRefe
  */
 export async function getRecentlyReleasedMovies(limit: number = 10): Promise<ContentReference[]> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('getRecentlyReleasedMovies', async () => {
+      const query = `
       SELECT id, title, tmdb_id, release_date
       FROM movies
       WHERE release_date >= DATE_SUB(NOW(), INTERVAL 90 DAY)
@@ -39,8 +43,9 @@ export async function getRecentlyReleasedMovies(limit: number = 10): Promise<Con
       LIMIT ${limit}
     `;
 
-    const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query);
-    return movies.map(transformContentReferenceRow);
+      const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query);
+      return movies.map(transformContentReferenceRow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting recently released movies');
   }
@@ -51,7 +56,8 @@ export async function getRecentlyReleasedMovies(limit: number = 10): Promise<Con
  */
 export async function getTopRatedMovies(limit: number = 10): Promise<ContentReference[]> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('getTopRatedMovies', async () => {
+      const query = `
       SELECT id, title, tmdb_id, release_date
       FROM movies
       WHERE user_rating >= 7.0
@@ -59,8 +65,9 @@ export async function getTopRatedMovies(limit: number = 10): Promise<ContentRefe
       LIMIT ${limit}
     `;
 
-    const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query);
-    return movies.map(transformContentReferenceRow);
+      const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query);
+      return movies.map(transformContentReferenceRow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting top rated movies');
   }

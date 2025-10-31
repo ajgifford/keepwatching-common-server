@@ -8,6 +8,7 @@ import {
   transformAdminNotificationRow,
 } from '../types/notificationTypes';
 import { getDbPool } from '../utils/db';
+import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import {
@@ -66,15 +67,17 @@ export async function getNotificationsForAccount(
   includeDismissed: boolean = false,
 ): Promise<AccountNotification[]> {
   try {
-    if (includeDismissed) {
-      const query = `SELECT * FROM current_notifications WHERE account_id = ?`;
-      const [notifications] = await getDbPool().execute<CurrentNotificationRow[]>(query, [accountId]);
-      return notifications.map(transformAccountNotificationRow);
-    } else {
-      const query = `SELECT * FROM current_notifications WHERE account_id = ? AND dismissed = 0`;
-      const [notifications] = await getDbPool().execute<CurrentNotificationRow[]>(query, [accountId]);
-      return notifications.map(transformAccountNotificationRow);
-    }
+    return await DbMonitor.getInstance().executeWithTiming('getNotificationsForAccount', async () => {
+      if (includeDismissed) {
+        const query = `SELECT * FROM current_notifications WHERE account_id = ?`;
+        const [notifications] = await getDbPool().execute<CurrentNotificationRow[]>(query, [accountId]);
+        return notifications.map(transformAccountNotificationRow);
+      } else {
+        const query = `SELECT * FROM current_notifications WHERE account_id = ? AND dismissed = 0`;
+        const [notifications] = await getDbPool().execute<CurrentNotificationRow[]>(query, [accountId]);
+        return notifications.map(transformAccountNotificationRow);
+      }
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting notifications for an account');
   }
@@ -118,12 +121,14 @@ export async function markNotificationRead(
   hasBeenRead: boolean = true,
 ): Promise<boolean> {
   try {
-    const readValue = hasBeenRead ? 1 : 0;
-    const query = `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [readValue, notificationId, accountId]);
+    return await DbMonitor.getInstance().executeWithTiming('markNotificationRead', async () => {
+      const readValue = hasBeenRead ? 1 : 0;
+      const query = `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`;
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [readValue, notificationId, accountId]);
 
-    // Return true if at least one row was affected (notification status was updated)
-    return result.affectedRows > 0;
+      // Return true if at least one row was affected (notification status was updated)
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, `marking a notification ${hasBeenRead ? 'read' : 'unread'}`);
   }
@@ -162,12 +167,14 @@ export async function markNotificationRead(
  */
 export async function markAllNotificationsRead(accountId: number, hasBeenRead: boolean = true): Promise<boolean> {
   try {
-    const readValue = hasBeenRead ? 1 : 0;
-    const query = `UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;`;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [readValue, accountId]);
+    return await DbMonitor.getInstance().executeWithTiming('markAllNotificationsRead', async () => {
+      const readValue = hasBeenRead ? 1 : 0;
+      const query = `UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;`;
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [readValue, accountId]);
 
-    // Return true if at least one row was affected (notifications were updated)
-    return result.affectedRows > 0;
+      // Return true if at least one row was affected (notifications were updated)
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, `marking all notifications ${hasBeenRead ? 'read' : 'unread'}`);
   }
@@ -204,11 +211,13 @@ export async function markAllNotificationsRead(accountId: number, hasBeenRead: b
  */
 export async function dismissNotification(notificationId: number, accountId: number): Promise<boolean> {
   try {
-    const query = `UPDATE account_notifications SET dismissed = 1 WHERE notification_id = ? AND account_id = ?;`;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [notificationId, accountId]);
+    return await DbMonitor.getInstance().executeWithTiming('dismissNotification', async () => {
+      const query = `UPDATE account_notifications SET dismissed = 1 WHERE notification_id = ? AND account_id = ?;`;
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [notificationId, accountId]);
 
-    // Return true if at least one row was affected (notification was dismissed)
-    return result.affectedRows > 0;
+      // Return true if at least one row was affected (notification was dismissed)
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, 'dismissing a notification');
   }
@@ -243,11 +252,13 @@ export async function dismissNotification(notificationId: number, accountId: num
  */
 export async function dismissAllNotifications(accountId: number): Promise<boolean> {
   try {
-    const query = `UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;`;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId]);
+    return await DbMonitor.getInstance().executeWithTiming('dismissAllNotifications', async () => {
+      const query = `UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;`;
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId]);
 
-    // Return true if at least one row was affected (notifications were dismissed)
-    return result.affectedRows > 0;
+      // Return true if at least one row was affected (notifications were dismissed)
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, 'dismissing all notifications');
   }
@@ -333,12 +344,14 @@ function buildNotificationWhereClause(options: GetAllNotificationsOptions): {
  */
 export async function getNotificationsCount(options: GetAllNotificationsOptions): Promise<number> {
   try {
-    const { conditions, params } = buildNotificationWhereClause(options);
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const query = `SELECT COUNT(*) AS total FROM notifications ${whereClause}`;
+    return await DbMonitor.getInstance().executeWithTiming('getNotificationsCount', async () => {
+      const { conditions, params } = buildNotificationWhereClause(options);
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const query = `SELECT COUNT(*) AS total FROM notifications ${whereClause}`;
 
-    const [result] = await getDbPool().execute<ContentCountRow[]>(query, params);
-    return result[0].total;
+      const [result] = await getDbPool().execute<ContentCountRow[]>(query, params);
+      return result[0].total;
+    });
   } catch (error) {
     handleDatabaseError(error, 'get a count of all notifications');
   }
@@ -395,26 +408,28 @@ export async function getAllNotifications(
   offset: number = 0,
 ): Promise<AdminNotification[]> {
   try {
-    const { sortBy = 'startDate', sortOrder = 'desc' } = options;
+    return await DbMonitor.getInstance().executeWithTiming('getAllNotifications', async () => {
+      const { sortBy = 'startDate', sortOrder = 'desc' } = options;
 
-    const { conditions, params } = buildNotificationWhereClause(options);
+      const { conditions, params } = buildNotificationWhereClause(options);
 
-    // Map sort field to database column name
-    const sortFieldMap: Record<string, string> = {
-      startDate: 'start_date',
-      endDate: 'end_date',
-      type: 'type',
-      sendToAll: 'send_to_all',
-    };
+      // Map sort field to database column name
+      const sortFieldMap: Record<string, string> = {
+        startDate: 'start_date',
+        endDate: 'end_date',
+        type: 'type',
+        sendToAll: 'send_to_all',
+      };
 
-    const sortColumn = sortFieldMap[sortBy] || 'start_date';
-    const sortDirection = sortOrder.toUpperCase();
+      const sortColumn = sortFieldMap[sortBy] || 'start_date';
+      const sortDirection = sortOrder.toUpperCase();
 
-    const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
-    const query = `SELECT * FROM notifications${whereClause} ORDER BY ${sortColumn} ${sortDirection} LIMIT ${limit} OFFSET ${offset}`;
+      const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+      const query = `SELECT * FROM notifications${whereClause} ORDER BY ${sortColumn} ${sortDirection} LIMIT ${limit} OFFSET ${offset}`;
 
-    const [notifications] = await getDbPool().execute<NotificationRow[]>(query, params);
-    return notifications.map(transformAdminNotificationRow);
+      const [notifications] = await getDbPool().execute<NotificationRow[]>(query, params);
+      return notifications.map(transformAdminNotificationRow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting all notifications');
   }
@@ -478,41 +493,43 @@ export async function getAllNotifications(
 export async function addNotification(notificationRequest: CreateNotificationRequest): Promise<void> {
   const transactionHelper = new TransactionHelper();
   try {
-    return await transactionHelper.executeInTransaction(async (connection) => {
-      const notificationQuery =
-        'INSERT INTO notifications (title, message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?,?)';
-      const [result] = await connection.execute<ResultSetHeader>(notificationQuery, [
-        notificationRequest.title,
-        notificationRequest.message,
-        formatDateForMySql(notificationRequest.startDate),
-        formatDateForMySql(notificationRequest.endDate),
-        notificationRequest.sendToAll ? 1 : 0,
-        notificationRequest.accountId ?? null,
-        notificationRequest.type,
-      ]);
-      const notificationId = result.insertId;
+    return await DbMonitor.getInstance().executeWithTiming('addNotification', async () => {
+      return await transactionHelper.executeInTransaction(async (connection) => {
+        const notificationQuery =
+          'INSERT INTO notifications (title, message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?,?)';
+        const [result] = await connection.execute<ResultSetHeader>(notificationQuery, [
+          notificationRequest.title,
+          notificationRequest.message,
+          formatDateForMySql(notificationRequest.startDate),
+          formatDateForMySql(notificationRequest.endDate),
+          notificationRequest.sendToAll ? 1 : 0,
+          notificationRequest.accountId ?? null,
+          notificationRequest.type,
+        ]);
+        const notificationId = result.insertId;
 
-      if (notificationRequest.sendToAll) {
-        const [accounts] = await connection.query<AccountReferenceRow[]>(
-          'SELECT account_id, account_name, email FROM accounts',
-        );
+        if (notificationRequest.sendToAll) {
+          const [accounts] = await connection.query<AccountReferenceRow[]>(
+            'SELECT account_id, account_name, email FROM accounts',
+          );
 
-        if (accounts.length === 0) {
-          throw new NotFoundError('No accounts found when sending a notification to all accounts');
+          if (accounts.length === 0) {
+            throw new NotFoundError('No accounts found when sending a notification to all accounts');
+          }
+
+          const placeholders = accounts.map(() => '(?,?,?)').join(',');
+          const bulkInsertQuery = `INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES ${placeholders}`;
+
+          const flatValues = accounts.flatMap((account) => [notificationId, account.account_id, false]);
+
+          await connection.execute(bulkInsertQuery, flatValues);
+        } else {
+          await connection.execute(
+            'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES (?,?,?)',
+            [notificationId, notificationRequest.accountId, false],
+          );
         }
-
-        const placeholders = accounts.map(() => '(?,?,?)').join(',');
-        const bulkInsertQuery = `INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES ${placeholders}`;
-
-        const flatValues = accounts.flatMap((account) => [notificationId, account.account_id, false]);
-
-        await connection.execute(bulkInsertQuery, flatValues);
-      } else {
-        await connection.execute(
-          'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES (?,?,?)',
-          [notificationId, notificationRequest.accountId, false],
-        );
-      }
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'adding a notification');
@@ -565,23 +582,25 @@ export async function addNotification(notificationRequest: CreateNotificationReq
  */
 export async function updateNotification(notificationRequest: UpdateNotificationRequest): Promise<void> {
   try {
-    const [result] = await getDbPool().execute<ResultSetHeader>(
-      'UPDATE notifications SET title = ?, message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
-      [
-        notificationRequest.title,
-        notificationRequest.message,
-        formatDateForMySql(notificationRequest.startDate),
-        formatDateForMySql(notificationRequest.endDate),
-        notificationRequest.type,
-        notificationRequest.sendToAll ? 1 : 0,
-        notificationRequest.accountId,
-        notificationRequest.id,
-      ],
-    );
+    await DbMonitor.getInstance().executeWithTiming('updateNotification', async () => {
+      const [result] = await getDbPool().execute<ResultSetHeader>(
+        'UPDATE notifications SET title = ?, message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
+        [
+          notificationRequest.title,
+          notificationRequest.message,
+          formatDateForMySql(notificationRequest.startDate),
+          formatDateForMySql(notificationRequest.endDate),
+          notificationRequest.type,
+          notificationRequest.sendToAll ? 1 : 0,
+          notificationRequest.accountId,
+          notificationRequest.id,
+        ],
+      );
 
-    if (result.affectedRows === 0) {
-      throw new NoAffectedRowsError(`No notification found with ID ${notificationRequest.id}`);
-    }
+      if (result.affectedRows === 0) {
+        throw new NoAffectedRowsError(`No notification found with ID ${notificationRequest.id}`);
+      }
+    });
   } catch (error) {
     handleDatabaseError(error, 'updating a notification');
   }
@@ -618,13 +637,16 @@ export async function updateNotification(notificationRequest: UpdateNotification
  */
 export async function deleteNotification(notification_id: number): Promise<void> {
   try {
-    const [result] = await getDbPool().execute<ResultSetHeader>('DELETE FROM notifications WHERE notification_id = ?', [
-      notification_id,
-    ]);
+    await DbMonitor.getInstance().executeWithTiming('deleteNotification', async () => {
+      const [result] = await getDbPool().execute<ResultSetHeader>(
+        'DELETE FROM notifications WHERE notification_id = ?',
+        [notification_id],
+      );
 
-    if (result.affectedRows === 0) {
-      throw new NoAffectedRowsError(`No notification found with ID ${notification_id}`);
-    }
+      if (result.affectedRows === 0) {
+        throw new NoAffectedRowsError(`No notification found with ID ${notification_id}`);
+      }
+    });
   } catch (error) {
     handleDatabaseError(error, 'deleting a notification');
   }

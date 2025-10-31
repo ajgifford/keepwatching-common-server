@@ -2,6 +2,7 @@ import { DatabaseError } from '../middleware/errorMiddleware';
 import { ProfileEpisodeRow, transformProfileEpisode } from '../types/episodeTypes';
 import { ProfileSeasonRow, SeasonShowReferenceRow, transformProfileSeason } from '../types/seasonTypes';
 import { getDbPool } from '../utils/db';
+import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import {
   CreateSeasonRequest,
@@ -22,25 +23,27 @@ import { ResultSetHeader } from 'mysql2';
  */
 export async function saveSeason(season: CreateSeasonRequest): Promise<number> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('saveSeason', async () => {
+      const query = `
       INSERT INTO seasons (
         show_id, tmdb_id, name, overview, 
         season_number, release_date, poster_image, number_of_episodes
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [
-      season.show_id,
-      season.tmdb_id,
-      season.name,
-      season.overview,
-      season.season_number,
-      season.release_date,
-      season.poster_image,
-      season.number_of_episodes,
-    ]);
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+        season.show_id,
+        season.tmdb_id,
+        season.name,
+        season.overview,
+        season.season_number,
+        season.release_date,
+        season.poster_image,
+        season.number_of_episodes,
+      ]);
 
-    return result.insertId;
+      return result.insertId;
+    });
   } catch (error) {
     handleDatabaseError(error, 'saving a season');
   }
@@ -55,7 +58,8 @@ export async function saveSeason(season: CreateSeasonRequest): Promise<number> {
  */
 export async function updateSeason(season: UpdateSeasonRequest): Promise<number> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('updateSeason', async () => {
+      const query = `
       INSERT INTO seasons (
         show_id, tmdb_id, name, overview, 
         season_number, release_date, poster_image, number_of_episodes
@@ -70,26 +74,27 @@ export async function updateSeason(season: UpdateSeasonRequest): Promise<number>
         number_of_episodes = ?
     `;
 
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [
-      // Insert values
-      season.show_id,
-      season.tmdb_id,
-      season.name,
-      season.overview,
-      season.season_number,
-      season.release_date,
-      season.poster_image,
-      season.number_of_episodes,
-      // Update values
-      season.name,
-      season.overview,
-      season.season_number,
-      season.release_date,
-      season.poster_image,
-      season.number_of_episodes,
-    ]);
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+        // Insert values
+        season.show_id,
+        season.tmdb_id,
+        season.name,
+        season.overview,
+        season.season_number,
+        season.release_date,
+        season.poster_image,
+        season.number_of_episodes,
+        // Update values
+        season.name,
+        season.overview,
+        season.season_number,
+        season.release_date,
+        season.poster_image,
+        season.number_of_episodes,
+      ]);
 
-    return result.insertId;
+      return result.insertId;
+    });
   } catch (error) {
     handleDatabaseError(error, 'updating a season');
   }
@@ -113,8 +118,10 @@ export async function saveFavorite(
   }
 
   try {
-    const query = 'INSERT IGNORE INTO season_watch_status (profile_id, season_id, status) VALUES (?,?,?)';
-    await getDbPool().execute(query, [profileId, seasonId, status]);
+    await DbMonitor.getInstance().executeWithTiming('saveFavorite', async () => {
+      const query = 'INSERT IGNORE INTO season_watch_status (profile_id, season_id, status) VALUES (?,?,?)';
+      await getDbPool().execute(query, [profileId, seasonId, status]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'saving a season as a favorite');
   }
@@ -134,45 +141,47 @@ export async function getSeasonsForShow(profileId: number, showId: number): Prom
   }
 
   try {
-    const profileIdNum = profileId;
-    const showIdNum = showId;
+    return await DbMonitor.getInstance().executeWithTiming('getSeasonsForShow', async () => {
+      const profileIdNum = profileId;
+      const showIdNum = showId;
 
-    // First get the seasons
-    const seasonQuery = `
+      // First get the seasons
+      const seasonQuery = `
       SELECT * FROM profile_seasons 
       WHERE profile_id = ? AND show_id = ? 
       ORDER BY season_number
     `;
 
-    const [seasonRows] = await getDbPool().execute<ProfileSeasonRow[]>(seasonQuery, [profileIdNum, showIdNum]);
+      const [seasonRows] = await getDbPool().execute<ProfileSeasonRow[]>(seasonQuery, [profileIdNum, showIdNum]);
 
-    if (seasonRows.length === 0) return [];
+      if (seasonRows.length === 0) return [];
 
-    // Then get all episodes for these seasons in a single query
-    const seasonIds = seasonRows.map((season) => season.season_id);
-    const placeholders = seasonIds.map(() => '?').join(',');
+      // Then get all episodes for these seasons in a single query
+      const seasonIds = seasonRows.map((season) => season.season_id);
+      const placeholders = seasonIds.map(() => '?').join(',');
 
-    const episodeQuery = `
+      const episodeQuery = `
       SELECT * FROM profile_episodes 
       WHERE profile_id = ? AND season_id IN (${placeholders}) 
       ORDER BY season_id, episode_number
     `;
 
-    const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(episodeQuery, [profileIdNum, ...seasonIds]);
+      const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(episodeQuery, [profileIdNum, ...seasonIds]);
 
-    // Group episodes by season
-    const episodesBySeasonId: Record<number, ProfileEpisode[]> = {};
-    episodeRows.forEach((episodeRow) => {
-      if (!episodesBySeasonId[episodeRow.season_id]) {
-        episodesBySeasonId[episodeRow.season_id] = [];
-      }
-      episodesBySeasonId[episodeRow.season_id].push(transformProfileEpisode(episodeRow));
+      // Group episodes by season
+      const episodesBySeasonId: Record<number, ProfileEpisode[]> = {};
+      episodeRows.forEach((episodeRow) => {
+        if (!episodesBySeasonId[episodeRow.season_id]) {
+          episodesBySeasonId[episodeRow.season_id] = [];
+        }
+        episodesBySeasonId[episodeRow.season_id].push(transformProfileEpisode(episodeRow));
+      });
+
+      // Build the final result
+      return seasonRows.map((seasonRow) =>
+        transformProfileSeason(seasonRow, episodesBySeasonId[seasonRow.season_id] || []),
+      );
     });
-
-    // Build the final result
-    return seasonRows.map((seasonRow) =>
-      transformProfileSeason(seasonRow, episodesBySeasonId[seasonRow.season_id] || []),
-    );
   } catch (error) {
     handleDatabaseError(error, 'getting all seasons for a show');
   }
@@ -191,10 +200,12 @@ export async function getShowIdForSeason(seasonId: number): Promise<number | nul
   }
 
   try {
-    const query = 'SELECT show_id FROM seasons WHERE id = ?';
-    const [rows] = await getDbPool().execute<SeasonShowReferenceRow[]>(query, [seasonId]);
-    if (rows.length === 0) return null;
-    return rows[0].show_id;
+    return await DbMonitor.getInstance().executeWithTiming('getShowIdForSeason', async () => {
+      const query = 'SELECT show_id FROM seasons WHERE id = ?';
+      const [rows] = await getDbPool().execute<SeasonShowReferenceRow[]>(query, [seasonId]);
+      if (rows.length === 0) return null;
+      return rows[0].show_id;
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting the show id for a season');
   }

@@ -14,6 +14,7 @@ import {
   transformProfileMovieWithDetails,
 } from '../../types/movieTypes';
 import { getDbPool } from '../../utils/db';
+import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import {
@@ -43,39 +44,41 @@ export async function saveMovie(createRequest: CreateMovieRequest): Promise<numb
   const transactionHelper = new TransactionHelper();
 
   try {
-    return await transactionHelper.executeInTransaction(async (connection) => {
-      const query =
-        'INSERT into movies (tmdb_id, title, description, release_date, runtime, poster_image, backdrop_image, user_rating, mpa_rating, director, production_companies, budget, revenue) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)';
-      const [result] = await connection.execute<ResultSetHeader>(query, [
-        createRequest.tmdb_id,
-        createRequest.title,
-        createRequest.description,
-        createRequest.release_date,
-        createRequest.runtime,
-        createRequest.poster_image,
-        createRequest.backdrop_image,
-        createRequest.user_rating,
-        createRequest.mpa_rating,
-        createRequest.director,
-        createRequest.production_companies,
-        createRequest.budget,
-        createRequest.revenue,
-      ]);
-      const newId = result.insertId;
+    return await DbMonitor.getInstance().executeWithTiming('saveMovie', async () => {
+      return await transactionHelper.executeInTransaction(async (connection) => {
+        const query =
+          'INSERT into movies (tmdb_id, title, description, release_date, runtime, poster_image, backdrop_image, user_rating, mpa_rating, director, production_companies, budget, revenue) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)';
+        const [result] = await connection.execute<ResultSetHeader>(query, [
+          createRequest.tmdb_id,
+          createRequest.title,
+          createRequest.description,
+          createRequest.release_date,
+          createRequest.runtime,
+          createRequest.poster_image,
+          createRequest.backdrop_image,
+          createRequest.user_rating,
+          createRequest.mpa_rating,
+          createRequest.director,
+          createRequest.production_companies,
+          createRequest.budget,
+          createRequest.revenue,
+        ]);
+        const newId = result.insertId;
 
-      if (createRequest.genre_ids && createRequest.genre_ids.length > 0) {
-        const genrePromises = createRequest.genre_ids.map((genreId) => saveMovieGenre(newId, genreId, connection));
-        await Promise.all(genrePromises);
-      }
+        if (createRequest.genre_ids && createRequest.genre_ids.length > 0) {
+          const genrePromises = createRequest.genre_ids.map((genreId) => saveMovieGenre(newId, genreId, connection));
+          await Promise.all(genrePromises);
+        }
 
-      if (createRequest.streaming_service_ids && createRequest.streaming_service_ids.length > 0) {
-        const servicePromises = createRequest.streaming_service_ids.map((serviceId) =>
-          saveMovieStreamingService(newId, serviceId, connection),
-        );
-        await Promise.all(servicePromises);
-      }
+        if (createRequest.streaming_service_ids && createRequest.streaming_service_ids.length > 0) {
+          const servicePromises = createRequest.streaming_service_ids.map((serviceId) =>
+            saveMovieStreamingService(newId, serviceId, connection),
+          );
+          await Promise.all(servicePromises);
+        }
 
-      return newId;
+        return newId;
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'saving a movie');
@@ -95,47 +98,49 @@ export async function updateMovie(updateRequest: UpdateMovieRequest): Promise<bo
   const transactionHelper = new TransactionHelper();
 
   try {
-    return await transactionHelper.executeInTransaction(async (connection) => {
-      const query =
-        'UPDATE movies SET title = ?, description = ?, release_date = ?, runtime = ?, poster_image = ?, backdrop_image = ?, user_rating = ?, mpa_rating = ?, director = ?, production_companies = ?, budget = ?, revenue = ? WHERE tmdb_id = ?';
-      const [result] = await connection.execute<ResultSetHeader>(query, [
-        updateRequest.title,
-        updateRequest.description,
-        updateRequest.release_date,
-        updateRequest.runtime,
-        updateRequest.poster_image,
-        updateRequest.backdrop_image,
-        updateRequest.user_rating,
-        updateRequest.mpa_rating,
-        updateRequest.director,
-        updateRequest.production_companies,
-        updateRequest.budget,
-        updateRequest.revenue,
-        updateRequest.tmdb_id,
-      ]);
+    return await DbMonitor.getInstance().executeWithTiming('updateMovie', async () => {
+      return await transactionHelper.executeInTransaction(async (connection) => {
+        const query =
+          'UPDATE movies SET title = ?, description = ?, release_date = ?, runtime = ?, poster_image = ?, backdrop_image = ?, user_rating = ?, mpa_rating = ?, director = ?, production_companies = ?, budget = ?, revenue = ? WHERE tmdb_id = ?';
+        const [result] = await connection.execute<ResultSetHeader>(query, [
+          updateRequest.title,
+          updateRequest.description,
+          updateRequest.release_date,
+          updateRequest.runtime,
+          updateRequest.poster_image,
+          updateRequest.backdrop_image,
+          updateRequest.user_rating,
+          updateRequest.mpa_rating,
+          updateRequest.director,
+          updateRequest.production_companies,
+          updateRequest.budget,
+          updateRequest.revenue,
+          updateRequest.tmdb_id,
+        ]);
 
-      const success = result.affectedRows !== undefined;
-      if (success && updateRequest.id) {
-        await clearMovieGenres(updateRequest.id, connection);
+        const success = result.affectedRows !== undefined;
+        if (success && updateRequest.id) {
+          await clearMovieGenres(updateRequest.id, connection);
 
-        if (updateRequest.genre_ids && updateRequest.genre_ids.length > 0) {
-          const genrePromises = updateRequest.genre_ids.map((genreId) =>
-            saveMovieGenre(updateRequest.id, genreId, connection),
-          );
-          await Promise.all(genrePromises);
+          if (updateRequest.genre_ids && updateRequest.genre_ids.length > 0) {
+            const genrePromises = updateRequest.genre_ids.map((genreId) =>
+              saveMovieGenre(updateRequest.id, genreId, connection),
+            );
+            await Promise.all(genrePromises);
+          }
+
+          await clearMovieStreamingServices(updateRequest.id, connection);
+
+          if (updateRequest.streaming_service_ids && updateRequest.streaming_service_ids.length > 0) {
+            const servicePromises = updateRequest.streaming_service_ids.map((serviceId) =>
+              saveMovieStreamingService(updateRequest.id, serviceId, connection),
+            );
+            await Promise.all(servicePromises);
+          }
         }
 
-        await clearMovieStreamingServices(updateRequest.id, connection);
-
-        if (updateRequest.streaming_service_ids && updateRequest.streaming_service_ids.length > 0) {
-          const servicePromises = updateRequest.streaming_service_ids.map((serviceId) =>
-            saveMovieStreamingService(updateRequest.id, serviceId, connection),
-          );
-          await Promise.all(servicePromises);
-        }
-      }
-
-      return success;
+        return success;
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'updating a movie');
@@ -233,11 +238,13 @@ export async function saveFavorite(
   status: SimpleWatchStatus = WatchStatus.NOT_WATCHED,
 ): Promise<boolean> {
   try {
-    const query = 'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id, status) VALUES (?,?,?)';
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [profileId, movieId, status]);
+    return await DbMonitor.getInstance().executeWithTiming('saveFavorite', async () => {
+      const query = 'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id, status) VALUES (?,?,?)';
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [profileId, movieId, status]);
 
-    // Return true if a row was inserted, false if the row already existed (IGNORE)
-    return result.affectedRows > 0;
+      // Return true if a row was inserted, false if the row already existed (IGNORE)
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, 'saving a movie as a favorite');
   }
@@ -256,8 +263,10 @@ export async function saveFavorite(
  */
 export async function removeFavorite(profileId: number, movieId: number): Promise<void> {
   try {
-    const query = 'DELETE FROM movie_watch_status WHERE profile_id = ? AND movie_id = ?';
-    await getDbPool().execute(query, [profileId, movieId]);
+    await DbMonitor.getInstance().executeWithTiming('removeFavorite', async () => {
+      const query = 'DELETE FROM movie_watch_status WHERE profile_id = ? AND movie_id = ?';
+      await getDbPool().execute(query, [profileId, movieId]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'removing a movie as a favorite');
   }
@@ -277,11 +286,13 @@ export async function removeFavorite(profileId: number, movieId: number): Promis
  */
 export async function updateWatchStatus(profileId: number, movieId: number, status: string): Promise<boolean> {
   try {
-    const query = 'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?';
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [status, profileId, movieId]);
+    return await DbMonitor.getInstance().executeWithTiming('updateWatchStatus', async () => {
+      const query = 'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?';
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [status, profileId, movieId]);
 
-    // Return true if at least one row was affected (watch status was updated)
-    return result.affectedRows > 0;
+      // Return true if at least one row was affected (watch status was updated)
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, 'updating a movie watch status');
   }
@@ -299,10 +310,12 @@ export async function updateWatchStatus(profileId: number, movieId: number, stat
  */
 export async function findMovieById(id: number): Promise<MovieReference | null> {
   try {
-    const query = `SELECT id, title, tmdb_id FROM movies WHERE id = ?`;
-    const [movies] = await getDbPool().execute<MovieReferenceRow[]>(query, [id]);
-    if (movies.length === 0) return null;
-    return transformMovieReferenceRow(movies[0]);
+    return await DbMonitor.getInstance().executeWithTiming('findMovieById', async () => {
+      const query = `SELECT id, title, tmdb_id FROM movies WHERE id = ?`;
+      const [movies] = await getDbPool().execute<MovieReferenceRow[]>(query, [id]);
+      if (movies.length === 0) return null;
+      return transformMovieReferenceRow(movies[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding a movie by id');
   }
@@ -320,10 +333,12 @@ export async function findMovieById(id: number): Promise<MovieReference | null> 
  */
 export async function findMovieByTMDBId(tmdbId: number): Promise<MovieReference | null> {
   try {
-    const query = `SELECT id, title, tmdb_id, release_date FROM movies WHERE tmdb_id = ?`;
-    const [movies] = await getDbPool().execute<MovieReferenceRow[]>(query, [tmdbId]);
-    if (movies.length === 0) return null;
-    return transformMovieReferenceRow(movies[0]);
+    return await DbMonitor.getInstance().executeWithTiming('findMovieByTMDBId', async () => {
+      const query = `SELECT id, title, tmdb_id, release_date FROM movies WHERE tmdb_id = ?`;
+      const [movies] = await getDbPool().execute<MovieReferenceRow[]>(query, [tmdbId]);
+      if (movies.length === 0) return null;
+      return transformMovieReferenceRow(movies[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding a movie by TMDB id');
   }
@@ -341,9 +356,11 @@ export async function findMovieByTMDBId(tmdbId: number): Promise<MovieReference 
  */
 export async function getAllMoviesForProfile(profileId: number): Promise<ProfileMovie[]> {
   try {
-    const query = 'SELECT * FROM profile_movies where profile_id = ?';
-    const [movies] = await getDbPool().execute<ProfileMovieRow[]>(query, [profileId]);
-    return movies.map((movie) => transformProfileMovie(movie));
+    return await DbMonitor.getInstance().executeWithTiming('getAllMoviesForProfile', async () => {
+      const query = 'SELECT * FROM profile_movies where profile_id = ?';
+      const [movies] = await getDbPool().execute<ProfileMovieRow[]>(query, [profileId]);
+      return movies.map((movie) => transformProfileMovie(movie));
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting all movies for a profile');
   }
@@ -362,9 +379,11 @@ export async function getAllMoviesForProfile(profileId: number): Promise<Profile
  */
 export async function getMovieForProfile(profileId: number, movieId: number): Promise<ProfileMovie> {
   try {
-    const query = 'SELECT * FROM profile_movies where profile_id = ? AND movie_id = ?';
-    const [movies] = await getDbPool().execute<ProfileMovieRow[]>(query, [profileId, movieId]);
-    return transformProfileMovie(movies[0]);
+    return await DbMonitor.getInstance().executeWithTiming('getMovieForProfile', async () => {
+      const query = 'SELECT * FROM profile_movies where profile_id = ? AND movie_id = ?';
+      const [movies] = await getDbPool().execute<ProfileMovieRow[]>(query, [profileId, movieId]);
+      return transformProfileMovie(movies[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting a movie for a profile');
   }
@@ -383,9 +402,11 @@ export async function getMovieForProfile(profileId: number, movieId: number): Pr
  */
 export async function getMovieDetailsForProfile(profileId: number, movieId: number): Promise<ProfileMovieWithDetails> {
   try {
-    const query = 'SELECT * FROM profile_movies_details where profile_id = ? AND movie_id = ?';
-    const [movies] = await getDbPool().execute<ProfileMovieDetailsRow[]>(query, [profileId, movieId]);
-    return transformProfileMovieWithDetails(movies[0]);
+    return await DbMonitor.getInstance().executeWithTiming('getMovieDetailsForProfile', async () => {
+      const query = 'SELECT * FROM profile_movies_details where profile_id = ? AND movie_id = ?';
+      const [movies] = await getDbPool().execute<ProfileMovieDetailsRow[]>(query, [profileId, movieId]);
+      return transformProfileMovieWithDetails(movies[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting a movie with details for a profile');
   }
@@ -403,10 +424,12 @@ export async function getMovieDetailsForProfile(profileId: number, movieId: numb
  */
 export async function getRecentMovieReleasesForProfile(profileId: number): Promise<ContentReference[]> {
   try {
-    const query =
-      'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY) AND CURRENT_DATE() ORDER BY release_date DESC LIMIT 6';
-    const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
-    return movies.map((movie) => transformContentReferenceRow(movie));
+    return await DbMonitor.getInstance().executeWithTiming('getRecentMovieReleasesForProfile', async () => {
+      const query =
+        'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY) AND CURRENT_DATE() ORDER BY release_date DESC LIMIT 6';
+      const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
+      return movies.map((movie) => transformContentReferenceRow(movie));
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting recent movie releases for a profile');
   }
@@ -424,10 +447,12 @@ export async function getRecentMovieReleasesForProfile(profileId: number): Promi
  */
 export async function getUpcomingMovieReleasesForProfile(profileId: number): Promise<ContentReference[]> {
   try {
-    const query =
-      'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AND DATE_ADD(CURRENT_DATE(), INTERVAL 60 DAY) ORDER BY release_date LIMIT 6';
-    const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
-    return movies.map((movie) => transformContentReferenceRow(movie));
+    return await DbMonitor.getInstance().executeWithTiming('getUpcomingMovieReleasesForProfile', async () => {
+      const query =
+        'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AND DATE_ADD(CURRENT_DATE(), INTERVAL 60 DAY) ORDER BY release_date LIMIT 6';
+      const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
+      return movies.map((movie) => transformContentReferenceRow(movie));
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting upcoming movie releases for a profile');
   }
@@ -445,9 +470,11 @@ export async function getUpcomingMovieReleasesForProfile(profileId: number): Pro
  */
 export async function getMoviesForUpdates(): Promise<ContentUpdates[]> {
   try {
-    const query = `SELECT id, title, tmdb_id, created_at, updated_at FROM movies WHERE release_date > NOW() - INTERVAL 30 DAY`;
-    const [updateRows] = await getDbPool().execute<ContentUpdatesRow[]>(query);
-    return updateRows.map(transformContentUpdates);
+    return await DbMonitor.getInstance().executeWithTiming('getMoviesForUpdates', async () => {
+      const query = `SELECT id, title, tmdb_id, created_at, updated_at FROM movies WHERE release_date > NOW() - INTERVAL 30 DAY`;
+      const [updateRows] = await getDbPool().execute<ContentUpdatesRow[]>(query);
+      return updateRows.map(transformContentUpdates);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting movies for updates');
   }

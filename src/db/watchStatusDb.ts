@@ -16,6 +16,7 @@ import {
   transformWatchStatusSeason,
   transformWatchStatusShow,
 } from '../types/watchStatusTypes';
+import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { WatchStatusManager } from '../utils/watchStatusManager';
@@ -63,16 +64,18 @@ export class WatchStatusDbService {
     operation: (context: StatusUpdateContext) => Promise<T>,
   ): Promise<T> {
     try {
-      return await this.transactionHelper.executeInTransaction(async (connection) => {
-        const context: StatusUpdateContext = {
-          changes: [],
-          totalAffectedRows: 0,
-          connection,
-          profileId: 0, // Will be set by the operation
-          timestamp: new Date(),
-        };
+      return await DbMonitor.getInstance().executeWithTiming(operationName, async () => {
+        return await this.transactionHelper.executeInTransaction(async (connection) => {
+          const context: StatusUpdateContext = {
+            changes: [],
+            totalAffectedRows: 0,
+            connection,
+            profileId: 0, // Will be set by the operation
+            timestamp: new Date(),
+          };
 
-        return await operation(context);
+          return await operation(context);
+        });
       });
     } catch (error) {
       handleDatabaseError(error, operationName);

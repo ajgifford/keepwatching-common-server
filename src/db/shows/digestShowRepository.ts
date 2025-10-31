@@ -1,5 +1,6 @@
 import { ContentReferenceRow, transformContentReferenceRow } from '../../types/contentTypes';
 import { getDbPool } from '../../utils/db';
+import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { ContentReference } from '@ajgifford/keepwatching-types';
 
@@ -8,7 +9,8 @@ import { ContentReference } from '@ajgifford/keepwatching-types';
  */
 export async function getTrendingShows(limit: number = 10): Promise<ContentReference[]> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('getTrendingShows', async () => {
+      const query = `
       SELECT s.id, s.title, s.tmdb_id, s.release_date
       FROM shows s
       JOIN show_watch_status sws ON s.id = sws.show_id
@@ -18,8 +20,9 @@ export async function getTrendingShows(limit: number = 10): Promise<ContentRefer
       LIMIT ${limit}
     `;
 
-    const [shows] = await getDbPool().execute<ContentReferenceRow[]>(query);
-    return shows.map(transformContentReferenceRow);
+      const [shows] = await getDbPool().execute<ContentReferenceRow[]>(query);
+      return shows.map(transformContentReferenceRow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting trending shows');
   }
@@ -30,7 +33,8 @@ export async function getTrendingShows(limit: number = 10): Promise<ContentRefer
  */
 export async function getNewlyAddedShows(limit: number = 10): Promise<ContentReference[]> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('getNewlyAddedShows', async () => {
+      const query = `
       SELECT id, title, tmdb_id, release_date
       FROM shows
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -38,8 +42,9 @@ export async function getNewlyAddedShows(limit: number = 10): Promise<ContentRef
       LIMIT ${limit}
     `;
 
-    const [shows] = await getDbPool().execute<ContentReferenceRow[]>(query);
-    return shows.map(transformContentReferenceRow);
+      const [shows] = await getDbPool().execute<ContentReferenceRow[]>(query);
+      return shows.map(transformContentReferenceRow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting newly added shows');
   }
@@ -50,7 +55,8 @@ export async function getNewlyAddedShows(limit: number = 10): Promise<ContentRef
  */
 export async function getTopRatedShows(limit: number = 10): Promise<ContentReference[]> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('getTopRatedShows', async () => {
+      const query = `
       SELECT id, title, tmdb_id, release_date
       FROM shows
       WHERE user_rating >= 7.0
@@ -58,8 +64,9 @@ export async function getTopRatedShows(limit: number = 10): Promise<ContentRefer
       LIMIT ${limit}
     `;
 
-    const [shows] = await getDbPool().execute<ContentReferenceRow[]>(query);
-    return shows.map(transformContentReferenceRow);
+      const [shows] = await getDbPool().execute<ContentReferenceRow[]>(query);
+      return shows.map(transformContentReferenceRow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting top rated shows');
   }

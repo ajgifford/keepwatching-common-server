@@ -1,4 +1,5 @@
 import { SeasonReferenceRow } from '../../types/seasonTypes';
+import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
@@ -26,46 +27,48 @@ export async function saveFavorite(
   const transactionHelper = new TransactionHelper();
 
   try {
-    await transactionHelper.executeInTransaction(async (connection) => {
-      const query = 'INSERT IGNORE INTO show_watch_status (profile_id, show_id, status) VALUES (?,?,?)';
-      await connection.execute<ResultSetHeader>(query, [profileId, showId, status]);
+    await DbMonitor.getInstance().executeWithTiming('saveFavorite', async () => {
+      await transactionHelper.executeInTransaction(async (connection) => {
+        const query = 'INSERT IGNORE INTO show_watch_status (profile_id, show_id, status) VALUES (?,?,?)';
+        await connection.execute<ResultSetHeader>(query, [profileId, showId, status]);
 
-      if (saveChildren) {
-        const seasonQuery = 'SELECT id, release_date FROM seasons WHERE show_id = ?';
-        const [rows] = await connection.execute<SeasonReferenceRow[]>(seasonQuery, [showId]);
+        if (saveChildren) {
+          const seasonQuery = 'SELECT id, release_date FROM seasons WHERE show_id = ?';
+          const [rows] = await connection.execute<SeasonReferenceRow[]>(seasonQuery, [showId]);
 
-        const now = new Date();
-        const seasonValues: [string, number, number][] = rows.map((row) => {
-          const releaseDate = new Date(row.release_date);
-          const status = releaseDate > now ? 'UNAIRED' : 'NOT_WATCHED';
-          return [status, profileId, row.id];
-        });
-
-        if (seasonValues.length > 0) {
-          const seasonPlaceholders = seasonValues.map(() => '(?,?,?)').join(',');
-          const seasonParams = seasonValues.flat();
-          const seasonBatchQuery = `INSERT IGNORE INTO season_watch_status (status, profile_id, season_id) VALUES ${seasonPlaceholders}`;
-          await connection.execute(seasonBatchQuery, seasonParams);
-
-          const seasonIds = rows.map((row) => row.id);
-          const seasonParamsStr = seasonIds.map(() => '?').join(',');
-          const episodeQuery = `SELECT id, air_date FROM episodes WHERE season_id IN (${seasonParamsStr})`;
-          const [episodeRows] = await connection.execute<EpisodeReferenceRow[]>(episodeQuery, seasonIds);
-
-          const episodeValues: [string, number, number][] = episodeRows.map((row) => {
-            const airDate = new Date(row.air_date);
-            const status = airDate > now ? 'UNAIRED' : 'NOT_WATCHED';
+          const now = new Date();
+          const seasonValues: [string, number, number][] = rows.map((row) => {
+            const releaseDate = new Date(row.release_date);
+            const status = releaseDate > now ? 'UNAIRED' : 'NOT_WATCHED';
             return [status, profileId, row.id];
           });
 
-          if (episodeValues.length > 0) {
-            const episodePlaceholders = episodeValues.map(() => '(?,?,?)').join(',');
-            const episodeParams = episodeValues.flat();
-            const episodesBatchQuery = `INSERT IGNORE INTO episode_watch_status (status, profile_id, episode_id) VALUES ${episodePlaceholders}`;
-            await connection.execute(episodesBatchQuery, episodeParams);
+          if (seasonValues.length > 0) {
+            const seasonPlaceholders = seasonValues.map(() => '(?,?,?)').join(',');
+            const seasonParams = seasonValues.flat();
+            const seasonBatchQuery = `INSERT IGNORE INTO season_watch_status (status, profile_id, season_id) VALUES ${seasonPlaceholders}`;
+            await connection.execute(seasonBatchQuery, seasonParams);
+
+            const seasonIds = rows.map((row) => row.id);
+            const seasonParamsStr = seasonIds.map(() => '?').join(',');
+            const episodeQuery = `SELECT id, air_date FROM episodes WHERE season_id IN (${seasonParamsStr})`;
+            const [episodeRows] = await connection.execute<EpisodeReferenceRow[]>(episodeQuery, seasonIds);
+
+            const episodeValues: [string, number, number][] = episodeRows.map((row) => {
+              const airDate = new Date(row.air_date);
+              const status = airDate > now ? 'UNAIRED' : 'NOT_WATCHED';
+              return [status, profileId, row.id];
+            });
+
+            if (episodeValues.length > 0) {
+              const episodePlaceholders = episodeValues.map(() => '(?,?,?)').join(',');
+              const episodeParams = episodeValues.flat();
+              const episodesBatchQuery = `INSERT IGNORE INTO episode_watch_status (status, profile_id, episode_id) VALUES ${episodePlaceholders}`;
+              await connection.execute(episodesBatchQuery, episodeParams);
+            }
           }
         }
-      }
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'saving a show as a favorite');
@@ -86,22 +89,24 @@ export async function removeFavorite(profileId: number, showId: number): Promise
   const transactionHelper = new TransactionHelper();
 
   try {
-    await transactionHelper.executeInTransaction(async (connection) => {
-      const seasonQuery = 'SELECT id, release_date FROM seasons WHERE show_id = ?';
-      const [rows] = await connection.execute<SeasonReferenceRow[]>(seasonQuery, [showId]);
-      const seasonIds = rows.map((row) => row.id);
+    await DbMonitor.getInstance().executeWithTiming('removeFavorite', async () => {
+      await transactionHelper.executeInTransaction(async (connection) => {
+        const seasonQuery = 'SELECT id, release_date FROM seasons WHERE show_id = ?';
+        const [rows] = await connection.execute<SeasonReferenceRow[]>(seasonQuery, [showId]);
+        const seasonIds = rows.map((row) => row.id);
 
-      if (seasonIds.length > 0) {
-        const seasonPlaceholders = seasonIds.map(() => '?').join(',');
-        const episodeDeleteQuery = `DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (${seasonPlaceholders}))`;
-        await connection.execute(episodeDeleteQuery, [profileId, ...seasonIds]);
+        if (seasonIds.length > 0) {
+          const seasonPlaceholders = seasonIds.map(() => '?').join(',');
+          const episodeDeleteQuery = `DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (${seasonPlaceholders}))`;
+          await connection.execute(episodeDeleteQuery, [profileId, ...seasonIds]);
 
-        const seasonDeleteQuery = `DELETE FROM season_watch_status WHERE profile_id = ? AND season_id IN (${seasonPlaceholders})`;
-        await connection.execute(seasonDeleteQuery, [profileId, ...seasonIds]);
-      }
+          const seasonDeleteQuery = `DELETE FROM season_watch_status WHERE profile_id = ? AND season_id IN (${seasonPlaceholders})`;
+          await connection.execute(seasonDeleteQuery, [profileId, ...seasonIds]);
+        }
 
-      const showDeleteQuery = 'DELETE FROM show_watch_status WHERE profile_id = ? AND show_id = ?';
-      await connection.execute(showDeleteQuery, [profileId, showId]);
+        const showDeleteQuery = 'DELETE FROM show_watch_status WHERE profile_id = ? AND show_id = ?';
+        await connection.execute(showDeleteQuery, [profileId, showId]);
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'removing a show as a favorite');

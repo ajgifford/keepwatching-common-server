@@ -1,6 +1,7 @@
 import { ShowContentUpdates, ShowContentUpdatesRow, transformShowContentUpdates } from '../../types/contentTypes';
 import { ShowReferenceRow, transformShowReferenceRow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
+import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { CreateShowRequest, ShowReference, UpdateShowRequest } from '@ajgifford/keepwatching-types';
@@ -21,43 +22,45 @@ export async function saveShow(showRequest: CreateShowRequest): Promise<number> 
   const transactionHelper = new TransactionHelper();
 
   try {
-    return await transactionHelper.executeInTransaction(async (connection) => {
-      const query =
-        'INSERT INTO shows (tmdb_id, title, description, release_date, poster_image, backdrop_image, user_rating, content_rating, season_count, episode_count, status, type, in_production, last_air_date, last_episode_to_air, next_episode_to_air, network) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
-      const [result] = await connection.execute<ResultSetHeader>(query, [
-        showRequest.tmdb_id,
-        showRequest.title,
-        showRequest.description,
-        showRequest.release_date,
-        showRequest.poster_image,
-        showRequest.backdrop_image,
-        showRequest.user_rating,
-        showRequest.content_rating,
-        showRequest.season_count,
-        showRequest.episode_count,
-        showRequest.status,
-        showRequest.type,
-        showRequest.in_production,
-        showRequest.last_air_date,
-        showRequest.last_episode_to_air,
-        showRequest.next_episode_to_air,
-        showRequest.network,
-      ]);
-      const newId = result.insertId;
+    return await DbMonitor.getInstance().executeWithTiming('saveShow', async () => {
+      return await transactionHelper.executeInTransaction(async (connection) => {
+        const query =
+          'INSERT INTO shows (tmdb_id, title, description, release_date, poster_image, backdrop_image, user_rating, content_rating, season_count, episode_count, status, type, in_production, last_air_date, last_episode_to_air, next_episode_to_air, network) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+        const [result] = await connection.execute<ResultSetHeader>(query, [
+          showRequest.tmdb_id,
+          showRequest.title,
+          showRequest.description,
+          showRequest.release_date,
+          showRequest.poster_image,
+          showRequest.backdrop_image,
+          showRequest.user_rating,
+          showRequest.content_rating,
+          showRequest.season_count,
+          showRequest.episode_count,
+          showRequest.status,
+          showRequest.type,
+          showRequest.in_production,
+          showRequest.last_air_date,
+          showRequest.last_episode_to_air,
+          showRequest.next_episode_to_air,
+          showRequest.network,
+        ]);
+        const newId = result.insertId;
 
-      if (showRequest.genre_ids && showRequest.genre_ids.length > 0) {
-        const genrePromises = showRequest.genre_ids.map((genreId) => saveShowGenre(newId, genreId, connection));
-        await Promise.all(genrePromises);
-      }
+        if (showRequest.genre_ids && showRequest.genre_ids.length > 0) {
+          const genrePromises = showRequest.genre_ids.map((genreId) => saveShowGenre(newId, genreId, connection));
+          await Promise.all(genrePromises);
+        }
 
-      if (showRequest.streaming_service_ids && showRequest.streaming_service_ids.length > 0) {
-        const servicePromises = showRequest.streaming_service_ids.map((serviceId) =>
-          saveShowStreamingService(newId, serviceId, connection),
-        );
-        await Promise.all(servicePromises);
-      }
+        if (showRequest.streaming_service_ids && showRequest.streaming_service_ids.length > 0) {
+          const servicePromises = showRequest.streaming_service_ids.map((serviceId) =>
+            saveShowStreamingService(newId, serviceId, connection),
+          );
+          await Promise.all(servicePromises);
+        }
 
-      return newId;
+        return newId;
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'saving a show');
@@ -77,51 +80,53 @@ export async function updateShow(showRequest: UpdateShowRequest): Promise<boolea
   const transactionHelper = new TransactionHelper();
 
   try {
-    return await transactionHelper.executeInTransaction(async (connection) => {
-      const query =
-        'UPDATE shows SET title = ?, description = ?, release_date = ?, poster_image = ?, backdrop_image = ?, user_rating = ?, content_rating = ?, season_count = ?, episode_count = ?, status = ?, type = ?, in_production = ?, last_air_date = ?, last_episode_to_air = ?, next_episode_to_air = ?, network = ? WHERE tmdb_id = ?';
-      const [result] = await connection.execute<ResultSetHeader>(query, [
-        showRequest.title,
-        showRequest.description,
-        showRequest.release_date,
-        showRequest.poster_image,
-        showRequest.backdrop_image,
-        showRequest.user_rating,
-        showRequest.content_rating,
-        showRequest.season_count,
-        showRequest.episode_count,
-        showRequest.status,
-        showRequest.type,
-        showRequest.in_production,
-        showRequest.last_air_date,
-        showRequest.last_episode_to_air,
-        showRequest.next_episode_to_air,
-        showRequest.network,
-        showRequest.tmdb_id,
-      ]);
+    return await DbMonitor.getInstance().executeWithTiming('updateShow', async () => {
+      return await transactionHelper.executeInTransaction(async (connection) => {
+        const query =
+          'UPDATE shows SET title = ?, description = ?, release_date = ?, poster_image = ?, backdrop_image = ?, user_rating = ?, content_rating = ?, season_count = ?, episode_count = ?, status = ?, type = ?, in_production = ?, last_air_date = ?, last_episode_to_air = ?, next_episode_to_air = ?, network = ? WHERE tmdb_id = ?';
+        const [result] = await connection.execute<ResultSetHeader>(query, [
+          showRequest.title,
+          showRequest.description,
+          showRequest.release_date,
+          showRequest.poster_image,
+          showRequest.backdrop_image,
+          showRequest.user_rating,
+          showRequest.content_rating,
+          showRequest.season_count,
+          showRequest.episode_count,
+          showRequest.status,
+          showRequest.type,
+          showRequest.in_production,
+          showRequest.last_air_date,
+          showRequest.last_episode_to_air,
+          showRequest.next_episode_to_air,
+          showRequest.network,
+          showRequest.tmdb_id,
+        ]);
 
-      const success = result.affectedRows > 0;
-      if (success && showRequest.id) {
-        await clearShowGenres(showRequest.id, connection);
+        const success = result.affectedRows > 0;
+        if (success && showRequest.id) {
+          await clearShowGenres(showRequest.id, connection);
 
-        if (showRequest.genre_ids && showRequest.genre_ids.length > 0) {
-          const genrePromises = showRequest.genre_ids.map((genreId) =>
-            saveShowGenre(showRequest.id!, genreId, connection),
-          );
-          await Promise.all(genrePromises);
+          if (showRequest.genre_ids && showRequest.genre_ids.length > 0) {
+            const genrePromises = showRequest.genre_ids.map((genreId) =>
+              saveShowGenre(showRequest.id!, genreId, connection),
+            );
+            await Promise.all(genrePromises);
+          }
+
+          await clearShowStreamingServices(showRequest.id, connection);
+
+          if (showRequest.streaming_service_ids && showRequest.streaming_service_ids.length > 0) {
+            const servicePromises = showRequest.streaming_service_ids.map((serviceId) =>
+              saveShowStreamingService(showRequest.id!, serviceId, connection),
+            );
+            await Promise.all(servicePromises);
+          }
         }
 
-        await clearShowStreamingServices(showRequest.id, connection);
-
-        if (showRequest.streaming_service_ids && showRequest.streaming_service_ids.length > 0) {
-          const servicePromises = showRequest.streaming_service_ids.map((serviceId) =>
-            saveShowStreamingService(showRequest.id!, serviceId, connection),
-          );
-          await Promise.all(servicePromises);
-        }
-      }
-
-      return success;
+        return success;
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'updating a show');
@@ -213,11 +218,13 @@ async function clearShowStreamingServices(showId: number, connection: PoolConnec
  */
 export async function findShowById(id: number): Promise<ShowReference | null> {
   try {
-    const query = `SELECT id, tmdb_id, title, release_date FROM shows WHERE id = ?`;
-    const [shows] = await getDbPool().execute<ShowReferenceRow[]>(query, [id]);
-    if (shows.length === 0) return null;
+    return await DbMonitor.getInstance().executeWithTiming('findShowById', async () => {
+      const query = `SELECT id, tmdb_id, title, release_date FROM shows WHERE id = ?`;
+      const [shows] = await getDbPool().execute<ShowReferenceRow[]>(query, [id]);
+      if (shows.length === 0) return null;
 
-    return transformShowReferenceRow(shows[0]);
+      return transformShowReferenceRow(shows[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding a show by its id');
   }
@@ -234,11 +241,13 @@ export async function findShowById(id: number): Promise<ShowReference | null> {
  */
 export async function findShowByTMDBId(tmdbId: number): Promise<ShowReference | null> {
   try {
-    const query = `SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?`;
-    const [shows] = await getDbPool().execute<ShowReferenceRow[]>(query, [tmdbId]);
-    if (shows.length === 0) return null;
+    return await DbMonitor.getInstance().executeWithTiming('findShowByTMDBId', async () => {
+      const query = `SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?`;
+      const [shows] = await getDbPool().execute<ShowReferenceRow[]>(query, [tmdbId]);
+      if (shows.length === 0) return null;
 
-    return transformShowReferenceRow(shows[0]);
+      return transformShowReferenceRow(shows[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding a show by its TMDB id');
   }
@@ -256,9 +265,11 @@ export async function findShowByTMDBId(tmdbId: number): Promise<ShowReference | 
  */
 export async function getShowsForUpdates(): Promise<ShowContentUpdates[]> {
   try {
-    const sql = `SELECT id, title, tmdb_id, season_count, created_at, updated_at from shows where in_production = 1`;
-    const [rows] = await getDbPool().execute<ShowContentUpdatesRow[]>(sql);
-    return rows.map(transformShowContentUpdates);
+    return await DbMonitor.getInstance().executeWithTiming('getShowsForUpdates', async () => {
+      const sql = `SELECT id, title, tmdb_id, season_count, created_at, updated_at from shows where in_production = 1`;
+      const [rows] = await getDbPool().execute<ShowContentUpdatesRow[]>(sql);
+      return rows.map(transformShowContentUpdates);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting shows for updates');
   }

@@ -1,4 +1,5 @@
 import { getDbPool } from '../utils/db';
+import { DbMonitor } from '../utils/dbMonitoring';
 import { DailyActivity, MonthlyActivity, WatchingVelocityStats, WeeklyActivity } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2/promise';
 
@@ -22,11 +23,12 @@ interface VelocityDataRow extends RowDataPacket {
  * @returns Watching velocity statistics
  */
 export async function getWatchingVelocityData(profileId: number, days: number = 30): Promise<WatchingVelocityStats> {
-  const connection = await getDbPool().getConnection();
-  try {
-    // Get episode counts per day for the specified period
-    const [dailyRows] = await connection.query<VelocityDataRow[]>(
-      `
+  return await DbMonitor.getInstance().executeWithTiming('getWatchingVelocityData', async () => {
+    const connection = await getDbPool().getConnection();
+    try {
+      // Get episode counts per day for the specified period
+      const [dailyRows] = await connection.query<VelocityDataRow[]>(
+        `
       SELECT 
         DATE(ews.updated_at) as watch_date,
         COUNT(*) as episode_count,
@@ -41,70 +43,71 @@ export async function getWatchingVelocityData(profileId: number, days: number = 
       GROUP BY watch_date, watch_hour, day_of_week
       ORDER BY watch_date DESC
       `,
-      [profileId, days],
-    );
+        [profileId, days],
+      );
 
-    if (dailyRows.length === 0) {
-      return createEmptyVelocityStats();
+      if (dailyRows.length === 0) {
+        return createEmptyVelocityStats();
+      }
+
+      // Calculate episodes per time period
+      const totalEpisodes = dailyRows.reduce((sum, row) => sum + row.episode_count, 0);
+      const uniqueDays = new Set(dailyRows.map((row) => row.watch_date)).size;
+
+      const averageEpisodesPerDay = uniqueDays > 0 ? totalEpisodes / uniqueDays : 0;
+      const episodesPerWeek = averageEpisodesPerDay * 7;
+      const episodesPerMonth = averageEpisodesPerDay * 30;
+
+      // Get most active hour
+      const hourDistribution = new Map<number, number>();
+      dailyRows.forEach((row) => {
+        const count = hourDistribution.get(row.watch_hour) || 0;
+        hourDistribution.set(row.watch_hour, count + row.episode_count);
+      });
+
+      let mostActiveHour = 0;
+      let maxHourCount = 0;
+      hourDistribution.forEach((count, hour) => {
+        if (count > maxHourCount) {
+          maxHourCount = count;
+          mostActiveHour = hour;
+        }
+      });
+
+      // Get most active day of week
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayDistribution = new Map<number, number>();
+      dailyRows.forEach((row) => {
+        const count = dayDistribution.get(row.day_of_week) || 0;
+        dayDistribution.set(row.day_of_week, count + row.episode_count);
+      });
+
+      let mostActiveDayNum = 1;
+      let maxDayCount = 0;
+      dayDistribution.forEach((count, day) => {
+        if (count > maxDayCount) {
+          maxDayCount = count;
+          mostActiveDayNum = day;
+        }
+      });
+
+      const mostActiveDay = dayNames[mostActiveDayNum - 1] || 'Sunday';
+
+      // Calculate velocity trend (compare first half vs second half of period)
+      const velocityTrend = calculateVelocityTrend(dailyRows, uniqueDays);
+
+      return {
+        episodesPerWeek: Math.round(episodesPerWeek * 10) / 10,
+        episodesPerMonth: Math.round(episodesPerMonth),
+        averageEpisodesPerDay: Math.round(averageEpisodesPerDay * 10) / 10,
+        mostActiveDay,
+        mostActiveHour,
+        velocityTrend,
+      };
+    } finally {
+      connection.release();
     }
-
-    // Calculate episodes per time period
-    const totalEpisodes = dailyRows.reduce((sum, row) => sum + row.episode_count, 0);
-    const uniqueDays = new Set(dailyRows.map((row) => row.watch_date)).size;
-
-    const averageEpisodesPerDay = uniqueDays > 0 ? totalEpisodes / uniqueDays : 0;
-    const episodesPerWeek = averageEpisodesPerDay * 7;
-    const episodesPerMonth = averageEpisodesPerDay * 30;
-
-    // Get most active hour
-    const hourDistribution = new Map<number, number>();
-    dailyRows.forEach((row) => {
-      const count = hourDistribution.get(row.watch_hour) || 0;
-      hourDistribution.set(row.watch_hour, count + row.episode_count);
-    });
-
-    let mostActiveHour = 0;
-    let maxHourCount = 0;
-    hourDistribution.forEach((count, hour) => {
-      if (count > maxHourCount) {
-        maxHourCount = count;
-        mostActiveHour = hour;
-      }
-    });
-
-    // Get most active day of week
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayDistribution = new Map<number, number>();
-    dailyRows.forEach((row) => {
-      const count = dayDistribution.get(row.day_of_week) || 0;
-      dayDistribution.set(row.day_of_week, count + row.episode_count);
-    });
-
-    let mostActiveDayNum = 1;
-    let maxDayCount = 0;
-    dayDistribution.forEach((count, day) => {
-      if (count > maxDayCount) {
-        maxDayCount = count;
-        mostActiveDayNum = day;
-      }
-    });
-
-    const mostActiveDay = dayNames[mostActiveDayNum - 1] || 'Sunday';
-
-    // Calculate velocity trend (compare first half vs second half of period)
-    const velocityTrend = calculateVelocityTrend(dailyRows, uniqueDays);
-
-    return {
-      episodesPerWeek: Math.round(episodesPerWeek * 10) / 10,
-      episodesPerMonth: Math.round(episodesPerMonth),
-      averageEpisodesPerDay: Math.round(averageEpisodesPerDay * 10) / 10,
-      mostActiveDay,
-      mostActiveHour,
-      velocityTrend,
-    };
-  } finally {
-    connection.release();
-  }
+  });
 }
 
 /**
@@ -115,10 +118,11 @@ export async function getWatchingVelocityData(profileId: number, days: number = 
  * @returns Array of daily activity entries
  */
 export async function getDailyActivityTimeline(profileId: number, days: number = 30): Promise<DailyActivity[]> {
-  const connection = await getDbPool().getConnection();
-  try {
-    const [rows] = await connection.query<VelocityDataRow[]>(
-      `
+  return await DbMonitor.getInstance().executeWithTiming('getDailyActivityTimeline', async () => {
+    const connection = await getDbPool().getConnection();
+    try {
+      const [rows] = await connection.query<VelocityDataRow[]>(
+        `
       SELECT 
         DATE(ews.updated_at) as watch_date,
         COUNT(*) as episode_count,
@@ -131,17 +135,18 @@ export async function getDailyActivityTimeline(profileId: number, days: number =
       GROUP BY watch_date
       ORDER BY watch_date DESC
       `,
-      [profileId, days],
-    );
+        [profileId, days],
+      );
 
-    return rows.map((row) => ({
-      date: row.watch_date,
-      episodesWatched: row.episode_count,
-      showsWatched: row.show_count,
-    }));
-  } finally {
-    connection.release();
-  }
+      return rows.map((row) => ({
+        date: row.watch_date,
+        episodesWatched: row.episode_count,
+        showsWatched: row.show_count,
+      }));
+    } finally {
+      connection.release();
+    }
+  });
 }
 
 /**
@@ -152,10 +157,11 @@ export async function getDailyActivityTimeline(profileId: number, days: number =
  * @returns Array of weekly activity entries
  */
 export async function getWeeklyActivityTimeline(profileId: number, weeks: number = 12): Promise<WeeklyActivity[]> {
-  const connection = await getDbPool().getConnection();
-  try {
-    const [rows] = await connection.query<RowDataPacket[]>(
-      `
+  return await DbMonitor.getInstance().executeWithTiming('getWeeklyActivityTimeline', async () => {
+    const connection = await getDbPool().getConnection();
+    try {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        `
       SELECT 
         DATE_SUB(DATE(ews.updated_at), INTERVAL WEEKDAY(ews.updated_at) DAY) as week_start,
         COUNT(*) as episode_count
@@ -166,16 +172,17 @@ export async function getWeeklyActivityTimeline(profileId: number, weeks: number
       GROUP BY week_start
       ORDER BY week_start DESC
       `,
-      [profileId, weeks],
-    );
+        [profileId, weeks],
+      );
 
-    return rows.map((row) => ({
-      weekStart: row.week_start,
-      episodesWatched: row.episode_count,
-    }));
-  } finally {
-    connection.release();
-  }
+      return rows.map((row) => ({
+        weekStart: row.week_start,
+        episodesWatched: row.episode_count,
+      }));
+    } finally {
+      connection.release();
+    }
+  });
 }
 
 /**
@@ -186,10 +193,11 @@ export async function getWeeklyActivityTimeline(profileId: number, weeks: number
  * @returns Array of monthly activity entries
  */
 export async function getMonthlyActivityTimeline(profileId: number, months: number = 12): Promise<MonthlyActivity[]> {
-  const connection = await getDbPool().getConnection();
-  try {
-    const [rows] = await connection.query<RowDataPacket[]>(
-      `
+  return await DbMonitor.getInstance().executeWithTiming('getMonthlyActivityTimeline', async () => {
+    const connection = await getDbPool().getConnection();
+    try {
+      const [rows] = await connection.query<RowDataPacket[]>(
+        `
       SELECT 
         DATE_FORMAT(ews.updated_at, '%Y-%m') as month,
         COUNT(*) as episode_count,
@@ -214,29 +222,30 @@ export async function getMonthlyActivityTimeline(profileId: number, months: numb
       
       ORDER BY month DESC
       `,
-      [profileId, months, profileId, months],
-    );
+        [profileId, months, profileId, months],
+      );
 
-    // Aggregate episodes and movies by month
-    const monthMap = new Map<string, { episodesWatched: number; moviesWatched: number }>();
+      // Aggregate episodes and movies by month
+      const monthMap = new Map<string, { episodesWatched: number; moviesWatched: number }>();
 
-    rows.forEach((row) => {
-      const existing = monthMap.get(row.month) || { episodesWatched: 0, moviesWatched: 0 };
-      existing.episodesWatched += row.episode_count;
-      existing.moviesWatched += row.movie_count;
-      monthMap.set(row.month, existing);
-    });
+      rows.forEach((row) => {
+        const existing = monthMap.get(row.month) || { episodesWatched: 0, moviesWatched: 0 };
+        existing.episodesWatched += row.episode_count;
+        existing.moviesWatched += row.movie_count;
+        monthMap.set(row.month, existing);
+      });
 
-    return Array.from(monthMap.entries())
-      .map(([month, data]) => ({
-        month,
-        episodesWatched: data.episodesWatched,
-        moviesWatched: data.moviesWatched,
-      }))
-      .sort((a, b) => b.month.localeCompare(a.month));
-  } finally {
-    connection.release();
-  }
+      return Array.from(monthMap.entries())
+        .map(([month, data]) => ({
+          month,
+          episodesWatched: data.episodesWatched,
+          moviesWatched: data.moviesWatched,
+        }))
+        .sort((a, b) => b.month.localeCompare(a.month));
+    } finally {
+      connection.release();
+    }
+  });
 }
 
 /**

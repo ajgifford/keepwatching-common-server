@@ -1,6 +1,7 @@
 import { AccountRow, transformAccountRow } from '../types/accountTypes';
 import { ProfileAccountReferenceRow } from '../types/profileTypes';
 import { getDbPool } from '../utils/db';
+import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { Account, CreateAccountRequest, UpdateAccountRequest } from '@ajgifford/keepwatching-types';
@@ -20,30 +21,32 @@ export async function registerAccount(accountData: CreateAccountRequest): Promis
   const transactionHelper = new TransactionHelper();
 
   try {
-    return await transactionHelper.executeInTransaction(async (connection) => {
-      const accountQuery = `INSERT INTO accounts (account_name, email, uid) VALUES (?, ?, ?)`;
-      const [accountResult] = await connection.execute<ResultSetHeader>(accountQuery, [
-        accountData.name,
-        accountData.email,
-        accountData.uid,
-      ]);
-      const accountId = accountResult.insertId;
+    return await DbMonitor.getInstance().executeWithTiming('registerAccount', async () => {
+      return await transactionHelper.executeInTransaction(async (connection) => {
+        const accountQuery = `INSERT INTO accounts (account_name, email, uid) VALUES (?, ?, ?)`;
+        const [accountResult] = await connection.execute<ResultSetHeader>(accountQuery, [
+          accountData.name,
+          accountData.email,
+          accountData.uid,
+        ]);
+        const accountId = accountResult.insertId;
 
-      const profileQuery = 'INSERT INTO profiles (account_id, name) VALUES (?,?)';
-      const [profileResult] = await connection.execute<ResultSetHeader>(profileQuery, [accountId, accountData.name]);
-      const defaultProfileId = profileResult.insertId;
+        const profileQuery = 'INSERT INTO profiles (account_id, name) VALUES (?,?)';
+        const [profileResult] = await connection.execute<ResultSetHeader>(profileQuery, [accountId, accountData.name]);
+        const defaultProfileId = profileResult.insertId;
 
-      const defaultQuery = 'UPDATE accounts SET default_profile_id = ? WHERE account_id = ?';
-      await connection.execute(defaultQuery, [defaultProfileId, accountId]);
+        const defaultQuery = 'UPDATE accounts SET default_profile_id = ? WHERE account_id = ?';
+        await connection.execute(defaultQuery, [defaultProfileId, accountId]);
 
-      return {
-        id: accountId,
-        name: accountData.name,
-        email: accountData.email,
-        uid: accountData.uid,
-        image: '',
-        defaultProfileId: defaultProfileId,
-      };
+        return {
+          id: accountId,
+          name: accountData.name,
+          email: accountData.email,
+          uid: accountData.uid,
+          image: '',
+          defaultProfileId: defaultProfileId,
+        };
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'registering an account');
@@ -52,9 +55,11 @@ export async function registerAccount(accountData: CreateAccountRequest): Promis
 
 export async function getAccounts(): Promise<AccountRow[]> {
   try {
-    const query = 'SELECT * from accounts';
-    const [accounts] = await getDbPool().execute<AccountRow[]>(query);
-    return accounts;
+    return await DbMonitor.getInstance().executeWithTiming('getAccounts', async () => {
+      const query = 'SELECT * from accounts';
+      const [accounts] = await getDbPool().execute<AccountRow[]>(query);
+      return accounts;
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting all accounts');
   }
@@ -69,12 +74,14 @@ export async function getAccounts(): Promise<AccountRow[]> {
  */
 export async function updateAccountImage(accountData: UpdateAccountRequest): Promise<Account | null> {
   try {
-    const query = 'UPDATE accounts SET image = ? WHERE account_id = ?';
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountData.image, accountData.id]);
+    return await DbMonitor.getInstance().executeWithTiming('updateAccountImage', async () => {
+      const query = 'UPDATE accounts SET image = ? WHERE account_id = ?';
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountData.image, accountData.id]);
 
-    if (result.affectedRows === 0) return null;
+      if (result.affectedRows === 0) return null;
 
-    return await findAccountById(accountData.id);
+      return await findAccountById(accountData.id);
+    });
   } catch (error) {
     handleDatabaseError(error, 'updating an account image');
   }
@@ -89,16 +96,18 @@ export async function updateAccountImage(accountData: UpdateAccountRequest): Pro
  */
 export async function editAccount(accountData: UpdateAccountRequest): Promise<Account | null> {
   try {
-    const query = 'UPDATE accounts SET account_name = ?, default_profile_id = ? WHERE account_id = ?';
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [
-      accountData.name,
-      accountData.defaultProfileId,
-      accountData.id,
-    ]);
+    return await DbMonitor.getInstance().executeWithTiming('editAccount', async () => {
+      const query = 'UPDATE accounts SET account_name = ?, default_profile_id = ? WHERE account_id = ?';
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+        accountData.name,
+        accountData.defaultProfileId,
+        accountData.id,
+      ]);
 
-    if (result.affectedRows === 0) return null;
+      if (result.affectedRows === 0) return null;
 
-    return await findAccountById(accountData.id);
+      return await findAccountById(accountData.id);
+    });
   } catch (error) {
     handleDatabaseError(error, 'editing an account');
   }
@@ -118,18 +127,20 @@ export async function deleteAccount(accountId: number): Promise<boolean> {
   const transactionHelper = new TransactionHelper();
 
   try {
-    return await transactionHelper.executeInTransaction(async (connection) => {
-      const findAccountQuery = `SELECT * FROM accounts WHERE account_id = ?`;
-      const [accountRows] = await connection.execute<AccountRow[]>(findAccountQuery, [accountId]);
+    return await DbMonitor.getInstance().executeWithTiming('deleteAccount', async () => {
+      return await transactionHelper.executeInTransaction(async (connection) => {
+        const findAccountQuery = `SELECT * FROM accounts WHERE account_id = ?`;
+        const [accountRows] = await connection.execute<AccountRow[]>(findAccountQuery, [accountId]);
 
-      if (accountRows.length === 0) {
-        return false;
-      }
+        if (accountRows.length === 0) {
+          return false;
+        }
 
-      const deleteQuery = 'DELETE FROM accounts WHERE account_id = ?';
-      const [result] = await connection.execute<ResultSetHeader>(deleteQuery, [accountId]);
+        const deleteQuery = 'DELETE FROM accounts WHERE account_id = ?';
+        const [result] = await connection.execute<ResultSetHeader>(deleteQuery, [accountId]);
 
-      return result.affectedRows > 0;
+        return result.affectedRows > 0;
+      });
     });
   } catch (error) {
     handleDatabaseError(error, 'deleting an account');
@@ -145,12 +156,14 @@ export async function deleteAccount(accountId: number): Promise<boolean> {
  */
 export async function findAccountByUID(uid: string): Promise<Account | null> {
   try {
-    const query = `SELECT * FROM accounts WHERE uid = ?`;
-    const [rows] = await getDbPool().execute<AccountRow[]>(query, [uid]);
+    return await DbMonitor.getInstance().executeWithTiming('findAccountByUID', async () => {
+      const query = `SELECT * FROM accounts WHERE uid = ?`;
+      const [rows] = await getDbPool().execute<AccountRow[]>(query, [uid]);
 
-    if (rows.length === 0) return null;
+      if (rows.length === 0) return null;
 
-    return transformAccountRow(rows[0]);
+      return transformAccountRow(rows[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding an account by UID');
   }
@@ -165,12 +178,14 @@ export async function findAccountByUID(uid: string): Promise<Account | null> {
  */
 export async function findAccountByEmail(email: string): Promise<AccountRow | null> {
   try {
-    const query = `SELECT * FROM accounts WHERE email = ?`;
-    const [rows] = await getDbPool().execute<AccountRow[]>(query, [email]);
+    return await DbMonitor.getInstance().executeWithTiming('findAccountByEmail', async () => {
+      const query = `SELECT * FROM accounts WHERE email = ?`;
+      const [rows] = await getDbPool().execute<AccountRow[]>(query, [email]);
 
-    if (rows.length === 0) return null;
+      if (rows.length === 0) return null;
 
-    return rows[0];
+      return rows[0];
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding an account by email');
   }
@@ -185,12 +200,14 @@ export async function findAccountByEmail(email: string): Promise<AccountRow | nu
  */
 export async function findAccountById(id: number): Promise<Account | null> {
   try {
-    const query = `SELECT * FROM accounts WHERE account_id = ?`;
-    const [rows] = await getDbPool().execute<AccountRow[]>(query, [id]);
+    return await DbMonitor.getInstance().executeWithTiming('findAccountById', async () => {
+      const query = `SELECT * FROM accounts WHERE account_id = ?`;
+      const [rows] = await getDbPool().execute<AccountRow[]>(query, [id]);
 
-    if (rows.length === 0) return null;
+      if (rows.length === 0) return null;
 
-    return transformAccountRow(rows[0]);
+      return transformAccountRow(rows[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding an account by id');
   }
@@ -205,10 +222,12 @@ export async function findAccountById(id: number): Promise<Account | null> {
  */
 export async function updateLastLogin(uid: string): Promise<boolean> {
   try {
-    const query = `UPDATE accounts SET last_login = NOW() WHERE uid = ?`;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [uid]);
+    return await DbMonitor.getInstance().executeWithTiming('updateLastLogin', async () => {
+      const query = `UPDATE accounts SET last_login = NOW() WHERE uid = ?`;
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [uid]);
 
-    return result.affectedRows > 0;
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, 'updating last login');
   }
@@ -227,15 +246,17 @@ export async function updateLastLogin(uid: string): Promise<boolean> {
  */
 export async function updateLastActivity(accountId: number, throttleMinutes = 5): Promise<boolean> {
   try {
-    const query = `
+    return await DbMonitor.getInstance().executeWithTiming('updateLastActivity', async () => {
+      const query = `
       UPDATE accounts 
       SET last_activity = NOW() 
       WHERE account_id = ? 
         AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))
     `;
-    const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId, throttleMinutes]);
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId, throttleMinutes]);
 
-    return result.affectedRows > 0;
+      return result.affectedRows > 0;
+    });
   } catch (error) {
     handleDatabaseError(error, 'updating last activity');
   }
@@ -250,12 +271,14 @@ export async function updateLastActivity(accountId: number, throttleMinutes = 5)
  */
 export async function findAccountIdByProfileId(profileId: number): Promise<number | null> {
   try {
-    const query = `SELECT account_id FROM profiles where profile_id = ?`;
-    const [rows] = await getDbPool().execute<ProfileAccountReferenceRow[]>(query, [profileId]);
+    return await DbMonitor.getInstance().executeWithTiming('findAccountIdByProfileId', async () => {
+      const query = `SELECT account_id FROM profiles where profile_id = ?`;
+      const [rows] = await getDbPool().execute<ProfileAccountReferenceRow[]>(query, [profileId]);
 
-    if (rows.length === 0) return null;
+      if (rows.length === 0) return null;
 
-    return rows[0].account_id;
+      return rows[0].account_id;
+    });
   } catch (error) {
     handleDatabaseError(error, 'finding an account by profile id');
   }

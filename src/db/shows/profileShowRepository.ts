@@ -8,6 +8,7 @@ import { RecentShowsWithUnwatchedRow } from '../../types/profileTypes';
 import { ProfileSeasonRow, transformProfileSeason } from '../../types/seasonTypes';
 import { ProfileForShowRow, ProfileShowRow, transformProfileShow } from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
+import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import {
   KeepWatchingShow,
@@ -30,9 +31,11 @@ import {
  */
 export async function getAllShowsForProfile(profileId: number): Promise<ProfileShow[]> {
   try {
-    const query = 'SELECT * FROM profile_shows WHERE profile_id = ?';
-    const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId]);
-    return shows.map(transformProfileShow);
+    return await DbMonitor.getInstance().executeWithTiming('getAllShowsForProfile', async () => {
+      const query = 'SELECT * FROM profile_shows WHERE profile_id = ?';
+      const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId]);
+      return shows.map(transformProfileShow);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting all shows for a profile');
   }
@@ -51,9 +54,11 @@ export async function getAllShowsForProfile(profileId: number): Promise<ProfileS
  */
 export async function getShowForProfile(profileId: number, showId: number): Promise<ProfileShow> {
   try {
-    const query = 'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = ?';
-    const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
-    return transformProfileShow(shows[0]);
+    return await DbMonitor.getInstance().executeWithTiming('getShowForProfile', async () => {
+      const query = 'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = ?';
+      const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
+      return transformProfileShow(shows[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting a show for a profile');
   }
@@ -76,9 +81,11 @@ export async function getShowForProfileByChild(
   childEntity: 'episodes' | 'seasons',
 ): Promise<ProfileShow> {
   try {
-    const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
-    const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
-    return transformProfileShow(shows[0]);
+    return await DbMonitor.getInstance().executeWithTiming('getShowForProfileByChild', async () => {
+      const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
+      const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
+      return transformProfileShow(shows[0]);
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting a show for a profile by child');
   }
@@ -101,16 +108,18 @@ export async function getShowWithSeasonsForProfile(
   showId: number,
 ): Promise<ProfileShowWithSeasons | null> {
   try {
-    const query = 'SELECT * FROM profile_shows where profile_id = ? AND show_id = ?';
-    const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
-    if (rows.length === 0) {
-      return null;
-    }
+    return await DbMonitor.getInstance().executeWithTiming('getShowWithSeasonsForProfile', async () => {
+      const query = 'SELECT * FROM profile_shows where profile_id = ? AND show_id = ?';
+      const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
+      if (rows.length === 0) {
+        return null;
+      }
 
-    const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
-    show.seasons = await getShowSeasons(profileId, showId);
+      const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
+      show.seasons = await getShowSeasons(profileId, showId);
 
-    return show;
+      return show;
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting a show and its seasons for a profile');
   }
@@ -134,16 +143,18 @@ export async function getShowWithSeasonsForProfileByChild(
   childEntity: 'episodes' | 'seasons',
 ): Promise<ProfileShowWithSeasons | null> {
   try {
-    const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
-    const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
-    if (rows.length === 0) {
-      return null;
-    }
+    return await DbMonitor.getInstance().executeWithTiming('getShowWithSeasonsForProfileByChild', async () => {
+      const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
+      const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
+      if (rows.length === 0) {
+        return null;
+      }
 
-    const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
-    show.seasons = await getShowSeasons(profileId, show.id);
+      const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
+      show.seasons = await getShowSeasons(profileId, show.id);
 
-    return show;
+      return show;
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting a show and its seasons for a profile by child');
   }
@@ -199,30 +210,35 @@ async function getShowSeasons(profileId: number, showId: number): Promise<Profil
  */
 export async function getNextUnwatchedEpisodesForProfile(profileId: number): Promise<KeepWatchingShow[]> {
   try {
-    const pool = getDbPool();
-    const recentShowsQuery = `SELECT * FROM profile_recent_shows_with_unwatched WHERE profile_id = ? ORDER BY last_watched_date DESC LIMIT 6`;
-    const [recentShows] = await pool.execute<RecentShowsWithUnwatchedRow[]>(recentShowsQuery, [profileId]);
+    return await DbMonitor.getInstance().executeWithTiming('getNextUnwatchedEpisodesForProfile', async () => {
+      const pool = getDbPool();
+      const recentShowsQuery = `SELECT * FROM profile_recent_shows_with_unwatched WHERE profile_id = ? ORDER BY last_watched_date DESC LIMIT 6`;
+      const [recentShows] = await pool.execute<RecentShowsWithUnwatchedRow[]>(recentShowsQuery, [profileId]);
 
-    if (recentShows.length === 0) {
-      return [];
-    }
+      if (recentShows.length === 0) {
+        return [];
+      }
 
-    const results = await Promise.all(
-      recentShows.map(async (show) => {
-        const nextEpisodesQuery = `SELECT * FROM profile_next_unwatched_episodes WHERE profile_id = ? AND show_id = ? AND episode_rank <= 2 ORDER BY season_number ASC, episode_number ASC`;
-        const [episodes] = await pool.execute<NextUnwatchedEpisodesRow[]>(nextEpisodesQuery, [profileId, show.show_id]);
+      const results = await Promise.all(
+        recentShows.map(async (show) => {
+          const nextEpisodesQuery = `SELECT * FROM profile_next_unwatched_episodes WHERE profile_id = ? AND show_id = ? AND episode_rank <= 2 ORDER BY season_number ASC, episode_number ASC`;
+          const [episodes] = await pool.execute<NextUnwatchedEpisodesRow[]>(nextEpisodesQuery, [
+            profileId,
+            show.show_id,
+          ]);
 
-        return {
-          showId: show.show_id,
-          showTitle: show.show_title,
-          posterImage: show.poster_image,
-          lastWatched: show.last_watched_date.toISOString(),
-          episodes: episodes.map(transformNextUnwatchedEpisodes),
-        } as KeepWatchingShow;
-      }),
-    );
+          return {
+            showId: show.show_id,
+            showTitle: show.show_title,
+            posterImage: show.poster_image,
+            lastWatched: show.last_watched_date.toISOString(),
+            episodes: episodes.map(transformNextUnwatchedEpisodes),
+          } as KeepWatchingShow;
+        }),
+      );
 
-    return results;
+      return results;
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting the next unwatched episodes for a profile');
   }
@@ -240,7 +256,8 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
  */
 export async function getProfilesForShow(showId: number): Promise<ProfilesForShowResponse> {
   try {
-    const query = `SELECT 
+    return await DbMonitor.getInstance().executeWithTiming('getProfilesForShow', async () => {
+      const query = `SELECT 
         sws.profile_id,
         p.account_id
       FROM 
@@ -252,19 +269,20 @@ export async function getProfilesForShow(showId: number): Promise<ProfilesForSho
       ORDER BY 
         p.account_id, sws.profile_id`;
 
-    const [rows] = await getDbPool().execute<ProfileForShowRow[]>(query, [showId]);
+      const [rows] = await getDbPool().execute<ProfileForShowRow[]>(query, [showId]);
 
-    const profileAccountMappings = rows.map((row) => ({
-      profileId: row.profile_id,
-      accountId: row.account_id,
-    }));
+      const profileAccountMappings = rows.map((row) => ({
+        profileId: row.profile_id,
+        accountId: row.account_id,
+      }));
 
-    const profileIds = rows.map((row) => row.profile_id);
-    return {
-      showId,
-      profileAccountMappings,
-      totalCount: profileIds.length,
-    };
+      const profileIds = rows.map((row) => row.profile_id);
+      return {
+        showId,
+        profileAccountMappings,
+        totalCount: profileIds.length,
+      };
+    });
   } catch (error) {
     handleDatabaseError(error, 'getting the profiles that have favorited a show');
   }
