@@ -1,10 +1,11 @@
+import { transformAccountReferenceRow } from '../../../src/types/accountTypes';
 import {
   CreateEmailRow,
   UpdateEmailRow,
   transformEmailRow,
   transformEmailTemplateRow,
 } from '../../../src/types/emailTypes';
-import { CreateEmailTemplate, UpdateEmailTemplate } from '@ajgifford/keepwatching-types';
+import { CreateEmailRecipient, CreateEmailTemplate, UpdateEmailTemplate } from '@ajgifford/keepwatching-types';
 import * as emailDb from '@db/emailDb';
 import { getDbPool } from '@utils/db';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
@@ -684,6 +685,400 @@ describe('emailDb', () => {
       await emailDb.deleteEmail(1);
 
       expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'deleting an email');
+    });
+  });
+
+  describe('getEmail', () => {
+    it('should return transformed email when found', async () => {
+      const mockRow = {
+        id: 1,
+        subject: 'Test Email',
+        message: 'Test message',
+        sent_to_all: 1,
+        account_count: 100,
+        scheduled_date: '2023-01-01 00:00:00',
+        sent_date: '2023-01-01 00:00:00',
+        status: 'sent',
+        created_at: '2023-01-01 00:00:00',
+        updated_at: '2023-01-01 00:00:00',
+      } as any;
+
+      mockExecute.mockResolvedValue([[mockRow]]);
+
+      const result = await emailDb.getEmail(1);
+
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM emails WHERE id = ?', [1]);
+      expect(result).toEqual(transformEmailRow(mockRow));
+    });
+
+    it('should return null when email not found', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await emailDb.getEmail(999);
+
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM emails WHERE id = ?', [999]);
+      expect(result).toBeNull();
+    });
+
+    it('should handle database errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await emailDb.getEmail(1);
+
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'get email');
+    });
+  });
+
+  describe('getEmailRecipients', () => {
+    it('should return transformed email recipients', async () => {
+      const mockRows = [
+        {
+          account_id: 1,
+          account_name: 'John Doe',
+          email: 'john@example.com',
+        },
+        {
+          account_id: 2,
+          account_name: 'Jane Smith',
+          email: 'jane@example.com',
+        },
+      ] as any[];
+
+      mockExecute.mockResolvedValue([mockRows]);
+
+      const result = await emailDb.getEmailRecipients(1);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'SELECT account_id, account_name, email FROM email_recipient_details WHERE email_id = ?',
+        [1],
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual(transformAccountReferenceRow(mockRows[0]));
+      expect(result[1]).toEqual(transformAccountReferenceRow(mockRows[1]));
+    });
+
+    it('should return empty array when no recipients found', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await emailDb.getEmailRecipients(999);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle database errors', async () => {
+      const mockError = new Error('Database connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await emailDb.getEmailRecipients(1);
+
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'getting email recipients');
+    });
+  });
+
+  describe('createEmailRecipient', () => {
+    it('should create email recipient successfully', async () => {
+      const recipient: CreateEmailRecipient = {
+        email_id: 1,
+        account_id: 100,
+        status: 'pending',
+        sent_at: null,
+        error_message: null,
+      };
+
+      const mockResult = {
+        affectedRows: 1,
+        insertId: 1,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.createEmailRecipient(recipient);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'INSERT INTO email_recipients (email_id, account_id, status, sent_at, error_message) VALUES (?, ?, ?, ?, ?)',
+        [recipient.email_id, recipient.account_id, recipient.status, recipient.sent_at, recipient.error_message],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no rows affected', async () => {
+      const recipient: CreateEmailRecipient = {
+        email_id: 1,
+        account_id: 100,
+        status: 'pending',
+        sent_at: null,
+        error_message: null,
+      };
+
+      const mockResult = {
+        affectedRows: 0,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.createEmailRecipient(recipient);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle database errors', async () => {
+      const recipient: CreateEmailRecipient = {
+        email_id: 1,
+        account_id: 100,
+        status: 'pending',
+        sent_at: null,
+        error_message: null,
+      };
+
+      const mockError = new Error('Database connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await emailDb.createEmailRecipient(recipient);
+
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'creating an email recipient');
+    });
+  });
+
+  describe('updateEmailRecipientStatus', () => {
+    it('should update email recipient status successfully', async () => {
+      const emailId = 1;
+      const accountId = 100;
+      const sentDate = '2023-01-01 12:00:00';
+      const status = 'sent';
+
+      const mockResult = {
+        affectedRows: 1,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 1,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.updateEmailRecipientStatus(emailId, accountId, sentDate, status);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'UPDATE email_recipients SET sent_at = ?, status = ? WHERE email_id = ? AND account_id = ?',
+        [sentDate, status, emailId, accountId],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no rows affected', async () => {
+      const emailId = 999;
+      const accountId = 999;
+      const sentDate = '2023-01-01 12:00:00';
+      const status = 'sent';
+
+      const mockResult = {
+        affectedRows: 0,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.updateEmailRecipientStatus(emailId, accountId, sentDate, status);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle database errors', async () => {
+      const emailId = 1;
+      const accountId = 100;
+      const sentDate = '2023-01-01 12:00:00';
+      const status = 'sent';
+
+      const mockError = new Error('Database connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await emailDb.updateEmailRecipientStatus(emailId, accountId, sentDate, status);
+
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email recipient status');
+    });
+  });
+
+  describe('updateEmailRecipientStatusFailure', () => {
+    it('should update email recipient status to failed successfully', async () => {
+      const emailId = 1;
+      const accountId = 100;
+      const errorMessage = 'Failed to send email';
+
+      const mockResult = {
+        affectedRows: 1,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 1,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.updateEmailRecipientStatusFailure(emailId, accountId, errorMessage);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        `UPDATE email_recipients SET status = 'failed', error_message = ? WHERE email_id = ? AND account_id = ?`,
+        [errorMessage, emailId, accountId],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no rows affected', async () => {
+      const emailId = 999;
+      const accountId = 999;
+      const errorMessage = 'Failed to send email';
+
+      const mockResult = {
+        affectedRows: 0,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.updateEmailRecipientStatusFailure(emailId, accountId, errorMessage);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle database errors', async () => {
+      const emailId = 1;
+      const accountId = 100;
+      const errorMessage = 'Failed to send email';
+
+      const mockError = new Error('Database connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await emailDb.updateEmailRecipientStatusFailure(emailId, accountId, errorMessage);
+
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email recipient status for failure');
+    });
+  });
+
+  describe('createEmailRecipients', () => {
+    it('should create multiple email recipients successfully', async () => {
+      const recipients: CreateEmailRecipient[] = [
+        {
+          email_id: 1,
+          account_id: 100,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        },
+        {
+          email_id: 1,
+          account_id: 101,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        },
+      ];
+
+      const mockResult = {
+        affectedRows: 2,
+        insertId: 1,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.createEmailRecipients(recipients);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'INSERT INTO email_recipients (email_id, account_id, status, sent_at, error_message) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)',
+        [1, 100, 'pending', null, null, 1, 101, 'pending', null, null],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return true when empty array provided', async () => {
+      const result = await emailDb.createEmailRecipients([]);
+
+      expect(mockExecute).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it('should return false when affected rows do not match recipients count', async () => {
+      const recipients: CreateEmailRecipient[] = [
+        {
+          email_id: 1,
+          account_id: 100,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        },
+        {
+          email_id: 1,
+          account_id: 101,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        },
+      ];
+
+      const mockResult = {
+        affectedRows: 1,
+        insertId: 1,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await emailDb.createEmailRecipients(recipients);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle database errors', async () => {
+      const recipients: CreateEmailRecipient[] = [
+        {
+          email_id: 1,
+          account_id: 100,
+          status: 'pending',
+          sent_at: null,
+          error_message: null,
+        },
+      ];
+
+      const mockError = new Error('Database connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await emailDb.createEmailRecipients(recipients);
+
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'creating email recipients');
     });
   });
 });
