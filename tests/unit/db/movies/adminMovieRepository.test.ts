@@ -38,6 +38,109 @@ describe('adminMovieRepository', () => {
     });
   });
 
+  describe('getMoviesCountByProfile', () => {
+    const profileId = 5;
+
+    it('should return the count of movies for a specific profile', async () => {
+      mockPool.execute.mockResolvedValueOnce([[{ total: 15 }]]);
+
+      const count = await moviesDb.getMoviesCountByProfile(profileId);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT COUNT(DISTINCT m.movie_id) AS total FROM profile_movies m WHERE m.profile_id = ?',
+        [profileId],
+      );
+      expect(count).toBe(15);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query execution failed');
+      mockPool.execute.mockRejectedValueOnce(dbError);
+
+      await expect(moviesDb.getMoviesCountByProfile(profileId)).rejects.toThrow(
+        'Database error getting the count of movies for a profile: Query execution failed',
+      );
+    });
+  });
+
+  describe('getAllMoviesByProfile', () => {
+    const profileId = 3;
+
+    it('should return all movies for a profile with default pagination', async () => {
+      const mockMovieRows = [
+        {
+          id: 10,
+          tmdb_id: 11111,
+          title: 'Profile Movie 1',
+          description: 'Description 1',
+          release_date: '2023-05-01',
+          runtime: 100,
+          poster_image: '/poster10.jpg',
+          backdrop_image: '/backdrop10.jpg',
+          user_rating: 7.8,
+          mpa_rating: 'PG',
+          created_at: new Date('2023-05-01'),
+          updated_at: new Date('2023-05-05'),
+          genres: 'Drama',
+          streaming_services: 'Netflix',
+        },
+      ];
+
+      mockPool.execute.mockResolvedValueOnce([mockMovieRows]);
+
+      const movies = await moviesDb.getAllMoviesByProfile(profileId);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM admin_profile_movies WHERE profile_id = ? ORDER BY title asc LIMIT 50 OFFSET 0',
+        [profileId],
+      );
+      expect(movies).toHaveLength(1);
+      expect(movies[0].id).toBe(10);
+      expect(movies[0].title).toBe('Profile Movie 1');
+    });
+
+    it('should return movies for a profile with custom pagination', async () => {
+      const mockMovieRows = [
+        {
+          id: 11,
+          tmdb_id: 22222,
+          title: 'Profile Movie 2',
+          description: 'Description 2',
+          release_date: '2023-06-01',
+          runtime: 110,
+          poster_image: '/poster11.jpg',
+          backdrop_image: '/backdrop11.jpg',
+          user_rating: 8.2,
+          mpa_rating: 'PG-13',
+          created_at: new Date('2023-06-01'),
+          updated_at: new Date('2023-06-05'),
+          genres: 'Action',
+          streaming_services: 'HBO Max',
+        },
+      ];
+
+      mockPool.execute.mockResolvedValueOnce([mockMovieRows]);
+
+      const limit = 25;
+      const offset = 10;
+      const movies = await moviesDb.getAllMoviesByProfile(profileId, limit, offset);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`), [profileId]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`), [profileId]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY title asc'), [profileId]);
+      expect(movies).toHaveLength(1);
+    });
+
+    it('should throw DatabaseError when fetch fails', async () => {
+      const dbError = new Error('Connection timeout');
+      mockPool.execute.mockRejectedValueOnce(dbError);
+
+      await expect(moviesDb.getAllMoviesByProfile(profileId)).rejects.toThrow(
+        'Database error getting all movies for a profile: Connection timeout',
+      );
+    });
+  });
+
   describe('getAllMovies', () => {
     it('should return all movies with default pagination', async () => {
       const mockMovieRows = [
@@ -127,6 +230,64 @@ describe('adminMovieRepository', () => {
 
       await expect(moviesDb.getAllMovies()).rejects.toThrow(
         'Database error getting all movies: Database connection failed',
+      );
+    });
+  });
+
+  describe('getAllMoviesReferences', () => {
+    it('should return all movie references', async () => {
+      const mockReferenceRows = [
+        {
+          id: 1,
+          tmdb_id: 12345,
+          title: 'Movie One',
+          release_date: '2023-01-15',
+        },
+        {
+          id: 2,
+          tmdb_id: 67890,
+          title: 'Movie Two',
+          release_date: '2023-03-20',
+        },
+        {
+          id: 3,
+          tmdb_id: 54321,
+          title: 'Movie Three',
+          release_date: '2023-07-10',
+        },
+      ];
+
+      mockPool.execute.mockResolvedValueOnce([mockReferenceRows]);
+
+      const references = await moviesDb.getAllMoviesReferences();
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM movies');
+      expect(references).toHaveLength(3);
+      expect(references[0]).toEqual({
+        id: 1,
+        tmdbId: 12345,
+        title: 'Movie One',
+        releaseDate: '2023-01-15',
+      });
+      expect(references[1].title).toBe('Movie Two');
+      expect(references[2].tmdbId).toBe(54321);
+    });
+
+    it('should return empty array when no movies exist', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      const references = await moviesDb.getAllMoviesReferences();
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM movies');
+      expect(references).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Database unavailable');
+      mockPool.execute.mockRejectedValueOnce(dbError);
+
+      await expect(moviesDb.getAllMoviesReferences()).rejects.toThrow(
+        'Database error getting all movies references: Database unavailable',
       );
     });
   });

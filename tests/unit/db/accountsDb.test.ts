@@ -693,4 +693,153 @@ describe('accountsDb Module', () => {
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('updateLastLogin()', () => {
+    it('should update last login successfully', async () => {
+      const uid = 'test-uid-123';
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 1 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastLogin(uid);
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no rows are affected (account not found)', async () => {
+      const uid = 'nonexistent-uid';
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 0 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastLogin(uid);
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
+      expect(result).toBe(false);
+    });
+
+    it('should throw DatabaseError when the update query fails', async () => {
+      const uid = 'test-uid-123';
+      const dbError = new Error('Database connection error');
+
+      mockExecute.mockRejectedValueOnce(dbError);
+
+      await expect(accountsDb.updateLastLogin(uid)).rejects.toThrow(DatabaseError);
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
+    });
+
+    it('should handle empty uid string', async () => {
+      const uid = '';
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 0 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastLogin(uid);
+
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('updateLastActivity()', () => {
+    it('should update last activity successfully with default throttle', async () => {
+      const accountId = 1;
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 1 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastActivity(accountId);
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
+        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        [accountId, 5],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should update last activity successfully with custom throttle', async () => {
+      const accountId = 1;
+      const throttleMinutes = 10;
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 1 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastActivity(accountId, throttleMinutes);
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
+        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        [accountId, throttleMinutes],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no rows are affected (account not found or throttled)', async () => {
+      const accountId = 999;
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 0 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastActivity(accountId);
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(result).toBe(false);
+    });
+
+    it('should throw DatabaseError when the update query fails', async () => {
+      const accountId = 1;
+      const dbError = new Error('Database error');
+
+      mockExecute.mockRejectedValueOnce(dbError);
+
+      await expect(accountsDb.updateLastActivity(accountId)).rejects.toThrow(DatabaseError);
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle zero throttle minutes', async () => {
+      const accountId = 1;
+      const throttleMinutes = 0;
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 1 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastActivity(accountId, throttleMinutes);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        [accountId, 0],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should handle large throttle values', async () => {
+      const accountId = 1;
+      const throttleMinutes = 1440; // 24 hours
+      const updateResult: [ResultSetHeader, any] = [{ affectedRows: 1 } as ResultSetHeader, undefined];
+
+      mockExecute.mockResolvedValueOnce(updateResult);
+
+      const result = await accountsDb.updateLastActivity(accountId, throttleMinutes);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        [accountId, 1440],
+      );
+      expect(result).toBe(true);
+    });
+  });
 });

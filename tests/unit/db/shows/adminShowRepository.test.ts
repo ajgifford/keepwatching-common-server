@@ -152,6 +152,179 @@ describe('adminShowRepository', () => {
     });
   });
 
+  describe('getShowsCountByProfile', () => {
+    const profileId = 5;
+
+    it('should return the count of shows for a specific profile', async () => {
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ total: 25 }]]);
+
+      const count = await adminShowRepository.getShowsCountByProfile(profileId);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT COUNT(DISTINCT s.show_id) AS total FROM profile_shows s WHERE s.profile_id = ?',
+        [profileId],
+      );
+      expect(count).toBe(25);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query execution failed');
+      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+
+      await expect(adminShowRepository.getShowsCountByProfile(profileId)).rejects.toThrow(
+        'Database error getting a count of shows for a profile: Query execution failed',
+      );
+    });
+  });
+
+  describe('getAllShowsByProfile', () => {
+    const profileId = 7;
+
+    it('should return all shows for a profile with default pagination', async () => {
+      const mockShowRows = [
+        {
+          id: 10,
+          tmdb_id: 99999,
+          title: 'Profile Show 1',
+          description: 'Description 1',
+          release_date: '2023-05-01',
+          poster_image: '/poster10.jpg',
+          backdrop_image: '/backdrop10.jpg',
+          network: 'HBO',
+          season_count: 2,
+          episode_count: 16,
+          user_rating: 8.1,
+          content_rating: 'TV-MA',
+          status: 'Running',
+          type: 'Scripted',
+          in_production: 1,
+          last_air_date: '2023-08-01',
+          created_at: new Date('2023-05-01'),
+          updated_at: new Date('2023-05-05'),
+          genres: 'Fantasy',
+          streaming_services: 'HBO Max',
+        },
+      ];
+
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShowRows]);
+
+      const shows = await adminShowRepository.getAllShowsByProfile(profileId);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        'SELECT * FROM admin_profile_shows WHERE profile_id = ? ORDER BY title asc LIMIT 50 OFFSET 0',
+        [profileId],
+      );
+      expect(shows).toHaveLength(1);
+      expect(shows[0].id).toBe(10);
+      expect(shows[0].title).toBe('Profile Show 1');
+    });
+
+    it('should return shows for a profile with custom pagination', async () => {
+      const mockShowRows = [
+        {
+          id: 11,
+          tmdb_id: 88888,
+          title: 'Profile Show 2',
+          description: 'Description 2',
+          release_date: '2023-06-01',
+          poster_image: '/poster11.jpg',
+          backdrop_image: '/backdrop11.jpg',
+          network: 'Netflix',
+          season_count: 1,
+          episode_count: 8,
+          user_rating: 8.5,
+          content_rating: 'TV-14',
+          status: 'Ended',
+          type: 'Scripted',
+          in_production: 0,
+          last_air_date: '2023-06-30',
+          created_at: new Date('2023-06-01'),
+          updated_at: new Date('2023-06-05'),
+          genres: 'Comedy',
+          streaming_services: 'Netflix',
+        },
+      ];
+
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShowRows]);
+
+      const limit = 25;
+      const offset = 10;
+      const shows = await adminShowRepository.getAllShowsByProfile(profileId, limit, offset);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`), [profileId]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`), [profileId]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY title asc'), [profileId]);
+      expect(shows).toHaveLength(1);
+    });
+
+    it('should throw DatabaseError when fetch fails', async () => {
+      const dbError = new Error('Connection timeout');
+      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+
+      await expect(adminShowRepository.getAllShowsByProfile(profileId)).rejects.toThrow(
+        'Database error get all shows for a profile: Connection timeout',
+      );
+    });
+  });
+
+  describe('getAllShowReferences', () => {
+    it('should return all show references', async () => {
+      const mockReferenceRows = [
+        {
+          id: 1,
+          tmdb_id: 11111,
+          title: 'Show One',
+          release_date: '2023-01-01',
+        },
+        {
+          id: 2,
+          tmdb_id: 22222,
+          title: 'Show Two',
+          release_date: '2023-02-15',
+        },
+        {
+          id: 3,
+          tmdb_id: 33333,
+          title: 'Show Three',
+          release_date: '2023-05-20',
+        },
+      ];
+
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockReferenceRows]);
+
+      const references = await adminShowRepository.getAllShowReferences();
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows');
+      expect(references).toHaveLength(3);
+      expect(references[0]).toEqual({
+        id: 1,
+        tmdbId: 11111,
+        title: 'Show One',
+        releaseDate: '2023-01-01',
+      });
+      expect(references[1].title).toBe('Show Two');
+      expect(references[2].tmdbId).toBe(33333);
+    });
+
+    it('should return empty array when no shows exist', async () => {
+      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[]]);
+
+      const references = await adminShowRepository.getAllShowReferences();
+
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows');
+      expect(references).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Database unavailable');
+      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+
+      await expect(adminShowRepository.getAllShowReferences()).rejects.toThrow(
+        'Database error get all show references: Database unavailable',
+      );
+    });
+  });
+
   describe('getAdminShowDetails', () => {
     const mockShowId = 123;
     const mockShowRow = {
