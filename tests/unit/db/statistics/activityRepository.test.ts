@@ -1,4 +1,8 @@
-import * as statisticsModule from '@db/statisticsDb';
+import {
+  getDailyActivityTimeline,
+  getMonthlyActivityTimeline,
+  getWeeklyActivityTimeline,
+} from '@db/statistics/activityRepository';
 import { getDbPool } from '@utils/db';
 import { RowDataPacket } from 'mysql2/promise';
 
@@ -17,7 +21,7 @@ jest.mock('@utils/dbMonitoring', () => ({
   },
 }));
 
-describe('statisticsDb', () => {
+describe('activityRepository', () => {
   let mockConnection: any;
   let mockPool: any;
 
@@ -45,257 +49,6 @@ describe('statisticsDb', () => {
     jest.clearAllMocks();
   });
 
-  describe('getWatchingVelocityData', () => {
-    it('should return velocity statistics with valid data', async () => {
-      const mockRows = [
-        {
-          watch_date: '2025-10-15',
-          episode_count: 5,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 4,
-        },
-        {
-          watch_date: '2025-10-14',
-          episode_count: 3,
-          show_count: 1,
-          watch_hour: 19,
-          day_of_week: 3,
-        },
-        {
-          watch_date: '2025-10-13',
-          episode_count: 4,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 2,
-        },
-      ];
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 30]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
-
-      expect(result).toMatchObject({
-        episodesPerWeek: expect.any(Number),
-        episodesPerMonth: expect.any(Number),
-        averageEpisodesPerDay: expect.any(Number),
-        mostActiveDay: expect.any(String),
-        mostActiveHour: expect.any(Number),
-        velocityTrend: expect.stringMatching(/^(increasing|decreasing|stable)$/),
-      });
-
-      // Verify calculations
-      expect(result.averageEpisodesPerDay).toBeGreaterThan(0);
-      expect(result.episodesPerWeek).toBeGreaterThan(0);
-      expect(result.episodesPerMonth).toBeGreaterThan(0);
-    });
-
-    it('should return empty statistics when no data is available', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(result).toEqual({
-        episodesPerWeek: 0,
-        episodesPerMonth: 0,
-        averageEpisodesPerDay: 0,
-        mostActiveDay: 'N/A',
-        mostActiveHour: 0,
-        velocityTrend: 'stable',
-      });
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle different days parameter', async () => {
-      const mockRows = [
-        {
-          watch_date: '2025-10-15',
-          episode_count: 5,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 4,
-        },
-      ];
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      await statisticsModule.getWatchingVelocityData(123, 60);
-
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 60]);
-    });
-
-    it('should calculate most active hour correctly', async () => {
-      const mockRows = [
-        {
-          watch_date: '2025-10-15',
-          episode_count: 5,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 4,
-        },
-        {
-          watch_date: '2025-10-14',
-          episode_count: 7,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 3,
-        },
-        {
-          watch_date: '2025-10-13',
-          episode_count: 2,
-          show_count: 1,
-          watch_hour: 14,
-          day_of_week: 2,
-        },
-      ];
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(result.mostActiveHour).toBe(20);
-    });
-
-    it('should calculate most active day correctly', async () => {
-      const mockRows = [
-        {
-          watch_date: '2025-10-15',
-          episode_count: 10,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 4, // Wednesday
-        },
-        {
-          watch_date: '2025-10-14',
-          episode_count: 2,
-          show_count: 1,
-          watch_hour: 19,
-          day_of_week: 3, // Tuesday
-        },
-      ];
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(result.mostActiveDay).toBe('Wednesday');
-    });
-
-    it('should determine increasing trend correctly', async () => {
-      // Create data with increasing trend (recent half has more episodes)
-      const mockRows = Array.from({ length: 30 }, (_, i) => ({
-        watch_date: `2025-10-${String(30 - i).padStart(2, '0')}`,
-        episode_count: i < 15 ? 10 : 3, // Recent half (first 15) has more episodes
-        show_count: 1,
-        watch_hour: 20,
-        day_of_week: (i % 7) + 1,
-      }));
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(result.velocityTrend).toBe('increasing');
-    });
-
-    it('should determine decreasing trend correctly', async () => {
-      // Create data with decreasing trend (recent half has fewer episodes)
-      const mockRows = Array.from({ length: 30 }, (_, i) => ({
-        watch_date: `2025-10-${String(30 - i).padStart(2, '0')}`,
-        episode_count: i < 15 ? 3 : 10, // Recent half (first 15) has fewer episodes
-        show_count: 1,
-        watch_hour: 20,
-        day_of_week: (i % 7) + 1,
-      }));
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(result.velocityTrend).toBe('decreasing');
-    });
-
-    it('should determine stable trend when data is insufficient', async () => {
-      // Create data with fewer than 14 unique days
-      const mockRows = Array.from({ length: 10 }, (_, i) => ({
-        watch_date: `2025-10-${String(i + 1).padStart(2, '0')}`,
-        episode_count: 5,
-        show_count: 1,
-        watch_hour: 20,
-        day_of_week: (i % 7) + 1,
-      }));
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(result.velocityTrend).toBe('stable');
-    });
-
-    it('should round statistics correctly', async () => {
-      const mockRows = [
-        {
-          watch_date: '2025-10-15',
-          episode_count: 7,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 4,
-        },
-        {
-          watch_date: '2025-10-14',
-          episode_count: 4,
-          show_count: 1,
-          watch_hour: 19,
-          day_of_week: 3,
-        },
-        {
-          watch_date: '2025-10-13',
-          episode_count: 5,
-          show_count: 2,
-          watch_hour: 20,
-          day_of_week: 2,
-        },
-      ];
-
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
-
-      const result = await statisticsModule.getWatchingVelocityData(123, 30);
-
-      // Average per day should be rounded to 1 decimal place
-      expect(Number(result.averageEpisodesPerDay.toFixed(1))).toBe(result.averageEpisodesPerDay);
-      // Episodes per week should be rounded to 1 decimal place
-      expect(Number(result.episodesPerWeek.toFixed(1))).toBe(result.episodesPerWeek);
-      // Episodes per month should be a whole number
-      expect(Number.isInteger(result.episodesPerMonth)).toBe(true);
-    });
-
-    it('should release connection on error', async () => {
-      const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
-
-      await expect(statisticsModule.getWatchingVelocityData(123, 30)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
-    });
-
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await statisticsModule.getWatchingVelocityData(123, 30);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getWatchingVelocityData',
-        expect.any(Function),
-      );
-    });
-  });
-
   describe('getDailyActivityTimeline', () => {
     it('should return daily activity data', async () => {
       const mockRows = [
@@ -318,7 +71,7 @@ describe('statisticsDb', () => {
 
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
-      const result = await statisticsModule.getDailyActivityTimeline(123, 30);
+      const result = await getDailyActivityTimeline(123, 30);
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
       expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 30]);
@@ -346,7 +99,7 @@ describe('statisticsDb', () => {
     it('should return empty array when no data', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      const result = await statisticsModule.getDailyActivityTimeline(123, 30);
+      const result = await getDailyActivityTimeline(123, 30);
 
       expect(result).toEqual([]);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
@@ -355,7 +108,7 @@ describe('statisticsDb', () => {
     it('should handle different days parameter', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      await statisticsModule.getDailyActivityTimeline(123, 60);
+      await getDailyActivityTimeline(123, 60);
 
       expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 60]);
     });
@@ -364,7 +117,7 @@ describe('statisticsDb', () => {
       const mockError = new Error('Database error');
       mockConnection.query.mockRejectedValueOnce(mockError);
 
-      await expect(statisticsModule.getDailyActivityTimeline(123, 30)).rejects.toThrow('Database error');
+      await expect(getDailyActivityTimeline(123, 30)).rejects.toThrow('Database error');
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
@@ -372,7 +125,7 @@ describe('statisticsDb', () => {
     it('should call DbMonitor.executeWithTiming', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      await statisticsModule.getDailyActivityTimeline(123, 30);
+      await getDailyActivityTimeline(123, 30);
 
       expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
         'getDailyActivityTimeline',
@@ -400,7 +153,7 @@ describe('statisticsDb', () => {
 
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
-      const result = await statisticsModule.getWeeklyActivityTimeline(123, 12);
+      const result = await getWeeklyActivityTimeline(123, 12);
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
       expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 12]);
@@ -425,7 +178,7 @@ describe('statisticsDb', () => {
     it('should return empty array when no data', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      const result = await statisticsModule.getWeeklyActivityTimeline(123, 12);
+      const result = await getWeeklyActivityTimeline(123, 12);
 
       expect(result).toEqual([]);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
@@ -434,7 +187,7 @@ describe('statisticsDb', () => {
     it('should handle different weeks parameter', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      await statisticsModule.getWeeklyActivityTimeline(123, 24);
+      await getWeeklyActivityTimeline(123, 24);
 
       expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 24]);
     });
@@ -443,7 +196,7 @@ describe('statisticsDb', () => {
       const mockError = new Error('Database error');
       mockConnection.query.mockRejectedValueOnce(mockError);
 
-      await expect(statisticsModule.getWeeklyActivityTimeline(123, 12)).rejects.toThrow('Database error');
+      await expect(getWeeklyActivityTimeline(123, 12)).rejects.toThrow('Database error');
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
@@ -451,7 +204,7 @@ describe('statisticsDb', () => {
     it('should call DbMonitor.executeWithTiming', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      await statisticsModule.getWeeklyActivityTimeline(123, 12);
+      await getWeeklyActivityTimeline(123, 12);
 
       expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
         'getWeeklyActivityTimeline',
@@ -487,7 +240,7 @@ describe('statisticsDb', () => {
 
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
-      const result = await statisticsModule.getMonthlyActivityTimeline(123, 12);
+      const result = await getMonthlyActivityTimeline(123, 12);
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
       expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [123, 12, 123, 12]);
@@ -533,7 +286,7 @@ describe('statisticsDb', () => {
 
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
-      const result = await statisticsModule.getMonthlyActivityTimeline(123, 12);
+      const result = await getMonthlyActivityTimeline(123, 12);
 
       expect(result).toEqual([
         {
@@ -547,7 +300,7 @@ describe('statisticsDb', () => {
     it('should return empty array when no data', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      const result = await statisticsModule.getMonthlyActivityTimeline(123, 12);
+      const result = await getMonthlyActivityTimeline(123, 12);
 
       expect(result).toEqual([]);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
@@ -556,7 +309,7 @@ describe('statisticsDb', () => {
     it('should handle different months parameter', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      await statisticsModule.getMonthlyActivityTimeline(123, 24);
+      await getMonthlyActivityTimeline(123, 24);
 
       expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [123, 24, 123, 24]);
     });
@@ -582,7 +335,7 @@ describe('statisticsDb', () => {
 
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
-      const result = await statisticsModule.getMonthlyActivityTimeline(123, 12);
+      const result = await getMonthlyActivityTimeline(123, 12);
 
       expect(result[0].month).toBe('2025-10');
       expect(result[1].month).toBe('2025-09');
@@ -593,7 +346,7 @@ describe('statisticsDb', () => {
       const mockError = new Error('Database error');
       mockConnection.query.mockRejectedValueOnce(mockError);
 
-      await expect(statisticsModule.getMonthlyActivityTimeline(123, 12)).rejects.toThrow('Database error');
+      await expect(getMonthlyActivityTimeline(123, 12)).rejects.toThrow('Database error');
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
@@ -601,7 +354,7 @@ describe('statisticsDb', () => {
     it('should call DbMonitor.executeWithTiming', async () => {
       mockConnection.query.mockResolvedValueOnce([[]]);
 
-      await statisticsModule.getMonthlyActivityTimeline(123, 12);
+      await getMonthlyActivityTimeline(123, 12);
 
       expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
         'getMonthlyActivityTimeline',
@@ -620,7 +373,7 @@ describe('statisticsDb', () => {
 
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
-      const result = await statisticsModule.getMonthlyActivityTimeline(123, 12);
+      const result = await getMonthlyActivityTimeline(123, 12);
 
       expect(result).toEqual([
         {
@@ -642,7 +395,7 @@ describe('statisticsDb', () => {
 
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
-      const result = await statisticsModule.getMonthlyActivityTimeline(123, 12);
+      const result = await getMonthlyActivityTimeline(123, 12);
 
       expect(result).toEqual([
         {

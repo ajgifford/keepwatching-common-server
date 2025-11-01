@@ -303,7 +303,7 @@ export class StatisticsService {
         async () => {
           return await statisticsDb.getWatchingVelocityData(profileId, days);
         },
-        600, // 10 minute TTL
+        1800, // 30 minute TTL
       );
     } catch (error) {
       throw errorService.handleError(error, `getWatchingVelocity(${profileId}, ${days})`);
@@ -324,7 +324,7 @@ export class StatisticsService {
         async () => {
           return await statisticsDb.getDailyActivityTimeline(profileId, days);
         },
-        300, // 5 minute TTL
+        1800, // 30 minute TTL
       );
     } catch (error) {
       throw errorService.handleError(error, `getDailyActivity(${profileId}, ${days})`);
@@ -345,7 +345,7 @@ export class StatisticsService {
         async () => {
           return await statisticsDb.getWeeklyActivityTimeline(profileId, weeks);
         },
-        600, // 10 minute TTL
+        1800, // 30 minute TTL
       );
     } catch (error) {
       throw errorService.handleError(error, `getWeeklyActivity(${profileId}, ${weeks})`);
@@ -437,7 +437,7 @@ export class StatisticsService {
         async () => {
           return await statisticsDb.getWatchStreakStats(profileId);
         },
-        600, // 10 minute TTL
+        1800, // 30 minute TTL
       );
     } catch (error) {
       throw errorService.handleError(error, `getWatchStreakStats(${profileId})`);
