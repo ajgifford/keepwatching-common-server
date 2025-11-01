@@ -216,7 +216,7 @@ export const SEARCH_KEYS = {
   results: (mediaType: string, searchString: string, year?: string, page: number = 1) =>
     `${mediaType}_search_${searchString}_${year || ''}_${page}`,
 
-  peopleResults: (searchString: string, page: number) => `peopleSearch_${searchString}_${page}`,
+  peopleResults: (searchString: string, page: number) => `people_search_${searchString}_${page}`,
 };
 
 // Notification keys

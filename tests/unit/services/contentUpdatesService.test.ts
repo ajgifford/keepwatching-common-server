@@ -1,12 +1,14 @@
 import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import { updateMovies, updateShows } from '@services/contentUpdatesService';
+import { updateMovies, updatePeople, updateShows } from '@services/contentUpdatesService';
 import { moviesService } from '@services/moviesService';
+import { personService } from '@services/personService';
 import { showService } from '@services/showService';
 import * as changesUtility from '@utils/changesUtility';
 
 jest.mock('@services/moviesService');
 jest.mock('@services/showService');
+jest.mock('@services/personService');
 jest.mock('@logger/logger', () => ({
   cliLogger: {
     info: jest.fn(),
@@ -171,6 +173,182 @@ describe('contentUpdatesService', () => {
       expect(showService.getShowsForUpdates).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Found 0 shows to check for updates');
       expect(showService.checkShowForChanges).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updatePeople', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2025-01-15T10:00:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should update people with changes', async () => {
+      const mockPeople = [
+        { id: 1, tmdb_id: 301, name: 'Person 1' },
+        { id: 2, tmdb_id: 302, name: 'Person 2' },
+      ];
+      const mockBlockInfo = {
+        date: '2025-01-15',
+        blockNumber: 15,
+        totalPeople: 100,
+      };
+      const mockResults = [
+        { personId: 1, success: true, hadUpdates: true },
+        { personId: 2, success: true, hadUpdates: false },
+      ];
+
+      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
+      (personService.checkAndUpdatePerson as jest.Mock)
+        .mockResolvedValueOnce(mockResults[0])
+        .mockResolvedValueOnce(mockResults[1]);
+      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+
+      await updatePeople();
+
+      expect(personService.calculateBlockNumber).toHaveBeenCalledWith(new Date('2025-01-15T10:00:00Z'));
+      expect(personService.getTodayBlockInfo).toHaveBeenCalledTimes(1);
+      expect(cliLogger.info).toHaveBeenCalledWith('Starting daily person update for block 15', {
+        totalPeople: 100,
+        date: '2025-01-15',
+      });
+      expect(personService.getPeopleForUpdates).toHaveBeenCalledWith(15);
+      expect(personService.checkAndUpdatePerson).toHaveBeenCalledTimes(2);
+      expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[0]);
+      expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[1]);
+      expect(changesUtility.sleep).toHaveBeenCalledTimes(2);
+      expect(showService.invalidateAllShowsCache).toHaveBeenCalledTimes(1);
+      expect(cliLogger.info).toHaveBeenCalledWith('Daily person update completed', {
+        blockNumber: 15,
+        processed: 2,
+        successful: 2,
+        updated: 1,
+        failed: 0,
+        duration: expect.any(String),
+      });
+    });
+
+    it('should handle error when fetching people', async () => {
+      const error = new Error('Database error');
+      const mockBlockInfo = {
+        date: '2025-01-15',
+        blockNumber: 15,
+        totalPeople: 100,
+      };
+
+      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as jest.Mock).mockRejectedValue(error);
+
+      await expect(updatePeople()).rejects.toThrow('Database error');
+      expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for person updates', error);
+      expect(appLogger.error).toHaveBeenCalledWith(ErrorMessages.PeopleChangeFail, { error });
+      expect(personService.checkAndUpdatePerson).not.toHaveBeenCalled();
+    });
+
+    it('should continue processing if one person check fails', async () => {
+      const mockPeople = [
+        { id: 1, tmdb_id: 301, name: 'Person 1' },
+        { id: 2, tmdb_id: 302, name: 'Person 2' },
+        { id: 3, tmdb_id: 303, name: 'Person 3' },
+      ];
+      const mockBlockInfo = {
+        date: '2025-01-15',
+        blockNumber: 15,
+        totalPeople: 100,
+      };
+      const error = new Error('API error');
+
+      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
+      (personService.checkAndUpdatePerson as jest.Mock)
+        .mockResolvedValueOnce({ personId: 1, success: true, hadUpdates: true })
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce({ personId: 3, success: true, hadUpdates: false });
+      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+
+      await updatePeople();
+
+      expect(personService.getPeopleForUpdates).toHaveBeenCalledTimes(1);
+      expect(personService.checkAndUpdatePerson).toHaveBeenCalledTimes(3);
+      expect(cliLogger.error).toHaveBeenCalledWith('Failed to check for changes in person ID 2', error);
+      expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[0]);
+      expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[1]);
+      expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[2]);
+      expect(showService.invalidateAllShowsCache).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle empty people list', async () => {
+      const mockBlockInfo = {
+        date: '2025-01-15',
+        blockNumber: 15,
+        totalPeople: 100,
+      };
+
+      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue([]);
+      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+
+      await updatePeople();
+
+      expect(personService.getPeopleForUpdates).toHaveBeenCalledTimes(1);
+      expect(personService.checkAndUpdatePerson).not.toHaveBeenCalled();
+      expect(cliLogger.info).toHaveBeenCalledWith('Daily person update completed', {
+        blockNumber: 15,
+        processed: 0,
+        successful: 0,
+        updated: 0,
+        failed: 0,
+        duration: expect.any(String),
+      });
+    });
+
+    it('should calculate correct statistics', async () => {
+      const mockPeople = [
+        { id: 1, tmdb_id: 301, name: 'Person 1' },
+        { id: 2, tmdb_id: 302, name: 'Person 2' },
+        { id: 3, tmdb_id: 303, name: 'Person 3' },
+        { id: 4, tmdb_id: 304, name: 'Person 4' },
+      ];
+      const mockBlockInfo = {
+        date: '2025-01-15',
+        blockNumber: 15,
+        totalPeople: 100,
+      };
+      const mockResults = [
+        { personId: 1, success: true, hadUpdates: true },
+        { personId: 2, success: true, hadUpdates: true },
+        { personId: 3, success: true, hadUpdates: false },
+        { personId: 4, success: false, hadUpdates: false },
+      ];
+
+      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
+      (personService.checkAndUpdatePerson as jest.Mock)
+        .mockResolvedValueOnce(mockResults[0])
+        .mockResolvedValueOnce(mockResults[1])
+        .mockResolvedValueOnce(mockResults[2])
+        .mockResolvedValueOnce(mockResults[3]);
+      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+
+      await updatePeople();
+
+      expect(cliLogger.info).toHaveBeenCalledWith('Daily person update completed', {
+        blockNumber: 15,
+        processed: 4,
+        successful: 3,
+        updated: 2,
+        failed: 1,
+        duration: expect.any(String),
+      });
     });
   });
 });

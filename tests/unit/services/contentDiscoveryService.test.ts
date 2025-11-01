@@ -63,6 +63,7 @@ describe('ContentDiscoveryService', () => {
       getTrending: jest.fn(),
       searchShows: jest.fn(),
       searchMovies: jest.fn(),
+      searchPeople: jest.fn(),
     };
 
     (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
@@ -153,6 +154,284 @@ describe('ContentDiscoveryService', () => {
         totalResults: 1,
         totalPages: 1,
         currentPage: 1,
+      });
+    });
+
+    describe('searchPeople', () => {
+      it('should return people search results from cache when available', async () => {
+        const mockSearchResults = {
+          message: "Search results for 'Brad Pitt'",
+          results: [{ id: 287, name: 'Brad Pitt' }],
+          totalResults: 1,
+          totalPages: 1,
+          currentPage: 1,
+        };
+
+        mockCacheService.getOrSet.mockResolvedValue(mockSearchResults);
+
+        const result = await contentDiscoveryService.searchPeople('Brad Pitt', 1);
+
+        expect(mockCacheService.getOrSet).toHaveBeenCalledWith('people_search_Brad Pitt_1', expect.any(Function));
+        expect(result).toEqual(mockSearchResults);
+        expect(mockTMDBService.searchPeople).not.toHaveBeenCalled();
+      });
+
+      it('should fetch and return people search results on cache miss', async () => {
+        const mockTMDBResponse = {
+          results: [
+            {
+              id: 287,
+              name: 'Brad Pitt',
+              profile_path: '/profile.jpg',
+              known_for: [
+                { title: 'Fight Club', name: undefined },
+                { title: undefined, name: 'Oceans Eleven' },
+              ],
+              known_for_department: 'Acting',
+              popularity: 50.5,
+            },
+          ],
+          total_results: 1,
+          total_pages: 1,
+        };
+
+        mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
+        mockTMDBService.searchPeople.mockResolvedValue(mockTMDBResponse);
+
+        const result = await contentDiscoveryService.searchPeople('Brad Pitt', 1);
+
+        expect(mockTMDBService.searchPeople).toHaveBeenCalledWith('Brad Pitt', 1);
+
+        expect(result).toEqual({
+          message: "Search results for 'Brad Pitt'",
+          results: expect.arrayContaining([
+            expect.objectContaining({
+              id: 287,
+              name: 'Brad Pitt',
+              profileImage: '/profile.jpg',
+              knownFor: ['Fight Club', 'Oceans Eleven'],
+              department: 'Acting',
+              popularity: 50.5,
+            }),
+          ]),
+          totalResults: 1,
+          totalPages: 1,
+          currentPage: 1,
+        });
+      });
+
+      it('should handle multiple people in search results', async () => {
+        const mockTMDBResponse = {
+          results: [
+            {
+              id: 287,
+              name: 'Brad Pitt',
+              profile_path: '/profile1.jpg',
+              known_for: [{ title: 'Fight Club', name: undefined }],
+              known_for_department: 'Acting',
+              popularity: 50.5,
+            },
+            {
+              id: 819,
+              name: 'Edward Norton',
+              profile_path: '/profile2.jpg',
+              known_for: [{ title: 'Fight Club', name: undefined }],
+              known_for_department: 'Acting',
+              popularity: 40.2,
+            },
+          ],
+          total_results: 2,
+          total_pages: 1,
+        };
+
+        mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
+        mockTMDBService.searchPeople.mockResolvedValue(mockTMDBResponse);
+
+        const result = await contentDiscoveryService.searchPeople('actor', 1);
+
+        expect(result.results.length).toBe(2);
+        expect(result.results[0].name).toBe('Brad Pitt');
+        expect(result.results[1].name).toBe('Edward Norton');
+      });
+
+      it('should handle empty search results', async () => {
+        const mockTMDBResponse = {
+          results: [],
+          total_results: 0,
+          total_pages: 0,
+        };
+
+        mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
+        mockTMDBService.searchPeople.mockResolvedValue(mockTMDBResponse);
+
+        const result = await contentDiscoveryService.searchPeople('nonexistent', 1);
+
+        expect(result).toEqual({
+          message: "Search results for 'nonexistent'",
+          results: [],
+          totalResults: 0,
+          totalPages: 0,
+          currentPage: 1,
+        });
+      });
+    });
+
+    describe('isUSBasedTV (private method tests via discoverTrendingContent)', () => {
+      it('should filter out non-US TV shows', async () => {
+        const mockTMDBResponse = {
+          results: [
+            {
+              id: 1,
+              name: 'US Show 1',
+              media_type: 'tv',
+              origin_country: ['US'],
+              genre_ids: [18],
+              overview: 'A US show',
+              poster_path: '/poster1.jpg',
+              vote_average: 8.0,
+              popularity: 1500,
+              first_air_date: '2023-01-01',
+            },
+            {
+              id: 2,
+              name: 'UK Show',
+              media_type: 'tv',
+              origin_country: ['GB'],
+              genre_ids: [18],
+              overview: 'A UK show',
+              poster_path: '/poster2.jpg',
+              vote_average: 7.5,
+              popularity: 1200,
+              first_air_date: '2023-02-01',
+            },
+            {
+              id: 3,
+              name: 'US Show 2',
+              media_type: 'tv',
+              origin_country: ['US', 'CA'],
+              genre_ids: [18],
+              overview: 'A US/Canada show',
+              poster_path: '/poster3.jpg',
+              vote_average: 8.5,
+              popularity: 1800,
+              first_air_date: '2023-03-01',
+            },
+          ],
+          total_results: 3,
+          total_pages: 1,
+        };
+
+        mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
+        mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
+
+        const result = await contentDiscoveryService.discoverTrendingContent('series', 1);
+
+        // Should only include US shows (id 1 and 3)
+        expect(result.results.length).toBe(2);
+        expect(result.results[0].id).toBe('1');
+        expect(result.results[1].id).toBe('3');
+      });
+
+      it('should filter out shows with undefined origin_country', async () => {
+        const mockTMDBResponse = {
+          results: [
+            {
+              id: 1,
+              name: 'Show without country',
+              media_type: 'tv',
+              genre_ids: [18],
+              overview: 'Unknown origin',
+              poster_path: '/poster.jpg',
+              vote_average: 8.0,
+              popularity: 1500,
+              first_air_date: '2023-01-01',
+            },
+          ],
+          total_results: 1,
+          total_pages: 1,
+        };
+
+        mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
+        mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
+
+        const result = await contentDiscoveryService.discoverTrendingContent('series', 1);
+
+        // Should filter out the show with undefined origin_country
+        expect(result.results.length).toBe(0);
+      });
+    });
+
+    describe('isUSBasedMovie (private method tests via discoverTrendingContent)', () => {
+      it('should filter movies by English language', async () => {
+        const mockTMDBResponse = {
+          results: [
+            {
+              id: 1,
+              title: 'English Movie',
+              media_type: 'movie',
+              original_language: 'en',
+              genre_ids: [28],
+              overview: 'An English movie',
+              poster_path: '/poster1.jpg',
+              vote_average: 8.0,
+              popularity: 1500,
+              release_date: '2023-01-01',
+            },
+            {
+              id: 2,
+              title: 'French Movie',
+              media_type: 'movie',
+              original_language: 'fr',
+              genre_ids: [28],
+              overview: 'A French movie',
+              poster_path: '/poster2.jpg',
+              vote_average: 7.5,
+              popularity: 1200,
+              release_date: '2023-02-01',
+            },
+          ],
+          total_results: 2,
+          total_pages: 1,
+        };
+
+        mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
+        mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
+
+        const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
+
+        // Should only include English language movie
+        expect(result.results.length).toBe(1);
+        expect(result.results[0].id).toBe('1');
+        expect(result.results[0].title).toBe('English Movie');
+      });
+
+      it('should filter out movies with non-English language', async () => {
+        const mockTMDBResponse = {
+          results: [
+            {
+              id: 1,
+              title: 'Spanish Movie',
+              media_type: 'movie',
+              original_language: 'es',
+              genre_ids: [28],
+              overview: 'A Spanish movie',
+              poster_path: '/poster.jpg',
+              vote_average: 8.0,
+              popularity: 1500,
+              release_date: '2023-01-01',
+            },
+          ],
+          total_results: 1,
+          total_pages: 1,
+        };
+
+        mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
+        mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
+
+        const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
+
+        // Should filter out non-English movie
+        expect(result.results.length).toBe(0);
       });
     });
   });
