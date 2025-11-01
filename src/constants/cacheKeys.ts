@@ -106,6 +106,9 @@ export const PROFILE_KEYS = {
   /** Gets the cache key for profile seasonal viewing statistics */
   seasonalViewingStats: (profileId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_seasonal_viewing_stats`,
+
+  /** Gets the cache key for profile milestone statistics */
+  milestoneStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_milestone_stats`,
 };
 
 // Show keys

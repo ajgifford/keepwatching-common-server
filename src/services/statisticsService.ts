@@ -9,14 +9,19 @@ import { showService } from './showService';
 import {
   AccountEpisodeProgress,
   AccountStatisticsResponse,
+  BingeWatchingStats,
   DailyActivity,
+  MilestoneStats,
   MonthlyActivity,
   MovieReference,
   MovieStatisticsResponse,
   ProfileStatisticsResponse,
+  SeasonalViewingStats,
   ShowProgress,
   ShowStatisticsResponse,
+  TimeToWatchStats,
   UniqueContentCounts,
+  WatchStreakStats,
   WatchingActivityTimeline,
   WatchingVelocityStats,
   WeeklyActivity,
@@ -405,9 +410,7 @@ export class StatisticsService {
    * @param profileId - ID of the profile
    * @returns Binge-watching statistics
    */
-  public async getBingeWatchingStats(
-    profileId: number,
-  ): Promise<import('@ajgifford/keepwatching-types').BingeWatchingStats> {
+  public async getBingeWatchingStats(profileId: number): Promise<BingeWatchingStats> {
     try {
       return await this.cache.getOrSet(
         PROFILE_KEYS.bingeWatchingStats(profileId),
@@ -428,9 +431,7 @@ export class StatisticsService {
    * @param profileId - ID of the profile
    * @returns Watch streak statistics
    */
-  public async getWatchStreakStats(
-    profileId: number,
-  ): Promise<import('@ajgifford/keepwatching-types').WatchStreakStats> {
+  public async getWatchStreakStats(profileId: number): Promise<WatchStreakStats> {
     try {
       return await this.cache.getOrSet(
         PROFILE_KEYS.watchStreakStats(profileId),
@@ -451,9 +452,7 @@ export class StatisticsService {
    * @param profileId - ID of the profile
    * @returns Time-to-watch statistics
    */
-  public async getTimeToWatchStats(
-    profileId: number,
-  ): Promise<import('@ajgifford/keepwatching-types').TimeToWatchStats> {
+  public async getTimeToWatchStats(profileId: number): Promise<TimeToWatchStats> {
     try {
       return await this.cache.getOrSet(
         PROFILE_KEYS.timeToWatchStats(profileId),
@@ -474,9 +473,7 @@ export class StatisticsService {
    * @param profileId - ID of the profile
    * @returns Seasonal viewing statistics
    */
-  public async getSeasonalViewingStats(
-    profileId: number,
-  ): Promise<import('@ajgifford/keepwatching-types').SeasonalViewingStats> {
+  public async getSeasonalViewingStats(profileId: number): Promise<SeasonalViewingStats> {
     try {
       return await this.cache.getOrSet(
         PROFILE_KEYS.seasonalViewingStats(profileId),
@@ -487,6 +484,27 @@ export class StatisticsService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getSeasonalViewingStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get milestone statistics for a profile
+   * Tracks viewing milestones and achievements
+   *
+   * @param profileId - ID of the profile
+   * @returns Milestone statistics
+   */
+  public async getMilestoneStats(profileId: number): Promise<MilestoneStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.milestoneStats(profileId),
+        async () => {
+          return await statisticsDb.getMilestoneStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getMilestoneStats(${profileId})`);
     }
   }
 }

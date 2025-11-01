@@ -30,3 +30,12 @@ export interface MonthlyViewingData extends RowDataPacket {
   month_name: string;
   episode_count: number;
 }
+
+export interface MilestoneCountsRow extends RowDataPacket {
+  total_episodes_watched: number;
+  total_movies_watched: number;
+  total_runtime_minutes: number;
+  profile_created_at: Date | null;
+  first_episode_watched_at: Date | null;
+  first_movie_watched_at: Date | null;
+}
