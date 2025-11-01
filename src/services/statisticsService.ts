@@ -397,6 +397,52 @@ export class StatisticsService {
       throw errorService.handleError(error, `getActivityTimeline(${profileId})`);
     }
   }
+
+  /**
+   * Get binge-watching statistics for a profile
+   * Identifies sessions where 3+ episodes were watched within 24 hours
+   *
+   * @param profileId - ID of the profile
+   * @returns Binge-watching statistics
+   */
+  public async getBingeWatchingStats(
+    profileId: number,
+  ): Promise<import('@ajgifford/keepwatching-types').BingeWatchingStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.bingeWatchingStats(profileId),
+        async () => {
+          return await statisticsDb.getBingeWatchingStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getBingeWatchingStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get watch streak statistics for a profile
+   * Tracks consecutive days with watching activity
+   *
+   * @param profileId - ID of the profile
+   * @returns Watch streak statistics
+   */
+  public async getWatchStreakStats(
+    profileId: number,
+  ): Promise<import('@ajgifford/keepwatching-types').WatchStreakStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.watchStreakStats(profileId),
+        async () => {
+          return await statisticsDb.getWatchStreakStats(profileId);
+        },
+        600, // 10 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getWatchStreakStats(${profileId})`);
+    }
+  }
 }
 
 export const statisticsService = new StatisticsService();

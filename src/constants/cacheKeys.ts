@@ -93,6 +93,12 @@ export const PROFILE_KEYS = {
   /** Gets the cache key for profile monthly activity timeline */
   monthlyActivity: (profileId: number | string, months: number) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_monthly_activity_${months}`,
+
+  /** Gets the cache key for profile binge-watching statistics */
+  bingeWatchingStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_binge_watching_stats`,
+
+  /** Gets the cache key for profile watch streak statistics */
+  watchStreakStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_watch_streak_stats`,
 };
 
 // Show keys
