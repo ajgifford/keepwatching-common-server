@@ -443,6 +443,52 @@ export class StatisticsService {
       throw errorService.handleError(error, `getWatchStreakStats(${profileId})`);
     }
   }
+
+  /**
+   * Get time-to-watch statistics for a profile
+   * Analyzes how long content sits before being watched and completion rates
+   *
+   * @param profileId - ID of the profile
+   * @returns Time-to-watch statistics
+   */
+  public async getTimeToWatchStats(
+    profileId: number,
+  ): Promise<import('@ajgifford/keepwatching-types').TimeToWatchStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.timeToWatchStats(profileId),
+        async () => {
+          return await statisticsDb.getTimeToWatchStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getTimeToWatchStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get seasonal viewing pattern statistics for a profile
+   * Analyzes viewing patterns by month and season
+   *
+   * @param profileId - ID of the profile
+   * @returns Seasonal viewing statistics
+   */
+  public async getSeasonalViewingStats(
+    profileId: number,
+  ): Promise<import('@ajgifford/keepwatching-types').SeasonalViewingStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.seasonalViewingStats(profileId),
+        async () => {
+          return await statisticsDb.getSeasonalViewingStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getSeasonalViewingStats(${profileId})`);
+    }
+  }
 }
 
 export const statisticsService = new StatisticsService();

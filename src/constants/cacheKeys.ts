@@ -99,6 +99,13 @@ export const PROFILE_KEYS = {
 
   /** Gets the cache key for profile watch streak statistics */
   watchStreakStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_watch_streak_stats`,
+
+  /** Gets the cache key for profile time-to-watch statistics */
+  timeToWatchStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_time_to_watch_stats`,
+
+  /** Gets the cache key for profile seasonal viewing statistics */
+  seasonalViewingStats: (profileId: number | string) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_seasonal_viewing_stats`,
 };
 
 // Show keys
