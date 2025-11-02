@@ -49,13 +49,21 @@ export async function getUnairedContentStats(profileId: number): Promise<Unaired
         [profileId, profileId, profileId, profileId],
       );
 
-      const data = rows[0];
+      if (rows.length === 0) {
+        return {
+          unairedShowCount: 0,
+          unairedSeasonCount: 0,
+          unairedEpisodeCount: 0,
+          unairedMovieCount: 0,
+        };
+      }
 
+      const data = rows[0];
       return {
         unairedShowCount: data.unaired_show_count,
         unairedSeasonCount: data.unaired_season_count,
-        unairedMovieCount: data.unaired_movie_count,
         unairedEpisodeCount: data.unaired_episode_count,
+        unairedMovieCount: data.unaired_movie_count,
       };
     } finally {
       connection.release();

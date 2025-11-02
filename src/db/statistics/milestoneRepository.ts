@@ -1,7 +1,8 @@
 import { MilestoneCountsRow } from '../../types/statisticsTypes';
 import { getDbPool } from '../../utils/db';
 import { DbMonitor } from '../../utils/dbMonitoring';
-import { Achievement, MILESTONE_THRESHOLDS, Milestone, MilestoneStats } from '@ajgifford/keepwatching-types';
+import { calculateMilestones } from '../../utils/statisticsUtil';
+import { Achievement, MILESTONE_THRESHOLDS, MilestoneStats } from '@ajgifford/keepwatching-types';
 
 /**
  * Get milestone statistics for a profile
@@ -85,6 +86,7 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
 
       // Determine recent achievements (milestones that were recently achieved)
       const recentAchievements: Achievement[] = [];
+      const achievementDate = new Date().toISOString();
 
       // Check for recently achieved episode milestones
       const recentlyAchievedEpisodes = episodeMilestones.filter((m) => m.achieved);
@@ -93,7 +95,7 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
         if (latest && totalEpisodesWatched >= latest.threshold && totalEpisodesWatched < latest.threshold + 10) {
           recentAchievements.push({
             description: `${latest.threshold} Episodes Watched`,
-            achievedDate: new Date().toISOString(),
+            achievedDate: achievementDate,
           });
         }
       }
@@ -105,7 +107,7 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
         if (latest && totalMoviesWatched >= latest.threshold && totalMoviesWatched < latest.threshold + 5) {
           recentAchievements.push({
             description: `${latest.threshold} Movies Watched`,
-            achievedDate: new Date().toISOString(),
+            achievedDate: achievementDate,
           });
         }
       }
@@ -117,7 +119,7 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
         if (latest && totalHoursWatched >= latest.threshold && totalHoursWatched < latest.threshold + 10) {
           recentAchievements.push({
             description: `${latest.threshold} Hours Watched`,
-            achievedDate: new Date().toISOString(),
+            achievedDate: achievementDate,
           });
         }
       }
@@ -135,32 +137,5 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
     } finally {
       connection.release();
     }
-  });
-}
-
-/**
- * Calculate milestone progress for a specific metric
- *
- * @param current - Current value
- * @param thresholds - Array of threshold values
- * @param type - Type of milestone
- * @returns Array of milestone objects
- * @private
- */
-function calculateMilestones(
-  current: number,
-  thresholds: number[],
-  type: 'episodes' | 'movies' | 'hours',
-): Milestone[] {
-  return thresholds.map((threshold) => {
-    const achieved = current >= threshold;
-    const progress = Math.min((current / threshold) * 100, 100);
-
-    return {
-      type,
-      threshold,
-      achieved,
-      progress: Math.round(progress * 10) / 10, // Round to 1 decimal place
-    };
   });
 }
