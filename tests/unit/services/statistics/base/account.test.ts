@@ -4,7 +4,7 @@ import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { profileService } from '@services/profileService';
 import { showService } from '@services/showService';
-import { statisticsService } from '@services/statisticsService';
+import { accountStatisticsService } from '@services/statistics/accountStatisticsService';
 
 jest.mock('@services/profileService');
 jest.mock('@services/showService');
@@ -23,7 +23,7 @@ describe('statisticsService', () => {
 
     jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
-    Object.defineProperty(statisticsService, 'cache', {
+    Object.defineProperty(accountStatisticsService, 'cache', {
       value: mockCacheService,
       writable: true,
     });
@@ -105,7 +105,7 @@ describe('statisticsService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockStats);
 
-      const result = await statisticsService.getAccountStatistics(123);
+      const result = await accountStatisticsService.getAccountStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('account_123_statistics', expect.any(Function), 3600);
       expect(result).toEqual(mockStats);
@@ -129,7 +129,7 @@ describe('statisticsService', () => {
         .mockResolvedValueOnce(mockProfileStats[0].progress)
         .mockResolvedValueOnce(mockProfileStats[1].progress);
 
-      const result = await statisticsService.getAccountStatistics(123);
+      const result = await accountStatisticsService.getAccountStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('account_123_statistics', expect.any(Function), 3600);
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
@@ -154,7 +154,7 @@ describe('statisticsService', () => {
         throw err;
       });
 
-      await expect(statisticsService.getAccountStatistics(123)).rejects.toThrow(BadRequestError);
+      await expect(accountStatisticsService.getAccountStatistics(123)).rejects.toThrow(BadRequestError);
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
     });
 
@@ -166,7 +166,9 @@ describe('statisticsService', () => {
         throw new Error(`Handled: ${err.message}`);
       });
 
-      await expect(statisticsService.getAccountStatistics(123)).rejects.toThrow('Handled: Failed to get profiles');
+      await expect(accountStatisticsService.getAccountStatistics(123)).rejects.toThrow(
+        'Handled: Failed to get profiles',
+      );
 
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountStatistics(123)');
     });

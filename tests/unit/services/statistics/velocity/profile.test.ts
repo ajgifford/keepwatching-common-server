@@ -1,13 +1,13 @@
 import * as statisticsDb from '@db/statisticsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { statisticsService } from '@services/statisticsService';
+import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
 
 jest.mock('@db/statisticsDb');
 jest.mock('@services/errorService');
 jest.mock('@services/cacheService');
 
-describe('statisticsService', () => {
+describe('Statistics - Velocity - Profile', () => {
   const mockCacheService = {
     getOrSet: jest.fn(),
     invalidate: jest.fn(),
@@ -18,7 +18,7 @@ describe('statisticsService', () => {
 
     jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
-    Object.defineProperty(statisticsService, 'cache', {
+    Object.defineProperty(profileStatisticsService, 'cache', {
       value: mockCacheService,
       writable: true,
     });
@@ -37,7 +37,7 @@ describe('statisticsService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockStats);
 
-      const result = await statisticsService.getWatchingVelocity(123);
+      const result = await profileStatisticsService.getWatchingVelocity(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_velocity_30', expect.any(Function), 1800);
       expect(result).toEqual(mockStats);
@@ -58,7 +58,7 @@ describe('statisticsService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       (statisticsDb.getWatchingVelocityData as jest.Mock).mockResolvedValue(mockStats);
 
-      const result = await statisticsService.getWatchingVelocity(123);
+      const result = await profileStatisticsService.getWatchingVelocity(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_velocity_30', expect.any(Function), 1800);
       expect(statisticsDb.getWatchingVelocityData).toHaveBeenCalledWith(123, 30);
@@ -73,7 +73,7 @@ describe('statisticsService', () => {
         throw new Error(`Handled: ${err.message}`);
       });
 
-      await expect(statisticsService.getWatchingVelocity(123)).rejects.toThrow(
+      await expect(profileStatisticsService.getWatchingVelocity(123)).rejects.toThrow(
         'Handled: Failed to get watching velocity statistics',
       );
 

@@ -1,5 +1,6 @@
 import {
   MockAccountService,
+  MockAccountStatisticsService,
   MockAdminMovieService,
   MockAdminShowService,
   MockCacheService,
@@ -10,11 +11,11 @@ import {
   MockMoviesService,
   MockNotificationsService,
   MockProfileService,
+  MockProfileStatisticsService,
   MockScheduledJobsService,
   MockSeasonsService,
   MockShowService,
   MockSocketService,
-  MockStatisticsService,
   createTypedServiceMock,
 } from './mockFactory';
 
@@ -97,9 +98,37 @@ export const moviesService = createTypedServiceMock<MockMoviesService>([
   'invalidateAccountCache',
 ]);
 
-export const statisticsService = createTypedServiceMock<MockStatisticsService>([
-  'getProfileStatistics',
+export const accountStatisticsService = createTypedServiceMock<MockAccountStatisticsService>([
   'getAccountStatistics',
+  'getAccountWatchingVelocity',
+  `getAccountActivityTimeline`,
+  `getAccountBingeWatchingStats`,
+  `getAccountWatchStreakStats`,
+  `getAccountTimeToWatchStats`,
+  `getAccountSeasonalViewingStats`,
+  `getAccountMilestoneStats`,
+  `getAccountContentDepthStats`,
+  `getAccountContentDiscoveryStats`,
+  `getAccountAbandonmentRiskStats`,
+  `getAccountUnairedContentStats`,
+]);
+
+export const profileStatisticsService = createTypedServiceMock<MockProfileStatisticsService>([
+  'getProfileStatistics',
+  `getWatchingVelocity`,
+  `getDailyActivity`,
+  `getWeeklyActivity`,
+  `getMonthlyActivity`,
+  `getActivityTimeline`,
+  `getBingeWatchingStats`,
+  `getWatchStreakStats`,
+  `getTimeToWatchStats`,
+  `getSeasonalViewingStats`,
+  `getMilestoneStats`,
+  `getContentDepthStats`,
+  `getContentDiscoveryStats`,
+  `getAbandonmentRiskStats`,
+  `getUnairedContentStats`,
 ]);
 
 export const episodesService = createTypedServiceMock<MockEpisodesService>([

@@ -2,14 +2,14 @@ import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { showService } from '@services/showService';
-import { statisticsService } from '@services/statisticsService';
+import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
 
 jest.mock('@services/showService');
 jest.mock('@services/errorService');
 jest.mock('@services/moviesService');
 jest.mock('@services/cacheService');
 
-describe('statisticsService', () => {
+describe('profileStatisticsService', () => {
   const mockCacheService = {
     getOrSet: jest.fn(),
     invalidate: jest.fn(),
@@ -20,7 +20,7 @@ describe('statisticsService', () => {
 
     jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
-    Object.defineProperty(statisticsService, 'cache', {
+    Object.defineProperty(profileStatisticsService, 'cache', {
       value: mockCacheService,
       writable: true,
     });
@@ -36,7 +36,7 @@ describe('statisticsService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockStats);
 
-      const result = await statisticsService.getProfileStatistics(123);
+      const result = await profileStatisticsService.getProfileStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_statistics', expect.any(Function), 1800);
       expect(result).toEqual(mockStats);
@@ -56,7 +56,7 @@ describe('statisticsService', () => {
       (moviesService.getProfileMovieStatistics as jest.Mock).mockResolvedValue(mockMovieStats);
       (showService.getProfileWatchProgress as jest.Mock).mockResolvedValue(mockWatchProgress);
 
-      const result = await statisticsService.getProfileStatistics(123);
+      const result = await profileStatisticsService.getProfileStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('profile_123_statistics', expect.any(Function), 1800);
       expect(showService.getProfileShowStatistics).toHaveBeenCalledWith(123);
@@ -78,7 +78,7 @@ describe('statisticsService', () => {
         throw new Error(`Handled: ${err.message}`);
       });
 
-      await expect(statisticsService.getProfileStatistics(123)).rejects.toThrow(
+      await expect(profileStatisticsService.getProfileStatistics(123)).rejects.toThrow(
         'Handled: Failed to get show statistics',
       );
 

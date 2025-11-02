@@ -31,6 +31,44 @@ export const ACCOUNT_KEYS = {
 
   /** Gets the cache key for account statistics */
   statistics: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_statistics`,
+
+  /** Gets the cache key for account watching velocity stats */
+  watchingVelocity: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_velocity_${days}`,
+
+  /** Gets the cache key for account activity timeline */
+  activityTimeline: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_activity_timeline`,
+
+  /** Gets the cache key for account binge-watching statistics */
+  bingeWatchingStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_binge_watching_stats`,
+
+  /** Gets the cache key for account watch streak statistics */
+  watchStreakStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_watch_streak_stats`,
+
+  /** Gets the cache key for account time-to-watch statistics */
+  timeToWatchStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_time_to_watch_stats`,
+
+  /** Gets the cache key for account seasonal viewing statistics */
+  seasonalViewingStats: (accountId: number | string) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_seasonal_viewing_stats`,
+
+  /** Gets the cache key for account milestone statistics */
+  milestoneStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_milestone_stats`,
+
+  /** Gets the cache key for account content depth statistics */
+  contentDepthStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_content_depth_stats`,
+
+  /** Gets the cache key for account content discovery statistics */
+  contentDiscoveryStats: (accountId: number | string) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_content_discovery_stats`,
+
+  /** Gets the cache key for account abandonment risk statistics */
+  abandonmentRiskStats: (accountId: number | string) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_abandonment_risk_stats`,
+
+  /** Gets the cache key for account unaired content statistics */
+  unairedContentStats: (accountId: number | string) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_unaired_content_stats`,
 };
 
 // Profile keys

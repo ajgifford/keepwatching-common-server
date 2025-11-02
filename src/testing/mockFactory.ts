@@ -106,9 +106,37 @@ export interface MockSeasonsService {
   updateSeasonWatchStatusForNewEpisodes: jest.Mock;
 }
 
-export interface MockStatisticsService {
-  getProfileStatistics: jest.Mock;
+export interface MockAccountStatisticsService {
   getAccountStatistics: jest.Mock;
+  getAccountWatchingVelocity: jest.Mock;
+  getAccountActivityTimeline: jest.Mock;
+  getAccountBingeWatchingStats: jest.Mock;
+  getAccountWatchStreakStats: jest.Mock;
+  getAccountTimeToWatchStats: jest.Mock;
+  getAccountSeasonalViewingStats: jest.Mock;
+  getAccountMilestoneStats: jest.Mock;
+  getAccountContentDepthStats: jest.Mock;
+  getAccountContentDiscoveryStats: jest.Mock;
+  getAccountAbandonmentRiskStats: jest.Mock;
+  getAccountUnairedContentStats: jest.Mock;
+}
+
+export interface MockProfileStatisticsService {
+  getProfileStatistics: jest.Mock;
+  getWatchingVelocity: jest.Mock;
+  getDailyActivity: jest.Mock;
+  getWeeklyActivity: jest.Mock;
+  getMonthlyActivity: jest.Mock;
+  getActivityTimeline: jest.Mock;
+  getBingeWatchingStats: jest.Mock;
+  getWatchStreakStats: jest.Mock;
+  getTimeToWatchStats: jest.Mock;
+  getSeasonalViewingStats: jest.Mock;
+  getMilestoneStats: jest.Mock;
+  getContentDepthStats: jest.Mock;
+  getContentDiscoveryStats: jest.Mock;
+  getAbandonmentRiskStats: jest.Mock;
+  getUnairedContentStats: jest.Mock;
 }
 
 export interface MockContentDiscoveryService {
