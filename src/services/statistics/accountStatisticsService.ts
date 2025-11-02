@@ -390,9 +390,13 @@ export class AccountStatisticsService {
           });
 
           return {
-            dailyActivity: Array.from(dailyMap.values()).sort((a, b) => b.date.localeCompare(a.date)),
-            weeklyActivity: Array.from(weeklyMap.values()).sort((a, b) => b.weekStart.localeCompare(a.weekStart)),
-            monthlyActivity: Array.from(monthlyMap.values()).sort((a, b) => b.month.localeCompare(a.month)),
+            dailyActivity: Array.from(dailyMap.values()).sort((a, b) => String(b.date).localeCompare(String(a.date))),
+            weeklyActivity: Array.from(weeklyMap.values()).sort((a, b) =>
+              String(b.weekStart).localeCompare(String(a.weekStart)),
+            ),
+            monthlyActivity: Array.from(monthlyMap.values()).sort((a, b) =>
+              String(b.month).localeCompare(String(a.month)),
+            ),
           };
         },
         3600,
