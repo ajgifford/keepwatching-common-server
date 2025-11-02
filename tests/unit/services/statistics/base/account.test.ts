@@ -1,16 +1,14 @@
 import { BadRequestError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { moviesService } from '@services/moviesService';
 import { profileService } from '@services/profileService';
-import { showService } from '@services/showService';
 import { accountStatisticsService } from '@services/statistics/accountStatisticsService';
+import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
 
 jest.mock('@services/profileService');
-jest.mock('@services/showService');
 jest.mock('@services/errorService');
-jest.mock('@services/moviesService');
 jest.mock('@services/cacheService');
+jest.mock('@services/statistics/profileStatisticsService');
 
 describe('statisticsService', () => {
   const mockCacheService = {
@@ -54,10 +52,11 @@ describe('statisticsService', () => {
           serviceDistribution: { Netflix: 5, 'Prime Video': 3 },
           watchProgress: 37,
         },
-        progress: {
+        episodeWatchProgress: {
           totalEpisodes: 50,
           watchedEpisodes: 25,
-          overallProgress: 50,
+          unairedEpisodes: 0,
+          watchProgress: 50,
           showsProgress: [
             { showId: 101, title: 'Show 1', totalEpisodes: 20, watchedEpisodes: 10 },
             { showId: 102, title: 'Show 2', totalEpisodes: 30, watchedEpisodes: 15 },
@@ -82,10 +81,11 @@ describe('statisticsService', () => {
           serviceDistribution: { Netflix: 2, HBO: 1 },
           watchProgress: 33,
         },
-        progress: {
+        episodeWatchProgress: {
           totalEpisodes: 30,
           watchedEpisodes: 10,
-          overallProgress: 33,
+          unairedEpisodes: 0,
+          watchProgress: 33,
           showsProgress: [
             { showId: 101, title: 'Show 1', totalEpisodes: 20, watchedEpisodes: 5 },
             { showId: 103, title: 'Show 3', totalEpisodes: 10, watchedEpisodes: 5 },
@@ -117,26 +117,28 @@ describe('statisticsService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(mockProfiles);
 
-      (showService.getProfileShowStatistics as jest.Mock)
-        .mockResolvedValueOnce(mockProfileStats[0].showStatistics)
-        .mockResolvedValueOnce(mockProfileStats[1].showStatistics);
-
-      (moviesService.getProfileMovieStatistics as jest.Mock)
-        .mockResolvedValueOnce(mockProfileStats[0].movieStatistics)
-        .mockResolvedValueOnce(mockProfileStats[1].movieStatistics);
-
-      (showService.getProfileWatchProgress as jest.Mock)
-        .mockResolvedValueOnce(mockProfileStats[0].progress)
-        .mockResolvedValueOnce(mockProfileStats[1].progress);
+      (profileStatisticsService.getProfileStatistics as jest.Mock)
+        .mockResolvedValueOnce({
+          profileId: 1,
+          showStatistics: mockProfileStats[0].showStatistics,
+          movieStatistics: mockProfileStats[0].movieStatistics,
+          episodeWatchProgress: mockProfileStats[0].episodeWatchProgress,
+        })
+        .mockResolvedValueOnce({
+          profileId: 2,
+          showStatistics: mockProfileStats[1].showStatistics,
+          movieStatistics: mockProfileStats[1].movieStatistics,
+          episodeWatchProgress: mockProfileStats[1].episodeWatchProgress,
+        });
 
       const result = await accountStatisticsService.getAccountStatistics(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('account_123_statistics', expect.any(Function), 3600);
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);
 
-      expect(showService.getProfileShowStatistics).toHaveBeenCalledTimes(2);
-      expect(moviesService.getProfileMovieStatistics).toHaveBeenCalledTimes(2);
-      expect(showService.getProfileWatchProgress).toHaveBeenCalledTimes(2);
+      expect(profileStatisticsService.getProfileStatistics).toHaveBeenCalledTimes(2);
+      expect(profileStatisticsService.getProfileStatistics).toHaveBeenCalledWith(1);
+      expect(profileStatisticsService.getProfileStatistics).toHaveBeenCalledWith(2);
 
       expect(result).toHaveProperty('profileCount', 2);
       expect(result).toHaveProperty('uniqueContent');
