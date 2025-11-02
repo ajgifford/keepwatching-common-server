@@ -9,3 +9,7 @@ export { getTimeToWatchStats } from './statistics/timeToWatchRepository';
 export { getWatchingVelocityData } from './statistics/velocityRepository';
 export { getWatchStreakStats } from './statistics/watchStreakRepository';
 export { getMilestoneStats } from './statistics/milestoneRepository';
+export { getContentDepthStats } from './statistics/contentDepthRepository';
+export { getContentDiscoveryStats } from './statistics/contentDiscoveryRepository';
+export { getAbandonmentRiskStats } from './statistics/abandonmentRiskRepository';
+export { getUnairedContentStats } from './statistics/unairedContentRepository';

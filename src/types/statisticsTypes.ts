@@ -39,3 +39,51 @@ export interface MilestoneCountsRow extends RowDataPacket {
   first_episode_watched_at: Date | null;
   first_movie_watched_at: Date | null;
 }
+
+export interface ContentDepthDataRow extends RowDataPacket {
+  total_shows: number;
+  total_episodes: number;
+  total_movies: number;
+  total_movie_runtime: number;
+}
+
+export interface ReleaseYearDataRow extends RowDataPacket {
+  release_year: number;
+  content_count: number;
+}
+
+export interface ContentRatingDataRow extends RowDataPacket {
+  content_rating: string | null;
+  content_count: number;
+}
+
+export interface ContentAdditionDataRow extends RowDataPacket {
+  last_content_added: Date | null;
+  shows_added_30_days: number;
+  movies_added_30_days: number;
+}
+
+export interface WatchCompletionDataRow extends RowDataPacket {
+  shows_completed_30_days: number;
+  movies_completed_30_days: number;
+}
+
+export interface AbandonmentRiskDataRow extends RowDataPacket {
+  show_id: number;
+  show_title: string;
+  days_since_last_watch: number;
+  unwatched_episodes: number;
+  status: string;
+}
+
+export interface AbandonmentRateDataRow extends RowDataPacket {
+  total_started_shows: number;
+  abandoned_shows: number;
+}
+
+export interface UnairedContentDataRow extends RowDataPacket {
+  unaired_show_count: number;
+  unaired_season_count: number;
+  unaired_episode_count: number;
+  unaired_movie_count: number;
+}

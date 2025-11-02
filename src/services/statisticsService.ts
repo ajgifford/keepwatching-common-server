@@ -7,9 +7,12 @@ import { moviesService } from './moviesService';
 import { profileService } from './profileService';
 import { showService } from './showService';
 import {
+  AbandonmentRiskStats,
   AccountEpisodeProgress,
   AccountStatisticsResponse,
   BingeWatchingStats,
+  ContentDepthStats,
+  ContentDiscoveryStats,
   DailyActivity,
   MilestoneStats,
   MonthlyActivity,
@@ -20,6 +23,7 @@ import {
   ShowProgress,
   ShowStatisticsResponse,
   TimeToWatchStats,
+  UnairedContentStats,
   UniqueContentCounts,
   WatchStreakStats,
   WatchingActivityTimeline,
@@ -505,6 +509,90 @@ export class StatisticsService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getMilestoneStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get content depth statistics for a profile
+   * Analyzes preferences for content length, release years, and maturity ratings
+   *
+   * @param profileId - ID of the profile
+   * @returns Content depth statistics
+   */
+  public async getContentDepthStats(profileId: number): Promise<ContentDepthStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.contentDepthStats(profileId),
+        async () => {
+          return await statisticsDb.getContentDepthStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getContentDepthStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get content discovery statistics for a profile
+   * Analyzes content addition patterns and watch-to-add ratios
+   *
+   * @param profileId - ID of the profile
+   * @returns Content discovery statistics
+   */
+  public async getContentDiscoveryStats(profileId: number): Promise<ContentDiscoveryStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.contentDiscoveryStats(profileId),
+        async () => {
+          return await statisticsDb.getContentDiscoveryStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getContentDiscoveryStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get abandonment risk statistics for a profile
+   * Identifies shows at risk of being abandoned and calculates abandonment rates
+   *
+   * @param profileId - ID of the profile
+   * @returns Abandonment risk statistics
+   */
+  public async getAbandonmentRiskStats(profileId: number): Promise<AbandonmentRiskStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.abandonmentRiskStats(profileId),
+        async () => {
+          return await statisticsDb.getAbandonmentRiskStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getAbandonmentRiskStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get unaired content statistics for a profile
+   * Counts shows, seasons, movies, and episodes awaiting release
+   *
+   * @param profileId - ID of the profile
+   * @returns Unaired content statistics
+   */
+  public async getUnairedContentStats(profileId: number): Promise<UnairedContentStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.unairedContentStats(profileId),
+        async () => {
+          return await statisticsDb.getUnairedContentStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getUnairedContentStats(${profileId})`);
     }
   }
 }

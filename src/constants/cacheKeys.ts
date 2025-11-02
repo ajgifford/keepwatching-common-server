@@ -109,6 +109,21 @@ export const PROFILE_KEYS = {
 
   /** Gets the cache key for profile milestone statistics */
   milestoneStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_milestone_stats`,
+
+  /** Gets the cache key for profile content depth statistics */
+  contentDepthStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_content_depth_stats`,
+
+  /** Gets the cache key for profile content discovery statistics */
+  contentDiscoveryStats: (profileId: number | string) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_content_discovery_stats`,
+
+  /** Gets the cache key for profile abandonment risk statistics */
+  abandonmentRiskStats: (profileId: number | string) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_abandonment_risk_stats`,
+
+  /** Gets the cache key for profile unaired content statistics */
+  unairedContentStats: (profileId: number | string) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_unaired_content_stats`,
 };
 
 // Show keys
