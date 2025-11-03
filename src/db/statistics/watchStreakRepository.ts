@@ -77,14 +77,15 @@ export async function getWatchStreakStats(profileId: number): Promise<WatchStrea
         streaks.length > 0 ? streaks.reduce((max, streak) => (streak.days > max.days ? streak : max)) : streaks[0];
 
       // Calculate current streak (check if the last streak extends to today or yesterday)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Use UTC dates to match how the database DATE() strings are parsed
+      const now = new Date();
+      const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
       const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
       const lastStreak = streaks[streaks.length - 1];
       const lastStreakEnd = new Date(lastStreak.endDate);
-      lastStreakEnd.setHours(0, 0, 0, 0);
+      lastStreakEnd.setUTCHours(0, 0, 0, 0);
 
       const isCurrentStreak =
         lastStreakEnd.getTime() === today.getTime() || lastStreakEnd.getTime() === yesterday.getTime();
