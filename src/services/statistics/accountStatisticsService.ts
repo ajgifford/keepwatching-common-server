@@ -9,7 +9,7 @@ import { profileService } from '../profileService';
 import { profileStatisticsService } from './profileStatisticsService';
 import {
   AbandonmentRiskShow,
-  AccountAbandonmentRiskStats,
+  AbandonmentRiskStats,
   AccountActivityTimeline,
   AccountBingeWatchingStats,
   AccountContentDepthStats,
@@ -892,7 +892,7 @@ export class AccountStatisticsService {
    * Get account-level abandonment risk statistics
    * Merges at-risk shows with profile names
    */
-  public async getAccountAbandonmentRiskStats(accountId: number): Promise<AccountAbandonmentRiskStats> {
+  public async getAccountAbandonmentRiskStats(accountId: number): Promise<AbandonmentRiskStats> {
     try {
       return await this.cache.getOrSet(
         ACCOUNT_KEYS.abandonmentRiskStats(accountId),
