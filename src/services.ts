@@ -18,3 +18,4 @@ export * from './services/showService';
 export * from './services/socketService';
 export * from './services/statistics/profileStatisticsService';
 export * from './services/statistics/accountStatisticsService';
+export * from './services/statistics/adminStatisticsService';

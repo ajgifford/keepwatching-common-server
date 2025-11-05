@@ -69,6 +69,9 @@ export const ACCOUNT_KEYS = {
   /** Gets the cache key for account unaired content statistics */
   unairedContentStats: (accountId: number | string) =>
     `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_unaired_content_stats`,
+
+  /** Gets the cache key for profile comparison within account */
+  profileComparison: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_profile_comparison`,
 };
 
 // Profile keys
@@ -188,6 +191,35 @@ export const SHOW_KEYS = {
 };
 
 export const ADMIN_KEYS = {
+  /** Gets the cache key for platform overview statistics */
+  platformOverview: () => `${CACHE_KEY_PATTERNS.ADMIN}_platform_overview`,
+
+  /** Gets the cache key for platform trends */
+  platformTrends: (days: number) => `${CACHE_KEY_PATTERNS.ADMIN}_platform_trends_${days}`,
+
+  /** Gets the cache key for account rankings */
+  accountRankings: (metric: string, limit: number) =>
+    `${CACHE_KEY_PATTERNS.ADMIN}_accounts_rankings_${metric}_${limit}`,
+
+  /** Gets the cache key for all account health metrics */
+  allAccountsHealth: () => `${CACHE_KEY_PATTERNS.ADMIN}_accounts_health_all`,
+
+  /** Gets the cache key for specific account health */
+  accountHealth: (accountId: number) => `${CACHE_KEY_PATTERNS.ADMIN}_accounts_${accountId}_health`,
+
+  /** Gets the cache key for content popularity */
+  contentPopularity: (type: string, limit: number) => `${CACHE_KEY_PATTERNS.ADMIN}_content_popularity_${type}_${limit}`,
+
+  /** Gets the cache key for trending content */
+  trendingContent: (days: number) => `${CACHE_KEY_PATTERNS.ADMIN}_trending_content_${days}`,
+
+  /** Gets the cache key for content engagement metrics */
+  contentEngagement: (contentId: number, type: string) =>
+    `${CACHE_KEY_PATTERNS.ADMIN}_content_${type}_${contentId}_engagement`,
+
+  /** Gets the cache key for admin dashboard combined stats */
+  dashboard: () => `${CACHE_KEY_PATTERNS.ADMIN}_dashboard`,
+
   /** Gets the cache key for all shows */
   allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
 
