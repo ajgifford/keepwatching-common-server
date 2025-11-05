@@ -122,7 +122,7 @@ export function getRateLimitTimeWindow() {
 
 export function getRateLimitMax() {
   // Default: 100
-  return Number(process.env.RATE_LIMIT_MAX) || 100;
+  return Number(process.env.RATE_LIMIT_MAX) || 1000;
 }
 
 /**
