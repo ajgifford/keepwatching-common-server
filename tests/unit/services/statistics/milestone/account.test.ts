@@ -1,3 +1,4 @@
+import * as accountsDb from '@db/accountsDb';
 import { BadRequestError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
@@ -9,6 +10,7 @@ jest.mock('@services/errorService');
 jest.mock('@services/cacheService');
 jest.mock('@services/profileService');
 jest.mock('@services/statistics/profileStatisticsService');
+jest.mock('@db/accountsDb');
 
 describe('Statistics - Milestone - Account', () => {
   const mockCacheService = {
@@ -89,7 +91,8 @@ describe('Statistics - Milestone - Account', () => {
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(profiles);
-      (profileStatisticsService.getMilestoneStats as jest.Mock).mockImplementation((id) => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue({ id: 1, createdAt: new Date('2024-01-01') });
+      (profileStatisticsService.getMilestoneStats as jest.Mock).mockImplementation(async (id) => {
         if (id === 101) return profile1Stats;
         else if (id === 102) return profile2Stats;
         else return {};
@@ -107,6 +110,7 @@ describe('Statistics - Milestone - Account', () => {
     it('should handle errors when getting account milestone stats', async () => {
       const profiles = [{ id: 101, name: 'Profile 1' }];
       (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(profiles);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue({ id: 1, createdAt: new Date('2024-01-01') });
 
       const error = new Error('Failed to get milestone stats');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());

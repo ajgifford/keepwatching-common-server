@@ -1,7 +1,7 @@
-import * as config from '../../../src/config/config';
+import * as config from '@config/config';
 import { TimestampUtil } from '@utils/timestampUtil';
 
-jest.mock('../../../src/config/config');
+jest.mock('@config/config');
 
 describe('TimestampUtil', () => {
   const mockGetLogTimestampFormat = config.getLogTimestampFormat as jest.MockedFunction<

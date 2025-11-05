@@ -4,8 +4,8 @@ import {
   WatchStatusSeason,
   WatchStatusShow,
 } from '../../../src/types/watchStatusTypes';
-import { WatchStatusManager } from '../../../src/utils/watchStatusManager';
 import { SimpleWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
+import { WatchStatusManager } from '@utils/watchStatusManager';
 
 describe('WatchStatusManager', () => {
   let watchStatusManager: WatchStatusManager;

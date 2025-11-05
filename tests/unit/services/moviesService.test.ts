@@ -399,7 +399,7 @@ describe('MoviesService', () => {
     it('should update movie watch status successfully', async () => {
       (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
 
-      const result = await moviesService.updateMovieWatchStatus(123, 5, WatchStatus.WATCHED);
+      const result = await moviesService.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED);
 
       expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED);
       expect(mockCacheService.invalidateProfileMovies).toHaveBeenCalledTimes(1);
@@ -412,7 +412,7 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.updateMovieWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow(
+      await expect(moviesService.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED)).rejects.toThrow(
         'Failed to update watch status. Ensure the movie (ID: 5) exists in your favorites.',
       );
       expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED);
@@ -425,7 +425,9 @@ describe('MoviesService', () => {
         throw err;
       });
 
-      await expect(moviesService.updateMovieWatchStatus(123, 5, WatchStatus.WATCHED)).rejects.toThrow('Database error');
+      await expect(moviesService.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED)).rejects.toThrow(
+        'Database error',
+      );
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'updateMovieWatchStatus(123, 5, WATCHED)');
     });
   });
