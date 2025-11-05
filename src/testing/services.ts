@@ -111,6 +111,7 @@ export const accountStatisticsService = createTypedServiceMock<MockAccountStatis
   `getAccountContentDiscoveryStats`,
   `getAccountAbandonmentRiskStats`,
   `getAccountUnairedContentStats`,
+  'getProfileComparison',
 ]);
 
 export const profileStatisticsService = createTypedServiceMock<MockProfileStatisticsService>([

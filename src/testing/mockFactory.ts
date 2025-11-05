@@ -119,6 +119,7 @@ export interface MockAccountStatisticsService {
   getAccountContentDiscoveryStats: jest.Mock;
   getAccountAbandonmentRiskStats: jest.Mock;
   getAccountUnairedContentStats: jest.Mock;
+  getProfileComparison: jest.Mock;
 }
 
 export interface MockProfileStatisticsService {
