@@ -2,7 +2,8 @@ import { MilestoneCountsRow } from '../../types/statisticsTypes';
 import { getDbPool } from '../../utils/db';
 import { DbMonitor } from '../../utils/dbMonitoring';
 import { calculateMilestones } from '../../utils/statisticsUtil';
-import { Achievement, MILESTONE_THRESHOLDS, MilestoneStats } from '@ajgifford/keepwatching-types';
+import { getRecentAchievements } from './achievementRepository';
+import { Achievement, AchievementType, MILESTONE_THRESHOLDS, MilestoneStats } from '@ajgifford/keepwatching-types';
 
 /**
  * Get milestone statistics for a profile
@@ -66,15 +67,26 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
       const totalHoursWatched = Math.round(counts.total_runtime_minutes / 60);
 
       // Convert dates to ISO strings if they exist
-      const profileCreatedAt = counts.profile_created_at
-        ? new Date(counts.profile_created_at).toISOString()
-        : undefined;
-      const firstEpisodeWatchedAt = counts.first_episode_watched_at
-        ? new Date(counts.first_episode_watched_at).toISOString()
-        : undefined;
-      const firstMovieWatchedAt = counts.first_movie_watched_at
-        ? new Date(counts.first_movie_watched_at).toISOString()
-        : undefined;
+      const createdAt = counts.profile_created_at ? new Date(counts.profile_created_at).toISOString() : undefined;
+
+      // Get all achievements to find both recent ones and first episode/movie
+      const allAchievements = await getRecentAchievements(profileId, 365 * 10); // Get all achievements
+
+      // Filter recent achievements (last 30 days) for the response
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const achievementRecords = allAchievements.filter((a) => new Date(a.achievedAt) >= thirtyDaysAgo);
+
+      // Find FIRST_EPISODE and FIRST_MOVIE achievements for richer metadata
+      const firstEpisodeAchievement = allAchievements.find((a) => a.achievementType === AchievementType.FIRST_EPISODE);
+      const firstMovieAchievement = allAchievements.find((a) => a.achievementType === AchievementType.FIRST_MOVIE);
+
+      const firstEpisodeWatchedAt =
+        firstEpisodeAchievement?.achievedAt ||
+        (counts.first_episode_watched_at ? new Date(counts.first_episode_watched_at).toISOString() : undefined);
+      const firstMovieWatchedAt =
+        firstMovieAchievement?.achievedAt ||
+        (counts.first_movie_watched_at ? new Date(counts.first_movie_watched_at).toISOString() : undefined);
 
       // Calculate milestones for each category
       const episodeMilestones = calculateMilestones(totalEpisodesWatched, MILESTONE_THRESHOLDS.episodes, 'episodes');
@@ -84,55 +96,64 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
       // Combine all milestones
       const allMilestones = [...episodeMilestones, ...movieMilestones, ...hourMilestones];
 
-      // Determine recent achievements (milestones that were recently achieved)
-      const recentAchievements: Achievement[] = [];
-      const achievementDate = new Date().toISOString();
+      // Format achievements for the response
+      const recentAchievements: Achievement[] = achievementRecords.map((record) => {
+        let description = '';
 
-      // Check for recently achieved episode milestones
-      const recentlyAchievedEpisodes = episodeMilestones.filter((m) => m.achieved);
-      if (recentlyAchievedEpisodes.length > 0) {
-        const latest = recentlyAchievedEpisodes[recentlyAchievedEpisodes.length - 1];
-        if (latest && totalEpisodesWatched >= latest.threshold && totalEpisodesWatched < latest.threshold + 10) {
-          recentAchievements.push({
-            description: `${latest.threshold} Episodes Watched`,
-            achievedDate: achievementDate,
-          });
+        switch (record.achievementType) {
+          case AchievementType.EPISODES_WATCHED:
+            description = `${record.thresholdValue} Episodes Watched`;
+            break;
+          case AchievementType.MOVIES_WATCHED:
+            description = `${record.thresholdValue} Movies Watched`;
+            break;
+          case AchievementType.HOURS_WATCHED:
+            description = `${record.thresholdValue} Hours Watched`;
+            break;
+          case AchievementType.FIRST_EPISODE:
+            description = 'First Episode Watched';
+            break;
+          case AchievementType.FIRST_MOVIE:
+            description = 'First Movie Watched';
+            break;
+          case AchievementType.SHOW_COMPLETED:
+            description = `Completed: ${record.metadata?.showTitle || 'Show'}`;
+            break;
+          case AchievementType.WATCH_STREAK:
+            description = `${record.thresholdValue} Day Watch Streak`;
+            break;
+          case AchievementType.BINGE_SESSION:
+            description = `${record.thresholdValue} Episode Binge Session`;
+            break;
+          case AchievementType.PROFILE_ANNIVERSARY:
+            description = `${record.thresholdValue} Year Anniversary`;
+            break;
+          default:
+            description = `Achievement: ${record.thresholdValue}`;
         }
-      }
 
-      // Check for recently achieved movie milestones
-      const recentlyAchievedMovies = movieMilestones.filter((m) => m.achieved);
-      if (recentlyAchievedMovies.length > 0) {
-        const latest = recentlyAchievedMovies[recentlyAchievedMovies.length - 1];
-        if (latest && totalMoviesWatched >= latest.threshold && totalMoviesWatched < latest.threshold + 5) {
-          recentAchievements.push({
-            description: `${latest.threshold} Movies Watched`,
-            achievedDate: achievementDate,
-          });
-        }
-      }
+        return {
+          description,
+          achievedDate: record.achievedAt,
+          metadata: record.metadata,
+        };
+      });
 
-      // Check for recently achieved hour milestones
-      const recentlyAchievedHours = hourMilestones.filter((m) => m.achieved);
-      if (recentlyAchievedHours.length > 0) {
-        const latest = recentlyAchievedHours[recentlyAchievedHours.length - 1];
-        if (latest && totalHoursWatched >= latest.threshold && totalHoursWatched < latest.threshold + 10) {
-          recentAchievements.push({
-            description: `${latest.threshold} Hours Watched`,
-            achievedDate: achievementDate,
-          });
-        }
-      }
+      // Include metadata for first episode and movie achievements
+      const firstEpisodeMetadata = firstEpisodeAchievement?.metadata;
+      const firstMovieMetadata = firstMovieAchievement?.metadata;
 
       return {
         totalEpisodesWatched,
         totalMoviesWatched,
         totalHoursWatched,
-        profileCreatedAt,
+        createdAt,
         firstEpisodeWatchedAt,
         firstMovieWatchedAt,
         milestones: allMilestones,
         recentAchievements,
+        firstEpisodeMetadata,
+        firstMovieMetadata,
       };
     } finally {
       connection.release();

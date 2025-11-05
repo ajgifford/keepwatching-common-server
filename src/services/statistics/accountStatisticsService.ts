@@ -1,5 +1,8 @@
 import { ACCOUNT_KEYS } from '../../constants/cacheKeys';
+import * as accountsDb from '../../db/accountsDb';
+import * as statisticsDb from '../../db/statisticsDb';
 import { BadRequestError } from '../../middleware/errorMiddleware';
+import { calculateMilestones } from '../../utils/statisticsUtil';
 import { CacheService } from '../cacheService';
 import { errorService } from '../errorService';
 import { profileService } from '../profileService';
@@ -12,7 +15,6 @@ import {
   AccountContentDepthStats,
   AccountContentDiscoveryStats,
   AccountEpisodeProgress,
-  AccountMilestoneStats,
   AccountSeasonalViewingStats,
   AccountStatisticsResponse,
   AccountTimeToWatchStats,
@@ -21,8 +23,11 @@ import {
   AccountWatchingVelocityStats,
   Achievement,
   DailyActivity,
+  MilestoneStats,
   MonthlyActivity,
   MovieStatisticsResponse,
+  ProfileComparisonDetail,
+  ProfileComparisonStats,
   ProfileStatisticsResponse,
   ShowProgress,
   ShowStatisticsResponse,
@@ -674,7 +679,7 @@ export class AccountStatisticsService {
    * Get account-level milestone statistics
    * Sums totals and merges achievements across profiles
    */
-  public async getAccountMilestoneStats(accountId: number): Promise<AccountMilestoneStats> {
+  public async getAccountMilestoneStats(accountId: number): Promise<MilestoneStats> {
     try {
       return await this.cache.getOrSet(
         ACCOUNT_KEYS.milestoneStats(accountId),
@@ -684,8 +689,15 @@ export class AccountStatisticsService {
             throw new BadRequestError(`No profiles found for account ${accountId}`);
           }
 
+          // Get account creation date
+          const account = await accountsDb.findAccountById(accountId);
+          const createdAt = account?.createdAt?.toISOString() || undefined;
+
           const profileStats = await Promise.all(
-            profiles.map(async (profile) => await profileStatisticsService.getMilestoneStats(profile.id)),
+            profiles.map(async (profile) => ({
+              profileName: profile.name,
+              stats: await profileStatisticsService.getMilestoneStats(profile.id),
+            })),
           );
 
           let totalEpisodesWatched = 0;
@@ -693,23 +705,72 @@ export class AccountStatisticsService {
           let totalHoursWatched = 0;
           const achievements: Achievement[] = [];
 
-          profileStats.forEach((stats) => {
+          // Track the earliest first episode and movie watched across all profiles
+          let firstEpisodeWatchedAt: string | undefined;
+          let firstMovieWatchedAt: string | undefined;
+          let firstEpisodeMetadata: Record<string, unknown> | undefined;
+          let firstMovieMetadata: Record<string, unknown> | undefined;
+
+          profileStats.forEach(({ profileName, stats }) => {
             totalEpisodesWatched += stats.totalEpisodesWatched;
             totalMoviesWatched += stats.totalMoviesWatched;
             totalHoursWatched += stats.totalHoursWatched;
-            achievements.push(...stats.recentAchievements);
+
+            // Add profile name to each achievement
+            stats.recentAchievements.forEach((achievement) => {
+              achievements.push({
+                ...achievement,
+                profileName,
+              });
+            });
+
+            // Find the earliest first episode watched across all profiles
+            if (stats.firstEpisodeWatchedAt) {
+              if (!firstEpisodeWatchedAt || stats.firstEpisodeWatchedAt < firstEpisodeWatchedAt) {
+                firstEpisodeWatchedAt = stats.firstEpisodeWatchedAt;
+                firstEpisodeMetadata = stats.firstEpisodeMetadata
+                  ? { ...stats.firstEpisodeMetadata, profileName }
+                  : { profileName };
+              }
+            }
+
+            // Find the earliest first movie watched across all profiles
+            if (stats.firstMovieWatchedAt) {
+              if (!firstMovieWatchedAt || stats.firstMovieWatchedAt < firstMovieWatchedAt) {
+                firstMovieWatchedAt = stats.firstMovieWatchedAt;
+                firstMovieMetadata = stats.firstMovieMetadata
+                  ? { ...stats.firstMovieMetadata, profileName }
+                  : { profileName };
+              }
+            }
           });
 
           const recentAchievements = achievements
             .sort((a, b) => b.achievedDate.localeCompare(a.achievedDate))
             .slice(0, 10);
 
+          // Calculate milestones using the utility function
+          const episodeThresholds = [10, 50, 100, 500, 1000, 5000, 10000];
+          const movieThresholds = [10, 50, 100, 500, 1000];
+          const hourThresholds = [10, 50, 100, 500, 1000, 5000];
+
+          const milestones = [
+            ...calculateMilestones(totalEpisodesWatched, episodeThresholds, 'episodes'),
+            ...calculateMilestones(totalMoviesWatched, movieThresholds, 'movies'),
+            ...calculateMilestones(totalHoursWatched, hourThresholds, 'hours'),
+          ];
+
           return {
             totalEpisodesWatched,
             totalMoviesWatched,
             totalHoursWatched,
-            milestones: [],
+            milestones,
             recentAchievements,
+            createdAt,
+            firstEpisodeWatchedAt,
+            firstMovieWatchedAt,
+            firstEpisodeMetadata,
+            firstMovieMetadata,
           };
         },
         3600,
@@ -917,6 +978,79 @@ export class AccountStatisticsService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getAccountUnairedContentStats(${accountId})`);
+    }
+  }
+
+  public async getProfileComparison(accountId: number): Promise<ProfileComparisonStats> {
+    try {
+      return await this.cache.getOrSet(
+        ACCOUNT_KEYS.profileComparison(accountId),
+        async () => {
+          const data = await statisticsDb.getProfileComparisonData(accountId);
+
+          // Transform raw database data to ProfileComparisonStats type
+          const profiles: ProfileComparisonDetail[] = data.profiles.map((profile) => {
+            // Get genres for this profile
+            const genres = data.genres
+              .filter((g) => g.profile_id === profile.profile_id)
+              .map((g) => ({ genre: g.genre_name, count: g.genre_count }));
+
+            // Get services for this profile
+            const services = data.services
+              .filter((s) => s.profile_id === profile.profile_id)
+              .map((s) => ({ service: s.service_name, count: s.service_count }));
+
+            // Get velocity for this profile
+            const velocity = data.velocity.find((v) => v.profile_id === profile.profile_id);
+
+            return {
+              profileId: profile.profile_id,
+              profileName: profile.profile_name,
+              totalShows: profile.total_shows,
+              totalMovies: profile.total_movies,
+              episodesWatched: profile.episodes_watched,
+              moviesWatched: profile.movies_watched,
+              totalHoursWatched: Math.round(profile.total_hours_watched),
+              showWatchProgress: profile.show_watch_progress,
+              movieWatchProgress: profile.movie_watch_progress,
+              topGenres: genres.slice(0, 3),
+              topServices: services.slice(0, 3),
+              episodesPerWeek: velocity?.episodes_per_week || 0,
+              mostActiveDay: velocity?.most_active_day || 'Monday',
+              lastActivityDate: profile.last_activity_date,
+              currentlyWatchingCount: profile.currently_watching_count,
+              completedShowsCount: profile.completed_shows_count,
+            };
+          });
+
+          return {
+            accountId,
+            profileCount: profiles.length,
+            profiles,
+            accountSummary: {
+              totalUniqueShows: data.accountSummary.total_unique_shows,
+              totalUniqueMovies: data.accountSummary.total_unique_movies,
+              mostWatchedShow: data.accountSummary.most_watched_show_title
+                ? {
+                    showId: data.accountSummary.most_watched_show_id!,
+                    title: data.accountSummary.most_watched_show_title,
+                    watchCount: data.accountSummary.most_watched_show_count!,
+                  }
+                : null,
+              mostWatchedMovie: data.accountSummary.most_watched_movie_title
+                ? {
+                    movieId: data.accountSummary.most_watched_movie_id!,
+                    title: data.accountSummary.most_watched_movie_title,
+                    watchCount: data.accountSummary.most_watched_movie_count!,
+                  }
+                : null,
+            },
+          };
+        },
+        3600,
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getProfileComparison(${accountId})`);
     }
   }
 }

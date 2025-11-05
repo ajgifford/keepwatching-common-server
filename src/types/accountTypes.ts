@@ -33,5 +33,6 @@ export function transformAccountRow(row: AccountRow): Account {
     uid: row.uid,
     image: row.image ?? '',
     defaultProfileId: row.default_profile_id,
+    createdAt: row.created_at,
   };
 }

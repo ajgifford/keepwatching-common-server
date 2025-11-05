@@ -12,6 +12,7 @@ import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils
 import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { filterEnglishMovies } from '../utils/usSearchFilter';
 import { getUSWatchProvidersMovie } from '../utils/watchProvidersUtility';
+import { checkAndRecordAchievements } from './achievementDetectionService';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { profileService } from './profileService';
@@ -392,12 +393,18 @@ export class MoviesService {
   /**
    * Updates the watch status of a movie
    *
+   * @param accountId - ID of the account (for cache invalidation)
    * @param profileId - ID of the profile to update the watch status for
    * @param movieId - ID of the movie to update
    * @param status - New watch status ('WATCHED' or 'NOT_WATCHED')
    * @returns Success state of the update operation
    */
-  public async updateMovieWatchStatus(profileId: number, movieId: number, status: SimpleWatchStatus): Promise<boolean> {
+  public async updateMovieWatchStatus(
+    accountId: number,
+    profileId: number,
+    movieId: number,
+    status: SimpleWatchStatus,
+  ): Promise<boolean> {
     try {
       const success = await moviesDb.updateWatchStatus(profileId, movieId, status);
 
@@ -408,6 +415,11 @@ export class MoviesService {
       }
 
       this.invalidateProfileMovieCache(profileId);
+
+      // Check for new achievements (non-blocking)
+      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+        console.error('Error checking achievements after movie watch status update:', err);
+      });
 
       return success;
     } catch (error) {

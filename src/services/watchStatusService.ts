@@ -1,6 +1,7 @@
 import { WatchStatusDbService } from '../db/watchStatusDb';
 import { DatabaseError } from '../middleware/errorMiddleware';
 import { StatusChange, StatusUpdateResult } from '../types/watchStatusTypes';
+import { checkAndRecordAchievements } from './achievementDetectionService';
 import { errorService } from './errorService';
 import { showService } from './showService';
 import { UserWatchStatus } from '@ajgifford/keepwatching-types';
@@ -37,6 +38,11 @@ export class WatchStatusService {
       }
 
       showService.invalidateProfileCache(accountId, profileId);
+
+      // Check for new achievements (non-blocking)
+      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+        console.error('Error checking achievements after episode watch status update:', err);
+      });
 
       return {
         success: true,
@@ -75,6 +81,11 @@ export class WatchStatusService {
         showService.invalidateProfileCache(accountId, profileId);
       }
 
+      // Check for new achievements (non-blocking)
+      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+        console.error('Error checking achievements after season watch status update:', err);
+      });
+
       return {
         success: true,
         changes: result.changes,
@@ -109,6 +120,11 @@ export class WatchStatusService {
       }
 
       showService.invalidateProfileCache(accountId, profileId);
+
+      // Check for new achievements (non-blocking)
+      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+        console.error('Error checking achievements after show watch status update:', err);
+      });
 
       return {
         success: true,
