@@ -58,7 +58,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
         LEFT JOIN profile_shows ps ON ps.profile_id = p.profile_id
         LEFT JOIN profile_movies pm ON pm.profile_id = p.profile_id
         LEFT JOIN episode_watch_status ews ON ews.profile_id = p.profile_id AND ews.status = 'WATCHED'
-        LEFT JOIN movie_watch_status mws ON mws.profile_movie_id = pm.id AND mws.status = 'WATCHED'
+        LEFT JOIN movie_watch_status mws ON mws.profile_id = pm.profile_id AND mws.status = 'WATCHED'
         LEFT JOIN (
           SELECT profile_id, COUNT(*) as count, SUM(e.runtime) as total_runtime
           FROM episode_watch_status ews
@@ -69,7 +69,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
         LEFT JOIN (
           SELECT pm.profile_id, COUNT(*) as count, SUM(m.runtime) as total_runtime
           FROM movie_watch_status mws
-          JOIN profile_movies pm ON pm.id = mws.profile_movie_id
+          JOIN profile_movies pm ON pm.profile_id = mws.profile_id
           JOIN movies m ON m.id = pm.movie_id
           WHERE mws.status = 'WATCHED'
           GROUP BY pm.profile_id
@@ -77,21 +77,21 @@ export async function getProfileComparisonData(accountId: number): Promise<{
         LEFT JOIN (
           SELECT ps.profile_id, COUNT(*) as count
           FROM show_watch_status sws
-          JOIN profile_shows ps ON ps.id = sws.profile_show_id
+          JOIN profile_shows ps ON ps.profile_id = sws.profile_id
           WHERE sws.status = 'WATCHED'
           GROUP BY ps.profile_id
         ) as shows_watched ON shows_watched.profile_id = p.profile_id
         LEFT JOIN (
           SELECT ps.profile_id, COUNT(*) as count
           FROM show_watch_status sws
-          JOIN profile_shows ps ON ps.id = sws.profile_show_id
+          JOIN profile_shows ps ON ps.profile_id = sws.profile_id
           WHERE sws.status = 'WATCHING'
           GROUP BY ps.profile_id
         ) as watching_count ON watching_count.profile_id = p.profile_id
         LEFT JOIN (
           SELECT ps.profile_id, COUNT(*) as count
           FROM show_watch_status sws
-          JOIN profile_shows ps ON ps.id = sws.profile_show_id
+          JOIN profile_shows ps ON ps.profile_id = sws.profile_id
           WHERE sws.status = 'WATCHED'
           GROUP BY ps.profile_id
         ) as completed_count ON completed_count.profile_id = p.profile_id
