@@ -88,23 +88,24 @@ export class AdminStatisticsService {
           const currentActiveAccounts = new Set<number>();
 
           trendsData.forEach((day) => {
-            currentEpisodesWatched += day.episodes_watched || 0;
-            currentMoviesWatched += day.movies_watched || 0;
+            currentEpisodesWatched += Number(day.episodes_watched) || 0;
+            currentMoviesWatched += Number(day.movies_watched) || 0;
             currentActiveAccounts.add(day.active_accounts);
           });
 
-          // Calculate trends
+          // Calculate trends with safe fallbacks
+          const previousActiveAccounts = previousPeriodData?.activeAccounts || 0;
+          const previousEpisodesWatched = previousPeriodData?.episodesWatched || 0;
+          const previousMoviesWatched = previousPeriodData?.moviesWatched || 0;
+
           const dailyActiveUsersTrend =
-            previousPeriodData.activeAccounts > 0
+            previousActiveAccounts > 0
               ? Math.round(
-                  ((currentActiveAccounts.size - previousPeriodData.activeAccounts) /
-                    previousPeriodData.activeAccounts) *
-                    100 *
-                    100,
+                  ((currentActiveAccounts.size - previousActiveAccounts) / previousActiveAccounts) * 100 * 100,
                 ) / 100
               : 0;
 
-          const totalPreviousActivity = previousPeriodData.episodesWatched + previousPeriodData.moviesWatched;
+          const totalPreviousActivity = previousEpisodesWatched + previousMoviesWatched;
           const totalCurrentActivity = currentEpisodesWatched + currentMoviesWatched;
           const watchActivityTrend =
             totalPreviousActivity > 0
@@ -121,8 +122,8 @@ export class AdminStatisticsService {
             dailyActivity: trendsData.map((day) => ({
               date: day.activity_date,
               activeAccounts: day.active_accounts || 0,
-              episodesWatched: day.episodes_watched || 0,
-              moviesWatched: day.movies_watched || 0,
+              episodesWatched: Number(day.episodes_watched) || 0,
+              moviesWatched: Number(day.movies_watched) || 0,
             })),
           };
         },

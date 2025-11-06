@@ -27,17 +27,17 @@ export async function getPopularShows(limit: number = 20): Promise<ContentPopula
                        (COALESCE(total_episodes.episode_count, 1) * COUNT(DISTINCT ps.profile_id))) * 100, 2)
             ELSE 0 
           END as completion_rate,
-          s.first_air_date_year as release_year
+          YEAR(s.release_date) as release_year
         FROM shows s
         INNER JOIN profile_shows ps ON ps.show_id = s.id
-        INNER JOIN profiles p ON p.id = ps.profile_id
+        INNER JOIN profiles p ON p.profile_id = ps.profile_id
         LEFT JOIN (
           SELECT 
             ps.show_id,
             ps.profile_id,
             COUNT(DISTINCT ews.episode_id) as episode_count
           FROM profile_shows ps
-          JOIN show_watch_status sws ON sws.profile_show_id = ps.id
+          JOIN show_watch_status sws ON sws.profile_id = ps.profile_id
           JOIN episode_watch_status ews ON ews.profile_id = ps.profile_id
           JOIN episodes e ON e.id = ews.episode_id AND e.show_id = ps.show_id
           WHERE ews.status = 'WATCHED'
@@ -49,7 +49,7 @@ export async function getPopularShows(limit: number = 20): Promise<ContentPopula
           WHERE air_date IS NOT NULL AND air_date <= CURDATE()
           GROUP BY show_id
         ) as total_episodes ON total_episodes.show_id = s.id
-        GROUP BY s.id, s.title, s.first_air_date_year, total_episodes.episode_count
+        GROUP BY s.id, s.title, YEAR(s.release_date), total_episodes.episode_count
         ORDER BY profile_count DESC, total_watch_count DESC
         LIMIT ?
         `,
@@ -84,12 +84,12 @@ export async function getPopularMovies(limit: number = 20): Promise<ContentPopul
           COALESCE(SUM(CASE WHEN mws.status = 'WATCHED' THEN 1 ELSE 0 END), 0) as total_watch_count,
           ROUND((COALESCE(SUM(CASE WHEN mws.status = 'WATCHED' THEN 1 ELSE 0 END), 0) / 
                  COUNT(DISTINCT pm.profile_id)) * 100, 2) as completion_rate,
-          m.release_date_year as release_year
+          YEAR(m.release_date) as release_year
         FROM movies m
         INNER JOIN profile_movies pm ON pm.movie_id = m.id
-        INNER JOIN profiles p ON p.id = pm.profile_id
-        LEFT JOIN movie_watch_status mws ON mws.profile_movie_id = pm.id
-        GROUP BY m.id, m.title, m.release_date_year
+        INNER JOIN profiles p ON p.profile_id = pm.profile_id
+        LEFT JOIN movie_watch_status mws ON mws.profile_id = pm.profile_id
+        GROUP BY m.id, m.title, YEAR(m.release_date)
         ORDER BY profile_count DESC, total_watch_count DESC
         LIMIT ?
         `,
@@ -121,7 +121,7 @@ export async function getTrendingShows(days: number = 30, limit: number = 20): P
           s.title,
           'show' as content_type,
           COUNT(DISTINCT CASE 
-            WHEN ps.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) 
+            WHEN s.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) 
             THEN ps.profile_id 
           END) as new_additions,
           COUNT(DISTINCT CASE 
@@ -171,7 +171,7 @@ export async function getTrendingMovies(days: number = 30, limit: number = 20): 
           m.title,
           'movie' as content_type,
           COUNT(DISTINCT CASE 
-            WHEN pm.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) 
+            WHEN m.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) 
             THEN pm.profile_id 
           END) as new_additions,
           COUNT(DISTINCT CASE 
@@ -186,7 +186,7 @@ export async function getTrendingMovies(days: number = 30, limit: number = 20): 
           END) as previous_watch_count
         FROM movies m
         INNER JOIN profile_movies pm ON pm.movie_id = m.id
-        LEFT JOIN movie_watch_status mws ON mws.profile_movie_id = pm.id
+        LEFT JOIN movie_watch_status mws ON mws.profile_id = pm.profile_id
         GROUP BY m.id, m.title
         HAVING new_additions > 0 OR recent_watch_count > 0
         ORDER BY recent_watch_count DESC, new_additions DESC
@@ -230,7 +230,7 @@ export async function getShowEngagement(showId: number): Promise<ContentEngageme
           COALESCE(AVG((watched_episodes.episode_count / total_episodes.episode_count) * 100), 0) as avg_progress
         FROM shows s
         LEFT JOIN profile_shows ps ON ps.show_id = s.id
-        LEFT JOIN show_watch_status sws ON sws.profile_show_id = ps.id
+        LEFT JOIN show_watch_status sws ON sws.profile_id = ps.profile_id
         LEFT JOIN (
           SELECT 
             ps.profile_id,
@@ -298,7 +298,7 @@ export async function getMovieEngagement(movieId: number): Promise<ContentEngage
                 COUNT(DISTINCT pm.profile_id)) * 100, 2) as avg_progress
         FROM movies m
         LEFT JOIN profile_movies pm ON pm.movie_id = m.id
-        LEFT JOIN movie_watch_status mws ON mws.profile_movie_id = pm.id
+        LEFT JOIN movie_watch_status mws ON mws.profile_id = pm.profile_id
         WHERE m.id = ?
         GROUP BY m.id, m.title
         `,
