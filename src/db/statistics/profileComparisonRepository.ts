@@ -79,51 +79,47 @@ export async function getProfileComparisonData(accountId: number): Promise<{
           GROUP BY profile_id
         ) as episodes_watched ON episodes_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT pm.profile_id, COUNT(*) as count, SUM(runtime) as total_runtime
+          SELECT profile_id, COUNT(*) as count, SUM(runtime) as total_runtime
           FROM (
-            SELECT pm.profile_id, pm.movie_id, MAX(m.runtime) as runtime
+            SELECT mws.profile_id, mws.movie_id, MAX(m.runtime) as runtime
             FROM movie_watch_status mws
-            JOIN profile_movies pm ON pm.id = mws.profile_movie_id
-            JOIN movies m ON m.id = pm.movie_id
+            JOIN movies m ON m.id = mws.movie_id
             WHERE mws.status = 'WATCHED'
-              AND pm.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-            GROUP BY pm.profile_id, pm.movie_id
+              AND mws.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY mws.profile_id, mws.movie_id
           ) as unique_movies
           GROUP BY profile_id
         ) as movies_watched ON movies_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT ps.profile_id, COUNT(*) as count
+          SELECT profile_id, COUNT(*) as count
           FROM (
-            SELECT ps.profile_id, sws.profile_show_id
+            SELECT sws.profile_id, sws.show_id
             FROM show_watch_status sws
-            JOIN profile_shows ps ON ps.id = sws.profile_show_id
             WHERE sws.status = 'WATCHED'
-              AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-            GROUP BY ps.profile_id, sws.profile_show_id
+              AND sws.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY sws.profile_id, sws.show_id
           ) as unique_shows
           GROUP BY profile_id
         ) as shows_watched ON shows_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT ps.profile_id, COUNT(*) as count
+          SELECT profile_id, COUNT(*) as count
           FROM (
-            SELECT ps.profile_id, sws.profile_show_id
+            SELECT sws.profile_id, sws.show_id
             FROM show_watch_status sws
-            JOIN profile_shows ps ON ps.id = sws.profile_show_id
             WHERE sws.status = 'WATCHING'
-              AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-            GROUP BY ps.profile_id, sws.profile_show_id
+              AND sws.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY sws.profile_id, sws.show_id
           ) as unique_shows
           GROUP BY profile_id
         ) as watching_count ON watching_count.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT ps.profile_id, COUNT(*) as count
+          SELECT profile_id, COUNT(*) as count
           FROM (
-            SELECT ps.profile_id, sws.profile_show_id
+            SELECT sws.profile_id, sws.show_id
             FROM show_watch_status sws
-            JOIN profile_shows ps ON ps.id = sws.profile_show_id
             WHERE sws.status = 'WATCHED'
-              AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-            GROUP BY ps.profile_id, sws.profile_show_id
+              AND sws.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY sws.profile_id, sws.show_id
           ) as unique_shows
           GROUP BY profile_id
         ) as completed_count ON completed_count.profile_id = p.profile_id
@@ -135,12 +131,11 @@ export async function getProfileComparisonData(accountId: number): Promise<{
           GROUP BY profile_id
         ) as last_episode_watch ON last_episode_watch.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT pm.profile_id, MAX(mws.updated_at) as last_updated
-          FROM movie_watch_status mws
-          JOIN profile_movies pm ON pm.id = mws.profile_movie_id
-          WHERE mws.status = 'WATCHED'
-            AND pm.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-          GROUP BY pm.profile_id
+          SELECT profile_id, MAX(updated_at) as last_updated
+          FROM movie_watch_status
+          WHERE status = 'WATCHED'
+            AND profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+          GROUP BY profile_id
         ) as last_movie_watch ON last_movie_watch.profile_id = p.profile_id
         WHERE p.account_id = ?
         ORDER BY p.name
@@ -158,15 +153,15 @@ export async function getProfileComparisonData(accountId: number): Promise<{
         FROM (
           SELECT 
             ps.profile_id,
-            g.name as genre_name,
+            g.genre as genre_name,
             COUNT(*) as genre_count,
             ROW_NUMBER() OVER (PARTITION BY ps.profile_id ORDER BY COUNT(*) DESC) as rn
           FROM profile_shows ps
           JOIN show_genres sg ON sg.show_id = ps.show_id
           JOIN genres g ON g.id = sg.genre_id
-          JOIN profiles p ON p.id = ps.profile_id
+          JOIN profiles p ON p.profile_id = ps.profile_id
           WHERE p.account_id = ?
-          GROUP BY ps.profile_id, g.name
+          GROUP BY ps.profile_id, g.genre
         ) as ranked_genres
         WHERE rn <= 3
         ORDER BY profile_id, genre_count DESC
@@ -189,8 +184,8 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             ROW_NUMBER() OVER (PARTITION BY ps.profile_id ORDER BY COUNT(*) DESC) as rn
           FROM profile_shows ps
           JOIN show_services srv ON srv.show_id = ps.show_id
-          JOIN streaming_services ss ON ss.id = srv.service_id
-          JOIN profiles p ON p.id = ps.profile_id
+          JOIN streaming_services ss ON ss.id = srv.streaming_service_id
+          JOIN profiles p ON p.profile_id = ps.profile_id
           WHERE p.account_id = ?
           GROUP BY ps.profile_id, ss.name
         ) as ranked_services
@@ -236,7 +231,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             SELECT s.id
             FROM profile_shows ps2
             JOIN shows s ON s.id = ps2.show_id
-            JOIN profiles p2 ON p2.id = ps2.profile_id
+            JOIN profiles p2 ON p2.profile_id = ps2.profile_id
             WHERE p2.account_id = ?
             GROUP BY s.id
             ORDER BY COUNT(*) DESC
@@ -246,7 +241,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             SELECT s.title
             FROM profile_shows ps2
             JOIN shows s ON s.id = ps2.show_id
-            JOIN profiles p2 ON p2.id = ps2.profile_id
+            JOIN profiles p2 ON p2.profile_id = ps2.profile_id
             WHERE p2.account_id = ?
             GROUP BY s.id, s.title
             ORDER BY COUNT(*) DESC
@@ -256,7 +251,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             SELECT COUNT(*)
             FROM profile_shows ps2
             JOIN shows s ON s.id = ps2.show_id
-            JOIN profiles p2 ON p2.id = ps2.profile_id
+            JOIN profiles p2 ON p2.profile_id = ps2.profile_id
             WHERE p2.account_id = ?
             GROUP BY s.id
             ORDER BY COUNT(*) DESC
@@ -266,7 +261,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             SELECT m.id
             FROM profile_movies pm2
             JOIN movies m ON m.id = pm2.movie_id
-            JOIN profiles p2 ON p2.id = pm2.profile_id
+            JOIN profiles p2 ON p2.profile_id = pm2.profile_id
             WHERE p2.account_id = ?
             GROUP BY m.id
             ORDER BY COUNT(*) DESC
@@ -276,7 +271,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             SELECT m.title
             FROM profile_movies pm2
             JOIN movies m ON m.id = pm2.movie_id
-            JOIN profiles p2 ON p2.id = pm2.profile_id
+            JOIN profiles p2 ON p2.profile_id = pm2.profile_id
             WHERE p2.account_id = ?
             GROUP BY m.id, m.title
             ORDER BY COUNT(*) DESC
@@ -286,7 +281,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             SELECT COUNT(*)
             FROM profile_movies pm2
             JOIN movies m ON m.id = pm2.movie_id
-            JOIN profiles p2 ON p2.id = pm2.profile_id
+            JOIN profiles p2 ON p2.profile_id = pm2.profile_id
             WHERE p2.account_id = ?
             GROUP BY m.id
             ORDER BY COUNT(*) DESC
