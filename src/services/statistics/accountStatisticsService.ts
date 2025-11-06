@@ -1015,7 +1015,7 @@ export class AccountStatisticsService {
               movieWatchProgress: profile.movie_watch_progress,
               topGenres: genres.slice(0, 3),
               topServices: services.slice(0, 3),
-              episodesPerWeek: velocity?.episodes_per_week || 0,
+              episodesPerWeek: Number(velocity?.episodes_per_week || 0),
               mostActiveDay: velocity?.most_active_day || 'Monday',
               lastActivityDate: profile.last_activity_date,
               currentlyWatchingCount: profile.currently_watching_count,
