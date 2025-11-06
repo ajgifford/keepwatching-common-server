@@ -27,8 +27,8 @@ export async function getProfileComparisonData(accountId: number): Promise<{
       // Get basic profile metrics
       const [profileRows] = await connection.query<ProfileComparisonRow[]>(
         `
-        SELECT 
-          p.id as profile_id,
+        SELECT
+          p.profile_id as profile_id,
           p.name as profile_name,
           COUNT(DISTINCT ps.show_id) as total_shows,
           COUNT(DISTINCT pm.movie_id) as total_movies,
@@ -55,9 +55,9 @@ export async function getProfileComparisonData(accountId: number): Promise<{
           COALESCE(watching_count.count, 0) as currently_watching_count,
           COALESCE(completed_count.count, 0) as completed_shows_count
         FROM profiles p
-        LEFT JOIN profile_shows ps ON ps.profile_id = p.id
-        LEFT JOIN profile_movies pm ON pm.profile_id = p.id
-        LEFT JOIN episode_watch_status ews ON ews.profile_id = p.id AND ews.status = 'WATCHED'
+        LEFT JOIN profile_shows ps ON ps.profile_id = p.profile_id
+        LEFT JOIN profile_movies pm ON pm.profile_id = p.profile_id
+        LEFT JOIN episode_watch_status ews ON ews.profile_id = p.profile_id AND ews.status = 'WATCHED'
         LEFT JOIN movie_watch_status mws ON mws.profile_movie_id = pm.id AND mws.status = 'WATCHED'
         LEFT JOIN (
           SELECT profile_id, COUNT(*) as count, SUM(e.runtime) as total_runtime
@@ -65,7 +65,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
           JOIN episodes e ON e.id = ews.episode_id
           WHERE ews.status = 'WATCHED'
           GROUP BY profile_id
-        ) as episodes_watched ON episodes_watched.profile_id = p.id
+        ) as episodes_watched ON episodes_watched.profile_id = p.profile_id
         LEFT JOIN (
           SELECT pm.profile_id, COUNT(*) as count, SUM(m.runtime) as total_runtime
           FROM movie_watch_status mws
@@ -73,30 +73,30 @@ export async function getProfileComparisonData(accountId: number): Promise<{
           JOIN movies m ON m.id = pm.movie_id
           WHERE mws.status = 'WATCHED'
           GROUP BY pm.profile_id
-        ) as movies_watched ON movies_watched.profile_id = p.id
+        ) as movies_watched ON movies_watched.profile_id = p.profile_id
         LEFT JOIN (
           SELECT profile_id, COUNT(*) as count
           FROM show_watch_status sws
           JOIN profile_shows ps ON ps.id = sws.profile_show_id
           WHERE sws.status = 'WATCHED'
           GROUP BY profile_id
-        ) as shows_watched ON shows_watched.profile_id = p.id
+        ) as shows_watched ON shows_watched.profile_id = p.profile_id
         LEFT JOIN (
           SELECT profile_id, COUNT(*) as count
           FROM show_watch_status sws
           JOIN profile_shows ps ON ps.id = sws.profile_show_id
           WHERE sws.status = 'WATCHING'
           GROUP BY profile_id
-        ) as watching_count ON watching_count.profile_id = p.id
+        ) as watching_count ON watching_count.profile_id = p.profile_id
         LEFT JOIN (
           SELECT profile_id, COUNT(*) as count
           FROM show_watch_status sws
           JOIN profile_shows ps ON ps.id = sws.profile_show_id
           WHERE sws.status = 'WATCHED'
           GROUP BY profile_id
-        ) as completed_count ON completed_count.profile_id = p.id
+        ) as completed_count ON completed_count.profile_id = p.profile_id
         WHERE p.account_id = ?
-        GROUP BY p.id, p.name, episodes_watched.count, episodes_watched.total_runtime,
+        GROUP BY p.profile_id, p.name, episodes_watched.count, episodes_watched.total_runtime,
                  movies_watched.count, movies_watched.total_runtime, shows_watched.count,
                  movies_watched.count, watching_count.count, completed_count.count
         ORDER BY p.name
@@ -159,25 +159,25 @@ export async function getProfileComparisonData(accountId: number): Promise<{
       // Get velocity data per profile
       const [velocityRows] = await connection.query<ProfileVelocityRow[]>(
         `
-        SELECT 
-          p.id as profile_id,
-          COALESCE(ROUND(COUNT(DISTINCT ews.episode_id) / 
+        SELECT
+          p.profile_id as profile_id,
+          COALESCE(ROUND(COUNT(DISTINCT ews.episode_id) /
             NULLIF(DATEDIFF(MAX(ews.updated_at), MIN(ews.updated_at)), 0) * 7, 2), 0) as episodes_per_week,
           COALESCE(
             DAYNAME(
-              (SELECT DATE(updated_at) 
-               FROM episode_watch_status 
-               WHERE profile_id = p.id AND status = 'WATCHED'
-               GROUP BY DATE(updated_at) 
-               ORDER BY COUNT(*) DESC 
+              (SELECT DATE(updated_at)
+               FROM episode_watch_status
+               WHERE profile_id = p.profile_id AND status = 'WATCHED'
+               GROUP BY DATE(updated_at)
+               ORDER BY COUNT(*) DESC
                LIMIT 1)
-            ), 
+            ),
             'Monday'
           ) as most_active_day
         FROM profiles p
-        LEFT JOIN episode_watch_status ews ON ews.profile_id = p.id AND ews.status = 'WATCHED'
+        LEFT JOIN episode_watch_status ews ON ews.profile_id = p.profile_id AND ews.status = 'WATCHED'
         WHERE p.account_id = ?
-        GROUP BY p.id
+        GROUP BY p.profile_id
         `,
         [accountId],
       );
@@ -249,8 +249,8 @@ export async function getProfileComparisonData(accountId: number): Promise<{
             LIMIT 1
           ) as most_watched_movie_count
         FROM profiles p
-        LEFT JOIN profile_shows ps ON ps.profile_id = p.id
-        LEFT JOIN profile_movies pm ON pm.profile_id = p.id
+        LEFT JOIN profile_shows ps ON ps.profile_id = p.profile_id
+        LEFT JOIN profile_movies pm ON pm.profile_id = p.profile_id
         WHERE p.account_id = ?
         `,
         [accountId, accountId, accountId, accountId, accountId, accountId, accountId],
