@@ -85,8 +85,8 @@ export async function getAccountRankings(
           SELECT 
             p.account_id,
             GREATEST(
-              COALESCE(MAX(ews.updated_at), '1970-01-01'),
-              COALESCE(MAX(mws.updated_at), '1970-01-01')
+              MAX(ews.updated_at),
+              MAX(mws.updated_at)
             ) as last_activity
           FROM profiles p
           LEFT JOIN episode_watch_status ews ON ews.profile_id = p.profile_id AND ews.status = 'WATCHED'
@@ -121,12 +121,14 @@ export async function getAllAccountHealthMetrics(): Promise<AccountHealthRow[]> 
         SELECT 
           a.account_id as account_id,
           a.email as account_email,
+          a.uid as uid,
+          FALSE as email_verified,
           a.created_at as account_created_at,
           COUNT(DISTINCT p.profile_id) as profile_count,
           COALESCE(all_episodes.episodes_watched, 0) as total_episodes_watched,
           COALESCE(recent_episodes.episodes_watched, 0) as recent_episodes_watched,
           activity.last_activity as last_activity_date,
-          COALESCE(DATEDIFF(NOW(), activity.last_activity), 9999) as days_since_last_activity
+          DATEDIFF(NOW(), activity.last_activity) as days_since_last_activity
         FROM accounts a
         LEFT JOIN profiles p ON p.account_id = a.account_id
         LEFT JOIN (
@@ -152,8 +154,8 @@ export async function getAllAccountHealthMetrics(): Promise<AccountHealthRow[]> 
           SELECT 
             p.account_id,
             GREATEST(
-              COALESCE(MAX(ews.updated_at), '1970-01-01'),
-              COALESCE(MAX(mws.updated_at), '1970-01-01')
+              MAX(ews.updated_at),
+              MAX(mws.updated_at)
             ) as last_activity
           FROM profiles p
           LEFT JOIN episode_watch_status ews ON ews.profile_id = p.profile_id AND ews.status = 'WATCHED'
@@ -162,7 +164,8 @@ export async function getAllAccountHealthMetrics(): Promise<AccountHealthRow[]> 
         ) as activity ON activity.account_id = a.account_id
         GROUP BY 
           a.account_id, 
-          a.email, 
+          a.email,
+          a.uid,
           a.created_at, 
           all_episodes.episodes_watched, 
           recent_episodes.episodes_watched,
@@ -193,12 +196,14 @@ export async function getAccountHealthMetrics(accountId: number): Promise<Accoun
         SELECT 
           a.account_id as account_id,
           a.email as account_email,
+          a.uid as uid,
+          FALSE as email_verified,
           a.created_at as account_created_at,
           COUNT(DISTINCT p.profile_id) as profile_count,
           COALESCE(all_episodes.episodes_watched, 0) as total_episodes_watched,
           COALESCE(recent_episodes.episodes_watched, 0) as recent_episodes_watched,
           activity.last_activity as last_activity_date,
-          COALESCE(DATEDIFF(NOW(), activity.last_activity), 9999) as days_since_last_activity
+          DATEDIFF(NOW(), activity.last_activity) as days_since_last_activity
         FROM accounts a
         LEFT JOIN profiles p ON p.account_id = a.account_id
         LEFT JOIN (
@@ -224,8 +229,8 @@ export async function getAccountHealthMetrics(accountId: number): Promise<Accoun
           SELECT 
             p.account_id,
             GREATEST(
-              COALESCE(MAX(ews.updated_at), '1970-01-01'),
-              COALESCE(MAX(mws.updated_at), '1970-01-01')
+              MAX(ews.updated_at),
+              MAX(mws.updated_at)
             ) as last_activity
           FROM profiles p
           LEFT JOIN episode_watch_status ews ON ews.profile_id = p.profile_id AND ews.status = 'WATCHED'
@@ -233,7 +238,7 @@ export async function getAccountHealthMetrics(accountId: number): Promise<Accoun
           GROUP BY p.account_id
         ) as activity ON activity.account_id = a.account_id
         WHERE a.account_id = ?
-        GROUP BY a.account_id, a.email, a.created_at, 
+        GROUP BY a.account_id, a.email, a.uid, a.created_at, 
                  all_episodes.episodes_watched, recent_episodes.episodes_watched,
                  activity.last_activity;
         `,
