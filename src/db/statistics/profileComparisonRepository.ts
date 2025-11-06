@@ -75,25 +75,25 @@ export async function getProfileComparisonData(accountId: number): Promise<{
           GROUP BY pm.profile_id
         ) as movies_watched ON movies_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT profile_id, COUNT(*) as count
+          SELECT ps.profile_id, COUNT(*) as count
           FROM show_watch_status sws
           JOIN profile_shows ps ON ps.id = sws.profile_show_id
           WHERE sws.status = 'WATCHED'
-          GROUP BY profile_id
+          GROUP BY ps.profile_id
         ) as shows_watched ON shows_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT profile_id, COUNT(*) as count
+          SELECT ps.profile_id, COUNT(*) as count
           FROM show_watch_status sws
           JOIN profile_shows ps ON ps.id = sws.profile_show_id
           WHERE sws.status = 'WATCHING'
-          GROUP BY profile_id
+          GROUP BY ps.profile_id
         ) as watching_count ON watching_count.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT profile_id, COUNT(*) as count
+          SELECT ps.profile_id, COUNT(*) as count
           FROM show_watch_status sws
           JOIN profile_shows ps ON ps.id = sws.profile_show_id
           WHERE sws.status = 'WATCHED'
-          GROUP BY profile_id
+          GROUP BY ps.profile_id
         ) as completed_count ON completed_count.profile_id = p.profile_id
         WHERE p.account_id = ?
         GROUP BY p.profile_id, p.name, episodes_watched.count, episodes_watched.total_runtime,
