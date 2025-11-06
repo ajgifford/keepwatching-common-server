@@ -147,6 +147,7 @@ export interface AccountRankingRow extends RowDataPacket {
 export interface AccountHealthRow extends RowDataPacket {
   account_id: number;
   account_email: string;
+  uid: string;
   email_verified: boolean;
   account_created_at: string;
   profile_count: number;

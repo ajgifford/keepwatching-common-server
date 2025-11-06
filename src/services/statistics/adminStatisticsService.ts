@@ -1,8 +1,11 @@
+import { getServiceName } from '../../config/config';
 import { ADMIN_KEYS } from '../../constants/cacheKeys';
 import * as accountComparisonRepository from '../../db/statistics/accountComparisonRepository';
 import * as adminStatsRepository from '../../db/statistics/adminStatsRepository';
 import * as contentPerformanceRepository from '../../db/statistics/contentPerformanceRepository';
-import { BadRequestError } from '../../middleware/errorMiddleware';
+import { cliLogger } from '../../logger/logger';
+import { BadRequestError, FirebaseError } from '../../middleware/errorMiddleware';
+import { getFirebaseAdmin } from '../../utils/firebaseUtil';
 import { CacheService } from '../cacheService';
 import { errorService } from '../errorService';
 import {
@@ -22,9 +25,83 @@ import {
  */
 export class AdminStatisticsService {
   private cache: CacheService;
+  private serviceName: string;
 
   constructor() {
     this.cache = CacheService.getInstance();
+    this.serviceName = getServiceName();
+  }
+
+  /**
+   * Get Firebase Admin instance
+   * @private
+   */
+  private getAdmin() {
+    const admin = getFirebaseAdmin(this.serviceName);
+    if (admin) {
+      return admin;
+    }
+    throw new FirebaseError();
+  }
+
+  /**
+   * Fetch email verification status for a single UID from Firebase
+   * @param uid - Firebase UID
+   * @returns Email verification status or false if not found
+   * @private
+   */
+  private async getEmailVerificationStatus(uid: string | null): Promise<boolean> {
+    if (!uid) {
+      return false;
+    }
+
+    try {
+      const userRecord = await this.getAdmin().auth().getUser(uid);
+      return userRecord.emailVerified;
+    } catch (error) {
+      // If user not found in Firebase, return false
+      cliLogger.log(`Failed to fetch email verification status for UID ${uid}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Fetch email verification statuses for multiple UIDs from Firebase
+   * @param uids - Array of Firebase UIDs
+   * @returns Map of UID to email verification status
+   * @private
+   */
+  private async getBatchEmailVerificationStatuses(uids: (string | null)[]): Promise<Map<string, boolean>> {
+    const statusMap = new Map<string, boolean>();
+    const validUids = uids.filter((uid): uid is string => uid !== null && uid !== undefined);
+
+    // Process in batches of 100 (Firebase limit)
+    for (let i = 0; i < validUids.length; i += 100) {
+      const batch = validUids.slice(i, i + 100);
+
+      try {
+        const getUsersResult = await this.getAdmin()
+          .auth()
+          .getUsers(batch.map((uid) => ({ uid })));
+
+        getUsersResult.users.forEach((user) => {
+          statusMap.set(user.uid, user.emailVerified);
+        });
+
+        // Mark not found users as false
+        getUsersResult.notFound.forEach((userIdentifier) => {
+          if ('uid' in userIdentifier) {
+            statusMap.set(userIdentifier.uid, false);
+          }
+        });
+      } catch (error) {
+        // If batch fails, mark all as false
+        cliLogger.log(`Failed to fetch batch email verification statuses for batch:`, error);
+        batch.forEach((uid) => statusMap.set(uid, false));
+      }
+    }
+
+    return statusMap;
   }
 
   /**
@@ -186,6 +263,10 @@ export class AdminStatisticsService {
         async () => {
           const healthData = await accountComparisonRepository.getAllAccountHealthMetrics();
 
+          // Fetch email verification statuses from Firebase in batch
+          const uids = healthData.map((row) => row.uid);
+          const emailVerificationMap = await this.getBatchEmailVerificationStatuses(uids);
+
           let totalAccounts = 0;
           let activeAccounts = 0;
           let inactiveAccounts = 0;
@@ -213,6 +294,11 @@ export class AdminStatisticsService {
             riskDistribution[riskLevel]++;
             totalEngagementScore += engagementScore;
 
+            // Get email verification from Firebase, fallback to database value
+            const emailVerified = row.uid
+              ? (emailVerificationMap.get(row.uid) ?? row.email_verified)
+              : row.email_verified;
+
             return {
               accountId: row.account_id,
               accountEmail: row.account_email,
@@ -225,7 +311,7 @@ export class AdminStatisticsService {
               accountCreatedAt: row.account_created_at,
               lastActivityDate: row.last_activity_date,
               profileCount: row.profile_count,
-              emailVerified: row.email_verified,
+              emailVerified,
             };
           });
 
@@ -269,6 +355,9 @@ export class AdminStatisticsService {
           const riskLevel = this.calculateRiskLevel(daysSinceActivity);
           const isAtRisk = riskLevel === 'medium' || riskLevel === 'high';
 
+          // Fetch email verification status from Firebase
+          const emailVerified = await this.getEmailVerificationStatus(healthData.uid);
+
           return {
             accountId: healthData.account_id,
             accountEmail: healthData.account_email,
@@ -281,7 +370,7 @@ export class AdminStatisticsService {
             accountCreatedAt: healthData.account_created_at,
             lastActivityDate: healthData.last_activity_date,
             profileCount: healthData.profile_count,
-            emailVerified: healthData.email_verified,
+            emailVerified,
           };
         },
         1800, // 30 minutes cache
