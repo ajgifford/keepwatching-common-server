@@ -79,40 +79,53 @@ export async function getProfileComparisonData(accountId: number): Promise<{
           GROUP BY profile_id
         ) as episodes_watched ON episodes_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT profile_id, COUNT(DISTINCT movie_id) as count, SUM(runtime) as total_runtime
+          SELECT pm.profile_id, COUNT(*) as count, SUM(runtime) as total_runtime
           FROM (
-            SELECT DISTINCT pm.profile_id, pm.movie_id, m.runtime
+            SELECT pm.profile_id, pm.movie_id, MAX(m.runtime) as runtime
             FROM movie_watch_status mws
             JOIN profile_movies pm ON pm.id = mws.profile_movie_id
             JOIN movies m ON m.id = pm.movie_id
             WHERE mws.status = 'WATCHED'
               AND pm.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY pm.profile_id, pm.movie_id
           ) as unique_movies
           GROUP BY profile_id
         ) as movies_watched ON movies_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT ps.profile_id, COUNT(DISTINCT sws.profile_show_id) as count
-          FROM show_watch_status sws
-          JOIN profile_shows ps ON ps.id = sws.profile_show_id
-          WHERE sws.status = 'WATCHED'
-            AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-          GROUP BY ps.profile_id
+          SELECT ps.profile_id, COUNT(*) as count
+          FROM (
+            SELECT ps.profile_id, sws.profile_show_id
+            FROM show_watch_status sws
+            JOIN profile_shows ps ON ps.id = sws.profile_show_id
+            WHERE sws.status = 'WATCHED'
+              AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY ps.profile_id, sws.profile_show_id
+          ) as unique_shows
+          GROUP BY profile_id
         ) as shows_watched ON shows_watched.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT ps.profile_id, COUNT(DISTINCT sws.profile_show_id) as count
-          FROM show_watch_status sws
-          JOIN profile_shows ps ON ps.id = sws.profile_show_id
-          WHERE sws.status = 'WATCHING'
-            AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-          GROUP BY ps.profile_id
+          SELECT ps.profile_id, COUNT(*) as count
+          FROM (
+            SELECT ps.profile_id, sws.profile_show_id
+            FROM show_watch_status sws
+            JOIN profile_shows ps ON ps.id = sws.profile_show_id
+            WHERE sws.status = 'WATCHING'
+              AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY ps.profile_id, sws.profile_show_id
+          ) as unique_shows
+          GROUP BY profile_id
         ) as watching_count ON watching_count.profile_id = p.profile_id
         LEFT JOIN (
-          SELECT ps.profile_id, COUNT(DISTINCT sws.profile_show_id) as count
-          FROM show_watch_status sws
-          JOIN profile_shows ps ON ps.id = sws.profile_show_id
-          WHERE sws.status = 'WATCHED'
-            AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
-          GROUP BY ps.profile_id
+          SELECT ps.profile_id, COUNT(*) as count
+          FROM (
+            SELECT ps.profile_id, sws.profile_show_id
+            FROM show_watch_status sws
+            JOIN profile_shows ps ON ps.id = sws.profile_show_id
+            WHERE sws.status = 'WATCHED'
+              AND ps.profile_id IN (SELECT profile_id FROM profiles WHERE account_id = ?)
+            GROUP BY ps.profile_id, sws.profile_show_id
+          ) as unique_shows
+          GROUP BY profile_id
         ) as completed_count ON completed_count.profile_id = p.profile_id
         LEFT JOIN (
           SELECT profile_id, MAX(updated_at) as last_updated
