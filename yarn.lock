@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@ajgifford/keepwatching-types@^0.7.1":
-  version "0.7.1"
-  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.7.1/55d783cb7ffc973d1dfef6bd20fbfacf62fc70ab#55d783cb7ffc973d1dfef6bd20fbfacf62fc70ab"
-  integrity sha512-AhY66mR8amU2FyWVrnOVGtK8U8rDvK+Y0vWTvhjlkXZLlGtYaqBIh48WzZn6B/48qtzJfNc6y0o9Dxf2Rx6u1Q==
+"@ajgifford/keepwatching-types@^0.7.2":
+  version "0.7.2"
+  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.7.2/94cdc28949cb1e97003e5a1a388fba878d8980d8#94cdc28949cb1e97003e5a1a388fba878d8980d8"
+  integrity sha512-0VEJCnTGGZyFvGzvcBLN1PZpNagx+Z6JlzfJh/43YHG1USXwvIUrVP1AvRNq2Nkl6K5qpaWoBj2CJF69ZWGo1g==
 
 "@aws-crypto/sha256-browser@5.2.0":
   version "5.2.0"
