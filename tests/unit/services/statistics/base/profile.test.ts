@@ -1,9 +1,12 @@
-import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { showService } from '@services/showService';
-import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ProfileStatisticsService,
+  createProfileStatisticsService,
+  resetProfileStatisticsService,
+} from '@services/statistics/profileStatisticsService';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@services/showService');
 vi.mock('@services/errorService');
@@ -11,6 +14,7 @@ vi.mock('@services/moviesService');
 vi.mock('@services/cacheService');
 
 describe('profileStatisticsService', () => {
+  let profileStatisticsService: ProfileStatisticsService;
   const mockCacheService = {
     getOrSet: vi.fn(),
     invalidate: vi.fn(),
@@ -19,12 +23,14 @@ describe('profileStatisticsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    resetProfileStatisticsService();
 
-    Object.defineProperty(profileStatisticsService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    profileStatisticsService = createProfileStatisticsService({ cacheService: mockCacheService as any });
+  });
+
+  afterEach(() => {
+    resetProfileStatisticsService();
+    vi.resetModules();
   });
 
   describe('getProfileStatistics', () => {

@@ -1,14 +1,18 @@
 import * as statisticsDb from '@db/statisticsDb';
-import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ProfileStatisticsService,
+  createProfileStatisticsService,
+  resetProfileStatisticsService,
+} from '@services/statistics/profileStatisticsService';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@db/statisticsDb');
 vi.mock('@services/errorService');
 vi.mock('@services/cacheService');
 
 describe('Statistics - Streak - Profile', () => {
+  let profileStatisticsService: ProfileStatisticsService;
   const mockCacheService = {
     getOrSet: vi.fn(),
     invalidate: vi.fn(),
@@ -17,12 +21,14 @@ describe('Statistics - Streak - Profile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    resetProfileStatisticsService();
 
-    Object.defineProperty(profileStatisticsService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    profileStatisticsService = createProfileStatisticsService({ cacheService: mockCacheService as any });
+  });
+
+  afterEach(() => {
+    resetProfileStatisticsService();
+    vi.resetModules();
   });
 
   describe('getWatchStreakStats', () => {
