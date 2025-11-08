@@ -1,11 +1,15 @@
 import { DigestEmail, DiscoveryEmail } from '../../../../src/types/emailTypes';
 import { EmailConfig } from '@config/config';
 import { appLogger, cliLogger } from '@logger/logger';
-import { EmailDeliveryService } from '@services/email/emailDeliveryService';
+import {
+  EmailDeliveryService,
+  createEmailDeliveryService,
+  resetEmailDeliveryService,
+} from '@services/email/emailDeliveryService';
 import { errorService } from '@services/errorService';
 import * as emailUtility from '@utils/emailUtility';
 import nodemailer from 'nodemailer';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
 vi.mock('nodemailer');
@@ -50,6 +54,7 @@ describe('EmailDeliveryService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetEmailDeliveryService();
 
     mockConfig = {
       host: 'smtp.test.com',
@@ -65,9 +70,13 @@ describe('EmailDeliveryService', () => {
     // Set up nodemailer.createTransport mock
     vi.mocked(nodemailer.createTransport).mockReturnValue(mockTransporter as any);
 
-    emailDeliveryService = new EmailDeliveryService(mockConfig);
+    emailDeliveryService = createEmailDeliveryService({ config: mockConfig });
 
     (errorService.handleError as Mock).mockImplementation((error) => error);
+  });
+
+  afterEach(() => {
+    resetEmailDeliveryService();
   });
 
   describe('constructor', () => {

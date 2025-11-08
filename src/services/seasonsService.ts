@@ -16,6 +16,10 @@ import {
  * Service class for handling season-related business logic
  */
 export class SeasonsService {
+  constructor(dependencies?: {}) {
+    // No dependencies currently, but constructor added for consistency with factory pattern
+  }
+
   /**
    * Updates the watch status of a season
    *
@@ -103,4 +107,40 @@ export class SeasonsService {
   }
 }
 
-export const seasonsService = new SeasonsService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createSeasonsService(dependencies?: {}): SeasonsService {
+  return new SeasonsService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: SeasonsService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getSeasonsService(): SeasonsService {
+  if (!instance) {
+    instance = createSeasonsService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetSeasonsService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { seasonsService }` continues to work
+ */
+export const seasonsService = getSeasonsService();

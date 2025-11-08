@@ -11,9 +11,17 @@ import { UserWatchStatus } from '@ajgifford/keepwatching-types';
  */
 export class WatchStatusService {
   private dbService: WatchStatusDbService;
+  private checkAchievements: (profileId: number, accountId: number) => Promise<void>;
 
-  constructor() {
-    this.dbService = new WatchStatusDbService();
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: {
+    dbService?: WatchStatusDbService;
+    checkAchievements?: (profileId: number, accountId: number) => Promise<void>;
+  }) {
+    this.dbService = dependencies?.dbService ?? new WatchStatusDbService();
+    this.checkAchievements = dependencies?.checkAchievements ?? checkAndRecordAchievements;
   }
 
   /**
@@ -40,7 +48,7 @@ export class WatchStatusService {
       showService.invalidateProfileCache(accountId, profileId);
 
       // Check for new achievements (non-blocking)
-      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+      this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after episode watch status update:', err);
       });
 
@@ -82,7 +90,7 @@ export class WatchStatusService {
       }
 
       // Check for new achievements (non-blocking)
-      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+      this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after season watch status update:', err);
       });
 
@@ -122,7 +130,7 @@ export class WatchStatusService {
       showService.invalidateProfileCache(accountId, profileId);
 
       // Check for new achievements (non-blocking)
-      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+      this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after show watch status update:', err);
       });
 
@@ -226,6 +234,42 @@ export class WatchStatusService {
 }
 
 /**
- * Singleton instance for global access
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
  */
-export const watchStatusService = new WatchStatusService();
+export function createWatchStatusService(dependencies?: {
+  dbService?: WatchStatusDbService;
+  checkAchievements?: (profileId: number, accountId: number) => Promise<void>;
+}): WatchStatusService {
+  return new WatchStatusService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: WatchStatusService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getWatchStatusService(): WatchStatusService {
+  if (!instance) {
+    instance = createWatchStatusService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetWatchStatusService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { watchStatusService }` continues to work
+ */
+export const watchStatusService = getWatchStatusService();

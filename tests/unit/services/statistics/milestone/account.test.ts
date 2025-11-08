@@ -1,11 +1,14 @@
 import * as accountsDb from '@db/accountsDb';
 import { BadRequestError } from '@middleware/errorMiddleware';
-import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { profileService } from '@services/profileService';
-import { accountStatisticsService } from '@services/statistics/accountStatisticsService';
+import {
+  AccountStatisticsService,
+  createAccountStatisticsService,
+  resetAccountStatisticsService,
+} from '@services/statistics/accountStatisticsService';
 import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@services/errorService');
 vi.mock('@services/cacheService');
@@ -14,6 +17,7 @@ vi.mock('@services/statistics/profileStatisticsService');
 vi.mock('@db/accountsDb');
 
 describe('Statistics - Milestone - Account', () => {
+  let accountStatisticsService: AccountStatisticsService;
   const mockCacheService = {
     getOrSet: vi.fn(),
     invalidate: vi.fn(),
@@ -22,12 +26,14 @@ describe('Statistics - Milestone - Account', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    resetAccountStatisticsService();
 
-    Object.defineProperty(accountStatisticsService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    accountStatisticsService = createAccountStatisticsService({ cacheService: mockCacheService as any });
+  });
+
+  afterEach(() => {
+    resetAccountStatisticsService();
+    vi.resetModules();
   });
 
   describe('getAccountMilestoneStats', () => {

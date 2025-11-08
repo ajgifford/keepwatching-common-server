@@ -26,6 +26,14 @@ import { ContentReference, Profile } from '@ajgifford/keepwatching-types';
  */
 export class EmailContentService {
   /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: object) {
+    // No dependencies currently, but keeping pattern consistent
+    void dependencies;
+  }
+
+  /**
    * Generate email content for a specific account
    */
   public async generateEmailContent(accountEmail: string): Promise<EmailContentResult> {
@@ -429,4 +437,40 @@ export class EmailContentService {
   }
 }
 
-export const emailContentService = new EmailContentService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createEmailContentService(dependencies?: object): EmailContentService {
+  return new EmailContentService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: EmailContentService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getEmailContentService(): EmailContentService {
+  if (!instance) {
+    instance = createEmailContentService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetEmailContentService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { emailContentService }` continues to work
+ */
+export const emailContentService = getEmailContentService();

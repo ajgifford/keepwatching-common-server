@@ -11,6 +11,7 @@ import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { cliLogger } from '@logger/logger';
 import { errorService } from '@services/errorService';
+import { resetShowService } from '@services/showService';
 import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import { type Mock, Mocked, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +25,10 @@ describe('ShowService - Episodes', () => {
     service = setup.service;
     mockCache = setup.mockCache;
     setupDbMocks();
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('getEpisodesForProfile', () => {

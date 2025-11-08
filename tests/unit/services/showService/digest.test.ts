@@ -2,8 +2,12 @@ import { createMockCache, setupMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { ShowService, showService } from '@services/showService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it } from 'vitest';
+import {
+  ShowService,
+  createShowService,
+  resetShowService,
+} from '@services/showService';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Digest', () => {
   let service: ShowService;
@@ -11,11 +15,14 @@ describe('ShowService - Digest', () => {
 
   beforeEach(() => {
     setupMocks();
+    resetShowService();
     mockCache = createMockCache();
 
-    Object.setPrototypeOf(showService, ShowService.prototype);
-    (showService as any).cache = mockCache;
-    service = showService;
+    service = createShowService({ cacheService: mockCache });
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('getTrendingShows', () => {

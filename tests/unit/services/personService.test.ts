@@ -4,7 +4,12 @@ import { CACHE_KEY_PATTERNS, PERSON_KEYS } from '@constants/cacheKeys';
 import * as personsDb from '@db/personsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { PersonService, personService } from '@services/personService';
+import {
+  PersonService,
+  createPersonService,
+  personService,
+  resetPersonService,
+} from '@services/personService';
 import { getTMDBService } from '@services/tmdbService';
 import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,6 +32,8 @@ describe('PersonService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    resetPersonService();
+
     mockCache = {
       getOrSet: vi.fn(),
       get: vi.fn(),
@@ -43,21 +50,23 @@ describe('PersonService', () => {
       keys: vi.fn(),
     } as any;
 
-    Object.setPrototypeOf(personService, PersonService.prototype);
-    (personService as any).cache = mockCache;
-
     (errorService.handleError as Mock).mockImplementation((error) => {
       throw error;
     });
 
     (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-    service = personService;
+    service = createPersonService({ cacheService: mockCache });
+  });
+
+  afterEach(() => {
+    resetPersonService();
+    vi.resetModules();
   });
 
   describe('constructor', () => {
     it('should initialize with cache service instance', () => {
-      new PersonService();
+      createPersonService();
       expect(CacheService.getInstance).toHaveBeenCalled();
     });
   });

@@ -7,16 +7,24 @@ import { ErrorMessages } from '@logger/loggerModel';
 import { errorService } from '@services/errorService';
 import { notificationsService } from '@services/notificationsService';
 import { processSeasonChanges } from '@services/seasonChangesService';
-import { showService } from '@services/showService';
+import {
+  showService,
+  resetShowService,
+} from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
 import { watchStatusService } from '@services/watchStatusService';
 import * as contentUtility from '@utils/contentUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('ShowService - Content Updates', () => {
   beforeEach(() => {
     setupMocks();
+    resetShowService();
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('showChangesService', () => {

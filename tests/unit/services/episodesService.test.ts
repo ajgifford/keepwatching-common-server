@@ -1,11 +1,15 @@
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodesDb from '@db/episodesDb';
 import { appLogger } from '@logger/logger';
-import { episodesService } from '@services/episodesService';
+import {
+  EpisodesService,
+  createEpisodesService,
+  resetEpisodesService,
+} from '@services/episodesService';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@db/episodesDb');
 vi.mock('@db/seasonsDb');
@@ -22,6 +26,7 @@ vi.mock('@logger/logger', () => ({
 }));
 
 describe('episodesService', () => {
+  let episodesService: EpisodesService;
   const accountId = 1;
   const profileId = 123;
   const seasonId = 456;
@@ -30,6 +35,12 @@ describe('episodesService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetEpisodesService();
+    episodesService = createEpisodesService();
+  });
+
+  afterEach(() => {
+    resetEpisodesService();
   });
 
   describe('updateEpisodeWatchStatus', () => {

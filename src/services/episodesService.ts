@@ -17,6 +17,10 @@ import {
  * Service class for handling episode-related business logic
  */
 export class EpisodesService {
+  constructor(dependencies?: {}) {
+    // No dependencies currently, but constructor added for consistency with factory pattern
+  }
+
   /**
    * Updates the watch status of an episode
    *
@@ -132,5 +136,40 @@ export class EpisodesService {
   }
 }
 
-// Export a singleton instance for global use
-export const episodesService = new EpisodesService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createEpisodesService(dependencies?: {}): EpisodesService {
+  return new EpisodesService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: EpisodesService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getEpisodesService(): EpisodesService {
+  if (!instance) {
+    instance = createEpisodesService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetEpisodesService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { episodesService }` continues to work
+ */
+export const episodesService = getEpisodesService();

@@ -2,14 +2,17 @@ import * as moviesDb from '@db/moviesDb';
 import * as personsDb from '@db/personsDb';
 import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import { adminMovieService } from '@services/adminMovieService';
-import { CacheService } from '@services/cacheService';
+import {
+  AdminMovieService,
+  createAdminMovieService,
+  resetAdminMovieService,
+} from '@services/adminMovieService';
 import { errorService } from '@services/errorService';
 import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import { getUSMPARating } from '@utils/contentUtility';
 import { getUSWatchProvidersMovie } from '@utils/watchProvidersUtility';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the repositories and services
 vi.mock('@db/moviesDb');
@@ -32,7 +35,8 @@ vi.mock('@logger/logger', () => ({
 }));
 
 describe('AdminMovieService', () => {
-  let mockCacheService: MockedObject<any>;
+  let adminMovieService: AdminMovieService;
+  let mockCacheService: any;
 
   const mockMovieId = 123;
   const mockTMDBId = 456;
@@ -84,18 +88,15 @@ describe('AdminMovieService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    resetAdminMovieService();
+
     mockCacheService = {
       getOrSet: vi.fn(),
       invalidate: vi.fn(),
       invalidatePattern: vi.fn(),
     };
 
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
-
-    Object.defineProperty(adminMovieService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    adminMovieService = createAdminMovieService({ cacheService: mockCacheService as any });
 
     (errorService.handleError as Mock).mockImplementation((error) => {
       throw error;
@@ -110,6 +111,11 @@ describe('AdminMovieService', () => {
     (personsDb.findPersonByTMDBId as Mock).mockResolvedValue(null);
     (personsDb.savePerson as Mock).mockResolvedValue(1);
     (personsDb.saveMovieCast as Mock).mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    resetAdminMovieService();
+    vi.resetModules();
   });
 
   describe('getMovieDetails', () => {

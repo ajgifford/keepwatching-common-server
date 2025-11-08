@@ -12,8 +12,11 @@ import { UpdatePersonResult } from 'src/types/personTypes';
 export class PersonService {
   private cache: CacheService;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
   }
 
   public async invalidatePersonCache(personId: number) {
@@ -257,5 +260,40 @@ export class PersonService {
   }
 }
 
-// Export a singleton instance for global use
-export const personService = new PersonService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createPersonService(dependencies?: { cacheService?: CacheService }): PersonService {
+  return new PersonService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: PersonService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getPersonService(): PersonService {
+  if (!instance) {
+    instance = createPersonService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetPersonService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { personService }` continues to work
+ */
+export const personService = getPersonService();

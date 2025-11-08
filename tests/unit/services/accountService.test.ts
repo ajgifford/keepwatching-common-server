@@ -2,14 +2,17 @@ import { AccountRow } from '../../../src/types/accountTypes';
 import * as accountsDb from '@db/accountsDb';
 import { appLogger, cliLogger } from '@logger/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@middleware/errorMiddleware';
-import { accountService } from '@services/accountService';
-import { CacheService } from '@services/cacheService';
+import {
+  AccountService,
+  createAccountService,
+  resetAccountService,
+} from '@services/accountService';
 import { errorService } from '@services/errorService';
 import { profileService } from '@services/profileService';
 import { getFirebaseAdmin } from '@utils/firebaseUtil';
 import { getAccountImage, getPhotoForGoogleAccount } from '@utils/imageUtility';
 import { UserRecord } from 'firebase-admin/auth';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@logger/logger', () => ({
   cliLogger: {
@@ -23,7 +26,6 @@ vi.mock('@logger/logger', () => ({
 }));
 
 vi.mock('@db/accountsDb');
-vi.mock('@services/cacheService');
 vi.mock('@services/errorService');
 vi.mock('@services/profileService');
 vi.mock('@services/preferencesService');
@@ -68,6 +70,7 @@ function createMockUserRecord(data: Partial<MockUserRecord>): UserRecord {
 }
 
 describe('AccountService', () => {
+  let accountService: AccountService;
   const mockCacheService = {
     getOrSet: vi.fn(),
     invalidateAccount: vi.fn(),
@@ -94,12 +97,9 @@ describe('AccountService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    resetAccountService();
 
-    Object.defineProperty(accountService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    accountService = createAccountService({ cacheService: mockCacheService as any });
 
     (errorService.assertExists as Mock).mockImplementation((entity) => {
       if (!entity) throw new Error('Entity not found');
@@ -118,6 +118,11 @@ describe('AccountService', () => {
     (profileService.getProfilesByAccountId as Mock).mockReturnValue(mockProfiles);
     (getAccountImage as Mock).mockReturnValue('account-image-url.jpg');
     (getPhotoForGoogleAccount as Mock).mockReturnValue('google-image-url.jpg');
+  });
+
+  afterEach(() => {
+    resetAccountService();
+    vi.resetModules();
   });
 
   describe('editAccount', () => {

@@ -4,9 +4,13 @@ import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { appLogger } from '@logger/logger';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { ShowService, showService } from '@services/showService';
+import {
+  ShowService,
+  createShowService,
+  resetShowService,
+} from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it } from 'vitest';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Watch Status', () => {
   let service: ShowService;
@@ -19,11 +23,14 @@ describe('ShowService - Watch Status', () => {
 
   beforeEach(() => {
     setupMocks();
+    resetShowService();
     mockCache = createMockCache();
 
-    Object.setPrototypeOf(showService, ShowService.prototype);
-    (showService as any).cache = mockCache;
-    service = showService;
+    service = createShowService({ cacheService: mockCache });
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('updateShowWatchStatus', () => {

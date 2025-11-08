@@ -1,7 +1,7 @@
 import { CustomError } from '@middleware/errorMiddleware';
 import { validateRequest, validateSchema } from '@middleware/validationMiddleware';
 import { Request, Response } from 'express';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 describe('Validation Middleware', () => {
@@ -19,6 +19,11 @@ describe('Validation Middleware', () => {
       json: vi.fn(),
     };
     nextFunction = vi.fn();
+  });
+
+  afterEach(() => {
+    // Restore all spies to prevent leakage to other tests
+    vi.restoreAllMocks();
   });
 
   describe('validateSchema', () => {

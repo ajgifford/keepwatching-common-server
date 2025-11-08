@@ -38,6 +38,13 @@ import {
  */
 export class PreferencesService {
   /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: {}) {
+    // No dependencies for PreferencesService
+  }
+
+  /**
    * Retrieves all preferences for a specific account across all preference types.
    *
    * Returns a complete AccountPreferences object containing all preference types
@@ -289,18 +296,39 @@ export class PreferencesService {
 }
 
 /**
- * Singleton instance of the PreferencesService.
- *
- * This is the primary export that should be used throughout the application
- * to interact with user preferences. The singleton pattern ensures consistent
- * state and connection management across the application.
- *
- * @example
- * ```typescript
- * import { preferencesService } from './services/preferencesService';
- *
- * const preferences = await preferencesService.getAccountPreferences(123);
- * ```
- *
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
  */
-export const preferencesService = new PreferencesService();
+export function createPreferencesService(dependencies?: {}): PreferencesService {
+  return new PreferencesService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: PreferencesService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getPreferencesService(): PreferencesService {
+  if (!instance) {
+    instance = createPreferencesService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetPreferencesService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { preferencesService }` continues to work
+ */
+export const preferencesService = getPreferencesService();

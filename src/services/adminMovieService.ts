@@ -18,8 +18,11 @@ import { AdminMovieDetails, ContentProfiles, UpdateMovieRequest } from '@ajgiffo
 export class AdminMovieService {
   private cache: CacheService;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
   }
 
   public async getAllMovies(page: number, offset: number, limit: number) {
@@ -234,4 +237,40 @@ export class AdminMovieService {
   }
 }
 
-export const adminMovieService = new AdminMovieService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createAdminMovieService(dependencies?: { cacheService?: CacheService }): AdminMovieService {
+  return new AdminMovieService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: AdminMovieService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getAdminMovieService(): AdminMovieService {
+  if (!instance) {
+    instance = createAdminMovieService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetAdminMovieService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { adminMovieService }` continues to work
+ */
+export const adminMovieService = getAdminMovieService();

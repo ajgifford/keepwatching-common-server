@@ -17,6 +17,14 @@ export class EmailService {
   private scheduledJobs: Map<number, NodeJS.Timeout> = new Map();
 
   /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: object) {
+    // No dependencies currently, but keeping pattern consistent
+    void dependencies;
+  }
+
+  /**
    * Verify email connection
    */
   public async verifyConnection(): Promise<boolean> {
@@ -796,4 +804,40 @@ export class EmailService {
   }
 }
 
-export const emailService = new EmailService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createEmailService(dependencies?: object): EmailService {
+  return new EmailService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: EmailService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getEmailService(): EmailService {
+  if (!instance) {
+    instance = createEmailService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetEmailService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { emailService }` continues to work
+ */
+export const emailService = getEmailService();

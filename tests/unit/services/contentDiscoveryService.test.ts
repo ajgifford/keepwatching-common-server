@@ -1,13 +1,18 @@
 import { MediaType } from '@ajgifford/keepwatching-types';
 import { CacheService } from '@services/cacheService';
-import { contentDiscoveryService } from '@services/contentDiscoveryService';
+import {
+  ContentDiscoveryService,
+  contentDiscoveryService,
+  createContentDiscoveryService,
+  resetContentDiscoveryService,
+} from '@services/contentDiscoveryService';
 import { errorService } from '@services/errorService';
 import { StreamingAvailabilityService } from '@services/streamingAvailabilityService';
 import { getTMDBService } from '@services/tmdbService';
 import { getStreamingPremieredDate, getTMDBItemName, getTMDBPremieredDate, stripPrefix } from '@utils/contentUtility';
 import { generateGenreArrayFromIds } from '@utils/genreUtility';
 import { buildTMDBImagePath } from '@utils/imageUtility';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@services/cacheService');
 vi.mock('@services/errorService');
@@ -18,12 +23,16 @@ vi.mock('@utils/imageUtility');
 vi.mock('@utils/contentUtility');
 
 describe('ContentDiscoveryService', () => {
+  let service: ContentDiscoveryService;
   let mockCacheService: MockedObject<CacheService>;
+  let mockStreamingAvailabilityService: any;
   let mockStreamingAvailabilityClient: any;
   let mockTMDBService: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    resetContentDiscoveryService();
 
     // Cache Mock Setup
     mockCacheService = {
@@ -41,8 +50,6 @@ describe('ContentDiscoveryService', () => {
       keys: vi.fn(),
     } as any;
 
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
-
     // Streaming Availability Mock Setup
     mockStreamingAvailabilityClient = {
       showsApi: {
@@ -53,11 +60,9 @@ describe('ContentDiscoveryService', () => {
       },
     };
 
-    const mockStreamingService = {
+    mockStreamingAvailabilityService = {
       getClient: vi.fn().mockReturnValue(mockStreamingAvailabilityClient),
     };
-
-    vi.spyOn(StreamingAvailabilityService, 'getInstance').mockReturnValue(mockStreamingService as any);
 
     // TMDB Service Mock Setup
     mockTMDBService = {
@@ -83,16 +88,15 @@ describe('ContentDiscoveryService', () => {
       return handledError; // Return the error instead of throwing it
     });
 
-    // Attach mocks to contentDiscoveryService
-    Object.defineProperty(contentDiscoveryService, 'cache', {
-      value: mockCacheService,
-      writable: true,
+    service = createContentDiscoveryService({
+      cacheService: mockCacheService,
+      streamingAvailabilityService: mockStreamingAvailabilityService,
     });
+  });
 
-    Object.defineProperty(contentDiscoveryService, 'streamingAvailability', {
-      value: mockStreamingService,
-      writable: true,
-    });
+  afterEach(() => {
+    resetContentDiscoveryService();
+    vi.resetModules();
   });
 
   describe('discoverTopContent', () => {
@@ -107,7 +111,7 @@ describe('ContentDiscoveryService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockTopContent);
 
-      const result = await contentDiscoveryService.discoverTopContent('series', 'netflix');
+      const result = await service.discoverTopContent('series', 'netflix');
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('discover_top_series_netflix', expect.any(Function));
       expect(result).toEqual(mockTopContent);
@@ -130,7 +134,7 @@ describe('ContentDiscoveryService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockStreamingAvailabilityClient.showsApi.getTopShows.mockResolvedValue(mockStreamingResponse);
 
-      const result = await contentDiscoveryService.discoverTopContent('series', 'netflix');
+      const result = await service.discoverTopContent('series', 'netflix');
 
       expect(mockStreamingAvailabilityClient.showsApi.getTopShows).toHaveBeenCalledWith({
         country: 'us',
@@ -168,7 +172,7 @@ describe('ContentDiscoveryService', () => {
 
         mockCacheService.getOrSet.mockResolvedValue(mockSearchResults);
 
-        const result = await contentDiscoveryService.searchPeople('Brad Pitt', 1);
+        const result = await service.searchPeople('Brad Pitt', 1);
 
         expect(mockCacheService.getOrSet).toHaveBeenCalledWith('people_search_Brad Pitt_1', expect.any(Function));
         expect(result).toEqual(mockSearchResults);
@@ -197,7 +201,7 @@ describe('ContentDiscoveryService', () => {
         mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
         mockTMDBService.searchPeople.mockResolvedValue(mockTMDBResponse);
 
-        const result = await contentDiscoveryService.searchPeople('Brad Pitt', 1);
+        const result = await service.searchPeople('Brad Pitt', 1);
 
         expect(mockTMDBService.searchPeople).toHaveBeenCalledWith('Brad Pitt', 1);
 
@@ -246,7 +250,7 @@ describe('ContentDiscoveryService', () => {
         mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
         mockTMDBService.searchPeople.mockResolvedValue(mockTMDBResponse);
 
-        const result = await contentDiscoveryService.searchPeople('actor', 1);
+        const result = await service.searchPeople('actor', 1);
 
         expect(result.results.length).toBe(2);
         expect(result.results[0].name).toBe('Brad Pitt');
@@ -263,7 +267,7 @@ describe('ContentDiscoveryService', () => {
         mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
         mockTMDBService.searchPeople.mockResolvedValue(mockTMDBResponse);
 
-        const result = await contentDiscoveryService.searchPeople('nonexistent', 1);
+        const result = await service.searchPeople('nonexistent', 1);
 
         expect(result).toEqual({
           message: "Search results for 'nonexistent'",
@@ -323,7 +327,7 @@ describe('ContentDiscoveryService', () => {
         mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
         mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-        const result = await contentDiscoveryService.discoverTrendingContent('series', 1);
+        const result = await service.discoverTrendingContent('series', 1);
 
         // Should only include US shows (id 1 and 3)
         expect(result.results.length).toBe(2);
@@ -353,7 +357,7 @@ describe('ContentDiscoveryService', () => {
         mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
         mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-        const result = await contentDiscoveryService.discoverTrendingContent('series', 1);
+        const result = await service.discoverTrendingContent('series', 1);
 
         // Should filter out the show with undefined origin_country
         expect(result.results.length).toBe(0);
@@ -396,7 +400,7 @@ describe('ContentDiscoveryService', () => {
         mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
         mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-        const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
+        const result = await service.discoverTrendingContent('movie', 1);
 
         // Should only include English language movie
         expect(result.results.length).toBe(1);
@@ -427,7 +431,7 @@ describe('ContentDiscoveryService', () => {
         mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
         mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-        const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
+        const result = await service.discoverTrendingContent('movie', 1);
 
         // Should filter out non-English movie
         expect(result.results.length).toBe(0);
@@ -447,7 +451,7 @@ describe('ContentDiscoveryService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockChangesContent);
 
-      const result = await contentDiscoveryService.discoverChangesContent('series', 'netflix', 'new');
+      const result = await service.discoverChangesContent('series', 'netflix', 'new');
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
         'discover_changes_series_netflix_new',
@@ -475,7 +479,7 @@ describe('ContentDiscoveryService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockStreamingAvailabilityClient.changesApi.getChanges.mockResolvedValue(mockChangesResponse);
 
-      const result = await contentDiscoveryService.discoverChangesContent('series', 'netflix', 'new');
+      const result = await service.discoverChangesContent('series', 'netflix', 'new');
 
       expect(mockStreamingAvailabilityClient.changesApi.getChanges).toHaveBeenCalledWith({
         changeType: 'new',
@@ -511,7 +515,7 @@ describe('ContentDiscoveryService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockStreamingAvailabilityClient.changesApi.getChanges.mockResolvedValue(mockChangesResponse);
 
-      const result = await contentDiscoveryService.discoverChangesContent('series', 'netflix', 'new');
+      const result = await service.discoverChangesContent('series', 'netflix', 'new');
 
       expect(result).toEqual({
         message: 'Found new series for netflix',
@@ -535,7 +539,7 @@ describe('ContentDiscoveryService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockTrendingContent);
 
-      const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
+      const result = await service.discoverTrendingContent('movie', 1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('discover_trending_movie_1', expect.any(Function));
       expect(result).toEqual(mockTrendingContent);
@@ -565,7 +569,7 @@ describe('ContentDiscoveryService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.discoverTrendingContent('movie', 1);
+      const result = await service.discoverTrendingContent('movie', 1);
 
       expect(mockTMDBService.getTrending).toHaveBeenCalledWith('movie', '1');
 
@@ -624,7 +628,7 @@ describe('ContentDiscoveryService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.getTrending.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.discoverTrendingContent('series', 1);
+      const result = await service.discoverTrendingContent('series', 1);
 
       expect(mockTMDBService.getTrending).toHaveBeenCalledWith('tv', '1');
 
@@ -645,7 +649,7 @@ describe('ContentDiscoveryService', () => {
 
       mockCacheService.getOrSet.mockResolvedValue(mockSearchResults);
 
-      const result = await contentDiscoveryService.searchMedia(MediaType.SHOW, 'test query', '2023', 1);
+      const result = await service.searchMedia(MediaType.SHOW, 'test query', '2023', 1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith('tv_search_test query_2023_1', expect.any(Function));
       expect(result).toEqual(mockSearchResults);
@@ -673,7 +677,7 @@ describe('ContentDiscoveryService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.searchShows.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.searchMedia(MediaType.SHOW, 'test query', '2023', 1);
+      const result = await service.searchMedia(MediaType.SHOW, 'test query', '2023', 1);
 
       expect(mockTMDBService.searchShows).toHaveBeenCalledWith('test query', 1, '2023');
 
@@ -718,7 +722,7 @@ describe('ContentDiscoveryService', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
       mockTMDBService.searchMovies.mockResolvedValue(mockTMDBResponse);
 
-      const result = await contentDiscoveryService.searchMedia(MediaType.MOVIE, 'test query', undefined, 1);
+      const result = await service.searchMedia(MediaType.MOVIE, 'test query', undefined, 1);
 
       expect(mockTMDBService.searchMovies).toHaveBeenCalledWith('test query', 1, undefined);
 

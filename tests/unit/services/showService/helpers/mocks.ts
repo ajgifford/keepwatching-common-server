@@ -3,7 +3,7 @@ import * as episodesDb from '@db/episodesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { errorService } from '@services/errorService';
-import { ShowService, showService } from '@services/showService';
+import { createShowService, resetShowService } from '@services/showService';
 import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import * as contentUtility from '@utils/contentUtility';
@@ -103,14 +103,14 @@ export function setupMocks() {
  */
 export function setupShowService() {
   setupMocks();
+  resetShowService();
   const mockCache = createMockCache();
 
-  // Create a fresh instance to avoid test cross-contamination
-  Object.setPrototypeOf(showService, ShowService.prototype);
-  (showService as any).cache = mockCache;
+  // Create a fresh instance with the mock cache
+  const service = createShowService({ cacheService: mockCache });
 
   return {
-    service: showService,
+    service,
     mockCache,
   };
 }

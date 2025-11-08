@@ -39,9 +39,14 @@ import {
  */
 export class MoviesService {
   private cache: CacheService;
+  private checkAchievements: (profileId: number, accountId: number) => Promise<number>;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  constructor(dependencies?: {
+    cacheService?: CacheService;
+    checkAchievements?: (profileId: number, accountId: number) => Promise<number>;
+  }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
+    this.checkAchievements = dependencies?.checkAchievements ?? checkAndRecordAchievements;
   }
 
   /**
@@ -417,7 +422,7 @@ export class MoviesService {
       this.invalidateProfileMovieCache(profileId);
 
       // Check for new achievements (non-blocking)
-      checkAndRecordAchievements(profileId, accountId).catch((err) => {
+      this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after movie watch status update:', err);
       });
 
@@ -648,4 +653,43 @@ export class MoviesService {
   }
 }
 
-export const moviesService = new MoviesService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createMoviesService(dependencies?: {
+  cacheService?: CacheService;
+  checkAchievements?: (profileId: number, accountId: number) => Promise<number>;
+}): MoviesService {
+  return new MoviesService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: MoviesService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getMoviesService(): MoviesService {
+  if (!instance) {
+    instance = createMoviesService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetMoviesService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { moviesService }` continues to work
+ */
+export const moviesService = getMoviesService();

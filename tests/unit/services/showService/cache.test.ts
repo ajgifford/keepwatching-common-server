@@ -1,8 +1,12 @@
 import { createMockCache, setupMocks } from './helpers/mocks';
 import { CacheService } from '@services/cacheService';
 import { profileService } from '@services/profileService';
-import { ShowService, showService } from '@services/showService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it } from 'vitest';
+import {
+  ShowService,
+  createShowService,
+  resetShowService,
+} from '@services/showService';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Cache Functionality', () => {
   let service: ShowService;
@@ -10,11 +14,14 @@ describe('ShowService - Cache Functionality', () => {
 
   beforeEach(() => {
     setupMocks();
+    resetShowService();
     mockCache = createMockCache();
 
-    Object.setPrototypeOf(showService, ShowService.prototype);
-    (showService as any).cache = mockCache;
-    service = showService;
+    service = createShowService({ cacheService: mockCache });
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('invalidateProfileCache', () => {

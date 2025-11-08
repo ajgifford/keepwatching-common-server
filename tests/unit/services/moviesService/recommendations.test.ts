@@ -4,11 +4,16 @@ import * as moviesDb from '@db/moviesDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
 import { getTMDBService } from '@services/tmdbService';
-import { type Mock, Mocked, beforeEach, describe, expect, it } from 'vitest';
+import { type Mock, Mocked, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('MoviesService - Recommendations', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
   let mockCache: ReturnType<typeof setupMoviesService>['mockCache'];
+
+  beforeAll(() => {
+    // Ensure all mocks are properly initialized before running tests
+    vi.clearAllMocks();
+  });
 
   beforeEach(() => {
     const setup = setupMoviesService();
@@ -16,7 +21,7 @@ describe('MoviesService - Recommendations', () => {
     mockCache = setup.mockCache;
   });
 
-  describe('getShowRecommendations', () => {
+  describe('getMovieRecommendations', () => {
     const mockMovieReference = mockMovieReferences[0];
     const mockUserMovies = [
       { tmdbId: 123, title: 'Test Movie' },
@@ -69,10 +74,10 @@ describe('MoviesService - Recommendations', () => {
       expect(result[1]).toHaveProperty('inFavorites', false);
     });
 
-    it('should throw NotFoundError when show does not exist', async () => {
+    it('should throw NotFoundError when movie does not exist', async () => {
       (moviesDb.findMovieById as Mock).mockResolvedValue(null);
       (errorService.assertExists as Mock).mockImplementation(() => {
-        throw new NotFoundError('Show not found');
+        throw new NotFoundError('Movie not found');
       });
 
       await expect(service.getMovieRecommendations(123, 999)).rejects.toThrow(NotFoundError);
@@ -88,7 +93,7 @@ describe('MoviesService - Recommendations', () => {
     });
   });
 
-  describe('getSimilarShows', () => {
+  describe('getSimilarMovies', () => {
     const mockMovieReference = mockMovieReferences[0];
     const mockUserMovies = [
       { tmdbId: 123, title: 'Test Movie' },
@@ -119,7 +124,7 @@ describe('MoviesService - Recommendations', () => {
       expect(result).toEqual(mockSimilarMovies);
     });
 
-    it('should fetch similar shows from TMDB when not in cache', async () => {
+    it('should fetch similar movies from TMDB when not in cache', async () => {
       (moviesDb.findMovieById as Mock).mockResolvedValue(mockMovieReference);
       (moviesDb.getAllMoviesForProfile as Mock).mockResolvedValue(mockUserMovies);
 
@@ -141,7 +146,7 @@ describe('MoviesService - Recommendations', () => {
       expect(result[1]).toHaveProperty('inFavorites', false);
     });
 
-    it('should throw NotFoundError when show does not exist', async () => {
+    it('should throw NotFoundError when movie does not exist', async () => {
       (moviesDb.findMovieById as Mock).mockResolvedValue(null);
       (errorService.assertExists as Mock).mockImplementation(() => {
         throw new NotFoundError('Movie not found');

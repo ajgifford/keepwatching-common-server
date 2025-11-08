@@ -6,9 +6,13 @@ import * as showsDb from '@db/showsDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { ShowService, showService } from '@services/showService';
+import {
+  ShowService,
+  createShowService,
+  resetShowService,
+} from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('ShowService - Favorites', () => {
   let service: ShowService;
@@ -21,11 +25,14 @@ describe('ShowService - Favorites', () => {
 
   beforeEach(() => {
     setupMocks();
+    resetShowService();
     mockCache = createMockCache();
 
-    Object.setPrototypeOf(showService, ShowService.prototype);
-    (showService as any).cache = mockCache;
-    service = showService;
+    service = createShowService({ cacheService: mockCache });
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('addShowToFavorites', () => {

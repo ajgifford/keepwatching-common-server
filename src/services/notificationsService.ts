@@ -22,8 +22,11 @@ import {
 export class NotificationsService {
   private cache: CacheService;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
   }
   /**
    * Retrieves all notifications for a specific account.
@@ -437,16 +440,39 @@ export class NotificationsService {
 }
 
 /**
- * Singleton instance of the NotificationsService.
- * This is the primary export used throughout the application for notification management.
- *
- * @type {NotificationsService}
- * @example
- * ```typescript
- * import { notificationsService } from './services/notificationsService';
- *
- * // Use the service
- * const notifications = await notificationsService.getNotifications(123);
- * ```
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
  */
-export const notificationsService = new NotificationsService();
+export function createNotificationsService(dependencies?: { cacheService?: CacheService }): NotificationsService {
+  return new NotificationsService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: NotificationsService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getNotificationsService(): NotificationsService {
+  if (!instance) {
+    instance = createNotificationsService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetNotificationsService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { notificationsService }` continues to work
+ */
+export const notificationsService = getNotificationsService();

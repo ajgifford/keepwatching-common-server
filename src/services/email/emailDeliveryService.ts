@@ -19,14 +19,19 @@ export class EmailDeliveryService {
   private transporter: nodemailer.Transporter;
   private config: EmailConfig;
 
-  constructor(config: EmailConfig) {
-    this.config = config;
-    this.transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: config.auth,
-    });
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: { config?: EmailConfig; transporter?: nodemailer.Transporter }) {
+    this.config = dependencies?.config ?? getEmailConfig();
+    this.transporter =
+      dependencies?.transporter ??
+      nodemailer.createTransport({
+        host: this.config.host,
+        port: this.config.port,
+        secure: this.config.secure,
+        auth: this.config.auth,
+      });
   }
 
   /**
@@ -231,4 +236,43 @@ export class EmailDeliveryService {
   }
 }
 
-export const emailDeliveryService = new EmailDeliveryService(getEmailConfig());
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createEmailDeliveryService(dependencies?: {
+  config?: EmailConfig;
+  transporter?: nodemailer.Transporter;
+}): EmailDeliveryService {
+  return new EmailDeliveryService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: EmailDeliveryService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getEmailDeliveryService(): EmailDeliveryService {
+  if (!instance) {
+    instance = createEmailDeliveryService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetEmailDeliveryService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { emailDeliveryService }` continues to work
+ */
+export const emailDeliveryService = getEmailDeliveryService();

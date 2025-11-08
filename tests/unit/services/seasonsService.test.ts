@@ -2,10 +2,14 @@ import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as seasonsDb from '@db/seasonsDb';
 import { appLogger } from '@logger/logger';
 import { errorService } from '@services/errorService';
-import { seasonsService } from '@services/seasonsService';
+import {
+  SeasonsService,
+  createSeasonsService,
+  resetSeasonsService,
+} from '@services/seasonsService';
 import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@db/seasonsDb');
 vi.mock('@services/errorService');
@@ -20,13 +24,20 @@ vi.mock('@logger/logger', () => ({
 }));
 
 describe('seasonsService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
+  let seasonsService: SeasonsService;
   const accountId = 123;
   const profileId = 456;
   const seasonId = 789;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetSeasonsService();
+    seasonsService = createSeasonsService();
+  });
+
+  afterEach(() => {
+    resetSeasonsService();
+  });
 
   describe('updateSeasonWatchStatus', () => {
     it('should update season watch status', async () => {

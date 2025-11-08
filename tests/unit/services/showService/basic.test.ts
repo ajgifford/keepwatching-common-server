@@ -4,9 +4,13 @@ import * as showsDb from '@db/showsDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { ShowService, showService } from '@services/showService';
+import {
+  ShowService,
+  createShowService,
+  resetShowService,
+} from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it } from 'vitest';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Basic Functionality', () => {
   let service: ShowService;
@@ -18,11 +22,10 @@ describe('ShowService - Basic Functionality', () => {
 
   beforeEach(() => {
     setupMocks();
+    resetShowService();
     mockCache = createMockCache();
 
-    Object.setPrototypeOf(showService, ShowService.prototype);
-    (showService as any).cache = mockCache;
-    service = showService;
+    service = createShowService({ cacheService: mockCache });
 
     (watchStatusService.checkAndUpdateShowStatus as Mock).mockResolvedValue({
       success: true,
@@ -30,6 +33,10 @@ describe('ShowService - Basic Functionality', () => {
       affectedRows: 1,
       changes: [{}, {}],
     });
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('getShowsForProfile', () => {

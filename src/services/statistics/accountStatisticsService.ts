@@ -51,8 +51,11 @@ interface AggregatedStats {
 export class AccountStatisticsService {
   private cache: CacheService;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
   }
 
   /**
@@ -1055,4 +1058,42 @@ export class AccountStatisticsService {
   }
 }
 
-export const accountStatisticsService = new AccountStatisticsService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createAccountStatisticsService(dependencies?: {
+  cacheService?: CacheService;
+}): AccountStatisticsService {
+  return new AccountStatisticsService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: AccountStatisticsService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getAccountStatisticsService(): AccountStatisticsService {
+  if (!instance) {
+    instance = createAccountStatisticsService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetAccountStatisticsService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { accountStatisticsService }` continues to work
+ */
+export const accountStatisticsService = getAccountStatisticsService();

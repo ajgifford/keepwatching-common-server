@@ -1,7 +1,11 @@
 import { cliLogger } from '@logger/logger';
 import { NotFoundError, NotVerifiedError } from '@middleware/errorMiddleware';
 import { accountService } from '@services/accountService';
-import { EmailContentService } from '@services/email/emailContentService';
+import {
+  EmailContentService,
+  createEmailContentService,
+  resetEmailContentService,
+} from '@services/email/emailContentService';
 import { episodesService } from '@services/episodesService';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
@@ -9,7 +13,7 @@ import { preferencesService } from '@services/preferencesService';
 import { profileService } from '@services/profileService';
 import { showService } from '@services/showService';
 import * as emailUtility from '@utils/emailUtility';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@logger/logger');
 vi.mock('@services/errorService');
@@ -62,7 +66,8 @@ describe('EmailContentService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    emailContentService = new EmailContentService();
+    resetEmailContentService();
+    emailContentService = createEmailContentService();
 
     // Setup default mocks
     (emailUtility.getUpcomingWeekRange as Mock).mockReturnValue(mockWeekRange);
@@ -78,6 +83,10 @@ describe('EmailContentService', () => {
     (moviesService.getTrendingMovies as Mock).mockResolvedValue([{ id: 4, title: 'Trending Movie' }]);
     (moviesService.getTopRatedMovies as Mock).mockResolvedValue([{ id: 5, title: 'Top Rated Movie' }]);
     (moviesService.getRecentlyReleasedMovies as Mock).mockResolvedValue([{ id: 6, title: 'Recent Movie' }]);
+  });
+
+  afterEach(() => {
+    resetEmailContentService();
   });
 
   describe('generateEmailContent', () => {

@@ -3,14 +3,20 @@ import * as notificationsDb from '@db/notificationsDb';
 import { NoAffectedRowsError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { notificationsService } from '@services/notificationsService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  NotificationsService,
+  createNotificationsService,
+  notificationsService,
+  resetNotificationsService,
+} from '@services/notificationsService';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@db/notificationsDb');
 vi.mock('@services/errorService');
 vi.mock('@services/cacheService');
 
 describe('notificationsService', () => {
+  let service: NotificationsService;
   let mockCacheService: MockedObject<any>;
 
   const mockAccountNotifications = [
@@ -89,18 +95,13 @@ describe('notificationsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    resetNotificationsService();
+
     mockCacheService = {
       getOrSet: vi.fn(),
       invalidate: vi.fn(),
       invalidatePattern: vi.fn(),
     };
-
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
-
-    Object.defineProperty(notificationsService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
 
     // Default implementation for cache.getOrSet - calls the fetch function
     mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
@@ -110,13 +111,20 @@ describe('notificationsService', () => {
     (errorService.handleError as Mock).mockImplementation((error) => {
       throw error;
     });
+
+    service = createNotificationsService({ cacheService: mockCacheService });
+  });
+
+  afterEach(() => {
+    resetNotificationsService();
+    vi.resetModules();
   });
 
   describe('getNotifications', () => {
     it('should return notifications for an account that are not dismissed', async () => {
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
 
-      const result = await notificationsService.getNotifications(123);
+      const result = await service.getNotifications(123);
 
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
       expect(result).toEqual(mockAccountNotifications);
@@ -125,7 +133,7 @@ describe('notificationsService', () => {
     it('should return all notifications for an account (dismissed or not)', async () => {
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAllAccountNotifications);
 
-      const result = await notificationsService.getNotifications(123, true);
+      const result = await service.getNotifications(123, true);
 
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, true);
       expect(result).toEqual(mockAllAccountNotifications);
@@ -134,7 +142,7 @@ describe('notificationsService', () => {
     it('should handle empty notifications array', async () => {
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue([]);
 
-      const result = await notificationsService.getNotifications(123);
+      const result = await service.getNotifications(123);
 
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
       expect(result).toEqual([]);
@@ -144,7 +152,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error');
       (notificationsDb.getNotificationsForAccount as Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.getNotifications(123)).rejects.toThrow('Database error');
+      await expect(service.getNotifications(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getNotifications(123, false)');
     });
   });
@@ -154,7 +162,7 @@ describe('notificationsService', () => {
       (notificationsDb.markNotificationRead as Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
 
-      const result = await notificationsService.markNotificationRead(1, 123);
+      const result = await service.markNotificationRead(1, 123);
 
       expect(notificationsDb.markNotificationRead).toHaveBeenCalledWith(1, 123, true);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
@@ -165,7 +173,7 @@ describe('notificationsService', () => {
       (notificationsDb.markNotificationRead as Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
 
-      const result = await notificationsService.markNotificationRead(1, 123, false);
+      const result = await service.markNotificationRead(1, 123, false);
 
       expect(notificationsDb.markNotificationRead).toHaveBeenCalledWith(1, 123, false);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
@@ -176,7 +184,7 @@ describe('notificationsService', () => {
       (notificationsDb.markNotificationRead as Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notification was marked read');
 
-      await expect(notificationsService.markNotificationRead(1, 123)).rejects.toThrow(
+      await expect(service.markNotificationRead(1, 123)).rejects.toThrow(
         'No notification was marked read',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, true, false)');
@@ -186,7 +194,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during mark read');
       (notificationsDb.markNotificationRead as Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.markNotificationRead(1, 123)).rejects.toThrow(
+      await expect(service.markNotificationRead(1, 123)).rejects.toThrow(
         'Database error during mark read',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, true, false)');
@@ -198,7 +206,7 @@ describe('notificationsService', () => {
       (notificationsDb.markAllNotificationsRead as Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
 
-      const result = await notificationsService.markAllNotificationsRead(123);
+      const result = await service.markAllNotificationsRead(123);
 
       expect(notificationsDb.markAllNotificationsRead).toHaveBeenCalledWith(123, true);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
@@ -209,7 +217,7 @@ describe('notificationsService', () => {
       (notificationsDb.markAllNotificationsRead as Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
 
-      const result = await notificationsService.markAllNotificationsRead(123, false);
+      const result = await service.markAllNotificationsRead(123, false);
 
       expect(notificationsDb.markAllNotificationsRead).toHaveBeenCalledWith(123, false);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
@@ -220,7 +228,7 @@ describe('notificationsService', () => {
       (notificationsDb.markAllNotificationsRead as Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notifications were marked read');
 
-      await expect(notificationsService.markAllNotificationsRead(123)).rejects.toThrow(
+      await expect(service.markAllNotificationsRead(123)).rejects.toThrow(
         'No notifications were marked read',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, true, false)');
@@ -230,7 +238,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during marking read');
       (notificationsDb.markAllNotificationsRead as Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.markAllNotificationsRead(123)).rejects.toThrow(
+      await expect(service.markAllNotificationsRead(123)).rejects.toThrow(
         'Database error during marking read',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, true, false)');
@@ -242,7 +250,7 @@ describe('notificationsService', () => {
       (notificationsDb.dismissNotification as Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
 
-      const result = await notificationsService.dismissNotification(1, 123);
+      const result = await service.dismissNotification(1, 123);
 
       expect(notificationsDb.dismissNotification).toHaveBeenCalledWith(1, 123);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
@@ -253,7 +261,7 @@ describe('notificationsService', () => {
       (notificationsDb.dismissNotification as Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notification was dismissed');
 
-      await expect(notificationsService.dismissNotification(1, 123)).rejects.toThrow('No notification was dismissed');
+      await expect(service.dismissNotification(1, 123)).rejects.toThrow('No notification was dismissed');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123, false)');
     });
 
@@ -261,7 +269,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during dismissal');
       (notificationsDb.dismissNotification as Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.dismissNotification(1, 123)).rejects.toThrow('Database error during dismissal');
+      await expect(service.dismissNotification(1, 123)).rejects.toThrow('Database error during dismissal');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123, false)');
     });
   });
@@ -271,7 +279,7 @@ describe('notificationsService', () => {
       (notificationsDb.dismissAllNotifications as Mock).mockResolvedValue(true);
       (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
 
-      const result = await notificationsService.dismissAllNotifications(123);
+      const result = await service.dismissAllNotifications(123);
 
       expect(notificationsDb.dismissAllNotifications).toHaveBeenCalledWith(123);
       expect(notificationsDb.getNotificationsForAccount).toHaveBeenCalledWith(123, false);
@@ -282,7 +290,7 @@ describe('notificationsService', () => {
       (notificationsDb.dismissAllNotifications as Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notifications were dismissed');
 
-      await expect(notificationsService.dismissAllNotifications(123)).rejects.toThrow(
+      await expect(service.dismissAllNotifications(123)).rejects.toThrow(
         'No notifications were dismissed',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissAllNotifications(123, false)');
@@ -292,7 +300,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during dismissal');
       (notificationsDb.dismissAllNotifications as Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.dismissAllNotifications(123)).rejects.toThrow(
+      await expect(service.dismissAllNotifications(123)).rejects.toThrow(
         'Database error during dismissal',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissAllNotifications(123, false)');
@@ -304,7 +312,7 @@ describe('notificationsService', () => {
       (notificationsDb.getNotificationsCount as Mock).mockResolvedValue(3);
       (notificationsDb.getAllNotifications as Mock).mockResolvedValue(mockAdminNotifications);
 
-      const result = await notificationsService.getAllNotifications({ expired: true }, 1, 1, 25);
+      const result = await service.getAllNotifications({ expired: true }, 1, 1, 25);
 
       expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith({ expired: true }, 25, 1);
       expect(notificationsDb.getNotificationsCount).toHaveBeenCalledWith({ expired: true });
@@ -326,7 +334,7 @@ describe('notificationsService', () => {
       (notificationsDb.getNotificationsCount as Mock).mockResolvedValue(3);
       (notificationsDb.getAllNotifications as Mock).mockResolvedValue(mockAdminNotifications);
 
-      const result = await notificationsService.getAllNotifications({ expired: false }, 1, 1, 25);
+      const result = await service.getAllNotifications({ expired: false }, 1, 1, 25);
 
       expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith({ expired: false }, 25, 1);
       expect(notificationsDb.getNotificationsCount).toHaveBeenCalledWith({ expired: false });
@@ -348,7 +356,7 @@ describe('notificationsService', () => {
       (notificationsDb.getNotificationsCount as Mock).mockResolvedValue(0);
       (notificationsDb.getAllNotifications as Mock).mockResolvedValue([]);
 
-      const result = await notificationsService.getAllNotifications({ expired: true }, 1, 1, 25);
+      const result = await service.getAllNotifications({ expired: true }, 1, 1, 25);
 
       expect(notificationsDb.getAllNotifications).toHaveBeenCalledWith({ expired: true }, 25, 1);
       expect(notificationsDb.getNotificationsCount).toHaveBeenCalledWith({ expired: true });
@@ -370,7 +378,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error');
       (notificationsDb.getAllNotifications as Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.getAllNotifications({ expired: true }, 1, 1, 25)).rejects.toThrow(
+      await expect(service.getAllNotifications({ expired: true }, 1, 1, 25)).rejects.toThrow(
         'Database error',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAllNotifications({"expired":true})');
@@ -391,7 +399,7 @@ describe('notificationsService', () => {
 
       (notificationsDb.addNotification as Mock).mockResolvedValue(undefined);
 
-      await notificationsService.addNotification(mockNotification);
+      await service.addNotification(mockNotification);
 
       expect(notificationsDb.addNotification).toHaveBeenCalledWith(mockNotification);
     });
@@ -409,7 +417,7 @@ describe('notificationsService', () => {
 
       (notificationsDb.addNotification as Mock).mockResolvedValue(undefined);
 
-      await notificationsService.addNotification(mockNotification);
+      await service.addNotification(mockNotification);
 
       expect(notificationsDb.addNotification).toHaveBeenCalledWith(mockNotification);
     });
@@ -419,7 +427,7 @@ describe('notificationsService', () => {
       (notificationsDb.addNotification as Mock).mockRejectedValue(mockError);
 
       await expect(
-        notificationsService.addNotification({
+        service.addNotification({
           title: 'title',
           message: 'message',
           startDate: '2025-04-01',
@@ -451,7 +459,7 @@ describe('notificationsService', () => {
 
       (notificationsDb.updateNotification as Mock).mockResolvedValue(mockNotification);
 
-      await notificationsService.updateNotification(mockNotification);
+      await service.updateNotification(mockNotification);
 
       expect(notificationsDb.updateNotification).toHaveBeenCalled();
     });
@@ -478,7 +486,7 @@ describe('notificationsService', () => {
         type: 'general',
         id: 13,
       };
-      await notificationsService.updateNotification(updateRequest);
+      await service.updateNotification(updateRequest);
 
       expect(notificationsDb.updateNotification).toHaveBeenCalled();
     });
@@ -497,7 +505,7 @@ describe('notificationsService', () => {
         type: 'general',
         id: 13,
       };
-      await expect(notificationsService.updateNotification(updateRequest)).rejects.toThrow(
+      await expect(service.updateNotification(updateRequest)).rejects.toThrow(
         'Database error during update',
       );
       expect(errorService.handleError).toHaveBeenCalledWith(
@@ -511,7 +519,7 @@ describe('notificationsService', () => {
     it('should delete a notification successfully', async () => {
       (notificationsDb.deleteNotification as Mock).mockResolvedValue(undefined);
 
-      await notificationsService.deleteNotification(1);
+      await service.deleteNotification(1);
 
       expect(notificationsDb.deleteNotification).toHaveBeenCalledWith(1);
     });
@@ -520,7 +528,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during delete');
       (notificationsDb.deleteNotification as Mock).mockRejectedValue(mockError);
 
-      await expect(notificationsService.deleteNotification(1)).rejects.toThrow('Database error during delete');
+      await expect(service.deleteNotification(1)).rejects.toThrow('Database error during delete');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'deleteNotification(1)');
     });
   });
@@ -528,8 +536,8 @@ describe('notificationsService', () => {
   describe('service instance', () => {
     it('should be properly instantiated', () => {
       expect(notificationsService).toBeDefined();
-      expect(notificationsService.getNotifications).toBeInstanceOf(Function);
-      expect(notificationsService.dismissNotification).toBeInstanceOf(Function);
+      expect(service.getNotifications).toBeInstanceOf(Function);
+      expect(service.dismissNotification).toBeInstanceOf(Function);
     });
   });
 });

@@ -27,11 +27,15 @@ export class ContentDiscoveryService {
   private streamingAvailability: StreamingAvailabilityService;
 
   /**
-   * Creates a new ContentDiscoveryService instance
+   * Constructor accepts optional dependencies for testing
    */
-  constructor() {
-    this.cache = CacheService.getInstance();
-    this.streamingAvailability = StreamingAvailabilityService.getInstance();
+  constructor(dependencies?: {
+    cacheService?: CacheService;
+    streamingAvailabilityService?: StreamingAvailabilityService;
+  }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
+    this.streamingAvailability =
+      dependencies?.streamingAvailabilityService ?? StreamingAvailabilityService.getInstance();
   }
 
   public async discoverTopContent(
@@ -247,4 +251,43 @@ export class ContentDiscoveryService {
   }
 }
 
-export const contentDiscoveryService = new ContentDiscoveryService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createContentDiscoveryService(dependencies?: {
+  cacheService?: CacheService;
+  streamingAvailabilityService?: StreamingAvailabilityService;
+}): ContentDiscoveryService {
+  return new ContentDiscoveryService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: ContentDiscoveryService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getContentDiscoveryService(): ContentDiscoveryService {
+  if (!instance) {
+    instance = createContentDiscoveryService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetContentDiscoveryService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { contentDiscoveryService }` continues to work
+ */
+export const contentDiscoveryService = getContentDiscoveryService();

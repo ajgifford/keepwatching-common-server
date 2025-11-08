@@ -62,8 +62,8 @@ import {
 export class ShowService {
   private cache: CacheService;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
   }
 
   /**
@@ -902,4 +902,40 @@ export class ShowService {
   }
 }
 
-export const showService = new ShowService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createShowService(dependencies?: { cacheService?: CacheService }): ShowService {
+  return new ShowService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: ShowService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getShowService(): ShowService {
+  if (!instance) {
+    instance = createShowService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetShowService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { showService }` continues to work
+ */
+export const showService = getShowService();

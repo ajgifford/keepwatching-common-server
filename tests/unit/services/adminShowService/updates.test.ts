@@ -5,7 +5,11 @@ import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import { adminShowService } from '@services/adminShowService';
+import {
+  AdminShowService,
+  createAdminShowService,
+  resetAdminShowService,
+} from '@services/adminShowService';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
 import { socketService } from '@services/socketService';
@@ -13,7 +17,7 @@ import { getTMDBService } from '@services/tmdbService';
 import * as contentUtility from '@utils/contentUtility';
 import * as notificationUtility from '@utils/notificationUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, MockedObject, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the repositories and services
 vi.mock('@db/showsDb');
@@ -40,18 +44,23 @@ vi.mock('@logger/logger', () => ({
 }));
 
 describe('AdminShowService - Updates', () => {
+  let adminShowService: AdminShowService;
   let mockCacheService: MockedObject<any>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
+    resetAdminShowService();
+
     mockCacheService = createMockCacheService();
     setupDefaultMocks(mockCacheService);
 
-    Object.defineProperty(adminShowService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    adminShowService = createAdminShowService({ cacheService: mockCacheService as any });
+  });
+
+  afterEach(() => {
+    resetAdminShowService();
+    vi.resetModules();
   });
 
   describe('updateShowById', () => {

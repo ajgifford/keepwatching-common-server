@@ -1,14 +1,18 @@
 import * as accountComparisonRepository from '@db/statistics/accountComparisonRepository';
-import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import { adminStatisticsService } from '@services/statistics/adminStatisticsService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  AdminStatisticsService,
+  createAdminStatisticsService,
+  resetAdminStatisticsService,
+} from '@services/statistics/adminStatisticsService';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@services/errorService');
 vi.mock('@services/cacheService');
 vi.mock('@db/statistics/accountComparisonRepository');
 
 describe('AdminStatisticsService - Account Rankings', () => {
+  let adminStatisticsService: AdminStatisticsService;
   const mockCacheService = {
     getOrSet: vi.fn(),
     invalidate: vi.fn(),
@@ -17,12 +21,17 @@ describe('AdminStatisticsService - Account Rankings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    resetAdminStatisticsService();
 
-    Object.defineProperty(adminStatisticsService, 'cache', {
-      value: mockCacheService,
-      writable: true,
+    adminStatisticsService = createAdminStatisticsService({
+      cacheService: mockCacheService as any,
+      serviceName: 'test-service',
     });
+  });
+
+  afterEach(() => {
+    resetAdminStatisticsService();
+    vi.resetModules();
   });
 
   describe('getAccountRankings', () => {

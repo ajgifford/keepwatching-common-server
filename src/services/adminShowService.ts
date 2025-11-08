@@ -24,8 +24,11 @@ import { CreateShowCast, UpdateShowRequest, WatchStatus } from '@ajgifford/keepw
 export class AdminShowService {
   private cache: CacheService;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
   }
 
   /**
@@ -507,5 +510,40 @@ export class AdminShowService {
   }
 }
 
-// Export a singleton instance for global use
-export const adminShowService = new AdminShowService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createAdminShowService(dependencies?: { cacheService?: CacheService }): AdminShowService {
+  return new AdminShowService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: AdminShowService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getAdminShowService(): AdminShowService {
+  if (!instance) {
+    instance = createAdminShowService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetAdminShowService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { adminShowService }` continues to work
+ */
+export const adminShowService = getAdminShowService();

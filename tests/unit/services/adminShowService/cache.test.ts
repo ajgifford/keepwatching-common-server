@@ -1,7 +1,11 @@
 import { mockShowId } from './helpers/fixtures';
 import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
-import { adminShowService } from '@services/adminShowService';
-import { MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  AdminShowService,
+  createAdminShowService,
+  resetAdminShowService,
+} from '@services/adminShowService';
+import { MockedObject, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the repositories and services
 vi.mock('@db/showsDb');
@@ -27,18 +31,23 @@ vi.mock('@logger/logger', () => ({
 }));
 
 describe('AdminShowService - Cache Management', () => {
+  let adminShowService: AdminShowService;
   let mockCacheService: MockedObject<any>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
+    resetAdminShowService();
+
     mockCacheService = createMockCacheService();
     setupDefaultMocks(mockCacheService);
 
-    Object.defineProperty(adminShowService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    adminShowService = createAdminShowService({ cacheService: mockCacheService as any });
+  });
+
+  afterEach(() => {
+    resetAdminShowService();
+    vi.resetModules();
   });
 
   describe('invalidateShowCache', () => {

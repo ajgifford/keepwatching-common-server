@@ -1,9 +1,13 @@
 import { mockShows } from './helpers/fixtures';
 import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
-import { adminShowService } from '@services/adminShowService';
+import {
+  AdminShowService,
+  createAdminShowService,
+  resetAdminShowService,
+} from '@services/adminShowService';
 import { errorService } from '@services/errorService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, MockedObject, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the repositories and services
 vi.mock('@db/showsDb');
@@ -29,6 +33,7 @@ vi.mock('@logger/logger', () => ({
 }));
 
 describe('AdminShowService - Pagination', () => {
+  let adminShowService: AdminShowService;
   let mockCacheService: MockedObject<any>;
 
   const mockPaginationResult = {
@@ -46,13 +51,12 @@ describe('AdminShowService - Pagination', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    resetAdminShowService();
+
     mockCacheService = createMockCacheService();
     setupDefaultMocks(mockCacheService);
 
-    Object.defineProperty(adminShowService, 'cache', {
-      value: mockCacheService,
-      writable: true,
-    });
+    adminShowService = createAdminShowService({ cacheService: mockCacheService as any });
 
     (errorService.handleError as Mock).mockImplementation((error) => {
       throw error;
@@ -61,6 +65,11 @@ describe('AdminShowService - Pagination', () => {
     // Set up default mocks
     (showsDb.getAllShows as Mock).mockResolvedValue(mockShows);
     (showsDb.getShowsCount as Mock).mockResolvedValue(10);
+  });
+
+  afterEach(() => {
+    resetAdminShowService();
+    vi.resetModules();
   });
 
   describe('getAllShows', () => {

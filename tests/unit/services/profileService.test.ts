@@ -1,16 +1,18 @@
 import * as profilesDb from '@db/profilesDb';
 import { BadRequestError, NotFoundError } from '@middleware/errorMiddleware';
-import { CacheService } from '@services/cacheService';
 import { episodesService } from '@services/episodesService';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
-import { ProfileService, profileService } from '@services/profileService';
+import {
+  ProfileService,
+  createProfileService,
+  resetProfileService,
+} from '@services/profileService';
 import { showService } from '@services/showService';
 import { getProfileImage } from '@utils/imageUtility';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@db/profilesDb');
-vi.mock('@services/cacheService');
 vi.mock('@services/errorService');
 vi.mock('@services/episodesService');
 vi.mock('@services/moviesService');
@@ -19,10 +21,12 @@ vi.mock('@utils/imageUtility');
 
 describe('ProfileService', () => {
   let service: ProfileService;
-  let mockCache: MockedObject<CacheService>;
+  let mockCache: MockedObject<any>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    resetProfileService();
 
     mockCache = {
       getOrSet: vi.fn(),
@@ -39,16 +43,18 @@ describe('ProfileService', () => {
       keys: vi.fn(),
     } as any;
 
-    Object.setPrototypeOf(profileService, ProfileService.prototype);
-    (profileService as any).cache = mockCache;
-
-    service = profileService;
+    service = createProfileService({ cacheService: mockCache });
 
     (getProfileImage as Mock).mockReturnValue('profile-image-url.jpg');
 
     (errorService.handleError as Mock).mockImplementation((error) => {
       throw error;
     });
+  });
+
+  afterEach(() => {
+    resetProfileService();
+    vi.resetModules();
   });
 
   describe('getProfilesByAccountId', () => {

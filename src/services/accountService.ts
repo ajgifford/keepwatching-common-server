@@ -30,8 +30,11 @@ export class AccountService {
   private cache: CacheService;
   private serviceName: string;
 
-  constructor() {
-    this.cache = CacheService.getInstance();
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
     this.serviceName = getServiceName();
   }
 
@@ -493,4 +496,40 @@ export class AccountService {
   }
 }
 
-export const accountService = new AccountService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createAccountService(dependencies?: { cacheService?: CacheService }): AccountService {
+  return new AccountService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: AccountService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getAccountService(): AccountService {
+  if (!instance) {
+    instance = createAccountService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetAccountService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { accountService }` continues to work
+ */
+export const accountService = getAccountService();

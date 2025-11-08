@@ -8,8 +8,12 @@ import {
 import * as preferencesDb from '@db/preferencesDb';
 import { NoAffectedRowsError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
-import { PreferencesService } from '@services/preferencesService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  PreferencesService,
+  createPreferencesService,
+  resetPreferencesService,
+} from '@services/preferencesService';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the database module
 vi.mock('@db/preferencesDb');
@@ -20,11 +24,19 @@ describe('PreferencesService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new PreferencesService();
+
+    resetPreferencesService();
+
+    service = createPreferencesService();
 
     (errorService.handleError as Mock).mockImplementation((error) => {
       throw error;
     });
+  });
+
+  afterEach(() => {
+    resetPreferencesService();
+    vi.resetModules();
   });
 
   describe('getAccountPreferences', () => {

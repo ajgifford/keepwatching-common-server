@@ -3,8 +3,13 @@ import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { WatchStatusDbService } from '@db/watchStatusDb';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
-import { WatchStatusService, watchStatusService } from '@services/watchStatusService';
-import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  WatchStatusService,
+  createWatchStatusService,
+  resetWatchStatusService,
+  watchStatusService,
+} from '@services/watchStatusService';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
 vi.mock('@db/watchStatusDb');
@@ -14,12 +19,12 @@ vi.mock('@services/showService');
 describe('WatchStatusService', () => {
   let service: WatchStatusService;
   let mockDbService: MockedObject<WatchStatusDbService>;
+  let mockCheckAchievements: Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Create a new instance for each test
-    service = new WatchStatusService();
+    resetWatchStatusService();
 
     // Mock the db service
     mockDbService = {
@@ -27,15 +32,27 @@ describe('WatchStatusService', () => {
       updateSeasonWatchStatus: vi.fn(),
       updateShowWatchStatus: vi.fn(),
       checkAndUpdateShowWatchStatus: vi.fn(),
+      checkAndUpdateMovieWatchStatus: vi.fn(),
     } as any;
 
-    // Replace the private dbService with our mock
-    (service as any).dbService = mockDbService;
+    // Mock checkAchievements
+    mockCheckAchievements = vi.fn().mockResolvedValue(undefined);
+
+    // Create a new instance for each test with mocked dependencies
+    service = createWatchStatusService({
+      dbService: mockDbService,
+      checkAchievements: mockCheckAchievements,
+    });
+  });
+
+  afterEach(() => {
+    resetWatchStatusService();
+    vi.resetModules();
   });
 
   describe('constructor', () => {
     it('should create an instance with WatchStatusDbService', () => {
-      const newService = new WatchStatusService();
+      const newService = createWatchStatusService();
       expect(newService).toBeInstanceOf(WatchStatusService);
       expect((newService as any).dbService).toBeInstanceOf(WatchStatusDbService);
     });

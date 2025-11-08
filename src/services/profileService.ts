@@ -17,10 +17,10 @@ export class ProfileService {
   private cache: CacheService;
 
   /**
-   * Creates a new ProfileService instance
+   * Constructor accepts optional dependencies for testing
    */
-  constructor() {
-    this.cache = CacheService.getInstance();
+  constructor(dependencies?: { cacheService?: CacheService }) {
+    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
   }
 
   /**
@@ -296,5 +296,40 @@ export class ProfileService {
   }
 }
 
-// Export a singleton instance for global use
-export const profileService = new ProfileService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createProfileService(dependencies?: { cacheService?: CacheService }): ProfileService {
+  return new ProfileService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: ProfileService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getProfileService(): ProfileService {
+  if (!instance) {
+    instance = createProfileService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetProfileService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { profileService }` continues to work
+ */
+export const profileService = getProfileService();

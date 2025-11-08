@@ -3,8 +3,9 @@ import { setupShowService } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
+import { resetShowService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
-import { type Mock, Mocked, beforeEach, describe, expect, it } from 'vitest';
+import { type Mock, Mocked, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Recommendations', () => {
   let service: ReturnType<typeof setupShowService>['service'];
@@ -14,6 +15,10 @@ describe('ShowService - Recommendations', () => {
     const setup = setupShowService();
     service = setup.service;
     mockCache = setup.mockCache;
+  });
+
+  afterEach(() => {
+    resetShowService();
   });
 
   describe('getShowRecommendations', () => {

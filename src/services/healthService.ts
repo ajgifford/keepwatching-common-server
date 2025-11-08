@@ -4,6 +4,14 @@ import { errorService } from './errorService';
 import { DatabaseHealthResponse } from '@ajgifford/keepwatching-types';
 
 export class HealthService {
+  /**
+   * Constructor accepts optional dependencies for testing
+   */
+  constructor(dependencies?: object) {
+    // No dependencies currently, but keeping pattern consistent
+    void dependencies;
+  }
+
   public async getDatabaseHealth(): Promise<DatabaseHealthResponse> {
     try {
       const pool = getDbPool();
@@ -32,4 +40,40 @@ export class HealthService {
   }
 }
 
-export const healthService = new HealthService();
+/**
+ * Factory function for creating new instances
+ * Use this in tests to create isolated instances with mocked dependencies
+ */
+export function createHealthService(dependencies?: object): HealthService {
+  return new HealthService(dependencies);
+}
+
+/**
+ * Singleton instance for production use
+ */
+let instance: HealthService | null = null;
+
+/**
+ * Get or create singleton instance
+ * Use this in production code
+ */
+export function getHealthService(): HealthService {
+  if (!instance) {
+    instance = createHealthService();
+  }
+  return instance;
+}
+
+/**
+ * Reset singleton instance (for testing)
+ * Call this in beforeEach/afterEach to ensure test isolation
+ */
+export function resetHealthService(): void {
+  instance = null;
+}
+
+/**
+ * Backward-compatible default export
+ * Existing code using `import { healthService }` continues to work
+ */
+export const healthService = getHealthService();
