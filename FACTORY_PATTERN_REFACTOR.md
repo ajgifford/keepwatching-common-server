@@ -188,19 +188,12 @@ Key aspects of the reference:
 - [ ] `watchStatusService`
 - [ ] `personService`
 
-### Supporting Services (10)
+### Supporting Services (4)
 
-- [ ] `errorService`
 - [ ] `notificationsService`
 - [ ] `preferencesService`
-- [ ] `contentUpdatesService`
 - [ ] `contentDiscoveryService`
-- [ ] `achievementDetectionService`
 - [ ] `healthService`
-- [ ] `databaseService`
-- [ ] `socketService`
-- [ ] `scheduledJobsService`
-- [ ] `streamingAvailabilityService`
 
 ### Email Services (3)
 
@@ -222,6 +215,37 @@ Key aspects of the reference:
 #### TMDBService
 
 **Status**: Already uses getter function `getTMDBService()`. No changes needed.
+
+#### ErrorService
+
+**Status**: Pure utility class with no dependencies - stateless helper methods only. No changes needed.
+
+#### DatabaseService
+
+**Status**: Infrastructure service already implementing singleton pattern with `getInstance()` and `reset()` for
+testing. Manages database pool lifecycle. No changes needed.
+
+#### SocketService
+
+**Status**: Infrastructure service already implementing singleton pattern with `getInstance()`. Manages WebSocket
+connections and polling. No changes needed.
+
+#### StreamingAvailabilityService
+
+**Status**: External API client wrapper already implementing singleton pattern with `getInstance()`. No changes needed.
+
+#### AchievementDetectionService
+
+**Status**: Pure utility module with exported functions (not a class). Stateless helpers. No changes needed.
+
+#### ContentUpdatesService
+
+**Status**: Pure utility module with exported functions (not a class). Stateless orchestration. No changes needed.
+
+#### ScheduledJobsService
+
+**Status**: Module-level state management with exported functions (not a class). Manages cron jobs lifecycle. No changes
+needed.
 
 ---
 
