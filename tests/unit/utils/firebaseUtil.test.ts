@@ -1,23 +1,32 @@
 import { cliLogger } from '@logger/logger';
 import { getFirebaseAdmin, initializeFirebase, shutdownFirebase } from '@utils/firebaseUtil';
 import admin from 'firebase-admin';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the logger
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 // Mock firebase-admin
-jest.mock('firebase-admin', () => ({
-  apps: [],
-  initializeApp: jest.fn(),
-  credential: {
-    cert: jest.fn(),
+vi.mock('firebase-admin', () => ({
+  default: {
+    apps: [],
+    initializeApp: vi.fn(),
+    credential: {
+      cert: vi.fn(),
+    },
+    app: vi.fn(),
   },
-  app: jest.fn(),
+  apps: [],
+  initializeApp: vi.fn(),
+  credential: {
+    cert: vi.fn(),
+  },
+  app: vi.fn(),
 }));
 
 describe('firebaseUtil', () => {
@@ -38,11 +47,11 @@ describe('firebaseUtil', () => {
   const createMockApp = (name: string): admin.app.App =>
     ({
       name,
-      delete: jest.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
     }) as any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Reset admin.apps array
     (admin.apps as admin.app.App[]).length = 0;
   });
@@ -50,8 +59,8 @@ describe('firebaseUtil', () => {
   describe('initializeFirebase', () => {
     it('should initialize Firebase Admin SDK successfully when not already initialized', () => {
       const mockCredential = { mock: 'credential' };
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
+      (admin.credential.cert as Mock).mockReturnValue(mockCredential);
+      (admin.initializeApp as Mock).mockReturnValue(createMockApp(mockAppName));
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
@@ -84,8 +93,8 @@ describe('firebaseUtil', () => {
       (admin.apps as any[]).push(null, createMockApp('other-app'), null);
 
       const mockCredential = { mock: 'credential' };
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
+      (admin.credential.cert as Mock).mockReturnValue(mockCredential);
+      (admin.initializeApp as Mock).mockReturnValue(createMockApp(mockAppName));
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
@@ -110,8 +119,8 @@ describe('firebaseUtil', () => {
 
     it('should return false and log error when initialization fails', () => {
       const mockError = new Error('Initialization failed');
-      (admin.credential.cert as jest.Mock).mockReturnValue({ mock: 'credential' });
-      (admin.initializeApp as jest.Mock).mockImplementation(() => {
+      (admin.credential.cert as Mock).mockReturnValue({ mock: 'credential' });
+      (admin.initializeApp as Mock).mockImplementation(() => {
         throw mockError;
       });
 
@@ -132,8 +141,8 @@ describe('firebaseUtil', () => {
       });
 
       const mockCredential = { mock: 'credential' };
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
+      (admin.credential.cert as Mock).mockReturnValue(mockCredential);
+      (admin.initializeApp as Mock).mockReturnValue(createMockApp(mockAppName));
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
@@ -152,7 +161,7 @@ describe('firebaseUtil', () => {
     it('should shutdown Firebase app successfully when app exists', async () => {
       const mockApp = createMockApp(mockAppName);
       (admin.apps as admin.app.App[]).push(mockApp);
-      (admin.app as jest.Mock).mockReturnValue(mockApp);
+      (admin.app as Mock).mockReturnValue(mockApp);
 
       await shutdownFirebase(mockAppName);
 
@@ -182,7 +191,7 @@ describe('firebaseUtil', () => {
       const otherApp2 = createMockApp('other-app-2');
 
       (admin.apps as admin.app.App[]).push(otherApp1, targetApp, otherApp2);
-      (admin.app as jest.Mock).mockReturnValue(targetApp);
+      (admin.app as Mock).mockReturnValue(targetApp);
 
       await shutdownFirebase(mockAppName);
 
@@ -195,10 +204,10 @@ describe('firebaseUtil', () => {
     it('should log error and return when deletion fails', async () => {
       const mockError = new Error('Deletion failed');
       const mockApp = createMockApp(mockAppName);
-      mockApp.delete = jest.fn().mockRejectedValue(mockError);
+      mockApp.delete = vi.fn().mockRejectedValue(mockError);
 
       (admin.apps as admin.app.App[]).push(mockApp);
-      (admin.app as jest.Mock).mockReturnValue(mockApp);
+      (admin.app as Mock).mockReturnValue(mockApp);
 
       await shutdownFirebase(mockAppName);
 
@@ -294,13 +303,13 @@ describe('firebaseUtil', () => {
       const mockCredential = { mock: 'credential' };
       const mockApp = createMockApp(mockAppName);
 
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockImplementation((config, name) => {
+      (admin.credential.cert as Mock).mockReturnValue(mockCredential);
+      (admin.initializeApp as Mock).mockImplementation((config, name) => {
         const app = createMockApp(name);
         (admin.apps as admin.app.App[]).push(app);
         return app;
       });
-      (admin.app as jest.Mock).mockReturnValue(mockApp);
+      (admin.app as Mock).mockReturnValue(mockApp);
 
       // Initialize
       const initResult = initializeFirebase(mockServiceAccount, mockAppName);

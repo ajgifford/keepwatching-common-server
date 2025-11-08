@@ -1,37 +1,55 @@
 import { CreateMovieRequest, UpdateMovieRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
-import { TransactionHelper } from '@utils/transactionHelper';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => {
+vi.mock('@utils/db', () => {
   const mockPool = {
-    execute: jest.fn(),
+    execute: vi.fn(),
   };
   return {
-    getDbPool: jest.fn(() => mockPool),
+    getDbPool: vi.fn(() => mockPool),
   };
 });
 
-jest.mock('@utils/transactionHelper');
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
+
+// Create a shared mock instance that will be returned by the TransactionHelper constructor
+const mockTransactionHelperInstance = {
+  executeInTransaction: vi.fn(),
+};
+
+vi.mock('@utils/transactionHelper', () => {
+  return {
+    TransactionHelper: class {
+      executeInTransaction = mockTransactionHelperInstance.executeInTransaction;
+    },
+  };
+});
 
 describe('movieRepository', () => {
   let mockPool: any;
   let mockConnection: any;
-  let mockTransactionHelper: any;
 
   beforeEach(() => {
     mockPool = getDbPool();
     mockPool.execute.mockReset();
 
     mockConnection = {
-      execute: jest.fn().mockResolvedValue([{ insertId: 1 }]),
+      execute: vi.fn().mockResolvedValue([{ insertId: 1 }]),
     };
 
-    mockTransactionHelper = {
-      executeInTransaction: jest.fn((callback) => callback(mockConnection)),
-    };
-
-    (TransactionHelper as jest.Mock).mockImplementation(() => mockTransactionHelper);
+    // Reset and configure the mock transaction helper
+    mockTransactionHelperInstance.executeInTransaction.mockReset();
+    mockTransactionHelperInstance.executeInTransaction.mockImplementation((callback: any) => callback(mockConnection));
   });
 
   describe('saveMovie', () => {
@@ -63,8 +81,7 @@ describe('movieRepository', () => {
 
       const result = await moviesDb.saveMovie(movieData);
 
-      expect(TransactionHelper).toHaveBeenCalled();
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalled();
+      expect(mockTransactionHelperInstance.executeInTransaction).toHaveBeenCalled();
 
       expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT into movies'), [
         12345,
@@ -148,7 +165,7 @@ describe('movieRepository', () => {
       };
 
       const dbError = new Error('Database connection failed');
-      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
+      mockTransactionHelperInstance.executeInTransaction.mockRejectedValue(dbError);
 
       await expect(moviesDb.saveMovie(movieData)).rejects.toThrow('Database error saving a movie');
     });
@@ -230,7 +247,7 @@ describe('movieRepository', () => {
       };
 
       const dbError = new Error('Update failed');
-      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
+      mockTransactionHelperInstance.executeInTransaction.mockRejectedValue(dbError);
 
       await expect(moviesDb.updateMovie(movieData)).rejects.toThrow('Database error updating a movie');
     });

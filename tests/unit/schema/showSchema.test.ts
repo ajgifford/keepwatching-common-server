@@ -1,4 +1,5 @@
 import { addShowFavoriteBodySchema, showParamsSchema, showWatchStatusBodySchema } from '@schema/showSchema';
+import { describe, expect, it } from 'vitest';
 
 describe('showSchema', () => {
   describe('addShowFavoriteSchema', () => {

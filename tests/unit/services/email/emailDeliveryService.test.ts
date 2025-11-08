@@ -5,20 +5,20 @@ import { EmailDeliveryService } from '@services/email/emailDeliveryService';
 import { errorService } from '@services/errorService';
 import * as emailUtility from '@utils/emailUtility';
 import nodemailer from 'nodemailer';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
-jest.mock('nodemailer');
-jest.mock('@logger/logger');
-jest.mock('@services/errorService');
-jest.mock('@utils/emailUtility');
+vi.mock('nodemailer');
+vi.mock('@logger/logger');
+vi.mock('@services/errorService');
+vi.mock('@utils/emailUtility');
 
-const mockSendMail = jest.fn();
-const mockVerify = jest.fn();
-const mockCreateTransporter = jest.fn().mockReturnValue({
+const mockSendMail = vi.fn();
+const mockVerify = vi.fn();
+const mockTransporter = {
   sendMail: mockSendMail,
   verify: mockVerify,
-});
-(nodemailer.createTransport as jest.Mock) = mockCreateTransporter;
+};
 
 describe('EmailDeliveryService', () => {
   let emailDeliveryService: EmailDeliveryService;
@@ -49,7 +49,7 @@ describe('EmailDeliveryService', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockConfig = {
       host: 'smtp.test.com',
@@ -62,14 +62,17 @@ describe('EmailDeliveryService', () => {
       from: 'noreply@test.com',
     };
 
+    // Set up nodemailer.createTransport mock
+    vi.mocked(nodemailer.createTransport).mockReturnValue(mockTransporter as any);
+
     emailDeliveryService = new EmailDeliveryService(mockConfig);
 
-    (errorService.handleError as jest.Mock).mockImplementation((error) => error);
+    (errorService.handleError as Mock).mockImplementation((error) => error);
   });
 
   describe('constructor', () => {
     it('should create transporter with correct configuration', () => {
-      expect(mockCreateTransporter).toHaveBeenCalledWith({
+      expect(nodemailer.createTransport).toHaveBeenCalledWith({
         host: mockConfig.host,
         port: mockConfig.port,
         secure: mockConfig.secure,
@@ -102,8 +105,8 @@ describe('EmailDeliveryService', () => {
 
   describe('sendDigestEmail', () => {
     beforeEach(() => {
-      (emailUtility.generateWeeklyDigestHTML as jest.Mock).mockReturnValue('<html>digest</html>');
-      (emailUtility.generateWeeklyDigestText as jest.Mock).mockReturnValue('digest text');
+      (emailUtility.generateWeeklyDigestHTML as Mock).mockReturnValue('<html>digest</html>');
+      (emailUtility.generateWeeklyDigestText as Mock).mockReturnValue('digest text');
     });
 
     it('should send digest email successfully', async () => {
@@ -139,8 +142,8 @@ describe('EmailDeliveryService', () => {
 
   describe('sendDiscoveryEmail', () => {
     beforeEach(() => {
-      (emailUtility.generateDiscoveryEmailHTML as jest.Mock).mockReturnValue('<html>discovery</html>');
-      (emailUtility.generateDiscoveryEmailText as jest.Mock).mockReturnValue('discovery text');
+      (emailUtility.generateDiscoveryEmailHTML as Mock).mockReturnValue('<html>discovery</html>');
+      (emailUtility.generateDiscoveryEmailText as Mock).mockReturnValue('discovery text');
     });
 
     it('should send discovery email successfully', async () => {
@@ -209,7 +212,7 @@ describe('EmailDeliveryService', () => {
     it('should send batch of digest emails successfully', async () => {
       const emails = [mockDigestEmail, { ...mockDigestEmail, to: 'test2@example.com' }];
       mockSendMail.mockResolvedValue({ messageId: 'test-message-id' });
-      const mockUpdateStatus = jest.fn().mockResolvedValue(undefined);
+      const mockUpdateStatus = vi.fn().mockResolvedValue(undefined);
 
       const result = await emailDeliveryService.sendDigestEmailBatch(emails, 1, mockUpdateStatus);
 
@@ -226,7 +229,7 @@ describe('EmailDeliveryService', () => {
     it('should handle partial failures in batch', async () => {
       const emails = [mockDigestEmail, { ...mockDigestEmail, to: 'test2@example.com' }];
       const sendError = new Error('Send failed');
-      const mockUpdateStatus = jest.fn().mockResolvedValue(undefined);
+      const mockUpdateStatus = vi.fn().mockResolvedValue(undefined);
 
       mockSendMail.mockResolvedValueOnce({ messageId: 'success' }).mockRejectedValueOnce(sendError);
 
@@ -247,7 +250,7 @@ describe('EmailDeliveryService', () => {
     it('should send batch of discovery emails successfully', async () => {
       const emails = [mockDiscoveryEmail, { ...mockDiscoveryEmail, to: 'test2@example.com' }];
       mockSendMail.mockResolvedValue({ messageId: 'test-message-id' });
-      const mockUpdateStatus = jest.fn().mockResolvedValue(undefined);
+      const mockUpdateStatus = vi.fn().mockResolvedValue(undefined);
 
       const result = await emailDeliveryService.sendDiscoveryEmailBatch(emails, 1, mockUpdateStatus);
 

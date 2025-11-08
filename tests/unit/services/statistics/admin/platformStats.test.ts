@@ -2,21 +2,22 @@ import * as adminStatsRepository from '@db/statistics/adminStatsRepository';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { adminStatisticsService } from '@services/statistics/adminStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
-jest.mock('@db/statistics/adminStatsRepository');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
+vi.mock('@db/statistics/adminStatsRepository');
 
 describe('AdminStatisticsService - Platform Stats', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(adminStatisticsService, 'cache', {
       value: mockCacheService,
@@ -62,7 +63,7 @@ describe('AdminStatisticsService - Platform Stats', () => {
         total_hours_watched: 12500.75,
       };
 
-      (adminStatsRepository.getPlatformOverview as jest.Mock).mockResolvedValue(mockRepoData);
+      (adminStatsRepository.getPlatformOverview as Mock).mockResolvedValue(mockRepoData);
 
       const result = await adminStatisticsService.getPlatformOverview();
 
@@ -95,7 +96,7 @@ describe('AdminStatisticsService - Platform Stats', () => {
         total_hours_watched: 0,
       };
 
-      (adminStatsRepository.getPlatformOverview as jest.Mock).mockResolvedValue(mockRepoData);
+      (adminStatsRepository.getPlatformOverview as Mock).mockResolvedValue(mockRepoData);
 
       const result = await adminStatisticsService.getPlatformOverview();
 
@@ -117,7 +118,7 @@ describe('AdminStatisticsService - Platform Stats', () => {
         total_hours_watched: undefined,
       };
 
-      (adminStatsRepository.getPlatformOverview as jest.Mock).mockResolvedValue(mockRepoData);
+      (adminStatsRepository.getPlatformOverview as Mock).mockResolvedValue(mockRepoData);
 
       const result = await adminStatisticsService.getPlatformOverview();
 
@@ -135,8 +136,8 @@ describe('AdminStatisticsService - Platform Stats', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database connection failed');
-      (adminStatsRepository.getPlatformOverview as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (adminStatsRepository.getPlatformOverview as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -186,9 +187,9 @@ describe('AdminStatisticsService - Platform Stats', () => {
         moviesWatched: 75,
       };
 
-      (adminStatsRepository.getPlatformTrends as jest.Mock).mockResolvedValue(mockTrendsData);
-      (adminStatsRepository.getNewAccountsCount as jest.Mock).mockResolvedValue(mockNewAccountsCount);
-      (adminStatsRepository.getPreviousPeriodActivity as jest.Mock).mockResolvedValue(mockPreviousPeriodData);
+      (adminStatsRepository.getPlatformTrends as Mock).mockResolvedValue(mockTrendsData);
+      (adminStatsRepository.getNewAccountsCount as Mock).mockResolvedValue(mockNewAccountsCount);
+      (adminStatsRepository.getPreviousPeriodActivity as Mock).mockResolvedValue(mockPreviousPeriodData);
 
       const result = await adminStatisticsService.getPlatformTrends(30);
 
@@ -218,9 +219,9 @@ describe('AdminStatisticsService - Platform Stats', () => {
         moviesWatched: 20,
       };
 
-      (adminStatsRepository.getPlatformTrends as jest.Mock).mockResolvedValue(mockTrendsData);
-      (adminStatsRepository.getNewAccountsCount as jest.Mock).mockResolvedValue(10);
-      (adminStatsRepository.getPreviousPeriodActivity as jest.Mock).mockResolvedValue(mockPreviousPeriodData);
+      (adminStatsRepository.getPlatformTrends as Mock).mockResolvedValue(mockTrendsData);
+      (adminStatsRepository.getNewAccountsCount as Mock).mockResolvedValue(10);
+      (adminStatsRepository.getPreviousPeriodActivity as Mock).mockResolvedValue(mockPreviousPeriodData);
 
       const result = await adminStatisticsService.getPlatformTrends(30);
 
@@ -248,9 +249,9 @@ describe('AdminStatisticsService - Platform Stats', () => {
         moviesWatched: 0,
       };
 
-      (adminStatsRepository.getPlatformTrends as jest.Mock).mockResolvedValue(mockTrendsData);
-      (adminStatsRepository.getNewAccountsCount as jest.Mock).mockResolvedValue(5);
-      (adminStatsRepository.getPreviousPeriodActivity as jest.Mock).mockResolvedValue(mockPreviousPeriodData);
+      (adminStatsRepository.getPlatformTrends as Mock).mockResolvedValue(mockTrendsData);
+      (adminStatsRepository.getNewAccountsCount as Mock).mockResolvedValue(5);
+      (adminStatsRepository.getPreviousPeriodActivity as Mock).mockResolvedValue(mockPreviousPeriodData);
 
       const result = await adminStatisticsService.getPlatformTrends(30);
 
@@ -261,9 +262,9 @@ describe('AdminStatisticsService - Platform Stats', () => {
     it('should handle empty trends data', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (adminStatsRepository.getPlatformTrends as jest.Mock).mockResolvedValue([]);
-      (adminStatsRepository.getNewAccountsCount as jest.Mock).mockResolvedValue(0);
-      (adminStatsRepository.getPreviousPeriodActivity as jest.Mock).mockResolvedValue({
+      (adminStatsRepository.getPlatformTrends as Mock).mockResolvedValue([]);
+      (adminStatsRepository.getNewAccountsCount as Mock).mockResolvedValue(0);
+      (adminStatsRepository.getPreviousPeriodActivity as Mock).mockResolvedValue({
         activeAccounts: 0,
         episodesWatched: 0,
         moviesWatched: 0,
@@ -279,9 +280,9 @@ describe('AdminStatisticsService - Platform Stats', () => {
     it('should use default days parameter', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (adminStatsRepository.getPlatformTrends as jest.Mock).mockResolvedValue([]);
-      (adminStatsRepository.getNewAccountsCount as jest.Mock).mockResolvedValue(0);
-      (adminStatsRepository.getPreviousPeriodActivity as jest.Mock).mockResolvedValue({
+      (adminStatsRepository.getPlatformTrends as Mock).mockResolvedValue([]);
+      (adminStatsRepository.getNewAccountsCount as Mock).mockResolvedValue(0);
+      (adminStatsRepository.getPreviousPeriodActivity as Mock).mockResolvedValue({
         activeAccounts: 0,
         episodesWatched: 0,
         moviesWatched: 0,
@@ -298,8 +299,8 @@ describe('AdminStatisticsService - Platform Stats', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database query failed');
-      (adminStatsRepository.getPlatformTrends as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (adminStatsRepository.getPlatformTrends as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

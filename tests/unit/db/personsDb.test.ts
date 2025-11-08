@@ -8,41 +8,56 @@ import {
 } from '../../../src/types/personTypes';
 import { CreateCast, CreatePerson, CreateShowCast, UpdatePerson } from '@ajgifford/keepwatching-types';
 import * as personsDb from '@db/personsDb';
-import { getDbPool } from '@utils/db';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { type Mock, MockedFunction, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock dependencies
-jest.mock('@utils/db');
-jest.mock('@utils/errorHandlingUtility');
-jest.mock('@utils/transactionHelper');
+const { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction } = vi.hoisted(() => {
+  const mockExecute = vi.fn();
+  const mockQuery = vi.fn();
+  const mockGetDbPool = vi.fn(() => ({
+    execute: mockExecute,
+    query: mockQuery,
+  }));
+  const mockExecuteInTransaction = vi.fn();
 
-const mockGetDbPool = getDbPool as jest.MockedFunction<typeof getDbPool>;
-const mockHandleDatabaseError = handleDatabaseError as jest.MockedFunction<typeof handleDatabaseError>;
-const mockTransactionHelper = TransactionHelper as jest.MockedClass<typeof TransactionHelper>;
+  return { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction };
+});
+
+vi.mock('@utils/db', () => ({
+  getDbPool: mockGetDbPool,
+}));
+
+vi.mock('@utils/transactionHelper', () => ({
+  TransactionHelper: vi.fn(function (this: any) {
+    this.executeInTransaction = mockExecuteInTransaction;
+  }),
+}));
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
+const mockHandleDatabaseError = handleDatabaseError as MockedFunction<typeof handleDatabaseError>;
+
+vi.mock('@utils/errorHandlingUtility');
 
 describe('personsDb', () => {
-  let mockExecute: jest.Mock;
-  let mockQuery: jest.Mock;
-  let mockTransactionInstance: any;
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    mockExecute = jest.fn();
-    mockQuery = jest.fn();
-
-    mockTransactionInstance = {
-      executeInTransaction: jest.fn(),
-    };
-
-    mockGetDbPool.mockReturnValue({
-      execute: mockExecute,
-      query: mockQuery,
-    } as any);
-
-    mockTransactionHelper.mockImplementation(() => mockTransactionInstance);
+    mockExecuteInTransaction.mockImplementation(async (callback) => {
+      const mockConnection = {
+        execute: mockExecute,
+      };
+      return callback(mockConnection);
+    });
 
     // Reset handleDatabaseError to throw by default
     mockHandleDatabaseError.mockImplementation((error, context) => {
@@ -366,56 +381,65 @@ describe('personsDb', () => {
 
   describe('getPersonDetails', () => {
     it('should get person details with credits', async () => {
-      const mockPersonRow: PersonRow = {
-        id: 123,
-        name: 'John Doe',
-        tmdb_id: 456,
-        gender: 1,
-        biography: 'Biography',
-        profile_image: 'image.jpg',
-        birthdate: '1980-01-01',
-        deathdate: null,
-        place_of_birth: 'New York',
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-      } as PersonRow;
-      const mockMovieCredits: MovieCreditRow[] = [
-        {
-          movie_id: 1,
-          person_id: 123,
-          character_name: 'Hero',
-          title: 'Great Movie',
-          poster_image: 'poster.jpg',
-          release_date: '2024-01-01',
-          rating: 8.5,
-        } as MovieCreditRow,
-      ];
-      const mockShowCredits: ShowCreditRow[] = [
-        {
-          show_id: 1,
-          person_id: 123,
-          character_name: 'Lead',
-          title: 'Great Show',
-          poster_image: 'show-poster.jpg',
-          release_date: '2024-01-01',
-          rating: 9.0,
-          total_episodes: 10,
-        } as ShowCreditRow,
-      ];
+      const mockConnectionExecute = vi.fn();
 
-      const mockConnectionExecute = jest
-        .fn()
-        .mockResolvedValueOnce([[mockPersonRow]])
-        .mockResolvedValueOnce([mockMovieCredits])
-        .mockResolvedValueOnce([mockShowCredits]);
+      const mockTransactionInstance = {
+        executeInTransaction: vi.fn().mockImplementation(async (callback) => {
+          return callback({ execute: mockConnectionExecute });
+        }),
+      };
 
-      mockTransactionInstance.executeInTransaction.mockImplementation((callback: any) =>
-        callback({ execute: mockConnectionExecute }),
-      );
+      (TransactionHelper as unknown as Mock).mockImplementation(function () {
+        return mockTransactionInstance;
+      });
+
+      mockConnectionExecute.mockResolvedValueOnce([
+        [
+          {
+            id: 123,
+            name: 'John Doe',
+            tmdb_id: 456,
+            gender: 1,
+            biography: 'Biography',
+            profile_image: 'image.jpg',
+            birthdate: '1980-01-01',
+            deathdate: null,
+            place_of_birth: 'New York',
+            created_at: '2024-01-01',
+            updated_at: '2024-01-01',
+          } as PersonRow,
+        ],
+      ]);
+      mockConnectionExecute.mockResolvedValueOnce([
+        [
+          {
+            movie_id: 1,
+            person_id: 123,
+            character_name: 'Hero',
+            title: 'Great Movie',
+            poster_image: 'poster.jpg',
+            release_date: '2024-01-01',
+            rating: 8.5,
+          } as MovieCreditRow,
+        ],
+      ]);
+      mockConnectionExecute.mockResolvedValueOnce([
+        [
+          {
+            show_id: 1,
+            person_id: 123,
+            character_name: 'Lead',
+            title: 'Great Show',
+            poster_image: 'show-poster.jpg',
+            release_date: '2024-01-01',
+            rating: 9.0,
+            total_episodes: 10,
+          } as ShowCreditRow,
+        ],
+      ]);
 
       const result = await personsDb.getPersonDetails(123);
 
-      expect(mockTransactionInstance.executeInTransaction).toHaveBeenCalled();
       expect(mockConnectionExecute).toHaveBeenCalledTimes(3);
       expect(result).toEqual({
         id: 123,
@@ -450,8 +474,15 @@ describe('personsDb', () => {
     });
 
     it('should handle database errors', async () => {
+      const mockTransactionInstance = {
+        executeInTransaction: vi.fn().mockRejectedValue(new Error('Database error')),
+      };
+
+      (TransactionHelper as unknown as Mock).mockImplementation(function () {
+        return mockTransactionInstance;
+      });
+
       const error = new Error('Database error');
-      mockTransactionInstance.executeInTransaction.mockRejectedValue(error);
 
       await expect(personsDb.getPersonDetails(123)).rejects.toThrow(
         'Database error in getting a person details: Error: Database error',
@@ -806,10 +837,8 @@ describe('personsDb', () => {
       ];
 
       // Mock Date to have consistent test results
-      const mockDate = new Date('2024-01-01');
-      const originalDate = global.Date;
-      global.Date = jest.fn(() => mockDate) as any;
-      Object.setPrototypeOf(global.Date, originalDate);
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01'));
 
       mockQuery.mockResolvedValue([mockPersonRows]);
 
@@ -845,8 +874,8 @@ describe('personsDb', () => {
         },
       ]);
 
-      // Restore original Date
-      global.Date = originalDate;
+      // Restore real timers
+      vi.useRealTimers();
     });
 
     it('should handle database errors', async () => {

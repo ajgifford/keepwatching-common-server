@@ -1,5 +1,6 @@
 import { TMDBChange } from '../../../src/types/tmdbTypes';
 import { filterUniqueSeasonIds, generateDateRange } from '@utils/changesUtility';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 describe('changesUtility', () => {
   describe('filterUniqueSeasonIds', () => {
@@ -82,24 +83,18 @@ describe('changesUtility', () => {
   });
 
   describe('generateDateRange', () => {
-    const RealDate = Date;
+    const fixedDate = new Date('2023-06-15T12:00:00Z');
 
-    beforeEach(() => {
-      const mockNow = new RealDate(2023, 5, 15); // June 15, 2023
-
-      jest.spyOn(global, 'Date').mockImplementation((...args: any[]) => {
-        if (args.length === 0) {
-          return new RealDate(mockNow.getTime());
-        }
-        return new RealDate(...(args as [any]));
-      });
+    beforeAll(() => {
+      vi.useFakeTimers();
     });
 
-    afterEach(() => {
-      jest.restoreAllMocks();
+    afterAll(() => {
+      vi.useRealTimers();
     });
 
     it('should generate correct date range with lookback days', () => {
+      vi.setSystemTime(fixedDate);
       const { currentDate, pastDate } = generateDateRange(10);
 
       expect(currentDate).toBe('2023-06-15');
@@ -107,6 +102,7 @@ describe('changesUtility', () => {
     });
 
     it('should generate correct date range with 1 day lookback', () => {
+      vi.setSystemTime(fixedDate);
       const { currentDate, pastDate } = generateDateRange(1);
 
       expect(currentDate).toBe('2023-06-15');
@@ -114,6 +110,7 @@ describe('changesUtility', () => {
     });
 
     it('should generate correct date range with 30 days lookback', () => {
+      vi.setSystemTime(fixedDate);
       const { currentDate, pastDate } = generateDateRange(30);
 
       expect(currentDate).toBe('2023-06-15');
@@ -121,15 +118,7 @@ describe('changesUtility', () => {
     });
 
     it('should handle date crossing month boundaries', () => {
-      const mockNow = new RealDate(2023, 6, 1); // July 1, 2023
-
-      jest.spyOn(global, 'Date').mockImplementation((...args: any[]) => {
-        if (args.length === 0) {
-          return new RealDate(mockNow.getTime());
-        }
-        return new RealDate(...(args as [any]));
-      });
-
+      vi.setSystemTime(new Date('2023-07-01T12:00:00Z'));
       const { currentDate, pastDate } = generateDateRange(5);
 
       expect(currentDate).toBe('2023-07-01');
@@ -137,15 +126,7 @@ describe('changesUtility', () => {
     });
 
     it('should handle date crossing year boundaries', () => {
-      const mockNow = new RealDate(2023, 0, 1); // January 1, 2023
-
-      jest.spyOn(global, 'Date').mockImplementation((...args: any[]) => {
-        if (args.length === 0) {
-          return new RealDate(mockNow.getTime());
-        }
-        return new RealDate(...(args as [any]));
-      });
-
+      vi.setSystemTime(new Date('2023-01-01T12:00:00Z'));
       const { currentDate, pastDate } = generateDateRange(5);
 
       expect(currentDate).toBe('2023-01-01');
@@ -153,15 +134,7 @@ describe('changesUtility', () => {
     });
 
     it('should format dates with leading zeros', () => {
-      const mockNow = new RealDate(2023, 0, 9); // January 9, 2023
-
-      jest.spyOn(global, 'Date').mockImplementation((...args: any[]) => {
-        if (args.length === 0) {
-          return new RealDate(mockNow.getTime());
-        }
-        return new RealDate(...(args as [any]));
-      });
-
+      vi.setSystemTime(new Date('2023-01-09T12:00:00Z'));
       const { currentDate, pastDate } = generateDateRange(5);
 
       expect(currentDate).toBe('2023-01-09');

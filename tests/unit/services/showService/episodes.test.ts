@@ -13,6 +13,7 @@ import { cliLogger } from '@logger/logger';
 import { errorService } from '@services/errorService';
 import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
+import { type Mock, Mocked, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('ShowService - Episodes', () => {
   let service: ReturnType<typeof setupShowService>['service'];
@@ -44,9 +45,9 @@ describe('ShowService - Episodes', () => {
     it('should fetch episodes from database when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
 
-      (episodesDb.getRecentEpisodesForProfile as jest.Mock).mockResolvedValue(mockRecentEpisodes);
-      (episodesDb.getUpcomingEpisodesForProfile as jest.Mock).mockResolvedValue(mockUpcomingEpisodes);
-      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+      (episodesDb.getRecentEpisodesForProfile as Mock).mockResolvedValue(mockRecentEpisodes);
+      (episodesDb.getUpcomingEpisodesForProfile as Mock).mockResolvedValue(mockUpcomingEpisodes);
+      (showsDb.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
 
       const result = await service.getEpisodesForProfile(123);
 
@@ -65,7 +66,7 @@ describe('ShowService - Episodes', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
-      (episodesDb.getRecentEpisodesForProfile as jest.Mock).mockRejectedValue(error);
+      (episodesDb.getRecentEpisodesForProfile as Mock).mockRejectedValue(error);
 
       await expect(service.getEpisodesForProfile(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getEpisodesForProfile(123)');
@@ -84,7 +85,7 @@ describe('ShowService - Episodes', () => {
 
     it('should fetch next unwatched episodes from database when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
-      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+      (showsDb.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
 
       const result = await service.getNextUnwatchedEpisodesForProfile(123);
 
@@ -95,7 +96,7 @@ describe('ShowService - Episodes', () => {
 
     it('should handle empty results', async () => {
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
-      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+      (showsDb.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue([]);
 
       const result = await service.getNextUnwatchedEpisodesForProfile(123);
 
@@ -106,7 +107,7 @@ describe('ShowService - Episodes', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
-      (showsDb.getNextUnwatchedEpisodesForProfile as jest.Mock).mockRejectedValue(error);
+      (showsDb.getNextUnwatchedEpisodesForProfile as Mock).mockRejectedValue(error);
 
       await expect(service.getNextUnwatchedEpisodesForProfile(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getNextUnwatchedEpisodesForProfile(123)');
@@ -133,7 +134,7 @@ describe('ShowService - Episodes', () => {
     const mockShow = mockTMDBResponses.showDetails;
 
     it('should fetch and save seasons and episodes', async () => {
-      const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
+      const mockTMDBService = getTMDBService() as Mocked<ReturnType<typeof getTMDBService>>;
 
       const showWithOneSeason = {
         ...mockShow,
@@ -141,14 +142,14 @@ describe('ShowService - Episodes', () => {
       };
 
       mockTMDBService.getSeasonDetails.mockResolvedValue(mockTMDBResponses.seasonDetails);
-      (seasonsDb.saveSeason as jest.Mock).mockResolvedValue(201);
+      (seasonsDb.saveSeason as Mock).mockResolvedValue(201);
 
       const mockEpisode1 = { id: 301, tmdb_id: 1001, show_id: showId, season_id: 201 };
       const mockEpisode2 = { id: 302, tmdb_id: 1002, show_id: showId, season_id: 201 };
-      (episodesDb.saveEpisode as jest.Mock).mockResolvedValueOnce(mockEpisode1).mockResolvedValueOnce(mockEpisode2);
+      (episodesDb.saveEpisode as Mock).mockResolvedValueOnce(mockEpisode1).mockResolvedValueOnce(mockEpisode2);
 
       const mockProfileShow = { show_id: showId, profile_id: profileId, title: 'Test Show' };
-      (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
+      (showsDb.getShowForProfile as Mock).mockResolvedValue(mockProfileShow);
 
       const timeoutSpy = testUtils.mockImmediateTimeout();
 
@@ -175,10 +176,10 @@ describe('ShowService - Episodes', () => {
 
     it('should handle API errors without failing', async () => {
       const mockError = new Error('API error');
-      const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
+      const mockTMDBService = getTMDBService() as Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getSeasonDetails.mockRejectedValue(mockError);
 
-      const logSpy = jest.spyOn(cliLogger, 'error');
+      const logSpy = vi.spyOn(cliLogger, 'error');
 
       const timeoutSpy = testUtils.mockImmediateTimeout();
 
@@ -207,7 +208,7 @@ describe('ShowService - Episodes', () => {
         ],
       };
 
-      const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
+      const mockTMDBService = getTMDBService() as Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getSeasonDetails.mockResolvedValue(mockTMDBResponses.seasonDetails);
 
       const timeoutSpy = testUtils.mockImmediateTimeout();

@@ -5,10 +5,11 @@ import * as showsDb from '@db/showsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { ShowService, showService } from '@services/showService';
+import { type Mock, MockedObject, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Statistics', () => {
   let service: ShowService;
-  let mockCache: jest.Mocked<CacheService>;
+  let mockCache: MockedObject<CacheService>;
 
   beforeEach(() => {
     setupMocks();
@@ -38,7 +39,7 @@ describe('ShowService - Statistics', () => {
 
     it('should calculate statistics from shows when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockProfileShows);
+      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue(mockProfileShows);
 
       const result = await service.getProfileShowStatistics(123);
 
@@ -57,7 +58,7 @@ describe('ShowService - Statistics', () => {
 
     it('should handle empty shows list', async () => {
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue([]);
+      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue([]);
 
       const result = await service.getProfileShowStatistics(123);
 
@@ -74,7 +75,7 @@ describe('ShowService - Statistics', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockRejectedValue(error);
+      (showsDb.getAllShowsForProfile as Mock).mockRejectedValue(error);
 
       await expect(service.getProfileShowStatistics(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getShowStatistics(123)');
@@ -156,10 +157,8 @@ describe('ShowService - Statistics', () => {
 
     it('should calculate watch progress when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockShows);
-      (seasonsDb.getSeasonsForShow as jest.Mock)
-        .mockResolvedValueOnce(mockSeasons1)
-        .mockResolvedValueOnce(mockSeasons2);
+      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue(mockShows);
+      (seasonsDb.getSeasonsForShow as Mock).mockResolvedValueOnce(mockSeasons1).mockResolvedValueOnce(mockSeasons2);
 
       const result = await service.getProfileWatchProgress(123);
 
@@ -186,10 +185,10 @@ describe('ShowService - Statistics', () => {
 
     it('should handle shows with no episodes', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue([
+      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue([
         { id: 3, title: 'Empty Show', watchStatus: 'NOT_WATCHED' },
       ]);
-      (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValue([]);
+      (seasonsDb.getSeasonsForShow as Mock).mockResolvedValue([]);
 
       const result = await service.getProfileWatchProgress(123);
 
@@ -205,7 +204,7 @@ describe('ShowService - Statistics', () => {
 
     it('should handle no shows in profile', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue([]);
+      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue([]);
 
       const result = await service.getProfileWatchProgress(123);
 
@@ -218,7 +217,7 @@ describe('ShowService - Statistics', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockRejectedValue(error);
+      (showsDb.getAllShowsForProfile as Mock).mockRejectedValue(error);
 
       await expect(service.getProfileWatchProgress(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getWatchProgress(123)');

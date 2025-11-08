@@ -1,31 +1,32 @@
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { adminStatisticsService } from '@services/statistics/adminStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
-
-// Mock the methods on the service itself
-jest.spyOn(adminStatisticsService, 'getPlatformOverview');
-jest.spyOn(adminStatisticsService, 'getPlatformTrends');
-jest.spyOn(adminStatisticsService, 'getAccountHealthMetrics');
-jest.spyOn(adminStatisticsService, 'getContentPopularity');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
 
 describe('AdminStatisticsService - Dashboard Integration', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(adminStatisticsService, 'cache', {
       value: mockCacheService,
       writable: true,
     });
+
+    // Create fresh spies for each test
+    vi.spyOn(adminStatisticsService, 'getPlatformOverview');
+    vi.spyOn(adminStatisticsService, 'getPlatformTrends');
+    vi.spyOn(adminStatisticsService, 'getAccountHealthMetrics');
+    vi.spyOn(adminStatisticsService, 'getContentPopularity');
   });
 
   describe('getAdminDashboard', () => {
@@ -155,10 +156,10 @@ describe('AdminStatisticsService - Dashboard Integration', () => {
     it('should fetch and combine all dashboard data on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (adminStatisticsService.getPlatformOverview as jest.Mock).mockResolvedValue(mockPlatformOverview);
-      (adminStatisticsService.getPlatformTrends as jest.Mock).mockResolvedValue(mockPlatformTrends);
-      (adminStatisticsService.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockAccountHealth);
-      (adminStatisticsService.getContentPopularity as jest.Mock).mockResolvedValue(mockContentPopularity);
+      (adminStatisticsService.getPlatformOverview as Mock).mockResolvedValue(mockPlatformOverview);
+      (adminStatisticsService.getPlatformTrends as Mock).mockResolvedValue(mockPlatformTrends);
+      (adminStatisticsService.getAccountHealthMetrics as Mock).mockResolvedValue(mockAccountHealth);
+      (adminStatisticsService.getContentPopularity as Mock).mockResolvedValue(mockContentPopularity);
 
       const result = await adminStatisticsService.getAdminDashboard();
 
@@ -180,10 +181,10 @@ describe('AdminStatisticsService - Dashboard Integration', () => {
     it('should separate shows and movies in top content', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (adminStatisticsService.getPlatformOverview as jest.Mock).mockResolvedValue(mockPlatformOverview);
-      (adminStatisticsService.getPlatformTrends as jest.Mock).mockResolvedValue(mockPlatformTrends);
-      (adminStatisticsService.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockAccountHealth);
-      (adminStatisticsService.getContentPopularity as jest.Mock).mockResolvedValue(mockContentPopularity);
+      (adminStatisticsService.getPlatformOverview as Mock).mockResolvedValue(mockPlatformOverview);
+      (adminStatisticsService.getPlatformTrends as Mock).mockResolvedValue(mockPlatformTrends);
+      (adminStatisticsService.getAccountHealthMetrics as Mock).mockResolvedValue(mockAccountHealth);
+      (adminStatisticsService.getContentPopularity as Mock).mockResolvedValue(mockContentPopularity);
 
       const result = await adminStatisticsService.getAdminDashboard();
 
@@ -197,10 +198,10 @@ describe('AdminStatisticsService - Dashboard Integration', () => {
     it('should handle empty top content', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (adminStatisticsService.getPlatformOverview as jest.Mock).mockResolvedValue(mockPlatformOverview);
-      (adminStatisticsService.getPlatformTrends as jest.Mock).mockResolvedValue(mockPlatformTrends);
-      (adminStatisticsService.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockAccountHealth);
-      (adminStatisticsService.getContentPopularity as jest.Mock).mockResolvedValue({
+      (adminStatisticsService.getPlatformOverview as Mock).mockResolvedValue(mockPlatformOverview);
+      (adminStatisticsService.getPlatformTrends as Mock).mockResolvedValue(mockPlatformTrends);
+      (adminStatisticsService.getAccountHealthMetrics as Mock).mockResolvedValue(mockAccountHealth);
+      (adminStatisticsService.getContentPopularity as Mock).mockResolvedValue({
         contentType: 'all',
         resultCount: 0,
         popularContent: [],
@@ -215,10 +216,10 @@ describe('AdminStatisticsService - Dashboard Integration', () => {
     it('should handle only shows in top content', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (adminStatisticsService.getPlatformOverview as jest.Mock).mockResolvedValue(mockPlatformOverview);
-      (adminStatisticsService.getPlatformTrends as jest.Mock).mockResolvedValue(mockPlatformTrends);
-      (adminStatisticsService.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockAccountHealth);
-      (adminStatisticsService.getContentPopularity as jest.Mock).mockResolvedValue({
+      (adminStatisticsService.getPlatformOverview as Mock).mockResolvedValue(mockPlatformOverview);
+      (adminStatisticsService.getPlatformTrends as Mock).mockResolvedValue(mockPlatformTrends);
+      (adminStatisticsService.getAccountHealthMetrics as Mock).mockResolvedValue(mockAccountHealth);
+      (adminStatisticsService.getContentPopularity as Mock).mockResolvedValue({
         contentType: 'all',
         resultCount: 2,
         popularContent: [
@@ -252,10 +253,10 @@ describe('AdminStatisticsService - Dashboard Integration', () => {
     it('should handle only movies in top content', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (adminStatisticsService.getPlatformOverview as jest.Mock).mockResolvedValue(mockPlatformOverview);
-      (adminStatisticsService.getPlatformTrends as jest.Mock).mockResolvedValue(mockPlatformTrends);
-      (adminStatisticsService.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockAccountHealth);
-      (adminStatisticsService.getContentPopularity as jest.Mock).mockResolvedValue({
+      (adminStatisticsService.getPlatformOverview as Mock).mockResolvedValue(mockPlatformOverview);
+      (adminStatisticsService.getPlatformTrends as Mock).mockResolvedValue(mockPlatformTrends);
+      (adminStatisticsService.getAccountHealthMetrics as Mock).mockResolvedValue(mockAccountHealth);
+      (adminStatisticsService.getContentPopularity as Mock).mockResolvedValue({
         contentType: 'all',
         resultCount: 2,
         popularContent: [
@@ -290,8 +291,8 @@ describe('AdminStatisticsService - Dashboard Integration', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Failed to get platform overview');
-      (adminStatisticsService.getPlatformOverview as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (adminStatisticsService.getPlatformOverview as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -311,22 +312,22 @@ describe('AdminStatisticsService - Dashboard Integration', () => {
       let accountHealthTime = 0;
       let contentPopularityTime = 0;
 
-      (adminStatisticsService.getPlatformOverview as jest.Mock).mockImplementation(async () => {
+      (adminStatisticsService.getPlatformOverview as Mock).mockImplementation(async () => {
         platformOverviewTime = Date.now() - startTime;
         return mockPlatformOverview;
       });
 
-      (adminStatisticsService.getPlatformTrends as jest.Mock).mockImplementation(async () => {
+      (adminStatisticsService.getPlatformTrends as Mock).mockImplementation(async () => {
         platformTrendsTime = Date.now() - startTime;
         return mockPlatformTrends;
       });
 
-      (adminStatisticsService.getAccountHealthMetrics as jest.Mock).mockImplementation(async () => {
+      (adminStatisticsService.getAccountHealthMetrics as Mock).mockImplementation(async () => {
         accountHealthTime = Date.now() - startTime;
         return mockAccountHealth;
       });
 
-      (adminStatisticsService.getContentPopularity as jest.Mock).mockImplementation(async () => {
+      (adminStatisticsService.getContentPopularity as Mock).mockImplementation(async () => {
         contentPopularityTime = Date.now() - startTime;
         return mockContentPopularity;
       });

@@ -1,65 +1,60 @@
+import { afterEach, vi } from 'vitest';
+
 // Set a longer timeout for certain tests
-jest.setTimeout(10000);
+vi.setConfig({ testTimeout: 10000 });
+
+// vi.mock('mysql2/promise', () => ({
+//   default: {
+//     createPool: vi.fn(() => ({
+//       query: vi.fn().mockResolvedValue([]),
+//       execute: vi.fn().mockResolvedValue([]),
+//       end: vi.fn().mockResolvedValue(undefined),
+//     })),
+//   },
+//   createPool: vi.fn(() => ({
+//     query: vi.fn().mockResolvedValue([]),
+//     execute: vi.fn().mockResolvedValue([]),
+//     end: vi.fn().mockResolvedValue(undefined),
+//   })),
+// }));
+
+// vi.mock('ioredis', () => ({
+//   default: vi.fn().mockImplementation(() => ({
+//     get: vi.fn(),
+//     set: vi.fn(),
+//     del: vi.fn(),
+//     on: vi.fn(),
+//     multi: vi.fn(),
+//     hgetall: vi.fn(),
+//     keys: vi.fn(),
+//     quit: vi.fn().mockResolvedValue(undefined),
+//     connect: vi.fn().mockResolvedValue(undefined),
+//   })),
+// }));
 
 // Mock dbMonitoring globally to prevent Redis connections during tests
-jest.mock('@utils/dbMonitoring', () => {
-  // const mockInstance = {
-  //   executeWithTiming: jest.fn().mockImplementation(async (queryName, queryFn) => {
-  //     return queryFn();
-  //   }),
-  //   getStats: jest.fn().mockResolvedValue([]),
-  //   logStats: jest.fn().mockResolvedValue(undefined),
-  //   clearStats: jest.fn().mockResolvedValue(undefined),
-  //   disconnect: jest.fn().mockResolvedValue(undefined),
-  // };
+// vi.mock('@utils/dbMonitoring', () => {
+//   const mockInstance = {
+//     executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+//       return await queryFn();
+//     }),
+//     getStats: vi.fn().mockResolvedValue([]),
+//     logStats: vi.fn().mockResolvedValue(undefined),
+//     clearStats: vi.fn().mockResolvedValue(undefined),
+//     disconnect: vi.fn().mockResolvedValue(undefined),
+//   };
 
-  // return {
-  //   DbMonitor: jest.fn().mockImplementation(() => mockInstance),
-  // };
-
-  const executeWithTimingMock = jest.fn().mockImplementation(async (queryName, queryFn) => {
-    return queryFn();
-  });
-  const getStatsMock = jest.fn().mockResolvedValue([]);
-  const logStatsMock = jest.fn().mockResolvedValue(undefined);
-  const clearStatsMock = jest.fn().mockResolvedValue(undefined);
-  const disconnectMock = jest.fn().mockResolvedValue(undefined);
-
-  let instance: any = {
-    executeWithTiming: executeWithTimingMock,
-    getStats: getStatsMock,
-    logStats: logStatsMock,
-    clearStats: clearStatsMock,
-    disconnect: disconnectMock,
-  };
-
-  const getInstanceMock = jest.fn(() => instance);
-  const resetInstanceMock = jest.fn(() => {
-    instance = { executeWithTiming: jest.fn((_, fn) => fn()) };
-  });
-
-  return {
-    DbMonitor: {
-      getInstance: getInstanceMock,
-      resetInstance: resetInstanceMock,
-    },
-  };
-});
+//   return {
+//     DbMonitor: {
+//       getInstance: vi.fn(() => mockInstance),
+//       resetInstance: vi.fn(),
+//     },
+//   };
+// });
 
 // Global cleanup after each test to prevent memory leaks and hanging processes
 afterEach(() => {
-  // Clear all mocks (clears mock call history and implementations)
-  jest.clearAllMocks();
-});
-
-// Global cleanup after all tests in a file to fully restore the environment
-afterAll(() => {
-  // Restore all mocks to their original implementations
-  jest.restoreAllMocks();
-
-  // Ensure real timers are restored
-  jest.useRealTimers();
-
-  // Reset all modules to ensure clean state for next test file
-  jest.resetModules();
+  vi.clearAllMocks();
+  // Don't use vi.restoreAllMocks() or vi.resetModules() as they clear global mocks
+  vi.useRealTimers();
 });

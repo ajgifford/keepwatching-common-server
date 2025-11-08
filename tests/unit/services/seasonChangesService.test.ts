@@ -8,13 +8,14 @@ import { processSeasonChanges } from '@services/seasonChangesService';
 import { seasonsService } from '@services/seasonsService';
 import { getTMDBService } from '@services/tmdbService';
 import { filterUniqueSeasonIds, sleep } from '@utils/changesUtility';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/episodesService');
-jest.mock('@services/seasonsService');
-jest.mock('@services/episodeChangesService');
-jest.mock('@services/tmdbService');
-jest.mock('@utils/changesUtility');
-jest.mock('@logger/logger');
+vi.mock('@services/episodesService');
+vi.mock('@services/seasonsService');
+vi.mock('@services/episodeChangesService');
+vi.mock('@services/tmdbService');
+vi.mock('@utils/changesUtility');
+vi.mock('@logger/logger');
 
 describe('processSeasonChanges', () => {
   const mockChanges: TMDBChange = {
@@ -133,21 +134,21 @@ describe('processSeasonChanges', () => {
   const mockDates = { pastDate: '2024-01-01', currentDate: '2024-06-01' };
 
   const mockTmdbService = {
-    getSeasonDetails: jest.fn(),
+    getSeasonDetails: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    (filterUniqueSeasonIds as jest.Mock).mockReturnValue([123, 456, 789]);
-    (sleep as jest.Mock).mockResolvedValue(undefined);
-    (getTMDBService as jest.Mock).mockReturnValue(mockTmdbService);
+    (filterUniqueSeasonIds as Mock).mockReturnValue([123, 456, 789]);
+    (sleep as Mock).mockResolvedValue(undefined);
+    (getTMDBService as Mock).mockReturnValue(mockTmdbService);
 
     const mockUpdatedSeason = 500;
-    (seasonsService.updateSeason as jest.Mock).mockResolvedValue(mockUpdatedSeason);
-    (seasonsService.addSeasonToFavorites as jest.Mock).mockResolvedValue(undefined);
+    (seasonsService.updateSeason as Mock).mockResolvedValue(mockUpdatedSeason);
+    (seasonsService.addSeasonToFavorites as Mock).mockResolvedValue(undefined);
 
-    (checkSeasonForEpisodeChanges as jest.Mock).mockResolvedValue(true);
+    (checkSeasonForEpisodeChanges as Mock).mockResolvedValue(true);
 
     const mockEpisodeDetails = {
       episodes: [
@@ -178,8 +179,8 @@ describe('processSeasonChanges', () => {
     mockTmdbService.getSeasonDetails.mockResolvedValue(mockEpisodeDetails);
 
     const mockUpdatedEpisode = { id: 2000 };
-    (episodesService.updateEpisode as jest.Mock).mockResolvedValue(mockUpdatedEpisode);
-    (episodesService.addEpisodeToFavorites as jest.Mock).mockResolvedValue(undefined);
+    (episodesService.updateEpisode as Mock).mockResolvedValue(mockUpdatedEpisode);
+    (episodesService.addEpisodeToFavorites as Mock).mockResolvedValue(undefined);
   });
 
   it('should process season changes correctly', async () => {
@@ -214,7 +215,7 @@ describe('processSeasonChanges', () => {
   });
 
   it('should skip seasons with number 0 (specials)', async () => {
-    (filterUniqueSeasonIds as jest.Mock).mockReturnValue([789]);
+    (filterUniqueSeasonIds as Mock).mockReturnValue([789]);
 
     await processSeasonChanges(
       mockChanges,
@@ -232,7 +233,7 @@ describe('processSeasonChanges', () => {
   });
 
   it('should continue processing other seasons when one fails', async () => {
-    (seasonsService.updateSeason as jest.Mock).mockImplementation((seasonData) => {
+    (seasonsService.updateSeason as Mock).mockImplementation((seasonData) => {
       if (seasonData.tmdb_id === 123) {
         throw new Error('Test error');
       }
@@ -258,7 +259,7 @@ describe('processSeasonChanges', () => {
   });
 
   it('should not fetch episode details when no episode changes found', async () => {
-    (checkSeasonForEpisodeChanges as jest.Mock).mockResolvedValue(false);
+    (checkSeasonForEpisodeChanges as Mock).mockResolvedValue(false);
 
     // Create a show with future air dates so seasonHasAired will be false
     const futureDate = new Date();
@@ -299,7 +300,7 @@ describe('processSeasonChanges', () => {
   });
 
   it('should fetch episode details when season has aired even if no episode changes found', async () => {
-    (checkSeasonForEpisodeChanges as jest.Mock).mockResolvedValue(false);
+    (checkSeasonForEpisodeChanges as Mock).mockResolvedValue(false);
 
     // Use a show with past air dates (default mockResponseShow has aired dates)
     await processSeasonChanges(

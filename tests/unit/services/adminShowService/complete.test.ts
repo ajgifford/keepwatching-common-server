@@ -10,35 +10,36 @@ import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { adminShowService } from '@services/adminShowService';
 import { errorService } from '@services/errorService';
+import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the repositories and services
-jest.mock('@db/showsDb');
-jest.mock('@db/seasonsDb');
-jest.mock('@db/episodesDb');
-jest.mock('@services/cacheService');
-jest.mock('@services/errorService');
-jest.mock('@services/socketService');
-jest.mock('@services/showService');
-jest.mock('@services/tmdbService');
-jest.mock('@utils/db');
-jest.mock('@utils/contentUtility');
-jest.mock('@utils/notificationUtility');
-jest.mock('@utils/watchProvidersUtility');
-jest.mock('@logger/logger', () => ({
+vi.mock('@db/showsDb');
+vi.mock('@db/seasonsDb');
+vi.mock('@db/episodesDb');
+vi.mock('@services/cacheService');
+vi.mock('@services/errorService');
+vi.mock('@services/socketService');
+vi.mock('@services/showService');
+vi.mock('@services/tmdbService');
+vi.mock('@utils/db');
+vi.mock('@utils/contentUtility');
+vi.mock('@utils/notificationUtility');
+vi.mock('@utils/watchProvidersUtility');
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
   appLogger: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
 }));
 
 describe('AdminShowService - Complete Show Info', () => {
-  let mockCacheService: jest.Mocked<any>;
+  let mockCacheService: MockedObject<any>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockCacheService = createMockCacheService();
     setupDefaultMocks(mockCacheService);
@@ -48,11 +49,11 @@ describe('AdminShowService - Complete Show Info', () => {
       writable: true,
     });
 
-    (showsDb.getAdminShowDetails as jest.Mock).mockResolvedValue(mockShowDetails);
-    (showsDb.getAdminShowProfiles as jest.Mock).mockResolvedValue(mockProfiles);
-    (showsDb.getAdminShowWatchProgress as jest.Mock).mockResolvedValue(mockWatchProgress);
+    (showsDb.getAdminShowDetails as Mock).mockResolvedValue(mockShowDetails);
+    (showsDb.getAdminShowProfiles as Mock).mockResolvedValue(mockProfiles);
+    (showsDb.getAdminShowWatchProgress as Mock).mockResolvedValue(mockWatchProgress);
 
-    (errorService.handleError as jest.Mock).mockImplementation((err) => {
+    (errorService.handleError as Mock).mockImplementation((err) => {
       throw err;
     });
   });
@@ -86,7 +87,7 @@ describe('AdminShowService - Complete Show Info', () => {
         },
       ];
 
-      (showsDb.getAdminShowSeasonsWithEpisodes as jest.Mock).mockResolvedValue(mockSeasonsWithEpisodes);
+      (showsDb.getAdminShowSeasonsWithEpisodes as Mock).mockResolvedValue(mockSeasonsWithEpisodes);
 
       const result = await adminShowService.getCompleteShowInfo(mockShowId);
 
@@ -135,7 +136,7 @@ describe('AdminShowService - Complete Show Info', () => {
         return await fetchFn();
       });
 
-      (showsDb.getAdminShowSeasonsWithEpisodes as jest.Mock).mockResolvedValue(mockSeasonsWithEpisodes);
+      (showsDb.getAdminShowSeasonsWithEpisodes as Mock).mockResolvedValue(mockSeasonsWithEpisodes);
 
       const result = await adminShowService.getShowSeasonsWithEpisodes(mockShowId);
 
@@ -146,7 +147,7 @@ describe('AdminShowService - Complete Show Info', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Repository error');
-      (showsDb.getAdminShowSeasonsWithEpisodes as jest.Mock).mockRejectedValue(error);
+      (showsDb.getAdminShowSeasonsWithEpisodes as Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();

@@ -12,6 +12,7 @@ import { getTMDBService } from '@services/tmdbService';
 import { watchStatusService } from '@services/watchStatusService';
 import * as contentUtility from '@utils/contentUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('ShowService - Content Updates', () => {
   beforeEach(() => {
@@ -32,22 +33,22 @@ describe('ShowService - Content Updates', () => {
     const currentDate = '2023-01-10';
 
     const mockTMDBService = {
-      getShowChanges: jest.fn(),
-      getShowDetails: jest.fn(),
+      getShowChanges: vi.fn(),
+      getShowDetails: vi.fn(),
     };
 
     beforeEach(() => {
-      jest.clearAllMocks();
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      vi.clearAllMocks();
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
       // Mock utility functions that are used to process show details
-      (contentUtility.getUSRating as jest.Mock).mockReturnValue('TV-14');
-      (contentUtility.getInProduction as jest.Mock).mockReturnValue(1);
-      (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValue(null);
-      (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('HBO');
-      (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([8, 9]);
+      (contentUtility.getUSRating as Mock).mockReturnValue('TV-14');
+      (contentUtility.getInProduction as Mock).mockReturnValue(1);
+      (contentUtility.getEpisodeToAirId as Mock).mockReturnValue(null);
+      (contentUtility.getUSNetwork as Mock).mockReturnValue('HBO');
+      (watchProvidersUtility.getUSWatchProvidersShow as Mock).mockReturnValue([8, 9]);
 
-      (watchStatusService.checkAndUpdateShowStatus as jest.Mock).mockResolvedValue({
+      (watchStatusService.checkAndUpdateShowStatus as Mock).mockResolvedValue({
         success: true,
         message: 'Check and update show test message',
         affectedRows: 1,
@@ -77,8 +78,8 @@ describe('ShowService - Content Updates', () => {
         networks: [{ origin_country: 'US', name: 'HBO' }],
       });
 
-      (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
-      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
+      (showsDb.updateShow as Mock).mockResolvedValue(true);
+      (showsDb.getProfilesForShow as Mock).mockResolvedValue({
         showId: '1',
         profileAccountMappings: [
           { accountId: 1, profileId: 1 },
@@ -242,7 +243,7 @@ describe('ShowService - Content Updates', () => {
         networks: [{ origin_country: 'US', name: 'HBO' }],
       });
 
-      (notificationsService.addNotification as jest.Mock).mockResolvedValue(undefined);
+      (notificationsService.addNotification as Mock).mockResolvedValue(undefined);
 
       await showService.checkShowForChanges(mockShowContent, pastDate, currentDate);
 
@@ -358,7 +359,7 @@ describe('ShowService - Content Updates', () => {
       });
 
       const mockNotificationError = new Error('Notification failed');
-      (notificationsService.addNotification as jest.Mock).mockRejectedValue(mockNotificationError);
+      (notificationsService.addNotification as Mock).mockRejectedValue(mockNotificationError);
 
       // Should not throw - notification errors are logged but don't stop the process
       await expect(showService.checkShowForChanges(mockShowContent, pastDate, currentDate)).resolves.not.toThrow();
@@ -491,7 +492,7 @@ describe('ShowService - Content Updates', () => {
       mockTMDBService.getShowChanges.mockResolvedValue(supportedChanges);
 
       const mockError = new Error('Database update error');
-      (showsDb.updateShow as jest.Mock).mockRejectedValue(mockError);
+      (showsDb.updateShow as Mock).mockRejectedValue(mockError);
 
       await expect(showService.checkShowForChanges(mockShowContent, pastDate, currentDate)).rejects.toThrow();
 
@@ -512,7 +513,7 @@ describe('ShowService - Content Updates', () => {
         { id: 2, title: 'Show 2', tmdb_id: 102, season_count: 2, created_at: '2023-02-01', updated_at: '2023-02-10' },
       ];
 
-      (showsDb.getShowsForUpdates as jest.Mock).mockResolvedValue(mockShows);
+      (showsDb.getShowsForUpdates as Mock).mockResolvedValue(mockShows);
 
       const result = await showService.getShowsForUpdates();
 
@@ -522,7 +523,7 @@ describe('ShowService - Content Updates', () => {
 
     it('should handle database errors', async () => {
       const mockError = new Error('Database error');
-      (showsDb.getShowsForUpdates as jest.Mock).mockRejectedValue(mockError);
+      (showsDb.getShowsForUpdates as Mock).mockRejectedValue(mockError);
 
       await expect(showService.getShowsForUpdates()).rejects.toThrow('Database error');
       expect(showsDb.getShowsForUpdates).toHaveBeenCalled();

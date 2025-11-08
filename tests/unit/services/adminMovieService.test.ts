@@ -9,29 +9,30 @@ import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import { getUSMPARating } from '@utils/contentUtility';
 import { getUSWatchProvidersMovie } from '@utils/watchProvidersUtility';
+import { type Mock, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the repositories and services
-jest.mock('@db/moviesDb');
-jest.mock('@db/personsDb');
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
-jest.mock('@services/socketService');
-jest.mock('@services/tmdbService');
-jest.mock('@utils/contentUtility');
-jest.mock('@utils/watchProvidersUtility');
-jest.mock('@logger/logger', () => ({
+vi.mock('@db/moviesDb');
+vi.mock('@db/personsDb');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
+vi.mock('@services/socketService');
+vi.mock('@services/tmdbService');
+vi.mock('@utils/contentUtility');
+vi.mock('@utils/watchProvidersUtility');
+vi.mock('@logger/logger', () => ({
   appLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
   cliLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 describe('AdminMovieService', () => {
-  let mockCacheService: jest.Mocked<any>;
+  let mockCacheService: MockedObject<any>;
 
   const mockMovieId = 123;
   const mockTMDBId = 456;
@@ -81,34 +82,34 @@ describe('AdminMovieService', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockCacheService = {
-      getOrSet: jest.fn(),
-      invalidate: jest.fn(),
-      invalidatePattern: jest.fn(),
+      getOrSet: vi.fn(),
+      invalidate: vi.fn(),
+      invalidatePattern: vi.fn(),
     };
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
 
     Object.defineProperty(adminMovieService, 'cache', {
       value: mockCacheService,
       writable: true,
     });
 
-    (errorService.handleError as jest.Mock).mockImplementation((error) => {
+    (errorService.handleError as Mock).mockImplementation((error) => {
       throw error;
     });
 
     // Set up default mocks
-    (moviesDb.getMovieDetails as jest.Mock).mockResolvedValue(mockMovieDetails);
-    (moviesDb.getMovieProfiles as jest.Mock).mockResolvedValue(mockProfiles);
-    (moviesDb.getAllMovies as jest.Mock).mockResolvedValue(mockMovies);
-    (moviesDb.getMoviesCount as jest.Mock).mockResolvedValue(10);
-    (socketService.notifyMoviesUpdate as jest.Mock).mockImplementation(() => {});
-    (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValue(null);
-    (personsDb.savePerson as jest.Mock).mockResolvedValue(1);
-    (personsDb.saveMovieCast as jest.Mock).mockResolvedValue(undefined);
+    (moviesDb.getMovieDetails as Mock).mockResolvedValue(mockMovieDetails);
+    (moviesDb.getMovieProfiles as Mock).mockResolvedValue(mockProfiles);
+    (moviesDb.getAllMovies as Mock).mockResolvedValue(mockMovies);
+    (moviesDb.getMoviesCount as Mock).mockResolvedValue(10);
+    (socketService.notifyMoviesUpdate as Mock).mockImplementation(() => {});
+    (personsDb.findPersonByTMDBId as Mock).mockResolvedValue(null);
+    (personsDb.savePerson as Mock).mockResolvedValue(1);
+    (personsDb.saveMovieCast as Mock).mockResolvedValue(undefined);
   });
 
   describe('getMovieDetails', () => {
@@ -136,7 +137,7 @@ describe('AdminMovieService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      (moviesDb.getMovieDetails as jest.Mock).mockRejectedValue(error);
+      (moviesDb.getMovieDetails as Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();
@@ -172,7 +173,7 @@ describe('AdminMovieService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      (moviesDb.getMovieProfiles as jest.Mock).mockRejectedValue(error);
+      (moviesDb.getMovieProfiles as Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();
@@ -219,7 +220,7 @@ describe('AdminMovieService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      (moviesDb.getMovieDetails as jest.Mock).mockRejectedValue(error);
+      (moviesDb.getMovieDetails as Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();
@@ -266,7 +267,7 @@ describe('AdminMovieService', () => {
 
     it('should calculate pagination correctly', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getMoviesCount as jest.Mock).mockResolvedValue(21);
+      (moviesDb.getMoviesCount as Mock).mockResolvedValue(21);
 
       const result = await adminMovieService.getAllMovies(2, 5, 5);
 
@@ -282,7 +283,7 @@ describe('AdminMovieService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      (moviesDb.getMoviesCount as jest.Mock).mockRejectedValue(error);
+      (moviesDb.getMoviesCount as Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();
@@ -309,8 +310,8 @@ describe('AdminMovieService', () => {
 
     it('should fetch movies with pagination from database when not in cache', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getMoviesCountByProfile as jest.Mock).mockResolvedValue(10);
-      (moviesDb.getAllMoviesByProfile as jest.Mock).mockResolvedValue(mockMovies);
+      (moviesDb.getMoviesCountByProfile as Mock).mockResolvedValue(10);
+      (moviesDb.getAllMoviesByProfile as Mock).mockResolvedValue(mockMovies);
 
       const result = await adminMovieService.getAllMoviesByProfile(mockProfileId, 1, 0, 2);
 
@@ -333,8 +334,8 @@ describe('AdminMovieService', () => {
 
     it('should calculate pagination correctly for profile movies', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getMoviesCountByProfile as jest.Mock).mockResolvedValue(15);
-      (moviesDb.getAllMoviesByProfile as jest.Mock).mockResolvedValue(mockMovies);
+      (moviesDb.getMoviesCountByProfile as Mock).mockResolvedValue(15);
+      (moviesDb.getAllMoviesByProfile as Mock).mockResolvedValue(mockMovies);
 
       const result = await adminMovieService.getAllMoviesByProfile(mockProfileId, 3, 10, 5);
 
@@ -350,7 +351,7 @@ describe('AdminMovieService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      (moviesDb.getMoviesCountByProfile as jest.Mock).mockRejectedValue(error);
+      (moviesDb.getMoviesCountByProfile as Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();
@@ -379,7 +380,7 @@ describe('AdminMovieService', () => {
 
     it('should fetch movie references from database when not in cache', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getAllMoviesReferences as jest.Mock).mockResolvedValue(mockReferences);
+      (moviesDb.getAllMoviesReferences as Mock).mockResolvedValue(mockReferences);
 
       const result = await adminMovieService.getAllMovieReferences();
 
@@ -390,7 +391,7 @@ describe('AdminMovieService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      (moviesDb.getAllMoviesReferences as jest.Mock).mockRejectedValue(error);
+      (moviesDb.getAllMoviesReferences as Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();
@@ -446,14 +447,14 @@ describe('AdminMovieService', () => {
 
     it('should update a movie successfully', async () => {
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockTMDBMovie),
+        getMovieDetails: vi.fn().mockResolvedValue(mockTMDBMovie),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
+      (getUSMPARating as Mock).mockReturnValue('PG-13');
+      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
 
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
+      (moviesDb.updateMovie as Mock).mockResolvedValue(true);
 
       const result = await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
 
@@ -467,9 +468,9 @@ describe('AdminMovieService', () => {
     it('should handle TMDB API errors', async () => {
       const mockError = new Error('TMDB API error');
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockRejectedValue(mockError),
+        getMovieDetails: vi.fn().mockRejectedValue(mockError),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
       await expect(adminMovieService.updateMovieById(mockMovieId, mockTMDBId)).rejects.toThrow('TMDB API error');
       expect(mockTMDBService.getMovieDetails).toHaveBeenCalledWith(mockTMDBId);
@@ -482,15 +483,15 @@ describe('AdminMovieService', () => {
 
     it('should handle database errors', async () => {
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockTMDBMovie),
+        getMovieDetails: vi.fn().mockResolvedValue(mockTMDBMovie),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
+      (getUSMPARating as Mock).mockReturnValue('PG-13');
+      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
 
       const mockError = new Error('Database error');
-      (moviesDb.updateMovie as jest.Mock).mockRejectedValue(mockError);
+      (moviesDb.updateMovie as Mock).mockRejectedValue(mockError);
 
       await expect(adminMovieService.updateMovieById(mockMovieId, mockTMDBId)).rejects.toThrow('Database error');
       expect(moviesDb.updateMovie).toHaveBeenCalledWith(mockUpdatedMovie);
@@ -517,16 +518,16 @@ describe('AdminMovieService', () => {
       };
 
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
+        getMovieDetails: vi.fn().mockResolvedValue(mockMovieWithCast),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
+      (getUSMPARating as Mock).mockReturnValue('PG-13');
+      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
+      (moviesDb.updateMovie as Mock).mockResolvedValue(true);
 
       // Mock person exists
-      (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValue({ id: 100 });
+      (personsDb.findPersonByTMDBId as Mock).mockResolvedValue({ id: 100 });
 
       await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
 
@@ -568,19 +569,19 @@ describe('AdminMovieService', () => {
       };
 
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
-        getPersonDetails: jest.fn().mockResolvedValue(mockTMDBPerson),
+        getMovieDetails: vi.fn().mockResolvedValue(mockMovieWithCast),
+        getPersonDetails: vi.fn().mockResolvedValue(mockTMDBPerson),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
+      (getUSMPARating as Mock).mockReturnValue('PG-13');
+      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
+      (moviesDb.updateMovie as Mock).mockResolvedValue(true);
 
       // Mock person does not exist
-      (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValue(null);
-      (personsDb.savePerson as jest.Mock).mockResolvedValue(200);
-      (personsDb.saveMovieCast as jest.Mock).mockResolvedValue(true);
+      (personsDb.findPersonByTMDBId as Mock).mockResolvedValue(null);
+      (personsDb.savePerson as Mock).mockResolvedValue(200);
+      (personsDb.saveMovieCast as Mock).mockResolvedValue(true);
 
       await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
 
@@ -641,18 +642,18 @@ describe('AdminMovieService', () => {
       };
 
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
-        getPersonDetails: jest.fn().mockResolvedValue(mockTMDBPerson),
+        getMovieDetails: vi.fn().mockResolvedValue(mockMovieWithCast),
+        getPersonDetails: vi.fn().mockResolvedValue(mockTMDBPerson),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
+      (getUSMPARating as Mock).mockReturnValue('PG-13');
+      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
+      (moviesDb.updateMovie as Mock).mockResolvedValue(true);
 
       // First person exists, second doesn't
-      (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValueOnce({ id: 100 }).mockResolvedValueOnce(null);
-      (personsDb.savePerson as jest.Mock).mockResolvedValue(200);
+      (personsDb.findPersonByTMDBId as Mock).mockResolvedValueOnce({ id: 100 }).mockResolvedValueOnce(null);
+      (personsDb.savePerson as Mock).mockResolvedValue(200);
 
       await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
 
@@ -679,17 +680,17 @@ describe('AdminMovieService', () => {
       };
 
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
+        getMovieDetails: vi.fn().mockResolvedValue(mockMovieWithCast),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
+      (getUSMPARating as Mock).mockReturnValue('PG-13');
+      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
+      (moviesDb.updateMovie as Mock).mockResolvedValue(true);
 
       // Mock error in cast processing
       const castError = new Error('Cast processing error');
-      (personsDb.findPersonByTMDBId as jest.Mock).mockRejectedValue(castError);
+      (personsDb.findPersonByTMDBId as Mock).mockRejectedValue(castError);
 
       // Should not throw, just log error
       const result = await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
@@ -707,13 +708,13 @@ describe('AdminMovieService', () => {
       };
 
       const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithEmptyCast),
+        getMovieDetails: vi.fn().mockResolvedValue(mockMovieWithEmptyCast),
       };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
 
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
+      (getUSMPARating as Mock).mockReturnValue('PG-13');
+      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
+      (moviesDb.updateMovie as Mock).mockResolvedValue(true);
 
       await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
 
@@ -730,8 +731,8 @@ describe('AdminMovieService', () => {
     ];
 
     it('should update all movies successfully', async () => {
-      jest.spyOn(adminMovieService, 'getAllMovieReferences').mockResolvedValue(mockReferences);
-      jest.spyOn(adminMovieService, 'updateMovieById').mockResolvedValue(true);
+      vi.spyOn(adminMovieService, 'getAllMovieReferences').mockResolvedValue(mockReferences);
+      vi.spyOn(adminMovieService, 'updateMovieById').mockResolvedValue(true);
 
       await adminMovieService.updateAllMovies();
 
@@ -742,7 +743,7 @@ describe('AdminMovieService', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      jest.spyOn(adminMovieService, 'getAllMovieReferences').mockRejectedValue(error);
+      vi.spyOn(adminMovieService, 'getAllMovieReferences').mockRejectedValue(error);
 
       await expect(adminMovieService.updateAllMovies()).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'updateAllMovies()');

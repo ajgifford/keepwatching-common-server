@@ -3,6 +3,7 @@ import { cleanupScheduledJobs, setupMocks } from './helpers/mocks';
 import * as emailDb from '@db/emailDb';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
+import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Template Management', () => {
   beforeEach(() => {
@@ -15,7 +16,7 @@ describe('EmailService - Template Management', () => {
 
   describe('getEmailTemplates', () => {
     it('should return all email templates', async () => {
-      (emailDb.getEmailTemplates as jest.Mock).mockResolvedValue(mockEmailTemplates);
+      (emailDb.getEmailTemplates as Mock).mockResolvedValue(mockEmailTemplates);
 
       const result = await emailService.getEmailTemplates();
 
@@ -25,7 +26,7 @@ describe('EmailService - Template Management', () => {
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Database error');
-      (emailDb.getEmailTemplates as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.getEmailTemplates as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.getEmailTemplates()).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getEmailTemplates');
@@ -40,7 +41,7 @@ describe('EmailService - Template Management', () => {
         message: 'Hello',
       };
 
-      (emailDb.createEmailTemplate as jest.Mock).mockResolvedValue(true);
+      (emailDb.createEmailTemplate as Mock).mockResolvedValue(true);
 
       const result = await emailService.createEmailTemplate(mockTemplate);
 
@@ -55,7 +56,7 @@ describe('EmailService - Template Management', () => {
         message: 'Hello',
       };
       const mockError = new Error('Database error');
-      (emailDb.createEmailTemplate as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.createEmailTemplate as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.createEmailTemplate(mockTemplate)).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'createEmailTemplate');
@@ -71,7 +72,7 @@ describe('EmailService - Template Management', () => {
         message: 'Hello there',
       };
 
-      (emailDb.updateEmailTemplate as jest.Mock).mockResolvedValue(true);
+      (emailDb.updateEmailTemplate as Mock).mockResolvedValue(true);
 
       const result = await emailService.updateEmailTemplate(mockTemplate);
 
@@ -87,7 +88,7 @@ describe('EmailService - Template Management', () => {
         message: 'Hello there',
       };
       const mockError = new Error('Database error');
-      (emailDb.updateEmailTemplate as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.updateEmailTemplate as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.updateEmailTemplate(mockTemplate)).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'updateEmailTemplate');
@@ -96,7 +97,7 @@ describe('EmailService - Template Management', () => {
 
   describe('deleteEmailTemplate', () => {
     it('should delete an email template', async () => {
-      (emailDb.deleteEmailTemplate as jest.Mock).mockResolvedValue(true);
+      (emailDb.deleteEmailTemplate as Mock).mockResolvedValue(true);
 
       const result = await emailService.deleteEmailTemplate(1);
 
@@ -106,7 +107,7 @@ describe('EmailService - Template Management', () => {
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Database error');
-      (emailDb.deleteEmailTemplate as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.deleteEmailTemplate as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.deleteEmailTemplate(1)).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'deleteEmailTemplate');

@@ -3,21 +3,22 @@ import { BadRequestError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { adminStatisticsService } from '@services/statistics/adminStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
-jest.mock('@db/statistics/contentPerformanceRepository');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
+vi.mock('@db/statistics/contentPerformanceRepository');
 
 describe('AdminStatisticsService - Content Stats', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(adminStatisticsService, 'cache', {
       value: mockCacheService,
@@ -93,7 +94,7 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should fetch and transform show popularity on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getPopularShows as jest.Mock).mockResolvedValue(mockPopularShows);
+      (contentPerformanceRepository.getPopularShows as Mock).mockResolvedValue(mockPopularShows);
 
       const result = await adminStatisticsService.getContentPopularity('show', 20);
 
@@ -120,7 +121,7 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should fetch and transform movie popularity on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getPopularMovies as jest.Mock).mockResolvedValue(mockPopularMovies);
+      (contentPerformanceRepository.getPopularMovies as Mock).mockResolvedValue(mockPopularMovies);
 
       const result = await adminStatisticsService.getContentPopularity('movie', 20);
 
@@ -134,8 +135,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should fetch and combine both shows and movies for "all" content type', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getPopularShows as jest.Mock).mockResolvedValue(mockPopularShows);
-      (contentPerformanceRepository.getPopularMovies as jest.Mock).mockResolvedValue(mockPopularMovies);
+      (contentPerformanceRepository.getPopularShows as Mock).mockResolvedValue(mockPopularShows);
+      (contentPerformanceRepository.getPopularMovies as Mock).mockResolvedValue(mockPopularMovies);
 
       const result = await adminStatisticsService.getContentPopularity('all', 20);
 
@@ -149,8 +150,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should sort combined content by profile count descending', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getPopularShows as jest.Mock).mockResolvedValue(mockPopularShows);
-      (contentPerformanceRepository.getPopularMovies as jest.Mock).mockResolvedValue(mockPopularMovies);
+      (contentPerformanceRepository.getPopularShows as Mock).mockResolvedValue(mockPopularShows);
+      (contentPerformanceRepository.getPopularMovies as Mock).mockResolvedValue(mockPopularMovies);
 
       const result = await adminStatisticsService.getContentPopularity('all', 20);
 
@@ -164,8 +165,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should limit results for "all" content type', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getPopularShows as jest.Mock).mockResolvedValue(mockPopularShows);
-      (contentPerformanceRepository.getPopularMovies as jest.Mock).mockResolvedValue(mockPopularMovies);
+      (contentPerformanceRepository.getPopularShows as Mock).mockResolvedValue(mockPopularShows);
+      (contentPerformanceRepository.getPopularMovies as Mock).mockResolvedValue(mockPopularMovies);
 
       const result = await adminStatisticsService.getContentPopularity('all', 2);
 
@@ -176,8 +177,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should use default parameters', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getPopularShows as jest.Mock).mockResolvedValue([]);
-      (contentPerformanceRepository.getPopularMovies as jest.Mock).mockResolvedValue([]);
+      (contentPerformanceRepository.getPopularShows as Mock).mockResolvedValue([]);
+      (contentPerformanceRepository.getPopularMovies as Mock).mockResolvedValue([]);
 
       await adminStatisticsService.getContentPopularity();
 
@@ -188,8 +189,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should handle empty results', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getPopularShows as jest.Mock).mockResolvedValue([]);
-      (contentPerformanceRepository.getPopularMovies as jest.Mock).mockResolvedValue([]);
+      (contentPerformanceRepository.getPopularShows as Mock).mockResolvedValue([]);
+      (contentPerformanceRepository.getPopularMovies as Mock).mockResolvedValue([]);
 
       const result = await adminStatisticsService.getContentPopularity('all', 20);
 
@@ -201,8 +202,8 @@ describe('AdminStatisticsService - Content Stats', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database query failed');
-      (contentPerformanceRepository.getPopularShows as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (contentPerformanceRepository.getPopularShows as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -267,8 +268,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should fetch and calculate trending content on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getTrendingShows as jest.Mock).mockResolvedValue(mockTrendingShows);
-      (contentPerformanceRepository.getTrendingMovies as jest.Mock).mockResolvedValue(mockTrendingMovies);
+      (contentPerformanceRepository.getTrendingShows as Mock).mockResolvedValue(mockTrendingShows);
+      (contentPerformanceRepository.getTrendingMovies as Mock).mockResolvedValue(mockTrendingMovies);
 
       const result = await adminStatisticsService.getTrendingContent(30);
 
@@ -282,8 +283,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should calculate trend percentage correctly', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getTrendingShows as jest.Mock).mockResolvedValue(mockTrendingShows);
-      (contentPerformanceRepository.getTrendingMovies as jest.Mock).mockResolvedValue(mockTrendingMovies);
+      (contentPerformanceRepository.getTrendingShows as Mock).mockResolvedValue(mockTrendingShows);
+      (contentPerformanceRepository.getTrendingMovies as Mock).mockResolvedValue(mockTrendingMovies);
 
       const result = await adminStatisticsService.getTrendingContent(30);
 
@@ -303,8 +304,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should determine trend direction correctly', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getTrendingShows as jest.Mock).mockResolvedValue(mockTrendingShows);
-      (contentPerformanceRepository.getTrendingMovies as jest.Mock).mockResolvedValue(mockTrendingMovies);
+      (contentPerformanceRepository.getTrendingShows as Mock).mockResolvedValue(mockTrendingShows);
+      (contentPerformanceRepository.getTrendingMovies as Mock).mockResolvedValue(mockTrendingMovies);
 
       const result = await adminStatisticsService.getTrendingContent(30);
 
@@ -341,8 +342,8 @@ describe('AdminStatisticsService - Content Stats', () => {
         },
       ];
 
-      (contentPerformanceRepository.getTrendingShows as jest.Mock).mockResolvedValue(mockWithZeroPrevious);
-      (contentPerformanceRepository.getTrendingMovies as jest.Mock).mockResolvedValue([]);
+      (contentPerformanceRepository.getTrendingShows as Mock).mockResolvedValue(mockWithZeroPrevious);
+      (contentPerformanceRepository.getTrendingMovies as Mock).mockResolvedValue([]);
 
       const result = await adminStatisticsService.getTrendingContent(30);
 
@@ -357,8 +358,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should sort by recent watch count descending', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getTrendingShows as jest.Mock).mockResolvedValue(mockTrendingShows);
-      (contentPerformanceRepository.getTrendingMovies as jest.Mock).mockResolvedValue(mockTrendingMovies);
+      (contentPerformanceRepository.getTrendingShows as Mock).mockResolvedValue(mockTrendingShows);
+      (contentPerformanceRepository.getTrendingMovies as Mock).mockResolvedValue(mockTrendingMovies);
 
       const result = await adminStatisticsService.getTrendingContent(30);
 
@@ -372,8 +373,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should use default days parameter', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getTrendingShows as jest.Mock).mockResolvedValue([]);
-      (contentPerformanceRepository.getTrendingMovies as jest.Mock).mockResolvedValue([]);
+      (contentPerformanceRepository.getTrendingShows as Mock).mockResolvedValue([]);
+      (contentPerformanceRepository.getTrendingMovies as Mock).mockResolvedValue([]);
 
       await adminStatisticsService.getTrendingContent();
 
@@ -385,8 +386,8 @@ describe('AdminStatisticsService - Content Stats', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database query failed');
-      (contentPerformanceRepository.getTrendingShows as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (contentPerformanceRepository.getTrendingShows as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -453,7 +454,7 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should fetch and calculate show engagement on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getShowEngagement as jest.Mock).mockResolvedValue(mockShowEngagement);
+      (contentPerformanceRepository.getShowEngagement as Mock).mockResolvedValue(mockShowEngagement);
 
       const result = await adminStatisticsService.getContentEngagement(1, 'show');
 
@@ -472,7 +473,7 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should fetch and calculate movie engagement on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getMovieEngagement as jest.Mock).mockResolvedValue(mockMovieEngagement);
+      (contentPerformanceRepository.getMovieEngagement as Mock).mockResolvedValue(mockMovieEngagement);
 
       const result = await adminStatisticsService.getContentEngagement(101, 'movie');
 
@@ -490,8 +491,8 @@ describe('AdminStatisticsService - Content Stats', () => {
     it('should throw BadRequestError when content not found', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (contentPerformanceRepository.getShowEngagement as jest.Mock).mockResolvedValue(null);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (contentPerformanceRepository.getShowEngagement as Mock).mockResolvedValue(null);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw err;
       });
 
@@ -514,7 +515,7 @@ describe('AdminStatisticsService - Content Stats', () => {
         avg_progress: 0,
       };
 
-      (contentPerformanceRepository.getShowEngagement as jest.Mock).mockResolvedValue(mockEngagementZero);
+      (contentPerformanceRepository.getShowEngagement as Mock).mockResolvedValue(mockEngagementZero);
 
       const result = await adminStatisticsService.getContentEngagement(1, 'show');
 
@@ -531,7 +532,7 @@ describe('AdminStatisticsService - Content Stats', () => {
         avg_days_to_complete: null,
       };
 
-      (contentPerformanceRepository.getShowEngagement as jest.Mock).mockResolvedValue(mockEngagementNullAvg);
+      (contentPerformanceRepository.getShowEngagement as Mock).mockResolvedValue(mockEngagementNullAvg);
 
       const result = await adminStatisticsService.getContentEngagement(1, 'show');
 
@@ -542,8 +543,8 @@ describe('AdminStatisticsService - Content Stats', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database query failed');
-      (contentPerformanceRepository.getShowEngagement as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (contentPerformanceRepository.getShowEngagement as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

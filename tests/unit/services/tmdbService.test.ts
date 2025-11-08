@@ -7,36 +7,37 @@ import {
   setTMDBService,
 } from '@services/tmdbService';
 import { axiosTMDBAPIInstance } from '@utils/axiosInstance';
+import { Mocked, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/axiosInstance');
-jest.mock('@services/cacheService');
+vi.mock('@utils/axiosInstance');
+vi.mock('@services/cacheService');
 
 describe('TMDB Service', () => {
   // Mock implementation of cache and axios
-  let mockCache: jest.Mocked<CacheService>;
-  let mockAxios: jest.Mocked<typeof axiosTMDBAPIInstance>;
+  let mockCache: MockedObject<CacheService>;
+  let mockAxios: MockedObject<typeof axiosTMDBAPIInstance>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Reset the singleton instance between tests
     resetTMDBService();
 
     // Setup mock cache service
     mockCache = {
-      getOrSet: jest.fn(),
-      invalidate: jest.fn(),
-      invalidatePattern: jest.fn(),
-    } as unknown as jest.Mocked<CacheService>;
+      getOrSet: vi.fn(),
+      invalidate: vi.fn(),
+      invalidatePattern: vi.fn(),
+    } as unknown as MockedObject<CacheService>;
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCache);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCache);
 
     // Setup mock axios instance
     mockAxios = {
-      get: jest.fn(),
-    } as unknown as jest.Mocked<typeof axiosTMDBAPIInstance>;
+      get: vi.fn(),
+    } as unknown as MockedObject<typeof axiosTMDBAPIInstance>;
 
-    (axiosTMDBAPIInstance as jest.Mocked<any>).get.mockImplementation(mockAxios.get);
+    (axiosTMDBAPIInstance as Mocked<any>).get.mockImplementation(mockAxios.get);
   });
 
   describe('getTMDBService', () => {
@@ -49,7 +50,7 @@ describe('TMDB Service', () => {
     });
 
     it('should allow setting a custom service implementation', () => {
-      const customService = { getShowDetails: jest.fn() } as any;
+      const customService = { getShowDetails: vi.fn() } as any;
       setTMDBService(customService);
 
       const service = getTMDBService();

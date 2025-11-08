@@ -2,21 +2,22 @@ import * as statisticsDb from '@db/statisticsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@db/statisticsDb');
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
+vi.mock('@db/statisticsDb');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
 
 describe('Statistics - Milestone - Profile', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(profileStatisticsService, 'cache', {
       value: mockCacheService,
@@ -73,7 +74,7 @@ describe('Statistics - Milestone - Profile', () => {
       };
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getMilestoneStats as jest.Mock).mockResolvedValue(mockStats);
+      (statisticsDb.getMilestoneStats as Mock).mockResolvedValue(mockStats);
 
       const result = await profileStatisticsService.getMilestoneStats(123);
 
@@ -85,8 +86,8 @@ describe('Statistics - Milestone - Profile', () => {
     it('should handle errors when getting milestone stats', async () => {
       const error = new Error('Failed to get milestone stats');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getMilestoneStats as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (statisticsDb.getMilestoneStats as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

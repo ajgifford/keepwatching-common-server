@@ -2,21 +2,22 @@ import * as statisticsDb from '@db/statisticsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@db/statisticsDb');
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
+vi.mock('@db/statisticsDb');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
 
 describe('Statistics - Activity - Profile', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(profileStatisticsService, 'cache', {
       value: mockCacheService,
@@ -51,7 +52,7 @@ describe('Statistics - Activity - Profile', () => {
       ];
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getDailyActivityTimeline as jest.Mock).mockResolvedValue(mockDailyActivity);
+      (statisticsDb.getDailyActivityTimeline as Mock).mockResolvedValue(mockDailyActivity);
 
       const result = await profileStatisticsService.getDailyActivity(123, 30);
 
@@ -67,8 +68,8 @@ describe('Statistics - Activity - Profile', () => {
     it('should handle errors when getting daily activity', async () => {
       const error = new Error('Failed to get daily activity');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getDailyActivityTimeline as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (statisticsDb.getDailyActivityTimeline as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -107,7 +108,7 @@ describe('Statistics - Activity - Profile', () => {
       ];
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getWeeklyActivityTimeline as jest.Mock).mockResolvedValue(mockWeeklyActivity);
+      (statisticsDb.getWeeklyActivityTimeline as Mock).mockResolvedValue(mockWeeklyActivity);
 
       const result = await profileStatisticsService.getWeeklyActivity(123, 12);
 
@@ -123,8 +124,8 @@ describe('Statistics - Activity - Profile', () => {
     it('should handle errors when getting weekly activity', async () => {
       const error = new Error('Failed to get weekly activity');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getWeeklyActivityTimeline as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (statisticsDb.getWeeklyActivityTimeline as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -163,7 +164,7 @@ describe('Statistics - Activity - Profile', () => {
       ];
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getMonthlyActivityTimeline as jest.Mock).mockResolvedValue(mockMonthlyActivity);
+      (statisticsDb.getMonthlyActivityTimeline as Mock).mockResolvedValue(mockMonthlyActivity);
 
       const result = await profileStatisticsService.getMonthlyActivity(123, 12);
 
@@ -179,8 +180,8 @@ describe('Statistics - Activity - Profile', () => {
     it('should handle errors when getting monthly activity', async () => {
       const error = new Error('Failed to get monthly activity');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getMonthlyActivityTimeline as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (statisticsDb.getMonthlyActivityTimeline as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -198,9 +199,9 @@ describe('Statistics - Activity - Profile', () => {
       const mockWeeklyActivity = [{ weekStart: '2024-01-01', episodesWatched: 15 }];
       const mockMonthlyActivity = [{ month: '2024-01', episodesWatched: 45, moviesWatched: 5 }];
 
-      jest.spyOn(profileStatisticsService, 'getDailyActivity').mockResolvedValue(mockDailyActivity as any);
-      jest.spyOn(profileStatisticsService, 'getWeeklyActivity').mockResolvedValue(mockWeeklyActivity as any);
-      jest.spyOn(profileStatisticsService, 'getMonthlyActivity').mockResolvedValue(mockMonthlyActivity as any);
+      vi.spyOn(profileStatisticsService, 'getDailyActivity').mockResolvedValue(mockDailyActivity as any);
+      vi.spyOn(profileStatisticsService, 'getWeeklyActivity').mockResolvedValue(mockWeeklyActivity as any);
+      vi.spyOn(profileStatisticsService, 'getMonthlyActivity').mockResolvedValue(mockMonthlyActivity as any);
 
       const result = await profileStatisticsService.getActivityTimeline(123);
 
@@ -216,8 +217,8 @@ describe('Statistics - Activity - Profile', () => {
 
     it('should handle errors when getting activity timeline', async () => {
       const error = new Error('Failed to get activity timeline');
-      jest.spyOn(profileStatisticsService, 'getDailyActivity').mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      vi.spyOn(profileStatisticsService, 'getDailyActivity').mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

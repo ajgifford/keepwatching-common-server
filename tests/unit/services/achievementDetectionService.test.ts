@@ -7,40 +7,41 @@ import {
   detectShowCompletion,
 } from '@services/achievementDetectionService';
 import { CacheService } from '@services/cacheService';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
-jest.mock('@db/statisticsDb');
-jest.mock('@services/cacheService');
+vi.mock('@db/statisticsDb');
+vi.mock('@services/cacheService');
 
 describe('AchievementDetectionService', () => {
-  let mockCacheService: jest.Mocked<CacheService>;
+  let mockCacheService: MockedObject<CacheService>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock getWatchCounts to return default values
-    (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+    (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
       episodes: 0,
       movies: 0,
       hours: 0,
     });
 
     // Mock getLatestWatchDate
-    (statisticsDb.getLatestWatchDate as jest.Mock).mockResolvedValue(new Date());
+    (statisticsDb.getLatestWatchDate as Mock).mockResolvedValue(new Date());
 
     // Mock cache service
     mockCacheService = {
-      invalidate: jest.fn(),
-    } as unknown as jest.Mocked<CacheService>;
+      invalidate: vi.fn(),
+    } as unknown as MockedObject<CacheService>;
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService);
 
     // Mock console methods to avoid noise in test output
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('checkAndRecordAchievements', () => {
@@ -49,8 +50,8 @@ describe('AchievementDetectionService', () => {
 
     beforeEach(() => {
       // Default mocks for achievement repository
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
-      (statisticsDb.getLatestWatchedEpisode as jest.Mock).mockResolvedValue({
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
+      (statisticsDb.getLatestWatchedEpisode as Mock).mockResolvedValue({
         episodeId: 1,
         showName: 'Test Show',
         episodeName: 'Test Episode',
@@ -58,16 +59,16 @@ describe('AchievementDetectionService', () => {
         episodeNumber: 1,
         watchedAt: new Date('2025-01-01'),
       });
-      (statisticsDb.getLatestWatchedMovie as jest.Mock).mockResolvedValue({
+      (statisticsDb.getLatestWatchedMovie as Mock).mockResolvedValue({
         movieId: 1,
         movieTitle: 'Test Movie',
         watchedAt: new Date('2025-01-01'),
       });
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
     });
 
     it('should detect and record first episode achievement', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 1,
         movies: 0,
         hours: 0,
@@ -90,7 +91,7 @@ describe('AchievementDetectionService', () => {
 
     it('should detect and record episode milestone achievements', async () => {
       // Episodes: [100, 500, 1000, 5000]
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 500,
         movies: 0,
         hours: 0,
@@ -101,7 +102,7 @@ describe('AchievementDetectionService', () => {
         { id: 2, thresholdValue: 100, achievementType: AchievementType.EPISODES_WATCHED },
       ];
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockImplementation((profileId, type) => {
+      (statisticsDb.getAchievementsByType as Mock).mockImplementation((profileId, type) => {
         if (type === AchievementType.EPISODES_WATCHED) {
           return Promise.resolve(existingAchievements);
         }
@@ -121,7 +122,7 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should detect and record first movie achievement', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 0,
         movies: 1,
         hours: 0,
@@ -143,7 +144,7 @@ describe('AchievementDetectionService', () => {
 
     it('should detect and record movie milestone achievements', async () => {
       // Movies: [25, 50, 100, 500]
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 0,
         movies: 100,
         hours: 0,
@@ -154,7 +155,7 @@ describe('AchievementDetectionService', () => {
         { id: 2, thresholdValue: 25, achievementType: AchievementType.MOVIES_WATCHED },
       ];
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockImplementation((pid, type) => {
+      (statisticsDb.getAchievementsByType as Mock).mockImplementation((pid, type) => {
         if (type === AchievementType.MOVIES_WATCHED) {
           return Promise.resolve(existingAchievements);
         }
@@ -183,14 +184,14 @@ describe('AchievementDetectionService', () => {
 
     it('should detect and record hours watched achievements', async () => {
       // Hours: [100, 500, 1000, 5000]
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 0,
         movies: 0,
         hours: 100,
       });
 
-      (statisticsDb.getLatestWatchDate as jest.Mock).mockResolvedValue(new Date('2025-01-15'));
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
+      (statisticsDb.getLatestWatchDate as Mock).mockResolvedValue(new Date('2025-01-15'));
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
 
       await checkAndRecordAchievements(profileId, accountId);
 
@@ -204,7 +205,7 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should not record duplicate achievements', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 500,
         movies: 0,
         hours: 0,
@@ -216,7 +217,7 @@ describe('AchievementDetectionService', () => {
         { id: 3, thresholdValue: 500, achievementType: AchievementType.EPISODES_WATCHED },
       ];
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue(existingAchievements);
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue(existingAchievements);
 
       await checkAndRecordAchievements(profileId, accountId);
 
@@ -247,12 +248,12 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should invalidate cache when new achievements are recorded', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 100,
         movies: 0,
         hours: 0,
       });
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
 
       await checkAndRecordAchievements(profileId, accountId);
 
@@ -261,12 +262,12 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should not invalidate cache when no new achievements are recorded', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 0,
         movies: 0,
         hours: 0,
       });
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(0);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(0);
 
       await checkAndRecordAchievements(profileId);
 
@@ -274,12 +275,12 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should handle missing latest episode data gracefully', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 1,
         movies: 0,
         hours: 0,
       });
-      (statisticsDb.getLatestWatchedEpisode as jest.Mock).mockResolvedValue(null);
+      (statisticsDb.getLatestWatchedEpisode as Mock).mockResolvedValue(null);
 
       const result = await checkAndRecordAchievements(profileId);
 
@@ -295,12 +296,12 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should handle missing latest movie data gracefully', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 0,
         movies: 1,
         hours: 0,
       });
-      (statisticsDb.getLatestWatchedMovie as jest.Mock).mockResolvedValue(null);
+      (statisticsDb.getLatestWatchedMovie as Mock).mockResolvedValue(null);
 
       const result = await checkAndRecordAchievements(profileId);
 
@@ -317,7 +318,7 @@ describe('AchievementDetectionService', () => {
 
     it('should handle database errors gracefully', async () => {
       const dbError = new Error('Database connection failed');
-      (statisticsDb.getWatchCounts as jest.Mock).mockRejectedValue(dbError);
+      (statisticsDb.getWatchCounts as Mock).mockRejectedValue(dbError);
 
       const result = await checkAndRecordAchievements(profileId, accountId);
 
@@ -326,12 +327,12 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should work without accountId parameter', async () => {
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 1,
         movies: 0,
         hours: 0,
       });
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
 
       await checkAndRecordAchievements(profileId);
 
@@ -346,7 +347,7 @@ describe('AchievementDetectionService', () => {
     const showTitle = 'Breaking Bad';
 
     it('should record show completion achievement', async () => {
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
 
       const result = await detectShowCompletion(profileId, showId, showTitle);
 
@@ -364,7 +365,7 @@ describe('AchievementDetectionService', () => {
     });
 
     it('should return false when achievement already exists', async () => {
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(0);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(0);
 
       const result = await detectShowCompletion(profileId, showId, showTitle);
 
@@ -383,7 +384,7 @@ describe('AchievementDetectionService', () => {
 
     it('should handle errors gracefully', async () => {
       const error = new Error('Database error');
-      (statisticsDb.recordAchievement as jest.Mock).mockRejectedValue(error);
+      (statisticsDb.recordAchievement as Mock).mockRejectedValue(error);
 
       const result = await detectShowCompletion(profileId, showId, showTitle);
 
@@ -396,14 +397,14 @@ describe('AchievementDetectionService', () => {
     it('should process multiple profiles', async () => {
       const profileIds = [1, 2, 3];
 
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 100,
         movies: 25,
         hours: 100,
       });
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
-      (statisticsDb.getLatestWatchedEpisode as jest.Mock).mockResolvedValue({
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
+      (statisticsDb.getLatestWatchedEpisode as Mock).mockResolvedValue({
         episodeId: 1,
         showName: 'Test Show',
         episodeName: 'Test Episode',
@@ -411,7 +412,7 @@ describe('AchievementDetectionService', () => {
         episodeNumber: 1,
         watchedAt: new Date('2025-01-01'),
       });
-      (statisticsDb.getLatestWatchedMovie as jest.Mock).mockResolvedValue({
+      (statisticsDb.getLatestWatchedMovie as Mock).mockResolvedValue({
         movieId: 1,
         movieTitle: 'Test Movie',
         watchedAt: new Date('2025-01-01'),
@@ -436,17 +437,15 @@ describe('AchievementDetectionService', () => {
     it('should continue processing even if one profile fails', async () => {
       const profileIds = [1, 2, 3];
 
-      (statisticsDb.getWatchCounts as jest.Mock)
-        .mockRejectedValueOnce(new Error('Profile 1 failed'))
-        .mockResolvedValue({
-          episodes: 100,
-          movies: 25,
-          hours: 100,
-        });
+      (statisticsDb.getWatchCounts as Mock).mockRejectedValueOnce(new Error('Profile 1 failed')).mockResolvedValue({
+        episodes: 100,
+        movies: 25,
+        hours: 100,
+      });
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
-      (statisticsDb.getLatestWatchedEpisode as jest.Mock).mockResolvedValue({
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
+      (statisticsDb.getLatestWatchedEpisode as Mock).mockResolvedValue({
         episodeId: 1,
         showName: 'Test Show',
         episodeName: 'Test Episode',
@@ -454,7 +453,7 @@ describe('AchievementDetectionService', () => {
         episodeNumber: 1,
         watchedAt: new Date('2025-01-01'),
       });
-      (statisticsDb.getLatestWatchedMovie as jest.Mock).mockResolvedValue({
+      (statisticsDb.getLatestWatchedMovie as Mock).mockResolvedValue({
         movieId: 1,
         movieTitle: 'Test Movie',
         watchedAt: new Date('2025-01-01'),
@@ -471,7 +470,7 @@ describe('AchievementDetectionService', () => {
     it('should return achievement counts for each profile', async () => {
       const profileIds = [1, 2];
 
-      (statisticsDb.getWatchCounts as jest.Mock)
+      (statisticsDb.getWatchCounts as Mock)
         .mockResolvedValueOnce({
           episodes: 100,
           movies: 25,
@@ -483,9 +482,9 @@ describe('AchievementDetectionService', () => {
           hours: 0,
         });
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
-      (statisticsDb.getLatestWatchedEpisode as jest.Mock).mockResolvedValue({
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
+      (statisticsDb.getLatestWatchedEpisode as Mock).mockResolvedValue({
         episodeId: 1,
         showName: 'Test Show',
         episodeName: 'Test Episode',
@@ -493,7 +492,7 @@ describe('AchievementDetectionService', () => {
         episodeNumber: 1,
         watchedAt: new Date('2025-01-01'),
       });
-      (statisticsDb.getLatestWatchedMovie as jest.Mock).mockResolvedValue({
+      (statisticsDb.getLatestWatchedMovie as Mock).mockResolvedValue({
         movieId: 1,
         movieTitle: 'Test Movie',
         watchedAt: new Date('2025-01-01'),
@@ -516,15 +515,15 @@ describe('AchievementDetectionService', () => {
       const maxMovies = Math.max(...MILESTONE_THRESHOLDS.movies);
       const maxHours = Math.max(...MILESTONE_THRESHOLDS.hours);
 
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: maxEpisodes,
         movies: maxMovies,
         hours: maxHours,
       });
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
-      (statisticsDb.getLatestWatchedEpisode as jest.Mock).mockResolvedValue({
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
+      (statisticsDb.getLatestWatchedEpisode as Mock).mockResolvedValue({
         episodeId: 1,
         showName: 'Test Show',
         episodeName: 'Test Episode',
@@ -532,7 +531,7 @@ describe('AchievementDetectionService', () => {
         episodeNumber: 1,
         watchedAt: new Date('2025-01-01'),
       });
-      (statisticsDb.getLatestWatchedMovie as jest.Mock).mockResolvedValue({
+      (statisticsDb.getLatestWatchedMovie as Mock).mockResolvedValue({
         movieId: 1,
         movieTitle: 'Test Movie',
         watchedAt: new Date('2025-01-01'),
@@ -561,12 +560,12 @@ describe('AchievementDetectionService', () => {
     it('should handle zero counts correctly', async () => {
       const profileId = 1;
 
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 0,
         movies: 0,
         hours: 0,
       });
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
 
       const result = await checkAndRecordAchievements(profileId);
 
@@ -578,15 +577,15 @@ describe('AchievementDetectionService', () => {
       const profileId = 1;
 
       // Test exact threshold value (100 episodes)
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 100,
         movies: 0,
         hours: 0,
       });
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
-      (statisticsDb.getLatestWatchedEpisode as jest.Mock).mockResolvedValue({
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
+      (statisticsDb.getLatestWatchedEpisode as Mock).mockResolvedValue({
         episodeId: 1,
         showName: 'Test Show',
         episodeName: 'Test Episode',
@@ -611,14 +610,14 @@ describe('AchievementDetectionService', () => {
       const profileId = 1;
 
       // 100.4 hours should round to 100 hours
-      (statisticsDb.getWatchCounts as jest.Mock).mockResolvedValue({
+      (statisticsDb.getWatchCounts as Mock).mockResolvedValue({
         episodes: 0,
         movies: 0,
         hours: 100, // Already rounded by getWatchCounts
       });
 
-      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
-      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
+      (statisticsDb.getAchievementsByType as Mock).mockResolvedValue([]);
+      (statisticsDb.recordAchievement as Mock).mockResolvedValue(1);
 
       await checkAndRecordAchievements(profileId);
 

@@ -3,7 +3,7 @@
   "editor.formatOnSave": true,
   "editor.formatOnPaste": false,
   "prettier.useEditorConfig": false,
-  "prettier.configPath": ".prettierrc.js",
+  "prettier.configPath": ".prettierrc.cjs",
   "editor.codeActionsOnSave": {
     "source.organizeImports": "never",
     "source.fixAll": "never"

@@ -1,4 +1,5 @@
 import { seasonWatchStatusBodySchema } from '@schema/seasonSchema';
+import { describe, expect, it } from 'vitest';
 
 describe('seasonSchema', () => {
   describe('seasonWatchStatusSchema', () => {

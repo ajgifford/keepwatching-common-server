@@ -4,23 +4,24 @@ import { MoviesService, moviesService } from '@services/moviesService';
 import { getTMDBService } from '@services/tmdbService';
 import * as contentUtility from '@utils/contentUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
+import { type Mock, vi } from 'vitest';
 
-jest.mock('@db/moviesDb');
-jest.mock('@services/cacheService');
-jest.mock('@services/errorService');
-jest.mock('@services/profileService');
-jest.mock('@utils/contentUtility', () => ({
-  getUSMPARating: jest.fn().mockReturnValue('PG-13'),
+vi.mock('@db/moviesDb');
+vi.mock('@services/cacheService');
+vi.mock('@services/errorService');
+vi.mock('@services/profileService');
+vi.mock('@utils/contentUtility', () => ({
+  getUSMPARating: vi.fn().mockReturnValue('PG-13'),
 }));
-jest.mock('@utils/watchProvidersUtility', () => ({
-  getUSWatchProvidersMovie: jest.fn().mockReturnValue([8, 9]),
+vi.mock('@utils/watchProvidersUtility', () => ({
+  getUSWatchProvidersMovie: vi.fn().mockReturnValue([8, 9]),
 }));
-jest.mock('@services/tmdbService', () => ({
-  getTMDBService: jest.fn(),
+vi.mock('@services/tmdbService', () => ({
+  getTMDBService: vi.fn(),
 }));
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   appLogger: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
 }));
 
@@ -29,19 +30,19 @@ jest.mock('@logger/logger', () => ({
  */
 export function createMockCache() {
   return {
-    getOrSet: jest.fn(),
-    get: jest.fn(),
-    set: jest.fn(),
-    invalidate: jest.fn(),
-    invalidatePattern: jest.fn(),
-    invalidateProfileShows: jest.fn(),
-    invalidateAccount: jest.fn(),
-    invalidateProfileMovies: jest.fn(),
-    invalidateProfileStatistics: jest.fn(),
-    invalidateAccountStatistics: jest.fn(),
-    flushAll: jest.fn(),
-    getStats: jest.fn(),
-    keys: jest.fn(),
+    getOrSet: vi.fn(),
+    get: vi.fn(),
+    set: vi.fn(),
+    invalidate: vi.fn(),
+    invalidatePattern: vi.fn(),
+    invalidateProfileShows: vi.fn(),
+    invalidateAccount: vi.fn(),
+    invalidateProfileMovies: vi.fn(),
+    invalidateProfileStatistics: vi.fn(),
+    invalidateAccountStatistics: vi.fn(),
+    flushAll: vi.fn(),
+    getStats: vi.fn(),
+    keys: vi.fn(),
   } as any;
 }
 
@@ -49,25 +50,25 @@ export function createMockCache() {
  * Sets up common mocks with default behaviors
  */
 export function setupMocks() {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 
-  (errorService.handleError as jest.Mock).mockImplementation((error) => {
+  (errorService.handleError as Mock).mockImplementation((error) => {
     throw error;
   });
 
-  (errorService.assertExists as jest.Mock).mockImplementation((item) => {
+  (errorService.assertExists as Mock).mockImplementation((item) => {
     if (!item) {
       throw new Error('Item not found');
     }
     return item;
   });
 
-  (contentUtility.getUSMPARating as jest.Mock).mockReturnValue('PG13');
-  (watchProvidersUtility.getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
+  (contentUtility.getUSMPARating as Mock).mockReturnValue('PG13');
+  (watchProvidersUtility.getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
 
-  (getTMDBService as jest.Mock).mockReturnValue({
-    getMovieRecommendations: jest.fn().mockResolvedValue(mockTMDBResponses.movieRecommendations),
-    getSimilarMovies: jest.fn().mockResolvedValue(mockTMDBResponses.similarMovies),
+  (getTMDBService as Mock).mockReturnValue({
+    getMovieRecommendations: vi.fn().mockResolvedValue(mockTMDBResponses.movieRecommendations),
+    getSimilarMovies: vi.fn().mockResolvedValue(mockTMDBResponses.similarMovies),
   });
 }
 

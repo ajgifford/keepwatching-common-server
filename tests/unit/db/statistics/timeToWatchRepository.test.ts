@@ -1,18 +1,19 @@
 import { getTimeToWatchStats } from '@db/statistics/timeToWatchRepository';
 import { getDbPool } from '@utils/db';
+import { type Mock, afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockDbMonitorInstance = {
-  executeWithTiming: jest.fn((name: string, fn: () => any) => fn()),
+  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
 };
 
 // Mock dependencies
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
 }));
 
-jest.mock('@utils/dbMonitoring', () => ({
+vi.mock('@utils/dbMonitoring', () => ({
   DbMonitor: {
-    getInstance: jest.fn(() => mockDbMonitorInstance),
+    getInstance: vi.fn(() => mockDbMonitorInstance),
   },
 }));
 
@@ -23,28 +24,28 @@ describe('statisticsDb', () => {
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
   beforeAll(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(fixedDate);
+    vi.useFakeTimers();
+    vi.setSystemTime(fixedDate);
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
     // Create mock connection
     mockConnection = {
-      query: jest.fn(),
-      release: jest.fn(),
+      query: vi.fn(),
+      release: vi.fn(),
     };
 
     // Create mock pool
     mockPool = {
-      getConnection: jest.fn().mockResolvedValue(mockConnection),
+      getConnection: vi.fn().mockResolvedValue(mockConnection),
     };
 
     // Set up getDbPool to return mock pool
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
 
     // Reset DbMonitor mock
     mockDbMonitorInstance.executeWithTiming.mockClear();
@@ -52,7 +53,7 @@ describe('statisticsDb', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getTimeToWatchStats', () => {

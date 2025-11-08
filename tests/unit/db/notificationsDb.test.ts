@@ -4,26 +4,37 @@ import * as notificationsDb from '@db/notificationsDb';
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { ResultSetHeader } from 'mysql2';
+import { MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => {
+vi.mock('@utils/db', () => {
   const mockConnection = {
-    execute: jest.fn(),
-    query: jest.fn(),
-    commit: jest.fn(),
-    rollback: jest.fn(),
-    release: jest.fn(),
+    execute: vi.fn(),
+    query: vi.fn(),
+    commit: vi.fn(),
+    rollback: vi.fn(),
+    release: vi.fn(),
   };
 
   const mockPool = {
-    execute: jest.fn(),
-    getConnection: jest.fn().mockResolvedValue(mockConnection),
+    execute: vi.fn(),
+    getConnection: vi.fn().mockResolvedValue(mockConnection),
   };
 
   return {
-    getDbPool: jest.fn(() => mockPool),
+    getDbPool: vi.fn(() => mockPool),
   };
 });
-jest.mock('@utils/transactionHelper');
+
+vi.mock('@utils/transactionHelper');
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
 
 describe('notificationDb', () => {
   let mockPool: any;
@@ -34,11 +45,11 @@ describe('notificationDb', () => {
     mockPool.execute.mockReset();
 
     mockConnection = {
-      execute: jest.fn(),
-      query: jest.fn(),
-      commit: jest.fn(),
-      rollback: jest.fn(),
-      release: jest.fn(),
+      execute: vi.fn(),
+      query: vi.fn(),
+      commit: vi.fn(),
+      rollback: vi.fn(),
+      release: vi.fn(),
     };
 
     mockPool.getConnection.mockResolvedValue(mockConnection);
@@ -316,16 +327,18 @@ describe('notificationDb', () => {
   });
 
   describe('addNotification()', () => {
-    let mockTransactionHelper: jest.Mocked<TransactionHelper>;
+    let mockTransactionHelper: MockedObject<TransactionHelper>;
 
     beforeEach(() => {
       mockTransactionHelper = {
-        executeInTransaction: jest.fn().mockImplementation(async (callback) => {
+        executeInTransaction: vi.fn().mockImplementation(async (callback) => {
           return callback(mockConnection);
         }),
-      } as unknown as jest.Mocked<TransactionHelper>;
+      } as unknown as MockedObject<TransactionHelper>;
 
-      (TransactionHelper as jest.Mock).mockImplementation(() => mockTransactionHelper);
+      vi.mocked(TransactionHelper).mockImplementation(function (this: any) {
+        return mockTransactionHelper;
+      } as any);
     });
 
     it('should successfully save a notification for all accounts', async () => {

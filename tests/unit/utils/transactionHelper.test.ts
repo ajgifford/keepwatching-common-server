@@ -1,36 +1,37 @@
 import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { PoolConnection } from 'mysql2/promise';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the database pool
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
 }));
 
 describe('TransactionHelper', () => {
   // Create mock objects for connection and pool
   let mockConnection: Partial<PoolConnection>;
-  let mockPool: { getConnection: jest.Mock };
+  let mockPool: { getConnection: Mock };
 
   beforeEach(() => {
     // Reset mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Create mock connection with all required methods
     mockConnection = {
-      beginTransaction: jest.fn().mockResolvedValue(undefined),
-      commit: jest.fn().mockResolvedValue(undefined),
-      rollback: jest.fn().mockResolvedValue(undefined),
-      release: jest.fn(),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commit: vi.fn().mockResolvedValue(undefined),
+      rollback: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn(),
     };
 
     // Create mock pool
     mockPool = {
-      getConnection: jest.fn().mockResolvedValue(mockConnection),
+      getConnection: vi.fn().mockResolvedValue(mockConnection),
     };
 
     // Configure getDbPool mock to return our mock pool
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
   });
 
   describe('executeInTransaction', () => {
@@ -39,7 +40,7 @@ describe('TransactionHelper', () => {
       const transactionHelper = new TransactionHelper();
 
       // Create a mock callback
-      const mockCallback = jest.fn().mockResolvedValue('result value');
+      const mockCallback = vi.fn().mockResolvedValue('result value');
 
       // Execute the callback in a transaction
       const result = await transactionHelper.executeInTransaction(mockCallback);
@@ -66,7 +67,7 @@ describe('TransactionHelper', () => {
       const mockError = new Error('Transaction failed');
 
       // Create a mock callback that throws an error
-      const mockCallback = jest.fn().mockRejectedValue(mockError);
+      const mockCallback = vi.fn().mockRejectedValue(mockError);
 
       // Execute the callback in a transaction and expect it to throw
       await expect(transactionHelper.executeInTransaction(mockCallback)).rejects.toThrow(mockError);
@@ -90,10 +91,10 @@ describe('TransactionHelper', () => {
       const rollbackError = new Error('Rollback failed');
 
       // Create a mock callback that throws an error
-      const mockCallback = jest.fn().mockRejectedValue(callbackError);
+      const mockCallback = vi.fn().mockRejectedValue(callbackError);
 
       // Make rollback throw an error
-      (mockConnection.rollback as jest.Mock).mockRejectedValue(rollbackError);
+      (mockConnection.rollback as Mock).mockRejectedValue(rollbackError);
 
       // Execute the callback in a transaction and expect it to throw the rollback error
       // since that's the last error that occurred in the try/catch flow
@@ -111,7 +112,7 @@ describe('TransactionHelper', () => {
       const mockError = new Error('Synchronous error');
 
       // Create a mock callback that throws a synchronous error
-      const mockCallback = jest.fn().mockImplementation(() => {
+      const mockCallback = vi.fn().mockImplementation(() => {
         throw mockError;
       });
 

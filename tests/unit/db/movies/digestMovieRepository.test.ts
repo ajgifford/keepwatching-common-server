@@ -3,28 +3,39 @@ import { MovieReference } from '@ajgifford/keepwatching-types';
 import * as digestMovieRepository from '@db/movies/digestMovieRepository';
 import { getDbPool } from '@utils/db';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the database utilities
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
 }));
 
-jest.mock('@utils/errorHandlingUtility', () => ({
-  handleDatabaseError: jest.fn(),
+vi.mock('@utils/errorHandlingUtility', () => ({
+  handleDatabaseError: vi.fn(),
+}));
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
 }));
 
 describe('digestMovieRepository', () => {
   let mockPool: any;
-  let mockExecute: jest.Mock;
+  let mockExecute: Mock;
 
   beforeEach(() => {
-    mockExecute = jest.fn();
+    mockExecute = vi.fn();
     mockPool = {
       execute: mockExecute,
     };
 
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
-    jest.clearAllMocks();
+    (getDbPool as Mock).mockReturnValue(mockPool);
+    vi.clearAllMocks();
   });
 
   describe('getTrendingMovies', () => {

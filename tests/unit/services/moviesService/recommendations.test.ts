@@ -4,6 +4,7 @@ import * as moviesDb from '@db/moviesDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
 import { getTMDBService } from '@services/tmdbService';
+import { type Mock, Mocked, beforeEach, describe, expect, it } from 'vitest';
 
 describe('MoviesService - Recommendations', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
@@ -36,7 +37,7 @@ describe('MoviesService - Recommendations', () => {
         },
       ];
 
-      (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovieReference);
+      (moviesDb.findMovieById as Mock).mockResolvedValue(mockMovieReference);
       mockCache.getOrSet.mockResolvedValue(mockRecommendations);
 
       const result = await service.getMovieRecommendations(123, 1);
@@ -47,12 +48,12 @@ describe('MoviesService - Recommendations', () => {
     });
 
     it('should fetch recommendations from TMDB when not in cache', async () => {
-      (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovieReference);
-      (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue(mockUserMovies);
+      (moviesDb.findMovieById as Mock).mockResolvedValue(mockMovieReference);
+      (moviesDb.getAllMoviesForProfile as Mock).mockResolvedValue(mockUserMovies);
 
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
 
-      const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
+      const mockTMDBService = getTMDBService() as Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getMovieRecommendations.mockResolvedValue(mockTMDBResponses.movieRecommendations);
 
       const result = await service.getMovieRecommendations(123, 1);
@@ -69,8 +70,8 @@ describe('MoviesService - Recommendations', () => {
     });
 
     it('should throw NotFoundError when show does not exist', async () => {
-      (moviesDb.findMovieById as jest.Mock).mockResolvedValue(null);
-      (errorService.assertExists as jest.Mock).mockImplementation(() => {
+      (moviesDb.findMovieById as Mock).mockResolvedValue(null);
+      (errorService.assertExists as Mock).mockImplementation(() => {
         throw new NotFoundError('Show not found');
       });
 
@@ -80,7 +81,7 @@ describe('MoviesService - Recommendations', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (moviesDb.findMovieById as jest.Mock).mockRejectedValue(error);
+      (moviesDb.findMovieById as Mock).mockRejectedValue(error);
 
       await expect(service.getMovieRecommendations(123, 1)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getMovieRecommendations(123, 1)');
@@ -108,7 +109,7 @@ describe('MoviesService - Recommendations', () => {
         },
       ];
 
-      (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovieReference);
+      (moviesDb.findMovieById as Mock).mockResolvedValue(mockMovieReference);
       mockCache.getOrSet.mockResolvedValue(mockSimilarMovies);
 
       const result = await service.getSimilarMovies(123, 1);
@@ -119,12 +120,12 @@ describe('MoviesService - Recommendations', () => {
     });
 
     it('should fetch similar shows from TMDB when not in cache', async () => {
-      (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovieReference);
-      (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue(mockUserMovies);
+      (moviesDb.findMovieById as Mock).mockResolvedValue(mockMovieReference);
+      (moviesDb.getAllMoviesForProfile as Mock).mockResolvedValue(mockUserMovies);
 
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
 
-      const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
+      const mockTMDBService = getTMDBService() as Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getSimilarMovies.mockResolvedValue(mockTMDBResponses.similarMovies);
 
       const result = await service.getSimilarMovies(123, 1);
@@ -141,8 +142,8 @@ describe('MoviesService - Recommendations', () => {
     });
 
     it('should throw NotFoundError when show does not exist', async () => {
-      (moviesDb.findMovieById as jest.Mock).mockResolvedValue(null);
-      (errorService.assertExists as jest.Mock).mockImplementation(() => {
+      (moviesDb.findMovieById as Mock).mockResolvedValue(null);
+      (errorService.assertExists as Mock).mockImplementation(() => {
         throw new NotFoundError('Movie not found');
       });
 
@@ -152,7 +153,7 @@ describe('MoviesService - Recommendations', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (moviesDb.findMovieById as jest.Mock).mockRejectedValue(error);
+      (moviesDb.findMovieById as Mock).mockRejectedValue(error);
 
       await expect(service.getSimilarMovies(123, 1)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getSimilarMovies(123, 1)');

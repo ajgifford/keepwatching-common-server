@@ -1,30 +1,34 @@
-import * as config from '@config/config';
+import { getStreamingAPIKey } from '@config/config';
 import { StreamingAvailabilityService } from '@services/streamingAvailabilityService';
 import { Client, Configuration } from 'streaming-availability';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('streaming-availability', () => {
+vi.mock('@config/config', () => ({
+  getStreamingAPIKey: vi.fn(),
+}));
+
+vi.mock('streaming-availability', () => {
   const mockClient = {
     showsApi: {
-      getTopShows: jest.fn(),
+      getTopShows: vi.fn(),
     },
     changesApi: {
-      getChanges: jest.fn(),
+      getChanges: vi.fn(),
     },
   };
 
   return {
-    Client: jest.fn(() => mockClient),
-    Configuration: jest.fn(),
+    Client: vi.fn(function () {
+      return mockClient;
+    }),
+    Configuration: vi.fn(),
   };
 });
 
-jest.mock('@config/config', () => ({
-  getStreamingAPIKey: jest.fn().mockReturnValue('mock-api-key'),
-}));
-
 describe('StreamingAvailabilityService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+    vi.mocked(getStreamingAPIKey).mockReturnValue('mock-api-key');
   });
 
   afterEach(() => {
@@ -86,7 +90,7 @@ describe('StreamingAvailabilityService', () => {
     });
 
     it('should handle missing API key gracefully', () => {
-      (config.getStreamingAPIKey as jest.Mock).mockReturnValueOnce(undefined);
+      vi.mocked(getStreamingAPIKey).mockReturnValueOnce(undefined);
 
       StreamingAvailabilityService.getInstance();
 
@@ -101,14 +105,16 @@ describe('StreamingAvailabilityService', () => {
       const mockResponse = [{ title: 'Test Show', tmdbId: 'tv/123' }];
       const mockClient = {
         showsApi: {
-          getTopShows: jest.fn().mockResolvedValue(mockResponse),
+          getTopShows: vi.fn().mockResolvedValue(mockResponse),
         },
         changesApi: {
-          getChanges: jest.fn(),
+          getChanges: vi.fn(),
         },
       };
 
-      (Client as jest.Mock).mockImplementation(() => mockClient);
+      vi.mocked(Client).mockImplementation(function () {
+        return mockClient;
+      } as any);
 
       Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
       const service = StreamingAvailabilityService.getInstance();
@@ -132,14 +138,16 @@ describe('StreamingAvailabilityService', () => {
       const mockResponse = { shows: { 'tv/123': { title: 'Changed Show' } } };
       const mockClient = {
         showsApi: {
-          getTopShows: jest.fn(),
+          getTopShows: vi.fn(),
         },
         changesApi: {
-          getChanges: jest.fn().mockResolvedValue(mockResponse),
+          getChanges: vi.fn().mockResolvedValue(mockResponse),
         },
       };
 
-      (Client as jest.Mock).mockImplementation(() => mockClient);
+      vi.mocked(Client).mockImplementation(function () {
+        return mockClient;
+      } as any);
 
       Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
       const service = StreamingAvailabilityService.getInstance();

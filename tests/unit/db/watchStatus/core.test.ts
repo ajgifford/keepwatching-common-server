@@ -5,48 +5,58 @@ import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { WatchStatusManager } from '@utils/watchStatusManager';
 import { PoolConnection, ResultSetHeader } from 'mysql2/promise';
+import { MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
-jest.mock('@utils/transactionHelper');
-jest.mock('@utils/watchStatusManager');
-jest.mock('@middleware/errorMiddleware');
-jest.mock('@utils/errorHandlingUtility', () => ({
-  handleDatabaseError: jest.fn((error: Error, operation: string) => {
+vi.mock('@utils/transactionHelper');
+vi.mock('@utils/watchStatusManager');
+vi.mock('@middleware/errorMiddleware');
+vi.mock('@utils/errorHandlingUtility', () => ({
+  handleDatabaseError: vi.fn((error: Error, operation: string) => {
     throw new Error(`Database error ${operation}: ${error.message}`);
   }),
+}));
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
 }));
 
 describe('WatchStatusDbService - Core Functionality', () => {
   let watchStatusDbService: WatchStatusDbService;
-  let mockTransactionHelper: jest.Mocked<TransactionHelper>;
-  let mockWatchStatusManager: jest.Mocked<WatchStatusManager>;
-  let mockConnection: jest.Mocked<PoolConnection>;
+  let mockTransactionHelper: MockedObject<TransactionHelper>;
+  let mockWatchStatusManager: MockedObject<WatchStatusManager>;
+  let mockConnection: MockedObject<PoolConnection>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock connection
     mockConnection = {
-      execute: jest.fn(),
-      beginTransaction: jest.fn(),
-      commit: jest.fn(),
-      rollback: jest.fn(),
-      release: jest.fn(),
-    } as unknown as jest.Mocked<PoolConnection>;
+      execute: vi.fn(),
+      beginTransaction: vi.fn(),
+      commit: vi.fn(),
+      rollback: vi.fn(),
+      release: vi.fn(),
+    } as unknown as MockedObject<PoolConnection>;
 
     // Mock TransactionHelper
     mockTransactionHelper = {
-      executeInTransaction: jest.fn(),
-    } as jest.Mocked<TransactionHelper>;
+      executeInTransaction: vi.fn(),
+    } as MockedObject<TransactionHelper>;
 
     // Mock WatchStatusManager
     mockWatchStatusManager = {
-      calculateEpisodeStatus: jest.fn(),
-      calculateSeasonStatus: jest.fn(),
-      calculateShowStatus: jest.fn(),
-      onStatusChange: jest.fn(),
-      generateStatusSummary: jest.fn(),
-    } as unknown as jest.Mocked<WatchStatusManager>;
+      calculateEpisodeStatus: vi.fn(),
+      calculateSeasonStatus: vi.fn(),
+      calculateShowStatus: vi.fn(),
+      onStatusChange: vi.fn(),
+      generateStatusSummary: vi.fn(),
+    } as unknown as MockedObject<WatchStatusManager>;
 
     // Create service instance with mocked dependencies
     watchStatusDbService = new WatchStatusDbService(mockWatchStatusManager, mockTransactionHelper);
@@ -65,7 +75,7 @@ describe('WatchStatusDbService - Core Functionality', () => {
 
     it('should initialize with default dependencies when none provided', () => {
       // Mock the static getInstance method and constructor
-      const mockGetInstance = jest.spyOn(WatchStatusManager, 'getInstance');
+      const mockGetInstance = vi.spyOn(WatchStatusManager, 'getInstance');
       const mockDefaultStatusManager = {} as WatchStatusManager;
       mockGetInstance.mockReturnValue(mockDefaultStatusManager);
 
@@ -88,7 +98,7 @@ describe('WatchStatusDbService - Core Functionality', () => {
 
   describe('executeStatusUpdate', () => {
     it('should execute operation within transaction and return result', async () => {
-      const mockOperation = jest.fn().mockResolvedValue('test result');
+      const mockOperation = vi.fn().mockResolvedValue('test result');
 
       mockTransactionHelper.executeInTransaction.mockImplementation(async (callback) => {
         return await callback(mockConnection);
@@ -112,7 +122,7 @@ describe('WatchStatusDbService - Core Functionality', () => {
 
     it('should handle database errors properly', async () => {
       const mockError = new Error('Database connection failed');
-      const mockOperation = jest.fn().mockRejectedValue(mockError);
+      const mockOperation = vi.fn().mockRejectedValue(mockError);
 
       mockTransactionHelper.executeInTransaction.mockRejectedValue(mockError);
 

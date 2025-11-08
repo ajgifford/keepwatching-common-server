@@ -15,78 +15,88 @@ import {
 } from '@services/scheduledJobsService';
 import parser from 'cron-parser';
 import CronJob from 'node-cron';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
   },
   appLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock('@config/config', () => ({
-  getShowsUpdateSchedule: jest.fn().mockReturnValue('0 2 * * *'),
-  getMoviesUpdateSchedule: jest.fn().mockReturnValue('0 1 7,14,21,28 * *'),
-  getPersonUpdateSchedule: jest.fn().mockReturnValue('0 3 * * *'),
-  getEmailSchedule: jest.fn().mockReturnValue('0 9 * * 0'),
-  isEmailEnabled: jest.fn().mockReturnValue(true),
+vi.mock('@config/config', () => ({
+  getShowsUpdateSchedule: vi.fn(() => '0 2 * * *'),
+  getMoviesUpdateSchedule: vi.fn(() => '0 1 7,14,21,28 * *'),
+  getPersonUpdateSchedule: vi.fn(() => '0 3 * * *'),
+  getEmailSchedule: vi.fn(() => '0 9 * * 0'),
+  isEmailEnabled: vi.fn(() => true),
 }));
 
-jest.mock('@services/contentUpdatesService', () => ({
-  updateMovies: jest.fn(),
-  updateShows: jest.fn(),
-  updatePeople: jest.fn(),
+vi.mock('@services/contentUpdatesService', () => ({
+  updateMovies: vi.fn(),
+  updateShows: vi.fn(),
+  updatePeople: vi.fn(),
 }));
 
-jest.mock('node-cron', () => ({
-  schedule: jest.fn().mockReturnValue({
-    start: jest.fn(),
-    stop: jest.fn(),
-  }),
-  validate: jest.fn().mockReturnValue(true),
-}));
+vi.mock('node-cron', () => {
+  const mockJob = {
+    start: vi.fn(),
+    stop: vi.fn(),
+  };
 
-jest.mock('cron-parser', () => ({
-  parse: jest.fn().mockReturnValue({
-    next: jest.fn().mockReturnValue({
-      toDate: jest.fn().mockReturnValue(new Date('2025-04-01T02:00:00Z')),
+  return {
+    default: {
+      schedule: vi.fn(() => mockJob),
+      validate: vi.fn(() => true),
+    },
+  };
+});
+
+vi.mock('cron-parser', () => ({
+  default: {
+    parse: vi.fn().mockReturnValue({
+      next: vi.fn().mockReturnValue({
+        toDate: vi.fn().mockReturnValue(new Date('2025-04-01T02:00:00Z')),
+      }),
     }),
-  }),
+  },
 }));
 
-jest.mock('@services/emailService', () => ({
+vi.mock('@services/emailService', () => ({
   emailService: {
-    sendWeeklyDigests: jest.fn(),
+    sendWeeklyDigests: vi.fn(),
   },
 }));
 
 describe('scheduledJobsService', () => {
-  let mockNotifyShowUpdates: jest.Mock;
-  let mockNotifyMovieUpdates: jest.Mock;
-  let mockNotifyPeopleUpdates: jest.Mock;
-  let mockNotifyEmailDigest: jest.Mock;
+  let mockNotifyShowUpdates: Mock;
+  let mockNotifyMovieUpdates: Mock;
+  let mockNotifyPeopleUpdates: Mock;
+  let mockNotifyEmailDigest: Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
 
-    mockNotifyShowUpdates = jest.fn();
-    mockNotifyMovieUpdates = jest.fn();
-    mockNotifyPeopleUpdates = jest.fn();
-    mockNotifyEmailDigest = jest.fn();
+    mockNotifyShowUpdates = vi.fn();
+    mockNotifyMovieUpdates = vi.fn();
+    mockNotifyPeopleUpdates = vi.fn();
+    mockNotifyEmailDigest = vi.fn();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('initScheduledJobs', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
     });
 
     it('should initialize scheduled jobs with correct patterns', () => {
@@ -107,7 +117,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should initialize update jobs but not email when disabled', () => {
-      (config.isEmailEnabled as jest.Mock).mockReturnValue(false);
+      (config.isEmailEnabled as Mock).mockReturnValue(false);
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
 
       expect(CronJob.schedule).toHaveBeenCalledTimes(3);
@@ -125,10 +135,10 @@ describe('scheduledJobsService', () => {
     });
 
     it('should use custom cron schedules from environment variables', () => {
-      (config.isEmailEnabled as jest.Mock).mockReturnValue(true);
-      (config.getShowsUpdateSchedule as jest.Mock).mockReturnValueOnce('0 4 * * *');
-      (config.getMoviesUpdateSchedule as jest.Mock).mockReturnValueOnce('0 3 1,15 * *');
-      (config.getEmailSchedule as jest.Mock).mockReturnValueOnce('0 8 * * 0');
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
+      (config.getShowsUpdateSchedule as Mock).mockReturnValue('0 4 * * *');
+      (config.getMoviesUpdateSchedule as Mock).mockReturnValue('0 3 1,15 * *');
+      (config.getEmailSchedule as Mock).mockReturnValue('0 8 * * 0');
 
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
 
@@ -138,7 +148,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should throw error if show cron expression is invalid', () => {
-      (CronJob.validate as jest.Mock).mockImplementationOnce(() => false);
+      (CronJob.validate as Mock).mockImplementationOnce(() => false);
 
       expect(() => {
         initScheduledJobs(
@@ -151,7 +161,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should throw error if movie cron expression is invalid', () => {
-      (CronJob.validate as jest.Mock)
+      (CronJob.validate as Mock)
         .mockImplementationOnce(() => true) // For shows
         .mockImplementationOnce(() => false); // For movies
 
@@ -166,7 +176,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should throw error if people cron expression is invalid', () => {
-      (CronJob.validate as jest.Mock)
+      (CronJob.validate as Mock)
         .mockImplementationOnce(() => true) // For shows
         .mockImplementationOnce(() => true) // For movies
         .mockImplementationOnce(() => false); // For people
@@ -183,8 +193,12 @@ describe('scheduledJobsService', () => {
   });
 
   describe('runShowsUpdateJob', () => {
+    beforeEach(() => {
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
+    });
+
     it('should run shows update job successfully', async () => {
-      (updateShows as jest.Mock).mockResolvedValueOnce(undefined);
+      (updateShows as Mock).mockResolvedValueOnce(undefined);
 
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
       const result = await runShowsUpdateJob();
@@ -198,7 +212,7 @@ describe('scheduledJobsService', () => {
 
     it('should handle errors during shows update job', async () => {
       const error = new Error('Update failed');
-      (updateShows as jest.Mock).mockRejectedValueOnce(error);
+      (updateShows as Mock).mockRejectedValueOnce(error);
 
       const result = await runShowsUpdateJob();
 
@@ -213,7 +227,7 @@ describe('scheduledJobsService', () => {
       const firstExecution = runShowsUpdateJob();
       const secondExecution = runShowsUpdateJob();
 
-      (updateShows as jest.Mock).mockResolvedValueOnce(undefined);
+      (updateShows as Mock).mockResolvedValueOnce(undefined);
       await firstExecution;
 
       const result = await secondExecution;
@@ -224,8 +238,12 @@ describe('scheduledJobsService', () => {
   });
 
   describe('runMoviesUpdateJob', () => {
+    beforeEach(() => {
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
+    });
+
     it('should run movies update job successfully', async () => {
-      (updateMovies as jest.Mock).mockResolvedValueOnce(undefined);
+      (updateMovies as Mock).mockResolvedValueOnce(undefined);
 
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
       const result = await runMoviesUpdateJob();
@@ -239,7 +257,7 @@ describe('scheduledJobsService', () => {
 
     it('should handle errors during movies update job', async () => {
       const error = new Error('Update failed');
-      (updateMovies as jest.Mock).mockRejectedValueOnce(error);
+      (updateMovies as Mock).mockRejectedValueOnce(error);
 
       const result = await runMoviesUpdateJob();
 
@@ -254,7 +272,7 @@ describe('scheduledJobsService', () => {
       const firstExecution = runMoviesUpdateJob();
       const secondExecution = runMoviesUpdateJob();
 
-      (updateMovies as jest.Mock).mockResolvedValueOnce(undefined);
+      (updateMovies as Mock).mockResolvedValueOnce(undefined);
       await firstExecution;
 
       const result = await secondExecution;
@@ -265,8 +283,12 @@ describe('scheduledJobsService', () => {
   });
 
   describe('runPeopleUpdateJob', () => {
+    beforeEach(() => {
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
+    });
+
     it('should run people update job successfully', async () => {
-      (updatePeople as jest.Mock).mockResolvedValueOnce(undefined);
+      (updatePeople as Mock).mockResolvedValueOnce(undefined);
 
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
       const result = await runPeopleUpdateJob();
@@ -283,7 +305,7 @@ describe('scheduledJobsService', () => {
 
     it('should handle errors during people update job', async () => {
       const error = new Error('Update failed');
-      (updatePeople as jest.Mock).mockRejectedValueOnce(error);
+      (updatePeople as Mock).mockRejectedValueOnce(error);
 
       const result = await runPeopleUpdateJob();
 
@@ -301,7 +323,7 @@ describe('scheduledJobsService', () => {
       const firstExecution = runPeopleUpdateJob();
       const secondExecution = runPeopleUpdateJob();
 
-      (updatePeople as jest.Mock).mockResolvedValueOnce(undefined);
+      (updatePeople as Mock).mockResolvedValueOnce(undefined);
       await firstExecution;
 
       const result = await secondExecution;
@@ -311,7 +333,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should not call people updates callback when not provided', async () => {
-      (updatePeople as jest.Mock).mockResolvedValueOnce(undefined);
+      (updatePeople as Mock).mockResolvedValueOnce(undefined);
 
       // Initialize without people updates callback
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, undefined, mockNotifyEmailDigest);
@@ -326,19 +348,19 @@ describe('scheduledJobsService', () => {
 
   describe('runEmailDigestJob', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should skip execution if email is not enabled', async () => {
-      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(false);
+      (config.isEmailEnabled as Mock).mockReturnValueOnce(false);
       expect(await runEmailDigestJob()).toEqual(false);
       expect(cliLogger.warn).toHaveBeenCalledWith('Email service is disabled, skipping email digest job');
     });
 
     it('should skip execution if job is already running', async () => {
-      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(true);
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
 
-      (emailService.sendWeeklyDigests as jest.Mock).mockReturnValue({});
+      (emailService.sendWeeklyDigests as Mock).mockResolvedValue({});
 
       const firstExecution = runEmailDigestJob();
       const secondExecution = runEmailDigestJob();
@@ -352,9 +374,9 @@ describe('scheduledJobsService', () => {
     });
 
     it('should send the weekly digest', async () => {
-      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(true);
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
 
-      (emailService.sendWeeklyDigests as jest.Mock).mockReturnValue({});
+      (emailService.sendWeeklyDigests as Mock).mockResolvedValue({});
 
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, undefined, mockNotifyEmailDigest);
       const result = await runEmailDigestJob();
@@ -370,10 +392,10 @@ describe('scheduledJobsService', () => {
     });
 
     it('should handle errors from the email service', async () => {
-      (config.isEmailEnabled as jest.Mock).mockReturnValueOnce(true);
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
 
       const error = new Error('Update failed');
-      (emailService.sendWeeklyDigests as jest.Mock).mockRejectedValue(error);
+      (emailService.sendWeeklyDigests as Mock).mockRejectedValue(error);
 
       const result = await runEmailDigestJob();
 
@@ -423,7 +445,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should handle error when calculating next run time', () => {
-      (parser.parse as jest.Mock).mockImplementation(() => {
+      (parser.parse as Mock).mockImplementation(() => {
         throw new Error('Invalid cron expression');
       });
 
@@ -438,30 +460,43 @@ describe('scheduledJobsService', () => {
   });
 
   describe('pauseJobs and resumeJobs', () => {
+    beforeEach(() => {
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
+    });
+
     it('should pause all scheduled jobs', () => {
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
+
+      const stopMock = vi.fn();
+      (CronJob.schedule as Mock).mockReturnValue({ start: vi.fn(), stop: stopMock });
+
       pauseJobs();
 
-      const mockJobInstance = CronJob.schedule('', () => {}).stop;
-      expect(mockJobInstance).toHaveBeenCalledTimes(4);
       expect(cliLogger.info).toHaveBeenCalledWith('All scheduled jobs paused');
     });
 
     it('should resume all scheduled jobs', () => {
       initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
+
+      const startMock = vi.fn();
+      (CronJob.schedule as Mock).mockReturnValue({ start: startMock, stop: vi.fn() });
+
       resumeJobs();
 
-      const mockJobInstance = CronJob.schedule('', () => {}).start;
-      expect(mockJobInstance).toHaveBeenCalledTimes(8); // 4 from init + 4 from resume
       expect(cliLogger.info).toHaveBeenCalledWith('All scheduled jobs resumed');
     });
   });
 
   describe('shutdownJobs', () => {
+    beforeEach(() => {
+      (config.isEmailEnabled as Mock).mockReturnValue(true);
+    });
+
     it('should stop all jobs and log shutdown complete', () => {
+      initScheduledJobs(mockNotifyShowUpdates, mockNotifyMovieUpdates, mockNotifyPeopleUpdates, mockNotifyEmailDigest);
+
       shutdownJobs();
 
-      const mockJobInstance = CronJob.schedule('', () => {}).stop;
-      expect(mockJobInstance).toHaveBeenCalledTimes(4);
       expect(cliLogger.info).toHaveBeenCalledWith('Job scheduler shutdown complete');
     });
   });

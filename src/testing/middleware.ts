@@ -1,9 +1,10 @@
 // Mock middleware and error classes for external projects
 import { NextFunction, Request, Response } from 'express';
+import { vi } from 'vitest';
 import { AnyZodObject, ZodError } from 'zod';
 
 // Error handler middleware mock
-export const errorHandler = jest.fn();
+export const errorHandler = vi.fn();
 
 // Base error class
 export class CustomError extends Error {
@@ -81,7 +82,7 @@ export class NoAffectedRowsError extends CustomError {
  * @param schema The Zod schema to validate against
  * @param source Where to find the data to validate ('query', 'body', 'params')
  */
-export const validateSchema = jest
+export const validateSchema = vi
   .fn()
   .mockImplementation(<T extends AnyZodObject>(schema: T, source: 'query' | 'body' | 'params' = 'body') => {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -136,7 +137,7 @@ export const validateSchema = jest
  * @param paramsSchema Schema for the route parameters
  * @param querySchema Schema for query parameters
  */
-export const validateRequest = jest
+export const validateRequest = vi
   .fn()
   .mockImplementation(
     <TBody, TParams, TQuery>(bodySchema?: AnyZodObject, paramsSchema?: AnyZodObject, querySchema?: AnyZodObject) => {

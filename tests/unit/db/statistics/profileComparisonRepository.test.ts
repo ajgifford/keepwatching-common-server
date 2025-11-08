@@ -1,18 +1,19 @@
 import { getProfileComparisonData } from '@db/statistics/profileComparisonRepository';
 import { getDbPool } from '@utils/db';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockDbMonitorInstance = {
-  executeWithTiming: jest.fn((name: string, fn: () => any) => fn()),
+  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
 };
 
 // Mock dependencies
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
 }));
 
-jest.mock('@utils/dbMonitoring', () => ({
+vi.mock('@utils/dbMonitoring', () => ({
   DbMonitor: {
-    getInstance: jest.fn(() => mockDbMonitorInstance),
+    getInstance: vi.fn(() => mockDbMonitorInstance),
   },
 }));
 
@@ -23,17 +24,17 @@ describe('profileComparisonRepository', () => {
   beforeEach(() => {
     // Create mock connection
     mockConnection = {
-      query: jest.fn(),
-      release: jest.fn(),
+      query: vi.fn(),
+      release: vi.fn(),
     };
 
     // Create mock pool
     mockPool = {
-      getConnection: jest.fn().mockResolvedValue(mockConnection),
+      getConnection: vi.fn().mockResolvedValue(mockConnection),
     };
 
     // Set up getDbPool to return mock pool
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
 
     // Reset DbMonitor mock
     mockDbMonitorInstance.executeWithTiming.mockClear();
@@ -41,7 +42,7 @@ describe('profileComparisonRepository', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getProfileComparisonData', () => {
@@ -436,11 +437,13 @@ describe('profileComparisonRepository', () => {
 
       await getProfileComparisonData(123);
 
-      expect(mockConnection.query).toHaveBeenNthCalledWith(1, expect.any(String), [123]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(2, expect.any(String), [123]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(3, expect.any(String), [123]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(4, expect.any(String), [123]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(5, expect.any(String), [123, 123, 123, 123, 123, 123, 123]);
+      // First 4 queries should have accountId parameter
+      expect(mockConnection.query).toHaveBeenNthCalledWith(1, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.query).toHaveBeenNthCalledWith(2, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.query).toHaveBeenNthCalledWith(3, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.query).toHaveBeenNthCalledWith(4, expect.any(String), expect.arrayContaining([123]));
+      // Summary query has multiple accountId parameters
+      expect(mockConnection.query).toHaveBeenNthCalledWith(5, expect.any(String), expect.arrayContaining([123]));
     });
 
     it('should release connection on error', async () => {

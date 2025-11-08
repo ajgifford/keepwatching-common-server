@@ -1,9 +1,10 @@
 import { CustomError, TransientApiError, errorHandler } from '@middleware/errorMiddleware';
 import { AxiosError } from 'axios';
 import { NextFunction, Request, Response } from 'express';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'test-request-id'),
+vi.mock('uuid', () => ({
+  v4: vi.fn(() => 'test-request-id'),
 }));
 
 // AxiosError mock helper
@@ -36,10 +37,10 @@ describe('errorHandler middleware', () => {
   beforeEach(() => {
     req = {};
     res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
     };
-    next = jest.fn();
+    next = vi.fn();
   });
 
   it('handles CustomError', () => {

@@ -1,20 +1,21 @@
 import { appLogger, formatAppLoggerResponse, getResponseMessage } from '@logger/logger';
 import { requestLogger, responseInterceptor } from '@middleware/loggerMiddleware';
 import { NextFunction, Request, Response } from 'express';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the appLogger
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   appLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
-  formatAppLoggerResponse: jest.fn().mockReturnValue({
+  formatAppLoggerResponse: vi.fn(() => ({
     request: { test: 'request' },
     response: { test: 'response' },
-  }),
-  getResponseMessage: jest.fn().mockReturnValue('Test response message'),
-  Logger: {
-    logRequest: jest.fn(),
+  })),
+  getResponseMessage: vi.fn(() => 'Test response message'),
+  Logger: class {
+    static logRequest = vi.fn();
   },
 }));
 
@@ -24,7 +25,7 @@ describe('Logger Middleware', () => {
   let mockNext: NextFunction;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockRequest = {
       method: 'GET',
@@ -38,15 +39,15 @@ describe('Logger Middleware', () => {
 
     mockResponse = {
       statusCode: 200,
-      send: jest.fn(function (this: any, body: any) {
+      send: vi.fn(function (this: any) {
         return this;
       }),
-      getHeaders: jest.fn().mockReturnValue({
+      getHeaders: vi.fn().mockReturnValue({
         'content-type': 'application/json',
       }),
     };
 
-    mockNext = jest.fn();
+    mockNext = vi.fn();
   });
 
   describe('responseInterceptor middleware', () => {
@@ -71,7 +72,7 @@ describe('Logger Middleware', () => {
 
       // Simulate sending a response
       const responseBody = { success: true, data: { test: 'value' } };
-      (mockResponse.send as jest.Mock)(responseBody);
+      (mockResponse.send as Mock)(responseBody);
 
       // Verify logging behavior
       expect(getResponseMessage).toHaveBeenCalledWith(mockRequest.method);
@@ -92,7 +93,7 @@ describe('Logger Middleware', () => {
 
       // Simulate sending an error response
       const errorBody = { message: 'Bad request', code: 'INVALID_INPUT' };
-      (mockResponse.send as jest.Mock)(errorBody);
+      (mockResponse.send as Mock)(errorBody);
 
       // Verify logging behavior
       expect(formatAppLoggerResponse).toHaveBeenCalledWith(mockRequest, mockResponse, errorBody, expect.any(Number));
@@ -112,7 +113,7 @@ describe('Logger Middleware', () => {
 
       // Simulate sending an error response with no message
       const errorBody = { error: true };
-      (mockResponse.send as jest.Mock)(errorBody);
+      (mockResponse.send as Mock)(errorBody);
 
       // Verify logging behavior
       expect(appLogger.error).toHaveBeenCalledWith('Error processing request', expect.anything());
@@ -123,9 +124,9 @@ describe('Logger Middleware', () => {
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
 
       // Simulate sending multiple responses
-      (mockResponse.send as jest.Mock)({ data: 'first' });
-      (mockResponse.send as jest.Mock)({ data: 'second' });
-      (mockResponse.send as jest.Mock)({ data: 'third' });
+      (mockResponse.send as Mock)({ data: 'first' });
+      (mockResponse.send as Mock)({ data: 'second' });
+      (mockResponse.send as Mock)({ data: 'third' });
 
       // Verify logging only happened once
       expect(appLogger.info).toHaveBeenCalledTimes(1);
@@ -135,13 +136,13 @@ describe('Logger Middleware', () => {
       // Create a more realistic mock with chainable methods
       const chainableMock = {
         statusCode: 200,
-        send: jest.fn(function (this: any) {
+        send: vi.fn(function (this: any) {
           return this;
         }),
-        json: jest.fn(function (this: any) {
+        json: vi.fn(function (this: any) {
           return this;
         }),
-        getHeaders: jest.fn().mockReturnValue({}),
+        getHeaders: vi.fn().mockReturnValue({}),
       };
 
       // Call the middleware
@@ -155,16 +156,16 @@ describe('Logger Middleware', () => {
     });
 
     it('should correctly calculate request duration', () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       // Call the middleware (sets start time)
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
 
       // Fast-forward time
-      jest.advanceTimersByTime(500); // 500ms
+      vi.advanceTimersByTime(500); // 500ms
 
       // Reset the formatAppLoggerResponse mock to capture actual arguments
-      (formatAppLoggerResponse as jest.Mock).mockImplementationOnce((req, res, body, startTime) => {
+      (formatAppLoggerResponse as Mock).mockImplementationOnce((req, res, body, startTime) => {
         // Verify that request duration is calculated correctly
         const endTime = Date.now();
         const duration = endTime - startTime;
@@ -177,19 +178,21 @@ describe('Logger Middleware', () => {
       });
 
       // Simulate sending a response
-      (mockResponse.send as jest.Mock)({ data: 'test' });
+      (mockResponse.send as Mock)({ data: 'test' });
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
   describe('requestLogger middleware', () => {
-    it('should call Logger.logRequest', () => {
+    it('should call Logger.logRequest', async () => {
+      const { Logger } = await import('@logger/logger');
+
       // Call the middleware
       requestLogger(mockRequest as Request, mockResponse as Response, mockNext);
 
       // Verify that it delegates to Logger.logRequest
-      expect(require('@logger/logger').Logger.logRequest).toHaveBeenCalledWith(mockRequest, mockResponse, mockNext);
+      expect(Logger.logRequest).toHaveBeenCalledWith(mockRequest, mockResponse, mockNext);
     });
   });
 
@@ -198,51 +201,51 @@ describe('Logger Middleware', () => {
       // Test GET request
       mockRequest.method = 'GET';
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-      (mockResponse.send as jest.Mock)({ data: 'test' });
+      (mockResponse.send as Mock)({ data: 'test' });
       expect(getResponseMessage).toHaveBeenCalledWith('GET');
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Test POST request
       mockRequest.method = 'POST';
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-      (mockResponse.send as jest.Mock)({ data: 'test' });
+      (mockResponse.send as Mock)({ data: 'test' });
       expect(getResponseMessage).toHaveBeenCalledWith('POST');
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Test PUT request
       mockRequest.method = 'PUT';
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-      (mockResponse.send as jest.Mock)({ data: 'test' });
+      (mockResponse.send as Mock)({ data: 'test' });
       expect(getResponseMessage).toHaveBeenCalledWith('PUT');
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Test DELETE request
       mockRequest.method = 'DELETE';
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-      (mockResponse.send as jest.Mock)({ data: 'test' });
+      (mockResponse.send as Mock)({ data: 'test' });
       expect(getResponseMessage).toHaveBeenCalledWith('DELETE');
     });
 
     it('should handle different response status codes correctly', () => {
       // Test successful status codes
       [200, 201, 204, 304].forEach((statusCode) => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         mockResponse.statusCode = statusCode;
         responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-        (mockResponse.send as jest.Mock)({ data: 'test' });
+        (mockResponse.send as Mock)({ data: 'test' });
         expect(appLogger.info).toHaveBeenCalled();
         expect(appLogger.error).not.toHaveBeenCalled();
       });
 
       // Test error status codes
       [400, 401, 403, 404, 500, 502, 503].forEach((statusCode) => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         mockResponse.statusCode = statusCode;
         responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-        (mockResponse.send as jest.Mock)({ message: 'Error message' });
+        (mockResponse.send as Mock)({ message: 'Error message' });
         expect(appLogger.error).toHaveBeenCalled();
         expect(appLogger.info).not.toHaveBeenCalled();
       });
@@ -269,7 +272,7 @@ describe('Logger Middleware', () => {
       };
 
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-      (mockResponse.send as jest.Mock)(complexBody);
+      (mockResponse.send as Mock)(complexBody);
 
       expect(formatAppLoggerResponse).toHaveBeenCalledWith(mockRequest, mockResponse, complexBody, expect.any(Number));
     });
@@ -279,7 +282,7 @@ describe('Logger Middleware', () => {
       mockResponse.statusCode = 500;
 
       responseInterceptor(mockRequest as Request, mockResponse as Response, mockNext);
-      (mockResponse.send as jest.Mock)(errorObj);
+      (mockResponse.send as Mock)(errorObj);
 
       expect(formatAppLoggerResponse).toHaveBeenCalledWith(mockRequest, mockResponse, errorObj, expect.any(Number));
       expect(appLogger.error).toHaveBeenCalled();

@@ -6,10 +6,11 @@ import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { ShowService, showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
+import { type Mock, MockedObject, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Watch Status', () => {
   let service: ShowService;
-  let mockCache: jest.Mocked<CacheService>;
+  let mockCache: MockedObject<CacheService>;
 
   const accountId = 1;
   const profileId = 123;
@@ -27,7 +28,7 @@ describe('ShowService - Watch Status', () => {
 
   describe('updateShowWatchStatus', () => {
     it('should update watch status successfully', async () => {
-      (watchStatusService.updateShowWatchStatus as jest.Mock).mockResolvedValue({
+      (watchStatusService.updateShowWatchStatus as Mock).mockResolvedValue({
         success: true,
         message: 'Show test message',
         affectedRows: 1,
@@ -48,8 +49,8 @@ describe('ShowService - Watch Status', () => {
     it('should handle database errors', async () => {
       const mockError = new Error('Database error');
 
-      (watchStatusService.updateShowWatchStatus as jest.Mock).mockRejectedValue(mockError);
-      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+      (watchStatusService.updateShowWatchStatus as Mock).mockRejectedValue(mockError);
+      (errorService.handleError as Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 

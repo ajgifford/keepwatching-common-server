@@ -5,6 +5,7 @@ import { emailContentService } from '@services/email/emailContentService';
 import { emailDeliveryService } from '@services/email/emailDeliveryService';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
+import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Batch Email Sending', () => {
   beforeEach(() => {
@@ -18,23 +19,21 @@ describe('EmailService - Batch Email Sending', () => {
 
   describe('sendWeeklyDigests', () => {
     it('should send digest and discovery emails successfully', async () => {
-      (emailContentService.generateBatchEmailContent as jest.Mock).mockResolvedValue(mockBatchEmailContent);
+      (emailContentService.generateBatchEmailContent as Mock).mockResolvedValue(mockBatchEmailContent);
 
-      (emailDeliveryService.sendDigestEmailBatch as jest.Mock).mockImplementation(async (emails, emailId, callback) => {
+      (emailDeliveryService.sendDigestEmailBatch as Mock).mockImplementation(async (emails, emailId, callback) => {
         for (const email of emails) {
           await callback(email.accountId, true);
         }
         return { sent: 2, failed: 0, errors: [] };
       });
 
-      (emailDeliveryService.sendDiscoveryEmailBatch as jest.Mock).mockImplementation(
-        async (emails, emailId, callback) => {
-          for (const email of emails) {
-            await callback(email.accountId, true);
-          }
-          return { sent: 1, failed: 0, errors: [] };
-        },
-      );
+      (emailDeliveryService.sendDiscoveryEmailBatch as Mock).mockImplementation(async (emails, emailId, callback) => {
+        for (const email of emails) {
+          await callback(email.accountId, true);
+        }
+        return { sent: 1, failed: 0, errors: [] };
+      });
 
       await emailService.sendWeeklyDigests();
 
@@ -83,12 +82,12 @@ describe('EmailService - Batch Email Sending', () => {
         },
       ];
 
-      (emailContentService.generateBatchEmailContent as jest.Mock).mockResolvedValue({
+      (emailContentService.generateBatchEmailContent as Mock).mockResolvedValue({
         digestEmails: mockDigestEmails,
         discoveryEmails: mockDiscoveryEmails,
       });
 
-      (emailDeliveryService.sendDigestEmailBatch as jest.Mock).mockImplementation(async (emails, emailId, callback) => {
+      (emailDeliveryService.sendDigestEmailBatch as Mock).mockImplementation(async (emails, emailId, callback) => {
         for (const email of emails) {
           await callback(email.accountId, false, mockError.message);
         }
@@ -99,18 +98,16 @@ describe('EmailService - Batch Email Sending', () => {
         };
       });
 
-      (emailDeliveryService.sendDiscoveryEmailBatch as jest.Mock).mockImplementation(
-        async (emails, emailId, callback) => {
-          for (const email of emails) {
-            await callback(email.accountId, false, mockError.message);
-          }
-          return {
-            sent: 0,
-            failed: 1,
-            errors: [{ email: 'user2@example.com', error: mockError }],
-          };
-        },
-      );
+      (emailDeliveryService.sendDiscoveryEmailBatch as Mock).mockImplementation(async (emails, emailId, callback) => {
+        for (const email of emails) {
+          await callback(email.accountId, false, mockError.message);
+        }
+        return {
+          sent: 0,
+          failed: 1,
+          errors: [{ email: 'user2@example.com', error: mockError }],
+        };
+      });
 
       await emailService.sendWeeklyDigests();
 
@@ -127,7 +124,7 @@ describe('EmailService - Batch Email Sending', () => {
 
     it('should handle and rethrow error', async () => {
       const mockError = new Error('Generate failed');
-      (emailContentService.generateBatchEmailContent as jest.Mock).mockRejectedValue(mockError);
+      (emailContentService.generateBatchEmailContent as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendWeeklyDigests()).rejects.toThrow(mockError);
 

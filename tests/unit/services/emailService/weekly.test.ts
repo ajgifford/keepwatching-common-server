@@ -6,6 +6,7 @@ import { emailContentService } from '@services/email/emailContentService';
 import { emailDeliveryService } from '@services/email/emailDeliveryService';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
+import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Weekly Email Operations', () => {
   beforeEach(() => {
@@ -25,7 +26,7 @@ describe('EmailService - Weekly Email Operations', () => {
         discoveryData: null,
       };
 
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockContentResult);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockContentResult);
 
       const result = await emailService.sendWeeklyEmailToAccount('john@example.com');
 
@@ -51,7 +52,7 @@ describe('EmailService - Weekly Email Operations', () => {
         discoveryData: mockDiscoveryData,
       };
 
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockContentResult);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockContentResult);
 
       const result = await emailService.sendWeeklyEmailToAccount('john@example.com');
 
@@ -78,8 +79,8 @@ describe('EmailService - Weekly Email Operations', () => {
       };
       const mockError = new Error('Email delivery failed');
 
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockContentResult);
-      (emailDeliveryService.sendDigestEmail as jest.Mock).mockRejectedValue(mockError);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockContentResult);
+      (emailDeliveryService.sendDigestEmail as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendWeeklyEmailToAccount('john@example.com')).rejects.toThrow(mockError);
 
@@ -95,8 +96,8 @@ describe('EmailService - Weekly Email Operations', () => {
       };
       const mockError = new Error('Email delivery failed');
 
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockContentResult);
-      (emailDeliveryService.sendDiscoveryEmail as jest.Mock).mockRejectedValue(mockError);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockContentResult);
+      (emailDeliveryService.sendDiscoveryEmail as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendWeeklyEmailToAccount('john@example.com')).rejects.toThrow(mockError);
 
@@ -111,8 +112,8 @@ describe('EmailService - Weekly Email Operations', () => {
         discoveryData: null,
       };
 
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockContentResult);
-      (emailDb.createEmail as jest.Mock).mockResolvedValue(0);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockContentResult);
+      (emailDb.createEmail as Mock).mockResolvedValue(0);
 
       await expect(emailService.sendWeeklyEmailToAccount('john@example.com')).rejects.toThrow(
         'Failed to create email record',
@@ -126,8 +127,8 @@ describe('EmailService - Weekly Email Operations', () => {
         discoveryData: mockDiscoveryData,
       };
 
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockContentResult);
-      (emailDb.createEmail as jest.Mock).mockResolvedValue(0);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockContentResult);
+      (emailDb.createEmail as Mock).mockResolvedValue(0);
 
       await expect(emailService.sendWeeklyEmailToAccount('john@example.com')).rejects.toThrow(
         'Failed to create email record',
@@ -141,7 +142,7 @@ describe('EmailService - Weekly Email Operations', () => {
         discoveryData: null,
       };
 
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockContentResult);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockContentResult);
 
       await expect(emailService.sendWeeklyEmailToAccount('john@example.com')).rejects.toThrow(
         'Invalid content result for account: john@example.com',
@@ -150,7 +151,7 @@ describe('EmailService - Weekly Email Operations', () => {
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Content generation failed');
-      (emailContentService.generateEmailContent as jest.Mock).mockRejectedValue(mockError);
+      (emailContentService.generateEmailContent as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendWeeklyEmailToAccount('john@example.com')).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'sendWeeklyEmailToAccount(john@example.com)');
@@ -159,7 +160,7 @@ describe('EmailService - Weekly Email Operations', () => {
 
   describe('previewWeeklyDigestForAccount', () => {
     it('should return email content result', async () => {
-      (emailContentService.generateEmailContent as jest.Mock).mockResolvedValue(mockDigestContentResult);
+      (emailContentService.generateEmailContent as Mock).mockResolvedValue(mockDigestContentResult);
 
       const result = await emailService.previewWeeklyDigestForAccount('john@example.com');
 
@@ -169,7 +170,7 @@ describe('EmailService - Weekly Email Operations', () => {
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Content generation failed');
-      (emailContentService.generateEmailContent as jest.Mock).mockRejectedValue(mockError);
+      (emailContentService.generateEmailContent as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.previewWeeklyDigestForAccount('john@example.com')).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(

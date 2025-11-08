@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es2016",
-    "module": "commonjs",
+    "target": "es2023",
+    "module": "esnext",
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist",
@@ -11,7 +11,7 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
       "@config/*": ["src/config/*"],

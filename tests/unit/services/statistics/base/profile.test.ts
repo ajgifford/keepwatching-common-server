@@ -3,22 +3,23 @@ import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { showService } from '@services/showService';
 import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/showService');
-jest.mock('@services/errorService');
-jest.mock('@services/moviesService');
-jest.mock('@services/cacheService');
+vi.mock('@services/showService');
+vi.mock('@services/errorService');
+vi.mock('@services/moviesService');
+vi.mock('@services/cacheService');
 
 describe('profileStatisticsService', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(profileStatisticsService, 'cache', {
       value: mockCacheService,
@@ -52,9 +53,9 @@ describe('profileStatisticsService', () => {
       const mockWatchProgress = { watchedEpisodes: 20 };
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showService.getProfileShowStatistics as jest.Mock).mockResolvedValue(mockShowStats);
-      (moviesService.getProfileMovieStatistics as jest.Mock).mockResolvedValue(mockMovieStats);
-      (showService.getProfileWatchProgress as jest.Mock).mockResolvedValue(mockWatchProgress);
+      (showService.getProfileShowStatistics as Mock).mockResolvedValue(mockShowStats);
+      (moviesService.getProfileMovieStatistics as Mock).mockResolvedValue(mockMovieStats);
+      (showService.getProfileWatchProgress as Mock).mockResolvedValue(mockWatchProgress);
 
       const result = await profileStatisticsService.getProfileStatistics(123);
 
@@ -73,8 +74,8 @@ describe('profileStatisticsService', () => {
     it('should handle errors when getting profile statistics', async () => {
       const error = new Error('Failed to get show statistics');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showService.getProfileShowStatistics as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (showService.getProfileShowStatistics as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

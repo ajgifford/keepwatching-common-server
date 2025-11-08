@@ -2,10 +2,11 @@ import { createMockCache, setupMocks } from './helpers/mocks';
 import { CacheService } from '@services/cacheService';
 import { profileService } from '@services/profileService';
 import { ShowService, showService } from '@services/showService';
+import { type Mock, MockedObject, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Cache Functionality', () => {
   let service: ShowService;
-  let mockCache: jest.Mocked<CacheService>;
+  let mockCache: MockedObject<CacheService>;
 
   beforeEach(() => {
     setupMocks();
@@ -30,7 +31,7 @@ describe('ShowService - Cache Functionality', () => {
         { id: 1, name: 'Profile 1', account_id: 123 },
         { id: 2, name: 'Profile 2', account_id: 123 },
       ];
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(mockProfiles);
+      (profileService.getProfilesByAccountId as Mock).mockResolvedValue(mockProfiles);
 
       await service.invalidateAccountCache(123);
 
@@ -41,7 +42,7 @@ describe('ShowService - Cache Functionality', () => {
     });
 
     it('should handle empty profiles array', async () => {
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([]);
+      (profileService.getProfilesByAccountId as Mock).mockResolvedValue([]);
 
       await service.invalidateAccountCache(123);
 
@@ -52,7 +53,7 @@ describe('ShowService - Cache Functionality', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (profileService.getProfilesByAccountId as jest.Mock).mockRejectedValue(error);
+      (profileService.getProfilesByAccountId as Mock).mockRejectedValue(error);
 
       await expect(service.invalidateAccountCache(123)).rejects.toThrow('Database error');
     });

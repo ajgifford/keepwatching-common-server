@@ -1,4 +1,5 @@
 import { generateGenreArrayFromIds, genreIdToGenreMap } from '@utils/genreUtility';
+import { describe, expect, it } from 'vitest';
 
 describe('genreUtility', () => {
   describe('genreIdToGenreMap', () => {

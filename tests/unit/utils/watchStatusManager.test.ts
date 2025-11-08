@@ -6,20 +6,21 @@ import {
 } from '../../../src/types/watchStatusTypes';
 import { SimpleWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
 import { WatchStatusManager } from '@utils/watchStatusManager';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('WatchStatusManager', () => {
   let watchStatusManager: WatchStatusManager;
-  let mockStatusChangeListener: jest.Mock;
+  let mockStatusChangeListener: Mock;
 
   beforeEach(() => {
     // Reset singleton instance for each test
     (WatchStatusManager as any).instance = undefined;
     watchStatusManager = WatchStatusManager.getInstance();
-    mockStatusChangeListener = jest.fn();
+    mockStatusChangeListener = vi.fn();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Singleton Pattern', () => {
@@ -40,8 +41,8 @@ describe('WatchStatusManager', () => {
     });
 
     it('should support multiple listeners', () => {
-      const listener1 = jest.fn();
-      const listener2 = jest.fn();
+      const listener1 = vi.fn();
+      const listener2 = vi.fn();
 
       watchStatusManager.onStatusChange(listener1);
       watchStatusManager.onStatusChange(listener2);
@@ -411,7 +412,7 @@ describe('WatchStatusManager', () => {
 
     it('should calculate season status when watchStatus is not set', () => {
       // Mock the calculateSeasonStatus method to test the fallback
-      const mockCalculateSeasonStatus = jest
+      const mockCalculateSeasonStatus = vi
         .spyOn(watchStatusManager, 'calculateSeasonStatus')
         .mockReturnValue(WatchStatus.WATCHING);
 

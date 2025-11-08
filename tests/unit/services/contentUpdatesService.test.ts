@@ -5,28 +5,29 @@ import { moviesService } from '@services/moviesService';
 import { personService } from '@services/personService';
 import { showService } from '@services/showService';
 import * as changesUtility from '@utils/changesUtility';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/moviesService');
-jest.mock('@services/showService');
-jest.mock('@services/personService');
-jest.mock('@logger/logger', () => ({
+vi.mock('@services/moviesService');
+vi.mock('@services/showService');
+vi.mock('@services/personService');
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
   appLogger: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
 }));
-jest.mock('@utils/changesUtility', () => ({
-  generateDateRange: jest.fn(),
-  sleep: jest.fn().mockResolvedValue(undefined),
+vi.mock('@utils/changesUtility', () => ({
+  generateDateRange: vi.fn(),
+  sleep: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('contentUpdatesService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (changesUtility.generateDateRange as jest.Mock).mockReturnValue({
+    vi.clearAllMocks();
+    (changesUtility.generateDateRange as Mock).mockReturnValue({
       currentDate: '2025-01-01',
       pastDate: '2024-12-22',
     });
@@ -38,8 +39,8 @@ describe('contentUpdatesService', () => {
         { id: 1, tmdb_id: 101, title: 'Movie 1' },
         { id: 2, tmdb_id: 102, title: 'Movie 2' },
       ];
-      (moviesService.getMoviesForUpdates as jest.Mock).mockResolvedValue(mockMovies);
-      (moviesService.checkMovieForChanges as jest.Mock).mockResolvedValue(undefined);
+      (moviesService.getMoviesForUpdates as Mock).mockResolvedValue(mockMovies);
+      (moviesService.checkMovieForChanges as Mock).mockResolvedValue(undefined);
 
       await updateMovies();
 
@@ -54,7 +55,7 @@ describe('contentUpdatesService', () => {
 
     it('should handle error when fetching movies', async () => {
       const error = new Error('Database error');
-      (moviesService.getMoviesForUpdates as jest.Mock).mockRejectedValue(error);
+      (moviesService.getMoviesForUpdates as Mock).mockRejectedValue(error);
 
       await expect(updateMovies()).rejects.toThrow('Database error');
       expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie updates', error);
@@ -70,8 +71,8 @@ describe('contentUpdatesService', () => {
       ];
       const error = new Error('API error');
 
-      (moviesService.getMoviesForUpdates as jest.Mock).mockResolvedValue(mockMovies);
-      (moviesService.checkMovieForChanges as jest.Mock)
+      (moviesService.getMoviesForUpdates as Mock).mockResolvedValue(mockMovies);
+      (moviesService.checkMovieForChanges as Mock)
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce(undefined);
@@ -88,7 +89,7 @@ describe('contentUpdatesService', () => {
     });
 
     it('should handle empty movie list', async () => {
-      (moviesService.getMoviesForUpdates as jest.Mock).mockResolvedValue([]);
+      (moviesService.getMoviesForUpdates as Mock).mockResolvedValue([]);
 
       await updateMovies();
 
@@ -104,9 +105,9 @@ describe('contentUpdatesService', () => {
         { id: 1, tmdb_id: 201, title: 'Show 1' },
         { id: 2, tmdb_id: 202, title: 'Show 2' },
       ];
-      (showService.getShowsForUpdates as jest.Mock).mockResolvedValue(mockShows);
-      (showService.checkShowForChanges as jest.Mock).mockResolvedValue(undefined);
-      (changesUtility.generateDateRange as jest.Mock).mockReturnValue({
+      (showService.getShowsForUpdates as Mock).mockResolvedValue(mockShows);
+      (showService.checkShowForChanges as Mock).mockResolvedValue(undefined);
+      (changesUtility.generateDateRange as Mock).mockReturnValue({
         currentDate: '2025-01-01',
         pastDate: '2024-12-30', // 2-day range for shows
       });
@@ -124,7 +125,7 @@ describe('contentUpdatesService', () => {
 
     it('should handle error when fetching shows', async () => {
       const error = new Error('Database error');
-      (showService.getShowsForUpdates as jest.Mock).mockRejectedValue(error);
+      (showService.getShowsForUpdates as Mock).mockRejectedValue(error);
 
       await expect(updateShows()).rejects.toThrow('Database error');
       expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for show updates', error);
@@ -140,13 +141,13 @@ describe('contentUpdatesService', () => {
       ];
       const error = new Error('API error');
 
-      (showService.getShowsForUpdates as jest.Mock).mockResolvedValue(mockShows);
-      (showService.checkShowForChanges as jest.Mock)
+      (showService.getShowsForUpdates as Mock).mockResolvedValue(mockShows);
+      (showService.checkShowForChanges as Mock)
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce(undefined);
 
-      (changesUtility.generateDateRange as jest.Mock).mockReturnValue({
+      (changesUtility.generateDateRange as Mock).mockReturnValue({
         currentDate: '2025-01-01',
         pastDate: '2024-12-30',
       });
@@ -162,8 +163,8 @@ describe('contentUpdatesService', () => {
     });
 
     it('should handle empty show list', async () => {
-      (showService.getShowsForUpdates as jest.Mock).mockResolvedValue([]);
-      (changesUtility.generateDateRange as jest.Mock).mockReturnValue({
+      (showService.getShowsForUpdates as Mock).mockResolvedValue([]);
+      (changesUtility.generateDateRange as Mock).mockReturnValue({
         currentDate: '2025-01-01',
         pastDate: '2024-12-30',
       });
@@ -178,12 +179,12 @@ describe('contentUpdatesService', () => {
 
   describe('updatePeople', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2025-01-15T10:00:00Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2025-01-15T10:00:00Z'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should update people with changes', async () => {
@@ -201,13 +202,13 @@ describe('contentUpdatesService', () => {
         { personId: 2, success: true, hadUpdates: false },
       ];
 
-      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
-      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
-      (personService.checkAndUpdatePerson as jest.Mock)
+      (personService.calculateBlockNumber as Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as Mock).mockResolvedValue(mockPeople);
+      (personService.checkAndUpdatePerson as Mock)
         .mockResolvedValueOnce(mockResults[0])
         .mockResolvedValueOnce(mockResults[1]);
-      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+      (showService.invalidateAllShowsCache as Mock).mockResolvedValue(undefined);
 
       await updatePeople();
 
@@ -241,9 +242,9 @@ describe('contentUpdatesService', () => {
         totalPeople: 100,
       };
 
-      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
-      (personService.getPeopleForUpdates as jest.Mock).mockRejectedValue(error);
+      (personService.calculateBlockNumber as Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as Mock).mockRejectedValue(error);
 
       await expect(updatePeople()).rejects.toThrow('Database error');
       expect(cliLogger.error).toHaveBeenCalledWith('Unexpected error while checking for person updates', error);
@@ -264,14 +265,14 @@ describe('contentUpdatesService', () => {
       };
       const error = new Error('API error');
 
-      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
-      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
-      (personService.checkAndUpdatePerson as jest.Mock)
+      (personService.calculateBlockNumber as Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as Mock).mockResolvedValue(mockPeople);
+      (personService.checkAndUpdatePerson as Mock)
         .mockResolvedValueOnce({ personId: 1, success: true, hadUpdates: true })
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce({ personId: 3, success: true, hadUpdates: false });
-      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+      (showService.invalidateAllShowsCache as Mock).mockResolvedValue(undefined);
 
       await updatePeople();
 
@@ -291,10 +292,10 @@ describe('contentUpdatesService', () => {
         totalPeople: 100,
       };
 
-      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
-      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue([]);
-      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+      (personService.calculateBlockNumber as Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as Mock).mockResolvedValue([]);
+      (showService.invalidateAllShowsCache as Mock).mockResolvedValue(undefined);
 
       await updatePeople();
 
@@ -329,15 +330,15 @@ describe('contentUpdatesService', () => {
         { personId: 4, success: false, hadUpdates: false },
       ];
 
-      (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
-      (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
-      (personService.checkAndUpdatePerson as jest.Mock)
+      (personService.calculateBlockNumber as Mock).mockReturnValue(15);
+      (personService.getTodayBlockInfo as Mock).mockResolvedValue(mockBlockInfo);
+      (personService.getPeopleForUpdates as Mock).mockResolvedValue(mockPeople);
+      (personService.checkAndUpdatePerson as Mock)
         .mockResolvedValueOnce(mockResults[0])
         .mockResolvedValueOnce(mockResults[1])
         .mockResolvedValueOnce(mockResults[2])
         .mockResolvedValueOnce(mockResults[3]);
-      (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
+      (showService.invalidateAllShowsCache as Mock).mockResolvedValue(undefined);
 
       await updatePeople();
 

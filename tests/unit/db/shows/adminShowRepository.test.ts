@@ -1,25 +1,36 @@
 import * as adminShowRepository from '@db/shows/adminShowRepository';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { getDbPool } from '@utils/db';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
+}));
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
 }));
 
 describe('adminShowRepository', () => {
   let mockPool: any;
-  let mockExecute: jest.Mock;
+  let mockExecute: Mock;
 
   beforeEach(() => {
-    mockExecute = jest.fn();
+    mockExecute = vi.fn();
     mockPool = {
       execute: mockExecute,
     };
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getAllShows', () => {
@@ -71,7 +82,7 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShowRows]);
+      (mockPool.execute as Mock).mockResolvedValueOnce([mockShowRows]);
 
       const shows = await adminShowRepository.getAllShows();
 
@@ -87,7 +98,7 @@ describe('adminShowRepository', () => {
     });
 
     it('should return shows with custom pagination', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([
+      (mockPool.execute as Mock).mockResolvedValueOnce([
         [
           {
             id: 3,
@@ -124,7 +135,7 @@ describe('adminShowRepository', () => {
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getAllShows()).rejects.toThrow(
         'Database error get all shows: Database connection failed',
@@ -134,7 +145,7 @@ describe('adminShowRepository', () => {
 
   describe('getShowsCount', () => {
     it('should return the total count of shows', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ total: 42 }]]);
+      (mockPool.execute as Mock).mockResolvedValueOnce([[{ total: 42 }]]);
 
       const count = await adminShowRepository.getShowsCount();
 
@@ -144,7 +155,7 @@ describe('adminShowRepository', () => {
 
     it('should throw DatabaseError when count fails', async () => {
       const dbError = new Error('Database connection failed');
-      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getShowsCount()).rejects.toThrow(
         'Database error get a count of all shows: Database connection failed',
@@ -156,7 +167,7 @@ describe('adminShowRepository', () => {
     const profileId = 5;
 
     it('should return the count of shows for a specific profile', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[{ total: 25 }]]);
+      (mockPool.execute as Mock).mockResolvedValueOnce([[{ total: 25 }]]);
 
       const count = await adminShowRepository.getShowsCountByProfile(profileId);
 
@@ -169,7 +180,7 @@ describe('adminShowRepository', () => {
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Query execution failed');
-      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getShowsCountByProfile(profileId)).rejects.toThrow(
         'Database error getting a count of shows for a profile: Query execution failed',
@@ -206,7 +217,7 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShowRows]);
+      (mockPool.execute as Mock).mockResolvedValueOnce([mockShowRows]);
 
       const shows = await adminShowRepository.getAllShowsByProfile(profileId);
 
@@ -245,7 +256,7 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockShowRows]);
+      (mockPool.execute as Mock).mockResolvedValueOnce([mockShowRows]);
 
       const limit = 25;
       const offset = 10;
@@ -259,7 +270,7 @@ describe('adminShowRepository', () => {
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Connection timeout');
-      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getAllShowsByProfile(profileId)).rejects.toThrow(
         'Database error get all shows for a profile: Connection timeout',
@@ -290,7 +301,7 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([mockReferenceRows]);
+      (mockPool.execute as Mock).mockResolvedValueOnce([mockReferenceRows]);
 
       const references = await adminShowRepository.getAllShowReferences();
 
@@ -307,7 +318,7 @@ describe('adminShowRepository', () => {
     });
 
     it('should return empty array when no shows exist', async () => {
-      (mockPool.execute as jest.Mock).mockResolvedValueOnce([[]]);
+      (mockPool.execute as Mock).mockResolvedValueOnce([[]]);
 
       const references = await adminShowRepository.getAllShowReferences();
 
@@ -317,7 +328,7 @@ describe('adminShowRepository', () => {
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Database unavailable');
-      (mockPool.execute as jest.Mock).mockRejectedValueOnce(dbError);
+      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getAllShowReferences()).rejects.toThrow(
         'Database error get all show references: Database unavailable',

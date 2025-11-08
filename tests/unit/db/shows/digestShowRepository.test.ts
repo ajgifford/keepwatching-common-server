@@ -1,30 +1,41 @@
 import * as digestShowRepository from '@db/shows/digestShowRepository';
 import { getDbPool } from '@utils/db';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
 }));
 
-jest.mock('@utils/errorHandlingUtility', () => ({
-  handleDatabaseError: jest.fn((error: Error, operation: string) => {
+vi.mock('@utils/errorHandlingUtility', () => ({
+  handleDatabaseError: vi.fn((error: Error, operation: string) => {
     throw new Error(`Database error ${operation}: ${error.message}`);
   }),
 }));
 
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
+
 describe('digestShowRepository', () => {
   let mockPool: any;
-  let mockExecute: jest.Mock;
+  let mockExecute: Mock;
 
   beforeEach(() => {
-    mockExecute = jest.fn();
+    mockExecute = vi.fn();
     mockPool = {
       execute: mockExecute,
     };
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getTrendingShows', () => {

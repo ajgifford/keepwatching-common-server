@@ -1,15 +1,26 @@
 import * as showsDb from '@db/showsDb';
 import { getDbPool } from '@utils/db';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => {
+vi.mock('@utils/db', () => {
   const mockPool = {
-    execute: jest.fn(),
-    getConnection: jest.fn(),
+    execute: vi.fn(),
+    getConnection: vi.fn(),
   };
   return {
-    getDbPool: jest.fn(() => mockPool),
+    getDbPool: vi.fn(() => mockPool),
   };
 });
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
 
 describe('profileShowRepository', () => {
   let mockPool: any;
@@ -17,11 +28,11 @@ describe('profileShowRepository', () => {
 
   beforeEach(() => {
     mockConnection = {
-      execute: jest.fn(),
-      beginTransaction: jest.fn(),
-      commit: jest.fn(),
-      rollback: jest.fn(),
-      release: jest.fn(),
+      execute: vi.fn(),
+      beginTransaction: vi.fn(),
+      commit: vi.fn(),
+      rollback: vi.fn(),
+      release: vi.fn(),
     };
 
     mockPool = getDbPool();

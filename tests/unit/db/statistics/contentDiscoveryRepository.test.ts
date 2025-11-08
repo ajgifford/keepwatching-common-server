@@ -1,19 +1,20 @@
 import { getContentDiscoveryStats } from '@db/statistics/contentDiscoveryRepository';
 import { getDbPool } from '@utils/db';
 import { RowDataPacket } from 'mysql2/promise';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockDbMonitorInstance = {
-  executeWithTiming: jest.fn((name: string, fn: () => any) => fn()),
+  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
 };
 
 // Mock dependencies
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
 }));
 
-jest.mock('@utils/dbMonitoring', () => ({
+vi.mock('@utils/dbMonitoring', () => ({
   DbMonitor: {
-    getInstance: jest.fn(() => mockDbMonitorInstance),
+    getInstance: vi.fn(() => mockDbMonitorInstance),
   },
 }));
 
@@ -24,17 +25,17 @@ describe('contentDiscoveryRepository', () => {
   beforeEach(() => {
     // Create mock connection
     mockConnection = {
-      query: jest.fn(),
-      release: jest.fn(),
+      query: vi.fn(),
+      release: vi.fn(),
     };
 
     // Create mock pool
     mockPool = {
-      getConnection: jest.fn().mockResolvedValue(mockConnection),
+      getConnection: vi.fn().mockResolvedValue(mockConnection),
     };
 
     // Set up getDbPool to return mock pool
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
 
     // Reset DbMonitor mock
     mockDbMonitorInstance.executeWithTiming.mockClear();
@@ -42,7 +43,7 @@ describe('contentDiscoveryRepository', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getContentDiscoveryStats', () => {
@@ -61,9 +62,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -93,9 +92,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -117,9 +114,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -144,9 +139,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -170,9 +163,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -197,9 +188,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -224,9 +213,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -249,9 +236,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -274,9 +259,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -304,9 +287,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -362,9 +343,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       await getContentDiscoveryStats(123);
 
@@ -389,9 +368,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       await getContentDiscoveryStats(456);
 
@@ -414,9 +391,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       await getContentDiscoveryStats(789);
 
@@ -439,9 +414,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -469,9 +442,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -493,9 +464,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query
-        .mockResolvedValueOnce([mockAdditionRows])
-        .mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 

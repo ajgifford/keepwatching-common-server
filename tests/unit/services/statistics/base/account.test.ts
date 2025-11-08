@@ -4,22 +4,23 @@ import { errorService } from '@services/errorService';
 import { profileService } from '@services/profileService';
 import { accountStatisticsService } from '@services/statistics/accountStatisticsService';
 import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/profileService');
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
-jest.mock('@services/statistics/profileStatisticsService');
+vi.mock('@services/profileService');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
+vi.mock('@services/statistics/profileStatisticsService');
 
 describe('statisticsService', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(accountStatisticsService, 'cache', {
       value: mockCacheService,
@@ -115,9 +116,9 @@ describe('statisticsService', () => {
 
     it('should fetch and aggregate account statistics on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(mockProfiles);
+      (profileService.getProfilesByAccountId as Mock).mockResolvedValue(mockProfiles);
 
-      (profileStatisticsService.getProfileStatistics as jest.Mock)
+      (profileStatisticsService.getProfileStatistics as Mock)
         .mockResolvedValueOnce({
           profileId: 1,
           showStatistics: mockProfileStats[0].showStatistics,
@@ -151,8 +152,8 @@ describe('statisticsService', () => {
 
     it('should throw BadRequestError when no profiles found', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([]);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (profileService.getProfilesByAccountId as Mock).mockResolvedValue([]);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw err;
       });
 
@@ -163,8 +164,8 @@ describe('statisticsService', () => {
     it('should handle errors when getting account statistics', async () => {
       const error = new Error('Failed to get profiles');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (profileService.getProfilesByAccountId as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (profileService.getProfilesByAccountId as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

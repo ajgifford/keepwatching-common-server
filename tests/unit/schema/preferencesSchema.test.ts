@@ -14,6 +14,7 @@ import {
   preferenceRouteParamsSchema,
   privacyPreferencesSchema,
 } from '@schema/preferencesSchema';
+import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 
 describe('preferencesSchema', () => {

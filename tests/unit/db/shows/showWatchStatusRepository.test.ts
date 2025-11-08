@@ -2,37 +2,48 @@ import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
 import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => {
+vi.mock('@utils/db', () => {
   const mockPool = {
-    execute: jest.fn(),
-    getConnection: jest.fn(),
+    execute: vi.fn(),
+    getConnection: vi.fn(),
   };
   return {
-    getDbPool: jest.fn(() => mockPool),
+    getDbPool: vi.fn(() => mockPool),
   };
 });
 
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
+
 describe('showWatchStatusRepository', () => {
   let mockPool: {
-    execute: jest.Mock;
-    getConnection: jest.Mock;
+    execute: Mock;
+    getConnection: Mock;
   };
   let mockConnection: {
-    execute: jest.Mock;
-    beginTransaction: jest.Mock;
-    commit: jest.Mock;
-    rollback: jest.Mock;
-    release: jest.Mock;
+    execute: Mock;
+    beginTransaction: Mock;
+    commit: Mock;
+    rollback: Mock;
+    release: Mock;
   };
 
   beforeEach(() => {
     mockConnection = {
-      execute: jest.fn(),
-      beginTransaction: jest.fn(),
-      commit: jest.fn(),
-      rollback: jest.fn(),
-      release: jest.fn(),
+      execute: vi.fn(),
+      beginTransaction: vi.fn(),
+      commit: vi.fn(),
+      rollback: vi.fn(),
+      release: vi.fn(),
     };
 
     mockPool = getDbPool() as any;

@@ -7,19 +7,20 @@ import {
   getTrendingShows,
 } from '@db/statistics/contentPerformanceRepository';
 import { getDbPool } from '@utils/db';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockDbMonitorInstance = {
-  executeWithTiming: jest.fn((name: string, fn: () => any) => fn()),
+  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
 };
 
 // Mock dependencies
-jest.mock('@utils/db', () => ({
-  getDbPool: jest.fn(),
+vi.mock('@utils/db', () => ({
+  getDbPool: vi.fn(),
 }));
 
-jest.mock('@utils/dbMonitoring', () => ({
+vi.mock('@utils/dbMonitoring', () => ({
   DbMonitor: {
-    getInstance: jest.fn(() => mockDbMonitorInstance),
+    getInstance: vi.fn(() => mockDbMonitorInstance),
   },
 }));
 
@@ -30,17 +31,17 @@ describe('contentPerformanceRepository', () => {
   beforeEach(() => {
     // Create mock connection
     mockConnection = {
-      query: jest.fn(),
-      release: jest.fn(),
+      query: vi.fn(),
+      release: vi.fn(),
     };
 
     // Create mock pool
     mockPool = {
-      getConnection: jest.fn().mockResolvedValue(mockConnection),
+      getConnection: vi.fn().mockResolvedValue(mockConnection),
     };
 
     // Set up getDbPool to return mock pool
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
 
     // Reset DbMonitor mock
     mockDbMonitorInstance.executeWithTiming.mockClear();
@@ -48,7 +49,7 @@ describe('contentPerformanceRepository', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getPopularShows', () => {

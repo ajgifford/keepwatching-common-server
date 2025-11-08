@@ -1,14 +1,25 @@
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => {
+vi.mock('@utils/db', () => {
   const mockPool = {
-    execute: jest.fn(),
+    execute: vi.fn(),
   };
   return {
-    getDbPool: jest.fn(() => mockPool),
+    getDbPool: vi.fn(() => mockPool),
   };
 });
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
 
 describe('adminMovieRepository', () => {
   let mockPool: any;

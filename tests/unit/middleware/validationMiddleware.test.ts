@@ -1,12 +1,13 @@
 import { CustomError } from '@middleware/errorMiddleware';
 import { validateRequest, validateSchema } from '@middleware/validationMiddleware';
 import { Request, Response } from 'express';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 describe('Validation Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
-  let nextFunction: jest.Mock;
+  let nextFunction: Mock;
 
   beforeEach(() => {
     mockRequest = {
@@ -15,9 +16,9 @@ describe('Validation Middleware', () => {
       params: {},
     };
     mockResponse = {
-      json: jest.fn(),
+      json: vi.fn(),
     };
-    nextFunction = jest.fn();
+    nextFunction = vi.fn();
   });
 
   describe('validateSchema', () => {
@@ -155,7 +156,7 @@ describe('Validation Middleware', () => {
         name: z.string(),
       });
 
-      jest.spyOn(schema, 'parseAsync').mockImplementation(() => {
+      vi.spyOn(schema, 'parseAsync').mockImplementation(() => {
         throw new Error('Unexpected error');
       });
 
@@ -300,7 +301,7 @@ describe('Validation Middleware', () => {
         name: z.string(),
       });
 
-      jest.spyOn(bodySchema, 'parseAsync').mockImplementation(() => {
+      vi.spyOn(bodySchema, 'parseAsync').mockImplementation(() => {
         throw new Error('Unexpected error');
       });
 

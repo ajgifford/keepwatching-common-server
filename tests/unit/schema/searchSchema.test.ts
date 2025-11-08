@@ -1,4 +1,5 @@
 import { searchQuerySchema } from '@schema/searchSchema';
+import { describe, expect, it } from 'vitest';
 
 describe('searchSchema', () => {
   describe('searchParamsSchema', () => {

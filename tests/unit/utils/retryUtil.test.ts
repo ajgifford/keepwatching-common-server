@@ -1,24 +1,25 @@
 import { cliLogger } from '@logger/logger';
 import { RetryOptions, calculateRetryDelay, isRetriableError, isRetriableStatus, withRetry } from '@utils/retryUtil';
 import { AxiosError } from 'axios';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    info: jest.fn(),
+    info: vi.fn(),
   },
 }));
 
 describe('retryUtil', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(global, 'setTimeout').mockImplementation((cb: any) => {
+    vi.clearAllMocks();
+    vi.spyOn(global, 'setTimeout').mockImplementation((cb: any) => {
       cb();
       return {} as any;
     });
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('isRetriableStatus', () => {
@@ -72,7 +73,7 @@ describe('retryUtil', () => {
 
     it('should calculate exponential backoff with jitter', () => {
       // Mock Math.random to return a fixed value for testing
-      const mockRandom = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+      const mockRandom = vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
       const error = { response: { headers: {} } };
 
@@ -118,7 +119,7 @@ describe('retryUtil', () => {
 
   describe('isRetriableError', () => {
     it('should handle TransientApiError type of errors', () => {
-      // Instead of using actual TransientApiError instance which can be tricky with Jest,
+      // Instead of using actual TransientApiError instance which can be tricky in tests,
       // create a test utility function that simulates the instance check in isRetriableError
       const mockIsTransientApiError = (error: any): boolean => {
         // This simulates the instanceof TransientApiError check
@@ -141,7 +142,7 @@ describe('retryUtil', () => {
       const originalFunction = isRetriableError;
 
       // Temporarily override the function
-      (global as any).isRetriableError = jest.fn((error) => {
+      (global as any).isRetriableError = vi.fn((error) => {
         // Simulate the TransientApiError check
         if (error.constructor && error.constructor.name === 'TransientApiError') {
           return true;
@@ -212,7 +213,7 @@ describe('retryUtil', () => {
 
   describe('withRetry', () => {
     it('should return successful function result without retrying', async () => {
-      const mockFn = jest.fn().mockResolvedValue('success');
+      const mockFn = vi.fn().mockResolvedValue('success');
 
       const result = await withRetry(mockFn);
 
@@ -232,7 +233,7 @@ describe('retryUtil', () => {
         return error;
       };
 
-      const mockFn = jest
+      const mockFn = vi
         .fn()
         .mockRejectedValueOnce(createRetryableError())
         .mockRejectedValueOnce(createRetryableError())
@@ -256,7 +257,7 @@ describe('retryUtil', () => {
         return error;
       };
 
-      const mockFn = jest.fn().mockRejectedValue(createRetryableError());
+      const mockFn = vi.fn().mockRejectedValue(createRetryableError());
 
       await expect(withRetry(mockFn, { maxRetries: 2 })).rejects.toThrow('Service Unavailable');
 
@@ -267,7 +268,7 @@ describe('retryUtil', () => {
 
     it('should not retry on non-retryable errors', async () => {
       const error = new Error('Non-retryable error');
-      const mockFn = jest.fn().mockRejectedValue(error);
+      const mockFn = vi.fn().mockRejectedValue(error);
 
       await expect(withRetry(mockFn, { maxRetries: 3 })).rejects.toThrow('Non-retryable error');
 

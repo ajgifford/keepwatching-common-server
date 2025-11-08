@@ -6,18 +6,19 @@ import {
   generateWeeklyDigestHTML,
   generateWeeklyDigestText,
   getUpcomingWeekRange,
-} from '@utils/emailUtility';
+} from '../../../src/utils/emailUtility';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 describe('emailUtility', () => {
   const mockDate = new Date('2024-03-15T10:00:00Z'); // Friday
 
   beforeAll(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(mockDate);
+    vi.useFakeTimers();
+    vi.setSystemTime(mockDate);
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('getUpcomingWeekRange', () => {

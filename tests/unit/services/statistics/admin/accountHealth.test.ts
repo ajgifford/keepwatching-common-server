@@ -3,21 +3,22 @@ import { BadRequestError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import { adminStatisticsService } from '@services/statistics/adminStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
-jest.mock('@db/statistics/accountComparisonRepository');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
+vi.mock('@db/statistics/accountComparisonRepository');
 
 describe('AdminStatisticsService - Account Health', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(adminStatisticsService, 'cache', {
       value: mockCacheService,
@@ -85,7 +86,7 @@ describe('AdminStatisticsService - Account Health', () => {
         },
       ];
 
-      (accountComparisonRepository.getAllAccountHealthMetrics as jest.Mock).mockResolvedValue(mockHealthData);
+      (accountComparisonRepository.getAllAccountHealthMetrics as Mock).mockResolvedValue(mockHealthData);
 
       const result = await adminStatisticsService.getAccountHealthMetrics();
 
@@ -117,7 +118,7 @@ describe('AdminStatisticsService - Account Health', () => {
         },
       ];
 
-      (accountComparisonRepository.getAllAccountHealthMetrics as jest.Mock).mockResolvedValue(mockHealthData);
+      (accountComparisonRepository.getAllAccountHealthMetrics as Mock).mockResolvedValue(mockHealthData);
 
       const result = await adminStatisticsService.getAccountHealthMetrics();
 
@@ -166,7 +167,7 @@ describe('AdminStatisticsService - Account Health', () => {
         },
       ];
 
-      (accountComparisonRepository.getAllAccountHealthMetrics as jest.Mock).mockResolvedValue(mockHealthData);
+      (accountComparisonRepository.getAllAccountHealthMetrics as Mock).mockResolvedValue(mockHealthData);
 
       const result = await adminStatisticsService.getAccountHealthMetrics();
 
@@ -183,7 +184,7 @@ describe('AdminStatisticsService - Account Health', () => {
     it('should handle empty health data', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (accountComparisonRepository.getAllAccountHealthMetrics as jest.Mock).mockResolvedValue([]);
+      (accountComparisonRepository.getAllAccountHealthMetrics as Mock).mockResolvedValue([]);
 
       const result = await adminStatisticsService.getAccountHealthMetrics();
 
@@ -199,8 +200,8 @@ describe('AdminStatisticsService - Account Health', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database connection failed');
-      (accountComparisonRepository.getAllAccountHealthMetrics as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (accountComparisonRepository.getAllAccountHealthMetrics as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -253,7 +254,7 @@ describe('AdminStatisticsService - Account Health', () => {
         email_verified: true,
       };
 
-      (accountComparisonRepository.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockHealthData);
+      (accountComparisonRepository.getAccountHealthMetrics as Mock).mockResolvedValue(mockHealthData);
 
       const result = await adminStatisticsService.getAccountHealth(123);
 
@@ -268,8 +269,8 @@ describe('AdminStatisticsService - Account Health', () => {
     it('should throw BadRequestError when account not found', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (accountComparisonRepository.getAccountHealthMetrics as jest.Mock).mockResolvedValue(null);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (accountComparisonRepository.getAccountHealthMetrics as Mock).mockResolvedValue(null);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw err;
       });
 
@@ -292,7 +293,7 @@ describe('AdminStatisticsService - Account Health', () => {
         email_verified: true,
       };
 
-      (accountComparisonRepository.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockHealthData);
+      (accountComparisonRepository.getAccountHealthMetrics as Mock).mockResolvedValue(mockHealthData);
 
       const result = await adminStatisticsService.getAccountHealth(123);
 
@@ -316,7 +317,7 @@ describe('AdminStatisticsService - Account Health', () => {
         email_verified: true,
       };
 
-      (accountComparisonRepository.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockHealthData);
+      (accountComparisonRepository.getAccountHealthMetrics as Mock).mockResolvedValue(mockHealthData);
 
       const result = await adminStatisticsService.getAccountHealth(123);
 
@@ -340,7 +341,7 @@ describe('AdminStatisticsService - Account Health', () => {
         email_verified: true,
       };
 
-      (accountComparisonRepository.getAccountHealthMetrics as jest.Mock).mockResolvedValue(mockHealthData);
+      (accountComparisonRepository.getAccountHealthMetrics as Mock).mockResolvedValue(mockHealthData);
 
       const result = await adminStatisticsService.getAccountHealth(123);
 
@@ -354,8 +355,8 @@ describe('AdminStatisticsService - Account Health', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database query failed');
-      (accountComparisonRepository.getAccountHealthMetrics as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (accountComparisonRepository.getAccountHealthMetrics as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

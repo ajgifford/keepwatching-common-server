@@ -7,26 +7,42 @@ import {
 } from '../../../src/types/emailTypes';
 import { CreateEmailRecipient, CreateEmailTemplate, UpdateEmailTemplate } from '@ajgifford/keepwatching-types';
 import * as emailDb from '@db/emailDb';
-import { getDbPool } from '@utils/db';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { ResultSetHeader } from 'mysql2';
+import { MockedFunction, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock dependencies
-jest.mock('@utils/db');
-jest.mock('@utils/errorHandlingUtility');
+const { mockExecute, mockGetDbPool } = vi.hoisted(() => {
+  const mockExecute = vi.fn();
+  const mockQuery = vi.fn();
+  const mockGetDbPool = vi.fn(() => ({
+    execute: mockExecute,
+    query: mockQuery,
+  }));
 
-const mockGetDbPool = getDbPool as jest.MockedFunction<typeof getDbPool>;
-const mockHandleDatabaseError = handleDatabaseError as jest.MockedFunction<typeof handleDatabaseError>;
+  return { mockExecute, mockQuery, mockGetDbPool };
+});
 
-const mockExecute = jest.fn();
-const mockPool = {
-  execute: mockExecute,
-};
+vi.mock('@utils/db', () => ({
+  getDbPool: mockGetDbPool,
+}));
+
+vi.mock('@utils/errorHandlingUtility');
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
+
+const mockHandleDatabaseError = handleDatabaseError as MockedFunction<typeof handleDatabaseError>;
 
 describe('emailDb', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetDbPool.mockReturnValue(mockPool as any);
+    vi.clearAllMocks();
   });
 
   describe('getEmailTemplates', () => {

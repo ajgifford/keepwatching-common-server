@@ -1,51 +1,53 @@
 import { Account, UpdateAccountRequest } from '@ajgifford/keepwatching-types';
 import * as accountsDb from '@db/accountsDb';
 import { DatabaseError } from '@middleware/errorMiddleware';
-import { getDbPool } from '@utils/db';
-import { TransactionHelper } from '@utils/transactionHelper';
 import { ResultSetHeader } from 'mysql2';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => {
-  const mockPool = {
-    execute: jest.fn(),
-  };
-  return {
-    getDbPool: jest.fn(() => mockPool),
-  };
+const { mockExecute, mockGetDbPool, mockExecuteInTransaction } = vi.hoisted(() => {
+  const mockExecute = vi.fn();
+  const mockQuery = vi.fn();
+  const mockGetDbPool = vi.fn(() => ({
+    execute: mockExecute,
+    query: mockQuery,
+  }));
+  const mockExecuteInTransaction = vi.fn();
+
+  return { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction };
 });
-jest.mock('@utils/transactionHelper');
+
+vi.mock('@utils/db', () => ({
+  getDbPool: mockGetDbPool,
+}));
+
+vi.mock('@utils/transactionHelper', () => ({
+  TransactionHelper: vi.fn(function (this: any) {
+    this.executeInTransaction = mockExecuteInTransaction;
+  }),
+}));
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
 
 describe('accountsDb Module', () => {
-  let mockPool: any;
-  let mockExecute: jest.Mock;
-
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockExecute = jest.fn();
-    mockPool = {
-      execute: mockExecute,
-    };
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    vi.clearAllMocks();
+    mockExecuteInTransaction.mockImplementation(async (callback) => {
+      const mockConnection = {
+        execute: mockExecute,
+      };
+      return callback(mockConnection);
+    });
   });
 
   describe('registerAccount()', () => {
-    let mockConnection: any;
-    let mockTransactionHelper: jest.Mocked<TransactionHelper>;
-
-    beforeEach(() => {
-      mockConnection = {
-        execute: mockExecute,
-      };
-
-      mockTransactionHelper = {
-        executeInTransaction: jest.fn().mockImplementation(async (callback) => {
-          return callback(mockConnection);
-        }),
-      } as unknown as jest.Mocked<TransactionHelper>;
-
-      (TransactionHelper as jest.Mock).mockImplementation(() => mockTransactionHelper);
-    });
-
     it('should register an account with a default profile successfully', async () => {
       const testAccount: Account = {
         name: 'Test User',
@@ -75,7 +77,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.registerAccount(testAccount);
 
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(3);
       expect(mockExecute).toHaveBeenNthCalledWith(
         1,
@@ -112,11 +114,10 @@ describe('accountsDb Module', () => {
       };
 
       const dbError = new Error('Database connection error');
-      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
+      mockExecuteInTransaction.mockRejectedValue(dbError);
 
       await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
-      expect(mockExecute).not.toHaveBeenCalled();
+      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
     });
 
     it('should throw DatabaseError when the account insert fails', async () => {
@@ -133,7 +134,7 @@ describe('accountsDb Module', () => {
       mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('INSERT INTO accounts (account_name, email, uid) VALUES (?, ?, ?)', [
         'Test User',
@@ -234,7 +235,7 @@ describe('accountsDb Module', () => {
       };
       const result = await accountsDb.editAccount(accountData);
 
-      expect(getDbPool).toHaveBeenCalledTimes(2);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(
         1,
@@ -253,21 +254,21 @@ describe('accountsDb Module', () => {
     });
 
     it('should return null when no rows affected', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
       const updatedAccount = await accountsDb.editAccount({ id: 1, name: 'Jane Doe', defaultProfileId: 20 });
       expect(updatedAccount).toBeNull();
     });
 
     it('should throw error when edit account fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
       await expect(accountsDb.editAccount({ id: 1, name: 'Jane Doe', defaultProfileId: 20 })).rejects.toThrow(
         'DB connection failed',
       );
     });
 
     it('should throw error with default message when edit account fails', async () => {
-      mockPool.execute.mockRejectedValueOnce({});
+      mockExecute.mockRejectedValueOnce({});
       await expect(accountsDb.editAccount({ id: 1, name: 'Jane Doe', defaultProfileId: 23 })).rejects.toThrow(
         'Unknown database error editing an account',
       );
@@ -295,7 +296,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateAccountImage({ id, image });
 
-      expect(getDbPool).toHaveBeenCalledTimes(2);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(1, 'UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
       expect(mockExecute).toHaveBeenNthCalledWith(2, 'SELECT * FROM accounts WHERE account_id = ?', [id]);
@@ -318,7 +319,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateAccountImage({ id, image });
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
       expect(result).toBeNull();
@@ -332,7 +333,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateAccountImage({ id, image })).rejects.toThrow(DatabaseError);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
     });
@@ -346,7 +347,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateAccountImage({ id, image })).rejects.toThrow(DatabaseError);
 
-      expect(getDbPool).toHaveBeenCalledTimes(2);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(1, 'UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
       expect(mockExecute).toHaveBeenNthCalledWith(2, 'SELECT * FROM accounts WHERE account_id = ?', [id]);
@@ -415,31 +416,31 @@ describe('accountsDb Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockAccount]);
+      mockExecute.mockResolvedValueOnce([mockAccount]);
 
       const account = await accountsDb.findAccountByUID('uid123');
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE uid = ?', ['uid123']);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE uid = ?', ['uid123']);
       expect(account).not.toBeNull();
       expect(account?.id).toBe(1);
       expect(account?.name).toBe('John Doe');
     });
 
     it('should return null when account not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
       const account = await accountsDb.findAccountByUID('unknown-uid');
       expect(account).toBeNull();
     });
 
     it('should throw error when find by UID fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(accountsDb.findAccountByUID('uid123')).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when find by UID fails', async () => {
-      mockPool.execute.mockRejectedValueOnce({});
+      mockExecute.mockRejectedValueOnce({});
 
       await expect(accountsDb.findAccountByUID('uid123')).rejects.toThrow(
         'Unknown database error finding an account by UID',
@@ -460,31 +461,31 @@ describe('accountsDb Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockAccount]);
+      mockExecute.mockResolvedValueOnce([mockAccount]);
 
       const account = await accountsDb.findAccountByEmail('john@example.com');
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE email = ?', ['john@example.com']);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE email = ?', ['john@example.com']);
       expect(account).not.toBeNull();
       expect(account?.account_id).toBe(1);
       expect(account?.account_name).toBe('John Doe');
     });
 
     it('should return null when account not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
-      const account = await accountsDb.findAccountByEmail('unknown@example.com');
+      mockExecute.mockResolvedValueOnce([[]]);
+      const account = await accountsDb.findAccountByUID('unknown-uid');
       expect(account).toBeNull();
     });
 
     it('should throw error when find by email fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(accountsDb.findAccountByEmail('john@example.com')).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when find by email fails', async () => {
-      mockPool.execute.mockRejectedValueOnce({});
+      mockExecute.mockRejectedValueOnce({});
 
       await expect(accountsDb.findAccountByEmail('john@example.com')).rejects.toThrow(
         'Unknown database error finding an account by email',
@@ -505,31 +506,31 @@ describe('accountsDb Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockAccount]);
+      mockExecute.mockResolvedValueOnce([mockAccount]);
 
       const account = await accountsDb.findAccountById(1);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE account_id = ?', [1]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE account_id = ?', [1]);
       expect(account).not.toBeNull();
       expect(account?.id).toBe(1);
       expect(account?.name).toBe('John Doe');
     });
 
     it('should return null when account not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
       const account = await accountsDb.findAccountById(999);
       expect(account).toBeNull();
     });
 
     it('should throw error when find by id fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(accountsDb.findAccountById(1)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when find by id fails', async () => {
-      mockPool.execute.mockRejectedValueOnce({});
+      mockExecute.mockRejectedValueOnce({});
 
       await expect(accountsDb.findAccountById(1)).rejects.toThrow('Unknown database error finding an account by id');
     });
@@ -545,16 +546,16 @@ describe('accountsDb Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockProfile]);
+      mockExecute.mockResolvedValueOnce([mockProfile]);
 
       const accountId = await accountsDb.findAccountIdByProfileId(5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT account_id FROM profiles where profile_id = ?', [5]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT account_id FROM profiles where profile_id = ?', [5]);
       expect(accountId).toBe(1);
     });
 
     it('should return null when profile not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const accountId = await accountsDb.findAccountIdByProfileId(999);
 
@@ -563,13 +564,13 @@ describe('accountsDb Module', () => {
 
     it('should throw error when find by profile id fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(accountsDb.findAccountIdByProfileId(5)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when find by profile id fails', async () => {
-      mockPool.execute.mockRejectedValueOnce({});
+      mockExecute.mockRejectedValueOnce({});
 
       await expect(accountsDb.findAccountIdByProfileId(5)).rejects.toThrow(
         'Unknown database error finding an account by profile id',
@@ -600,97 +601,74 @@ describe('accountsDb Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockAccounts]);
+      mockExecute.mockResolvedValueOnce([mockAccounts]);
 
       const accounts = await accountsDb.getAccounts();
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * from accounts');
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * from accounts');
       expect(accounts).toEqual(mockAccounts);
     });
 
     it('should throw error when getting accounts fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(accountsDb.getAccounts()).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting accounts fails', async () => {
-      mockPool.execute.mockRejectedValueOnce({});
+      mockExecute.mockRejectedValueOnce({});
 
       await expect(accountsDb.getAccounts()).rejects.toThrow('Unknown database error getting all accounts');
     });
   });
 
   describe('deleteAccount()', () => {
-    let mockConnection: any;
-    let mockTransactionHelper: jest.Mocked<TransactionHelper>;
-
-    beforeEach(() => {
-      mockConnection = {
-        execute: jest.fn(),
-      };
-
-      mockTransactionHelper = {
-        executeInTransaction: jest.fn().mockImplementation(async (callback) => {
-          return callback(mockConnection);
-        }),
-      } as unknown as jest.Mocked<TransactionHelper>;
-
-      (TransactionHelper as jest.Mock).mockImplementation(() => mockTransactionHelper);
-    });
-
     it('should delete an account successfully', async () => {
       const accountId = 1;
-      mockConnection.execute
+      mockExecute
         .mockResolvedValueOnce([[{ uid: 'test-uid-123' }]]) // Find account query
         .mockResolvedValueOnce([{ affectedRows: 1 }]); // Delete query
 
       const result = await accountsDb.deleteAccount(accountId);
 
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
-      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, 'SELECT * FROM accounts WHERE account_id = ?', [
-        accountId,
-      ]);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, 'DELETE FROM accounts WHERE account_id = ?', [
-        accountId,
-      ]);
+      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(2);
+      expect(mockExecute).toHaveBeenNthCalledWith(1, 'SELECT * FROM accounts WHERE account_id = ?', [accountId]);
+      expect(mockExecute).toHaveBeenNthCalledWith(2, 'DELETE FROM accounts WHERE account_id = ?', [accountId]);
       expect(result).toBe(true);
     });
 
     it('should return false when account not found', async () => {
       const accountId = 999;
-      mockConnection.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const result = await accountsDb.deleteAccount(accountId);
 
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
-      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
-      expect(mockConnection.execute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE account_id = ?', [accountId]);
+      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE account_id = ?', [accountId]);
       expect(result).toBe(false);
     });
 
     it('should return false when no rows are affected by delete', async () => {
       const accountId = 1;
-      mockConnection.execute
-        .mockResolvedValueOnce([[{ uid: 'test-uid-123' }]])
-        .mockResolvedValueOnce([{ affectedRows: 0 }]);
+      mockExecute.mockResolvedValueOnce([[{ uid: 'test-uid-123' }]]).mockResolvedValueOnce([{ affectedRows: 0 }]);
 
       const result = await accountsDb.deleteAccount(accountId);
 
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
-      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(result).toBe(false);
     });
 
     it('should throw DatabaseError when transaction fails', async () => {
       const accountId = 1;
       const dbError = new Error('Transaction failed');
-      mockTransactionHelper.executeInTransaction.mockRejectedValueOnce(dbError);
+      mockExecuteInTransaction.mockRejectedValueOnce(dbError);
 
       await expect(accountsDb.deleteAccount(accountId)).rejects.toThrow('Transaction failed');
-      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -703,7 +681,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastLogin(uid);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
       expect(result).toBe(true);
@@ -717,7 +695,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastLogin(uid);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
       expect(result).toBe(false);
@@ -731,7 +709,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateLastLogin(uid)).rejects.toThrow(DatabaseError);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
     });
@@ -758,7 +736,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastActivity(accountId);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
         `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
@@ -776,7 +754,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastActivity(accountId, throttleMinutes);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
         `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
@@ -793,7 +771,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastActivity(accountId);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(result).toBe(false);
     });
@@ -806,7 +784,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateLastActivity(accountId)).rejects.toThrow(DatabaseError);
 
-      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
     });
 

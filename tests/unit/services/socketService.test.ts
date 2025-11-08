@@ -4,39 +4,40 @@ import { notificationsService } from '@services/notificationsService';
 import { SocketService, socketService } from '@services/socketService';
 import * as cron from 'node-cron';
 import { Server, Socket } from 'socket.io';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock('@services/accountService', () => ({
+vi.mock('@services/accountService', () => ({
   accountService: {
-    findAccountIdByProfileId: jest.fn(),
-    login: jest.fn(),
-    createGoogleAccount: jest.fn(),
-    updateAccount: jest.fn(),
-    deleteAccount: jest.fn(),
-    invalidateAccountCache: jest.fn(),
+    findAccountIdByProfileId: vi.fn(),
+    login: vi.fn(),
+    createGoogleAccount: vi.fn(),
+    updateAccount: vi.fn(),
+    deleteAccount: vi.fn(),
+    invalidateAccountCache: vi.fn(),
   },
 }));
 
-jest.mock('@services/notificationsService', () => ({
+vi.mock('@services/notificationsService', () => ({
   notificationsService: {
-    getNotifications: jest.fn(),
-    createNotification: jest.fn(),
-    markAsRead: jest.fn(),
-    deleteNotification: jest.fn(),
+    getNotifications: vi.fn(),
+    createNotification: vi.fn(),
+    markAsRead: vi.fn(),
+    deleteNotification: vi.fn(),
   },
 }));
-jest.mock('node-cron');
-jest.mock('@config/config', () => ({
-  getNotificationPollingInterval: jest.fn(() => '*/5 * * * *'), // Every 5 minutes
-  getDBConfig: jest.fn(() => ({})),
-  isEmailEnabled: jest.fn(() => false),
-  getServiceName: jest.fn(() => 'test-service'),
+vi.mock('node-cron');
+vi.mock('@config/config', () => ({
+  getNotificationPollingInterval: vi.fn(() => '*/5 * * * *'), // Every 5 minutes
+  getDBConfig: vi.fn(() => ({})),
+  isEmailEnabled: vi.fn(() => false),
+  getServiceName: vi.fn(() => 'test-service'),
 }));
 
 describe('SocketService', () => {
@@ -44,23 +45,23 @@ describe('SocketService', () => {
   let mockSocket: Partial<Socket>;
   let mockSocketsMap: Map<string, any>;
   let mockCronJob: {
-    start: jest.Mock;
-    stop: jest.Mock;
-    destroy: jest.Mock;
+    start: Mock;
+    stop: Mock;
+    destroy: Mock;
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
 
     mockSocketsMap = new Map();
 
     mockCronJob = {
-      start: jest.fn(),
-      stop: jest.fn(),
-      destroy: jest.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      destroy: vi.fn(),
     };
-    (cron.schedule as jest.Mock).mockReturnValue(mockCronJob);
+    (cron.schedule as Mock).mockReturnValue(mockCronJob);
 
     mockSocket = {
       id: 'test-socket-id',
@@ -83,18 +84,18 @@ describe('SocketService', () => {
           account_id: '123',
         },
       },
-      on: jest.fn(),
-      emit: jest.fn(),
-      disconnect: jest.fn(),
+      on: vi.fn(),
+      emit: vi.fn(),
+      disconnect: vi.fn(),
     };
 
     mockServer = {
-      use: jest.fn().mockImplementation((fn) => {
-        fn(mockSocket as Socket, jest.fn());
+      use: vi.fn().mockImplementation((fn) => {
+        fn(mockSocket as Socket, vi.fn());
         return mockServer;
       }),
-      on: jest.fn().mockReturnThis(),
-      emit: jest.fn().mockReturnThis(),
+      on: vi.fn().mockReturnThis(),
+      emit: vi.fn().mockReturnThis(),
 
       get sockets() {
         return {
@@ -102,22 +103,22 @@ describe('SocketService', () => {
           adapter: {},
           server: {},
           name: '/',
-          use: jest.fn(),
-          emit: jest.fn(),
-          to: jest.fn().mockReturnThis(),
-          in: jest.fn().mockReturnThis(),
-          allSockets: jest.fn(),
-          fetchSockets: jest.fn(),
-          addListener: jest.fn(),
-          on: jest.fn(),
-          once: jest.fn(),
-          removeListener: jest.fn(),
-          off: jest.fn(),
-          removeAllListeners: jest.fn(),
-          listeners: jest.fn(),
-          eventNames: jest.fn(),
-          setMaxListeners: jest.fn(),
-          getMaxListeners: jest.fn(),
+          use: vi.fn(),
+          emit: vi.fn(),
+          to: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          allSockets: vi.fn(),
+          fetchSockets: vi.fn(),
+          addListener: vi.fn(),
+          on: vi.fn(),
+          once: vi.fn(),
+          removeListener: vi.fn(),
+          off: vi.fn(),
+          removeAllListeners: vi.fn(),
+          listeners: vi.fn(),
+          eventNames: vi.fn(),
+          setMaxListeners: vi.fn(),
+          getMaxListeners: vi.fn(),
         } as any;
       },
     };
@@ -126,7 +127,7 @@ describe('SocketService', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('getInstance', () => {
@@ -161,10 +162,9 @@ describe('SocketService', () => {
       expect(cron.schedule).toHaveBeenCalled();
       expect(mockCronJob.start).toHaveBeenCalled();
 
-      const cronCallback = (cron.schedule as jest.Mock).mock.calls[0][1] as () => void;
+      const cronCallback = (cron.schedule as Mock).mock.calls[0][1] as () => void;
 
-      jest
-        .spyOn(global, 'setTimeout')
+      vi.spyOn(global, 'setTimeout')
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         .mockImplementation((callback: (...args: any[]) => void, delay: number | undefined) => {
           if (typeof callback === 'function') {
@@ -232,7 +232,7 @@ describe('SocketService', () => {
 
   describe('notifyShowDataLoaded', () => {
     beforeEach(() => {
-      (accountService.findAccountIdByProfileId as jest.Mock).mockResolvedValue(123);
+      (accountService.findAccountIdByProfileId as Mock).mockResolvedValue(123);
       mockSocketsMap.set('socket-id', { ...mockSocket, data: { accountId: 123 } });
     });
 
@@ -252,7 +252,7 @@ describe('SocketService', () => {
 
     it('should handle errors when finding account ID', async () => {
       const error = new Error('Database error');
-      (accountService.findAccountIdByProfileId as jest.Mock).mockRejectedValue(error);
+      (accountService.findAccountIdByProfileId as Mock).mockRejectedValue(error);
 
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);
@@ -263,7 +263,7 @@ describe('SocketService', () => {
     });
 
     it('should do nothing if account ID is not found', async () => {
-      (accountService.findAccountIdByProfileId as jest.Mock).mockResolvedValue(null);
+      (accountService.findAccountIdByProfileId as Mock).mockResolvedValue(null);
 
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);
@@ -318,22 +318,22 @@ describe('SocketService', () => {
         ...mockSocket,
         id: 'socket-id-1',
         data: { accountId: 123 },
-        emit: jest.fn(),
-        disconnect: jest.fn(),
+        emit: vi.fn(),
+        disconnect: vi.fn(),
       };
       const socket2 = {
         ...mockSocket,
         id: 'socket-id-2',
         data: { accountId: 123 },
-        emit: jest.fn(),
-        disconnect: jest.fn(),
+        emit: vi.fn(),
+        disconnect: vi.fn(),
       };
       const socket3 = {
         ...mockSocket,
         id: 'socket-id-3',
         data: { accountId: 456 },
-        emit: jest.fn(),
-        disconnect: jest.fn(),
+        emit: vi.fn(),
+        disconnect: vi.fn(),
       };
 
       mockSocketsMap.set('socket-id-1', socket1);
@@ -455,7 +455,7 @@ describe('SocketService', () => {
 
   describe('notification polling', () => {
     beforeEach(() => {
-      (notificationsService.getNotifications as jest.Mock).mockResolvedValue([
+      (notificationsService.getNotifications as Mock).mockResolvedValue([
         { id: 1, message: 'Test notification', created_at: new Date() },
       ]);
     });
@@ -467,7 +467,7 @@ describe('SocketService', () => {
       (service as any).connectedUsers.set('socket-1', { accountId: 123, socketId: 'socket-1' });
       (service as any).connectedUsers.set('socket-2', { accountId: 456, socketId: 'socket-2' });
 
-      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1];
+      const pollingFunction = (cron.schedule as Mock).mock.calls[0][1];
 
       await pollingFunction();
 
@@ -480,7 +480,7 @@ describe('SocketService', () => {
       const service = SocketService.getInstance();
       service.initialize(mockServer as Server);
 
-      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1];
+      const pollingFunction = (cron.schedule as Mock).mock.calls[0][1];
 
       await pollingFunction();
 
@@ -494,9 +494,9 @@ describe('SocketService', () => {
       (service as any).connectedUsers.set('socket-1', { accountId: 123, socketId: 'socket-1' });
 
       const error = new Error('Database connection failed');
-      (notificationsService.getNotifications as jest.Mock).mockRejectedValue(error);
+      (notificationsService.getNotifications as Mock).mockRejectedValue(error);
 
-      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1];
+      const pollingFunction = (cron.schedule as Mock).mock.calls[0][1];
 
       await pollingFunction();
 
@@ -511,8 +511,7 @@ describe('SocketService', () => {
 
       const originalSetTimeout = global.setTimeout;
 
-      jest
-        .spyOn(global, 'setTimeout')
+      vi.spyOn(global, 'setTimeout')
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         .mockImplementation((callback: (...args: any[]) => void, delay: number | undefined) => {
           if (callback) {
@@ -522,7 +521,7 @@ describe('SocketService', () => {
         });
 
       const originalPromiseAllSettled = Promise.allSettled;
-      jest.spyOn(Promise, 'allSettled').mockImplementation(async (promises) => {
+      vi.spyOn(Promise, 'allSettled').mockImplementation(async (promises) => {
         await new Promise((resolve) => {
           const timer = originalSetTimeout(resolve, 100);
           return timer;
@@ -530,11 +529,11 @@ describe('SocketService', () => {
         return originalPromiseAllSettled(promises);
       });
 
-      const pollingFunction = (cron.schedule as jest.Mock).mock.calls[0][1] as () => Promise<void>;
+      const pollingFunction = (cron.schedule as Mock).mock.calls[0][1] as () => Promise<void>;
 
       const pollingPromise = pollingFunction();
 
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
 
       await pollingPromise;
 

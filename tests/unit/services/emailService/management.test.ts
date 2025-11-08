@@ -3,6 +3,7 @@ import { cleanupScheduledJobs, setupMocks } from './helpers/mocks';
 import * as emailDb from '@db/emailDb';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
+import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Email Management', () => {
   beforeEach(() => {
@@ -15,8 +16,8 @@ describe('EmailService - Email Management', () => {
 
   describe('getAllEmails', () => {
     it('should return emails with pagination', async () => {
-      (emailDb.getAllEmailsCount as jest.Mock).mockResolvedValue(25);
-      (emailDb.getAllEmails as jest.Mock).mockResolvedValue(mockSentEmails);
+      (emailDb.getAllEmailsCount as Mock).mockResolvedValue(25);
+      (emailDb.getAllEmails as Mock).mockResolvedValue(mockSentEmails);
 
       const result = await emailService.getAllEmails(1, 0, 10);
 
@@ -38,8 +39,8 @@ describe('EmailService - Email Management', () => {
     it('should calculate pagination correctly for last page', async () => {
       const mockEmails = [{ id: 1, subject: 'Email 1', message: 'Message 1', status: 'sent' }];
 
-      (emailDb.getAllEmailsCount as jest.Mock).mockResolvedValue(25);
-      (emailDb.getAllEmails as jest.Mock).mockResolvedValue(mockEmails);
+      (emailDb.getAllEmailsCount as Mock).mockResolvedValue(25);
+      (emailDb.getAllEmails as Mock).mockResolvedValue(mockEmails);
 
       const result = await emailService.getAllEmails(3, 20, 10);
 
@@ -55,7 +56,7 @@ describe('EmailService - Email Management', () => {
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Database error');
-      (emailDb.getAllEmailsCount as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.getAllEmailsCount as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.getAllEmails(1, 0, 10)).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAllSentEmails');
@@ -64,8 +65,8 @@ describe('EmailService - Email Management', () => {
 
   describe('deleteEmail', () => {
     it('should delete a draft email', async () => {
-      (emailDb.getEmail as jest.Mock).mockResolvedValue({ id: 1, status: 'draft' });
-      (emailDb.deleteEmail as jest.Mock).mockResolvedValue(true);
+      (emailDb.getEmail as Mock).mockResolvedValue({ id: 1, status: 'draft' });
+      (emailDb.deleteEmail as Mock).mockResolvedValue(true);
 
       const result = await emailService.deleteEmail(1);
 
@@ -77,7 +78,7 @@ describe('EmailService - Email Management', () => {
     it('should cancel and delete a scheduled email', async () => {
       const futureDate = new Date(Date.now() + 10000).toISOString();
 
-      (emailDb.updateEmailStatus as jest.Mock).mockResolvedValue(undefined);
+      (emailDb.updateEmailStatus as Mock).mockResolvedValue(undefined);
 
       // Schedule an email first
       await emailService.scheduleEmail(1, {
@@ -89,8 +90,8 @@ describe('EmailService - Email Management', () => {
         scheduledDate: futureDate,
       });
 
-      (emailDb.getEmail as jest.Mock).mockResolvedValue({ id: 1, status: 'scheduled' });
-      (emailDb.deleteEmail as jest.Mock).mockResolvedValue(true);
+      (emailDb.getEmail as Mock).mockResolvedValue({ id: 1, status: 'scheduled' });
+      (emailDb.deleteEmail as Mock).mockResolvedValue(true);
 
       const result = await emailService.deleteEmail(1);
 
@@ -99,14 +100,14 @@ describe('EmailService - Email Management', () => {
     });
 
     it('should throw NotFoundError if email does not exist', async () => {
-      (emailDb.getEmail as jest.Mock).mockResolvedValue(null);
+      (emailDb.getEmail as Mock).mockResolvedValue(null);
 
       await expect(emailService.deleteEmail(999)).rejects.toThrow('Email with id 999 not found');
     });
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Database error');
-      (emailDb.getEmail as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.getEmail as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.deleteEmail(1)).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'deleteSentEmail');

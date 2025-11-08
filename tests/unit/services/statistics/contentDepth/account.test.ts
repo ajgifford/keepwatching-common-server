@@ -4,22 +4,23 @@ import { errorService } from '@services/errorService';
 import { profileService } from '@services/profileService';
 import { accountStatisticsService } from '@services/statistics/accountStatisticsService';
 import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@services/errorService');
-jest.mock('@services/cacheService');
-jest.mock('@services/profileService');
-jest.mock('@services/statistics/profileStatisticsService');
+vi.mock('@services/errorService');
+vi.mock('@services/cacheService');
+vi.mock('@services/profileService');
+vi.mock('@services/statistics/profileStatisticsService');
 
 describe('Statistics - ContentDepth - Account', () => {
   const mockCacheService = {
-    getOrSet: jest.fn(),
-    invalidate: jest.fn(),
+    getOrSet: vi.fn(),
+    invalidate: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    jest.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
+    vi.spyOn(CacheService, 'getInstance').mockReturnValue(mockCacheService as any);
 
     Object.defineProperty(accountStatisticsService, 'cache', {
       value: mockCacheService,
@@ -92,8 +93,8 @@ describe('Statistics - ContentDepth - Account', () => {
       };
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(profiles);
-      (profileStatisticsService.getContentDepthStats as jest.Mock).mockImplementation((id) => {
+      (profileService.getProfilesByAccountId as Mock).mockResolvedValue(profiles);
+      (profileStatisticsService.getContentDepthStats as Mock).mockImplementation((id) => {
         if (id === 101) return profile1Stats;
         else if (id === 102) return profile2Stats;
         else return {};
@@ -113,12 +114,12 @@ describe('Statistics - ContentDepth - Account', () => {
 
     it('should handle errors when getting account content depth stats', async () => {
       const profiles = [{ id: 101, name: 'Profile 1' }];
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(profiles);
+      (profileService.getProfilesByAccountId as Mock).mockResolvedValue(profiles);
 
       const error = new Error('Failed to get content depth stats');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (profileStatisticsService.getContentDepthStats as jest.Mock).mockRejectedValue(error);
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (profileStatisticsService.getContentDepthStats as Mock).mockRejectedValue(error);
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -130,9 +131,9 @@ describe('Statistics - ContentDepth - Account', () => {
     });
 
     it('should throw an error when an account has no profiles', async () => {
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(undefined);
+      (profileService.getProfilesByAccountId as Mock).mockResolvedValue(undefined);
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (errorService.handleError as jest.Mock).mockImplementation((err) => {
+      (errorService.handleError as Mock).mockImplementation((err) => {
         throw err;
       });
 

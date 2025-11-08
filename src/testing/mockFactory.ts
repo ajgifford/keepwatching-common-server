@@ -1,12 +1,14 @@
+import { type Mock, vi } from 'vitest';
+
 /**
  * Creates mock functions for all methods of a service
  * @param methodNames Array of method names to mock
  * @returns Object with mocked methods
  */
 export function createTypedServiceMock<T>(methodNames: Array<keyof T>): T {
-  const mock: Record<string, jest.Mock> = {};
+  const mock: Record<string, Mock> = {};
   for (const methodName of methodNames) {
-    mock[methodName as string] = jest.fn();
+    mock[methodName as string] = vi.fn();
   }
   return mock as unknown as T;
 }
@@ -15,223 +17,223 @@ export function createTypedServiceMock<T>(methodNames: Array<keyof T>): T {
 // These provide proper typing for external projects using your mocks
 
 export interface MockAccountService {
-  login: jest.Mock;
-  register: jest.Mock;
-  googleLogin: jest.Mock;
-  logout: jest.Mock;
-  getAccounts: jest.Mock;
-  editAccount: jest.Mock;
-  deleteAccount: jest.Mock;
-  findAccountById: jest.Mock;
-  findAccountIdByProfileId: jest.Mock;
-  updateAccountImage: jest.Mock;
+  login: Mock;
+  register: Mock;
+  googleLogin: Mock;
+  logout: Mock;
+  getAccounts: Mock;
+  editAccount: Mock;
+  deleteAccount: Mock;
+  findAccountById: Mock;
+  findAccountIdByProfileId: Mock;
+  updateAccountImage: Mock;
 }
 
 export interface MockProfileService {
-  getProfilesByAccountId: jest.Mock;
-  getProfileWithContent: jest.Mock;
-  findProfileById: jest.Mock;
-  createProfile: jest.Mock;
-  updateProfileName: jest.Mock;
-  updateProfileImage: jest.Mock;
-  deleteProfile: jest.Mock;
-  createProfileObject: jest.Mock;
-  invalidateProfileCache: jest.Mock;
+  getProfilesByAccountId: Mock;
+  getProfileWithContent: Mock;
+  findProfileById: Mock;
+  createProfile: Mock;
+  updateProfileName: Mock;
+  updateProfileImage: Mock;
+  deleteProfile: Mock;
+  createProfileObject: Mock;
+  invalidateProfileCache: Mock;
 }
 
 export interface MockAdminShowService {
-  getAllShows: jest.Mock;
-  getAllShowReferences: jest.Mock;
-  getShowDetails: jest.Mock;
-  getShowSeasons: jest.Mock;
-  getShowSeasonsWithEpisodes: jest.Mock;
-  getSeasonEpisodes: jest.Mock;
-  getShowProfiles: jest.Mock;
-  getShowWatchProgress: jest.Mock;
-  getCompleteShowInfo: jest.Mock;
-  invalidateShowCache: jest.Mock;
+  getAllShows: Mock;
+  getAllShowReferences: Mock;
+  getShowDetails: Mock;
+  getShowSeasons: Mock;
+  getShowSeasonsWithEpisodes: Mock;
+  getSeasonEpisodes: Mock;
+  getShowProfiles: Mock;
+  getShowWatchProgress: Mock;
+  getCompleteShowInfo: Mock;
+  invalidateShowCache: Mock;
 }
 
 export interface MockAdminMovieService {
-  getAllMovies: jest.Mock;
-  getMovieDetails: jest.Mock;
-  getMovieProfiles: jest.Mock;
-  getMovieWatchProgress: jest.Mock;
-  getCompleteMovieInfo: jest.Mock;
-  invalidateMovieCache: jest.Mock;
+  getAllMovies: Mock;
+  getMovieDetails: Mock;
+  getMovieProfiles: Mock;
+  getMovieWatchProgress: Mock;
+  getCompleteMovieInfo: Mock;
+  invalidateMovieCache: Mock;
 }
 
 export interface MockShowService {
-  getShowsForProfile: jest.Mock;
-  getShowDetailsForProfile: jest.Mock;
-  getShowCastMembers: jest.Mock;
-  getEpisodesForProfile: jest.Mock;
-  getNextUnwatchedEpisodesForProfile: jest.Mock;
-  addShowToFavorites: jest.Mock;
-  removeShowFromFavorites: jest.Mock;
-  updateShowWatchStatus: jest.Mock;
-  updateShowWatchStatusForNewContent: jest.Mock;
-  getShowRecommendations: jest.Mock;
-  getSimilarShows: jest.Mock;
-  getProfileShowStatistics: jest.Mock;
-  getProfileWatchProgress: jest.Mock;
-  invalidateProfileCache: jest.Mock;
-  invalidateAccountCache: jest.Mock;
+  getShowsForProfile: Mock;
+  getShowDetailsForProfile: Mock;
+  getShowCastMembers: Mock;
+  getEpisodesForProfile: Mock;
+  getNextUnwatchedEpisodesForProfile: Mock;
+  addShowToFavorites: Mock;
+  removeShowFromFavorites: Mock;
+  updateShowWatchStatus: Mock;
+  updateShowWatchStatusForNewContent: Mock;
+  getShowRecommendations: Mock;
+  getSimilarShows: Mock;
+  getProfileShowStatistics: Mock;
+  getProfileWatchProgress: Mock;
+  invalidateProfileCache: Mock;
+  invalidateAccountCache: Mock;
 }
 
 export interface MockMoviesService {
-  getMoviesForProfile: jest.Mock;
-  getMovieCastMembers: jest.Mock;
-  getRecentMoviesForProfile: jest.Mock;
-  getUpcomingMoviesForProfile: jest.Mock;
-  addMovieToFavorites: jest.Mock;
-  removeMovieFromFavorites: jest.Mock;
-  updateMovieWatchStatus: jest.Mock;
-  getProfileMovieStatistics: jest.Mock;
-  invalidateProfileMovieCache: jest.Mock;
-  invalidateAccountCache: jest.Mock;
+  getMoviesForProfile: Mock;
+  getMovieCastMembers: Mock;
+  getRecentMoviesForProfile: Mock;
+  getUpcomingMoviesForProfile: Mock;
+  addMovieToFavorites: Mock;
+  removeMovieFromFavorites: Mock;
+  updateMovieWatchStatus: Mock;
+  getProfileMovieStatistics: Mock;
+  invalidateProfileMovieCache: Mock;
+  invalidateAccountCache: Mock;
 }
 
 export interface MockEpisodesService {
-  updateEpisodeWatchStatus: jest.Mock;
-  updateNextEpisodeWatchStatus: jest.Mock;
-  getEpisodesForSeason: jest.Mock;
-  getUpcomingEpisodesForProfile: jest.Mock;
-  getRecentEpisodesForProfile: jest.Mock;
+  updateEpisodeWatchStatus: Mock;
+  updateNextEpisodeWatchStatus: Mock;
+  getEpisodesForSeason: Mock;
+  getUpcomingEpisodesForProfile: Mock;
+  getRecentEpisodesForProfile: Mock;
 }
 
 export interface MockSeasonsService {
-  updateSeasonWatchStatus: jest.Mock;
-  getSeasonsForShow: jest.Mock;
-  updateSeasonWatchStatusForNewEpisodes: jest.Mock;
+  updateSeasonWatchStatus: Mock;
+  getSeasonsForShow: Mock;
+  updateSeasonWatchStatusForNewEpisodes: Mock;
 }
 
 export interface MockAccountStatisticsService {
-  getAccountStatistics: jest.Mock;
-  getAccountWatchingVelocity: jest.Mock;
-  getAccountActivityTimeline: jest.Mock;
-  getAccountBingeWatchingStats: jest.Mock;
-  getAccountWatchStreakStats: jest.Mock;
-  getAccountTimeToWatchStats: jest.Mock;
-  getAccountSeasonalViewingStats: jest.Mock;
-  getAccountMilestoneStats: jest.Mock;
-  getAccountContentDepthStats: jest.Mock;
-  getAccountContentDiscoveryStats: jest.Mock;
-  getAccountAbandonmentRiskStats: jest.Mock;
-  getAccountUnairedContentStats: jest.Mock;
-  getProfileComparison: jest.Mock;
+  getAccountStatistics: Mock;
+  getAccountWatchingVelocity: Mock;
+  getAccountActivityTimeline: Mock;
+  getAccountBingeWatchingStats: Mock;
+  getAccountWatchStreakStats: Mock;
+  getAccountTimeToWatchStats: Mock;
+  getAccountSeasonalViewingStats: Mock;
+  getAccountMilestoneStats: Mock;
+  getAccountContentDepthStats: Mock;
+  getAccountContentDiscoveryStats: Mock;
+  getAccountAbandonmentRiskStats: Mock;
+  getAccountUnairedContentStats: Mock;
+  getProfileComparison: Mock;
 }
 
 export interface MockProfileStatisticsService {
-  getProfileStatistics: jest.Mock;
-  getWatchingVelocity: jest.Mock;
-  getDailyActivity: jest.Mock;
-  getWeeklyActivity: jest.Mock;
-  getMonthlyActivity: jest.Mock;
-  getActivityTimeline: jest.Mock;
-  getBingeWatchingStats: jest.Mock;
-  getWatchStreakStats: jest.Mock;
-  getTimeToWatchStats: jest.Mock;
-  getSeasonalViewingStats: jest.Mock;
-  getMilestoneStats: jest.Mock;
-  getContentDepthStats: jest.Mock;
-  getContentDiscoveryStats: jest.Mock;
-  getAbandonmentRiskStats: jest.Mock;
-  getUnairedContentStats: jest.Mock;
+  getProfileStatistics: Mock;
+  getWatchingVelocity: Mock;
+  getDailyActivity: Mock;
+  getWeeklyActivity: Mock;
+  getMonthlyActivity: Mock;
+  getActivityTimeline: Mock;
+  getBingeWatchingStats: Mock;
+  getWatchStreakStats: Mock;
+  getTimeToWatchStats: Mock;
+  getSeasonalViewingStats: Mock;
+  getMilestoneStats: Mock;
+  getContentDepthStats: Mock;
+  getContentDiscoveryStats: Mock;
+  getAbandonmentRiskStats: Mock;
+  getUnairedContentStats: Mock;
 }
 
 export interface MockContentDiscoveryService {
-  discoverTopContent: jest.Mock;
-  discoverChangesContent: jest.Mock;
-  discoverTrendingContent: jest.Mock;
-  searchMedia: jest.Mock;
+  discoverTopContent: Mock;
+  discoverChangesContent: Mock;
+  discoverTrendingContent: Mock;
+  searchMedia: Mock;
 }
 
 export interface MockNotificationsService {
-  getNotifications: jest.Mock;
-  dismissNotification: jest.Mock;
-  getAllNotifications: jest.Mock;
-  addNotification: jest.Mock;
-  updateNotification: jest.Mock;
-  deleteNotification: jest.Mock;
+  getNotifications: Mock;
+  dismissNotification: Mock;
+  getAllNotifications: Mock;
+  addNotification: Mock;
+  updateNotification: Mock;
+  deleteNotification: Mock;
 }
 
 export interface MockContentUpdatesService {
-  updateMovies: jest.Mock;
-  updateMovieById: jest.Mock;
-  updateShows: jest.Mock;
-  updateShowById: jest.Mock;
+  updateMovies: Mock;
+  updateMovieById: Mock;
+  updateShows: Mock;
+  updateShowById: Mock;
 }
 
 export interface MockScheduledJobsService {
-  runShowsUpdateJob: jest.Mock;
-  runMoviesUpdateJob: jest.Mock;
-  runEmailDigestJob: jest.Mock;
-  getNextScheduledRun: jest.Mock;
-  initScheduledJobs: jest.Mock;
-  getJobsStatus: jest.Mock;
-  pauseJobs: jest.Mock;
-  resumeJobs: jest.Mock;
-  shutdownJobs: jest.Mock;
+  runShowsUpdateJob: Mock;
+  runMoviesUpdateJob: Mock;
+  runEmailDigestJob: Mock;
+  getNextScheduledRun: Mock;
+  initScheduledJobs: Mock;
+  getJobsStatus: Mock;
+  pauseJobs: Mock;
+  resumeJobs: Mock;
+  shutdownJobs: Mock;
 }
 
 export interface MockErrorService {
-  handleError: jest.Mock;
-  assertExists: jest.Mock;
-  assertNotExists: jest.Mock;
+  handleError: Mock;
+  assertExists: Mock;
+  assertNotExists: Mock;
 }
 
 export interface MockSocketService {
-  getInstance: jest.Mock;
-  initialize: jest.Mock;
-  notifyShowsUpdate: jest.Mock;
-  notifyMoviesUpdate: jest.Mock;
-  notifyShowDataLoaded: jest.Mock;
-  disconnectUserSockets: jest.Mock;
-  isInitialized: jest.Mock;
-  getServer: jest.Mock;
+  getInstance: Mock;
+  initialize: Mock;
+  notifyShowsUpdate: Mock;
+  notifyMoviesUpdate: Mock;
+  notifyShowDataLoaded: Mock;
+  disconnectUserSockets: Mock;
+  isInitialized: Mock;
+  getServer: Mock;
 }
 
 export interface MockTMDBService {
-  searchShows: jest.Mock;
-  searchMovies: jest.Mock;
-  getShowDetails: jest.Mock;
-  getMovieDetails: jest.Mock;
-  getSeasonDetails: jest.Mock;
-  getTrending: jest.Mock;
-  getShowRecommendations: jest.Mock;
-  getMovieRecommendations: jest.Mock;
-  getSimilarShows: jest.Mock;
-  getSimilarMovies: jest.Mock;
-  getShowChanges: jest.Mock;
-  getMovieChanges: jest.Mock;
-  getSeasonChanges: jest.Mock;
-  clearCache: jest.Mock;
+  searchShows: Mock;
+  searchMovies: Mock;
+  getShowDetails: Mock;
+  getMovieDetails: Mock;
+  getSeasonDetails: Mock;
+  getTrending: Mock;
+  getShowRecommendations: Mock;
+  getMovieRecommendations: Mock;
+  getSimilarShows: Mock;
+  getSimilarMovies: Mock;
+  getShowChanges: Mock;
+  getMovieChanges: Mock;
+  getSeasonChanges: Mock;
+  clearCache: Mock;
 }
 
 export interface MockCacheService {
-  getOrSet: jest.Mock;
-  get: jest.Mock;
-  set: jest.Mock;
-  invalidate: jest.Mock;
-  invalidatePattern: jest.Mock;
-  invalidateAccount: jest.Mock;
-  invalidateProfile: jest.Mock;
-  invalidateProfileShows: jest.Mock;
-  invalidateProfileMovies: jest.Mock;
-  invalidateProfileStatistics: jest.Mock;
-  invalidateAccountStatistics: jest.Mock;
-  flushAll: jest.Mock;
-  getStats: jest.Mock;
-  keys: jest.Mock;
+  getOrSet: Mock;
+  get: Mock;
+  set: Mock;
+  invalidate: Mock;
+  invalidatePattern: Mock;
+  invalidateAccount: Mock;
+  invalidateProfile: Mock;
+  invalidateProfileShows: Mock;
+  invalidateProfileMovies: Mock;
+  invalidateProfileStatistics: Mock;
+  invalidateAccountStatistics: Mock;
+  flushAll: Mock;
+  getStats: Mock;
+  keys: Mock;
 }
 
 export interface MockDatabaseService {
-  getInstance: jest.Mock;
-  getPool: jest.Mock;
-  isInShutdownMode: jest.Mock;
-  shutdown: jest.Mock;
+  getInstance: Mock;
+  getPool: Mock;
+  isInShutdownMode: Mock;
+  shutdown: Mock;
   static: {
-    reset: jest.Mock;
+    reset: Mock;
   };
 }

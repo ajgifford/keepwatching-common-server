@@ -2,17 +2,18 @@ import { DatabaseHealthResponse } from '@ajgifford/keepwatching-types';
 import { errorService } from '@services/errorService';
 import { HealthService, healthService } from '@services/healthService';
 import { getDbPool } from '@utils/db';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockDbMonitorInstance = {
-  executeWithTiming: jest.fn((name: string, fn: () => any) => fn()),
-  getStats: jest.fn(),
+  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
+  getStats: vi.fn(),
 };
 
-jest.mock('@utils/db');
-jest.mock('@services/errorService');
-jest.mock('@utils/dbMonitoring', () => ({
+vi.mock('@utils/db');
+vi.mock('@services/errorService');
+vi.mock('@utils/dbMonitoring', () => ({
   DbMonitor: {
-    getInstance: jest.fn(() => mockDbMonitorInstance),
+    getInstance: vi.fn(() => mockDbMonitorInstance),
   },
 }));
 
@@ -21,17 +22,17 @@ describe('HealthService', () => {
   let mockPool: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock connection
     mockConnection = {
-      ping: jest.fn().mockResolvedValue(undefined),
-      release: jest.fn(),
+      ping: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn(),
     };
 
     // Mock pool with internal structure
     mockPool = {
-      getConnection: jest.fn().mockResolvedValue(mockConnection),
+      getConnection: vi.fn().mockResolvedValue(mockConnection),
       pool: {
         config: {
           connectionLimit: 10,
@@ -41,7 +42,7 @@ describe('HealthService', () => {
       },
     };
 
-    (getDbPool as jest.Mock).mockReturnValue(mockPool);
+    (getDbPool as Mock).mockReturnValue(mockPool);
 
     mockDbMonitorInstance.executeWithTiming.mockClear();
     mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
@@ -54,7 +55,7 @@ describe('HealthService', () => {
         { query: 'SELECT * FROM movies', count: 80, avgTime: 45, maxTime: 180, totalTime: 3600 },
       ];
 
-      (mockDbMonitorInstance.getStats as jest.Mock).mockReturnValue(mockQueryStats);
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue(mockQueryStats);
 
       const result = await healthService.getDatabaseHealth();
 
@@ -84,7 +85,7 @@ describe('HealthService', () => {
         totalTime: 5000 - i * 100,
       }));
 
-      (mockDbMonitorInstance.getStats as jest.Mock).mockReturnValue(mockQueryStats);
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue(mockQueryStats);
 
       const result = await healthService.getDatabaseHealth();
 
@@ -93,7 +94,7 @@ describe('HealthService', () => {
     });
 
     it('should handle empty query stats', async () => {
-      (mockDbMonitorInstance.getStats as jest.Mock).mockReturnValue([]);
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue([]);
 
       const result = await healthService.getDatabaseHealth();
 
@@ -112,6 +113,8 @@ describe('HealthService', () => {
       mockPool.pool._allConnections = null;
       mockPool.pool._freeConnections = null;
 
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue([]);
+
       const result = await healthService.getDatabaseHealth();
 
       expect(result.pool).toEqual({
@@ -124,6 +127,8 @@ describe('HealthService', () => {
     it('should handle pool with undefined _allConnections', async () => {
       mockPool.pool._allConnections = undefined;
       mockPool.pool._freeConnections = undefined;
+
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue([]);
 
       const result = await healthService.getDatabaseHealth();
 
@@ -138,6 +143,8 @@ describe('HealthService', () => {
       mockPool.pool._allConnections = [];
       mockPool.pool._freeConnections = [];
 
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue([]);
+
       const result = await healthService.getDatabaseHealth();
 
       expect(result.pool).toEqual({
@@ -148,7 +155,7 @@ describe('HealthService', () => {
     });
 
     it('should release connection even if ping succeeds', async () => {
-      (mockDbMonitorInstance.getStats as jest.Mock).mockReturnValue([]);
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue([]);
 
       await healthService.getDatabaseHealth();
 
@@ -160,7 +167,7 @@ describe('HealthService', () => {
       mockPool.getConnection.mockRejectedValue(connectionError);
 
       const handledError = new Error('Handled connection error');
-      (errorService.handleError as jest.Mock).mockReturnValue(handledError);
+      (errorService.handleError as Mock).mockReturnValue(handledError);
 
       await expect(healthService.getDatabaseHealth()).rejects.toThrow('Handled connection error');
 
@@ -173,7 +180,7 @@ describe('HealthService', () => {
       mockConnection.ping.mockRejectedValue(pingError);
 
       const handledError = new Error('Handled ping error');
-      (errorService.handleError as jest.Mock).mockReturnValue(handledError);
+      (errorService.handleError as Mock).mockReturnValue(handledError);
 
       await expect(healthService.getDatabaseHealth()).rejects.toThrow('Handled ping error');
 
@@ -182,12 +189,12 @@ describe('HealthService', () => {
 
     it('should handle error when getting pool stats', async () => {
       const statsError = new Error('Stats error');
-      (mockDbMonitorInstance.getStats as jest.Mock).mockImplementation(() => {
+      (mockDbMonitorInstance.getStats as Mock).mockImplementation(() => {
         throw statsError;
       });
 
       const handledError = new Error('Handled stats error');
-      (errorService.handleError as jest.Mock).mockReturnValue(handledError);
+      (errorService.handleError as Mock).mockReturnValue(handledError);
 
       await expect(healthService.getDatabaseHealth()).rejects.toThrow('Handled stats error');
 
@@ -196,12 +203,12 @@ describe('HealthService', () => {
 
     it('should handle error from getDbPool', async () => {
       const poolError = new Error('Pool error');
-      (getDbPool as jest.Mock).mockImplementation(() => {
+      (getDbPool as Mock).mockImplementation(() => {
         throw poolError;
       });
 
       const handledError = new Error('Handled pool error');
-      (errorService.handleError as jest.Mock).mockReturnValue(handledError);
+      (errorService.handleError as Mock).mockReturnValue(handledError);
 
       await expect(healthService.getDatabaseHealth()).rejects.toThrow('Handled pool error');
 
@@ -213,7 +220,7 @@ describe('HealthService', () => {
       mockPool.pool._allConnections = Array.from({ length: 30 }, (_, i) => i);
       mockPool.pool._freeConnections = Array.from({ length: 10 }, (_, i) => i);
 
-      (mockDbMonitorInstance.getStats as jest.Mock).mockReturnValue([]);
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue([]);
 
       const result = await healthService.getDatabaseHealth();
 
@@ -231,7 +238,7 @@ describe('HealthService', () => {
     });
 
     it('should be callable directly', async () => {
-      (mockDbMonitorInstance.getStats as jest.Mock).mockReturnValue([]);
+      (mockDbMonitorInstance.getStats as Mock).mockResolvedValue([]);
 
       const result = await healthService.getDatabaseHealth();
 

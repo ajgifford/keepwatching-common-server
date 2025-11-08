@@ -7,7 +7,7 @@ import {
 } from '../config/config';
 import { HTTPHeaders, HTTPMethods, SensitiveKeys, SpecialMessages, SuccessMessages } from './loggerModel';
 import { randomBytes } from 'crypto';
-import fs from 'fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'path';
 import util from 'util';
 import winston from 'winston';
@@ -22,8 +22,8 @@ const environment = getEnvironment();
 const generateLogId = (): string => randomBytes(16).toString('hex');
 
 const logDirectory = getLogDirectory();
-if (!fs.existsSync(logDirectory)) {
-  fs.mkdirSync(logDirectory, { recursive: true });
+if (!existsSync(logDirectory)) {
+  mkdirSync(logDirectory, { recursive: true });
 }
 
 export const appLogger = winston.createLogger({

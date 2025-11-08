@@ -2,18 +2,29 @@ import { CreateSeasonRequest, UpdateSeasonRequest, WatchStatus } from '@ajgiffor
 import * as seasonsDb from '@db/seasonsDb';
 import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => {
+vi.mock('@utils/db', () => {
   const mockPool = {
-    execute: jest.fn(),
-    getConnection: jest.fn(),
+    execute: vi.fn(),
+    getConnection: vi.fn(),
   };
   return {
-    getDbPool: jest.fn(() => mockPool),
+    getDbPool: vi.fn(() => mockPool),
   };
 });
 
-jest.mock('@utils/transactionHelper');
+vi.mock('@utils/transactionHelper');
+
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
 
 describe('seasonsDb Module', () => {
   let mockPool: any;
@@ -21,11 +32,11 @@ describe('seasonsDb Module', () => {
 
   beforeEach(() => {
     mockConnection = {
-      execute: jest.fn(),
-      beginTransaction: jest.fn(),
-      commit: jest.fn(),
-      rollback: jest.fn(),
-      release: jest.fn(),
+      execute: vi.fn(),
+      beginTransaction: vi.fn(),
+      commit: vi.fn(),
+      rollback: vi.fn(),
+      release: vi.fn(),
     };
 
     mockPool = getDbPool();

@@ -9,42 +9,56 @@ import {
   updatePreferences,
 } from '@db/preferencesDb';
 import { cliLogger } from '@logger/logger';
-import { getDbPool } from '@utils/db';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
-import { TransactionHelper } from '@utils/transactionHelper';
-import { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
+import { ResultSetHeader } from 'mysql2/promise';
+import { Mocked, MockedFunction, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock all dependencies
-jest.mock('@logger/logger');
-jest.mock('@utils/db');
-jest.mock('@utils/errorHandlingUtility');
-jest.mock('@utils/transactionHelper');
+const { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction } = vi.hoisted(() => {
+  const mockExecute = vi.fn();
+  const mockQuery = vi.fn();
+  const mockGetDbPool = vi.fn(() => ({
+    execute: mockExecute,
+    query: mockQuery,
+  }));
+  const mockExecuteInTransaction = vi.fn();
 
-const mockLogger = cliLogger as jest.Mocked<typeof cliLogger>;
-const mockGetDbPool = getDbPool as jest.MockedFunction<typeof getDbPool>;
-const mockHandleDatabaseError = handleDatabaseError as jest.MockedFunction<typeof handleDatabaseError>;
+  return { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction };
+});
 
-// Mock pool and connection
-const mockExecute = jest.fn();
-const mockQuery = jest.fn();
-const mockConnection = {
-  execute: jest.fn(),
-} as unknown as PoolConnection;
+vi.mock('@utils/db', () => ({
+  getDbPool: mockGetDbPool,
+}));
 
-const mockPool = {
-  execute: mockExecute,
-  query: mockQuery,
-} as unknown as Pool;
+vi.mock('@utils/transactionHelper', () => ({
+  TransactionHelper: vi.fn(function (this: any) {
+    this.executeInTransaction = mockExecuteInTransaction;
+  }),
+}));
 
-// Mock TransactionHelper
-const mockExecuteInTransaction = jest.fn();
-const MockTransactionHelper = TransactionHelper as jest.MockedClass<typeof TransactionHelper>;
+vi.mock('@utils/dbMonitoring', () => ({
+  DbMonitor: {
+    getInstance: vi.fn(() => ({
+      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+        return await queryFn();
+      }),
+    })),
+  },
+}));
+
+vi.mock('@logger/logger');
+vi.mock('@utils/errorHandlingUtility');
+const mockLogger = cliLogger as Mocked<typeof cliLogger>;
+const mockHandleDatabaseError = handleDatabaseError as MockedFunction<typeof handleDatabaseError>;
 
 describe('preferencesDb', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetDbPool.mockReturnValue(mockPool);
-    MockTransactionHelper.prototype.executeInTransaction = mockExecuteInTransaction;
+    vi.clearAllMocks();
+    mockExecuteInTransaction.mockImplementation(async (callback) => {
+      const mockConnection = {
+        execute: mockExecute,
+      };
+      return callback(mockConnection);
+    });
 
     // Reset handleDatabaseError to throw by default
     mockHandleDatabaseError.mockImplementation((error, context) => {
@@ -239,14 +253,12 @@ describe('preferencesDb', () => {
     };
 
     it('should update multiple preferences in transaction successfully', async () => {
-      mockExecuteInTransaction.mockImplementation(async (callback) => {
-        return await callback(mockConnection);
-      });
-
-      // Mock getPreferencesByType calls
+      // Mock getPreferencesByType calls and INSERT queries
       mockExecute
-        .mockResolvedValueOnce([[{ preferences: { weeklyDigest: true, marketingEmails: false } }]])
-        .mockResolvedValueOnce([[{ preferences: { newSeasonAlerts: false, newEpisodeAlerts: true } }]]);
+        .mockResolvedValueOnce([[{ preferences: { weeklyDigest: true, marketingEmails: false } }]]) // getPreferencesByType for email
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]) // INSERT for email
+        .mockResolvedValueOnce([[{ preferences: { newSeasonAlerts: false, newEpisodeAlerts: true } }]]) // getPreferencesByType for notification
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // INSERT for notification
 
       const result = await updateMultiplePreferences(accountId, updates);
 
@@ -260,16 +272,14 @@ describe('preferencesDb', () => {
         notification: {},
       };
 
-      mockExecuteInTransaction.mockImplementation(async (callback) => {
-        return await callback(mockConnection);
-      });
-
-      mockExecute.mockResolvedValueOnce([[{ preferences: { weeklyDigest: true, marketingEmails: false } }]]);
+      mockExecute
+        .mockResolvedValueOnce([[{ preferences: { weeklyDigest: true, marketingEmails: false } }]]) // getPreferencesByType for email
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // INSERT for email
 
       await updateMultiplePreferences(accountId, updatesWithEmpty);
 
-      // Should only call getPreferencesByType once for email, not for notification
-      expect(mockExecute).toHaveBeenCalledTimes(1);
+      // Should call execute twice: once for SELECT (getPreferencesByType) and once for INSERT, but not for notification since it's empty
+      expect(mockExecute).toHaveBeenCalledTimes(2);
     });
 
     it('should handle transaction errors', async () => {

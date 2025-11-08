@@ -1,6 +1,7 @@
 import { BadRequestError, ConflictError, CustomError, NotFoundError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
 import { AxiosError } from 'axios';
+import { describe, expect, it } from 'vitest';
 
 describe('ErrorService', () => {
   describe('handleError', () => {

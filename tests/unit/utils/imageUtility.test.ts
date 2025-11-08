@@ -7,6 +7,7 @@ import {
   getPhotoForGoogleAccount,
   getProfileImage,
 } from '@utils/imageUtility';
+import { describe, expect, it, vi } from 'vitest';
 
 describe('imageUtility', () => {
   describe('buildTMDBImagePath', () => {
@@ -39,7 +40,7 @@ describe('imageUtility', () => {
     it('should build correct account image filename with jpg extension', () => {
       // Mock Date.now() to return a fixed timestamp
       const mockDate = 1609459200000; // 2021-01-01
-      jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
+      vi.spyOn(Date, 'now').mockImplementation(() => mockDate);
 
       const id = '12345';
       const mimetype = 'image/jpeg';
@@ -48,12 +49,12 @@ describe('imageUtility', () => {
       expect(result).toBe(`accountImage_12345_${mockDate}.jpeg`);
 
       // Restore the original Date.now
-      jest.spyOn(Date, 'now').mockRestore();
+      vi.spyOn(Date, 'now').mockRestore();
     });
 
     it('should build correct account image filename with png extension', () => {
       const mockDate = 1609459200000; // 2021-01-01
-      jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
+      vi.spyOn(Date, 'now').mockImplementation(() => mockDate);
 
       const id = '12345';
       const mimetype = 'image/png';
@@ -61,14 +62,14 @@ describe('imageUtility', () => {
       const result = buildAccountImageName(id, mimetype);
       expect(result).toBe(`accountImage_12345_${mockDate}.png`);
 
-      jest.spyOn(Date, 'now').mockRestore();
+      vi.spyOn(Date, 'now').mockRestore();
     });
   });
 
   describe('buildProfileImageName', () => {
     it('should build correct profile image filename with jpg extension', () => {
       const mockDate = 1609459200000; // 2021-01-01
-      jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
+      vi.spyOn(Date, 'now').mockImplementation(() => mockDate);
 
       const id = '12345';
       const mimetype = 'image/jpeg';
@@ -76,12 +77,12 @@ describe('imageUtility', () => {
       const result = buildProfileImageName(id, mimetype);
       expect(result).toBe(`profileImage_12345_${mockDate}.jpeg`);
 
-      jest.spyOn(Date, 'now').mockRestore();
+      vi.spyOn(Date, 'now').mockRestore();
     });
 
     it('should build correct profile image filename with png extension', () => {
       const mockDate = 1609459200000; // 2021-01-01
-      jest.spyOn(Date, 'now').mockImplementation(() => mockDate);
+      vi.spyOn(Date, 'now').mockImplementation(() => mockDate);
 
       const id = '12345';
       const mimetype = 'image/png';
@@ -89,7 +90,7 @@ describe('imageUtility', () => {
       const result = buildProfileImageName(id, mimetype);
       expect(result).toBe(`profileImage_12345_${mockDate}.png`);
 
-      jest.spyOn(Date, 'now').mockRestore();
+      vi.spyOn(Date, 'now').mockRestore();
     });
   });
 

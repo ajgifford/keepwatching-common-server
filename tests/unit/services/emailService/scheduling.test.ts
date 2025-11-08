@@ -3,6 +3,7 @@ import * as emailDb from '@db/emailDb';
 import { appLogger } from '@logger/logger';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
+import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Email Scheduling', () => {
   beforeEach(() => {
@@ -25,7 +26,7 @@ describe('EmailService - Email Scheduling', () => {
         scheduledDate: futureDate,
       };
 
-      (emailDb.updateEmailStatus as jest.Mock).mockResolvedValue(undefined);
+      (emailDb.updateEmailStatus as Mock).mockResolvedValue(undefined);
 
       await emailService.scheduleEmail(1, mockEmailData);
 
@@ -82,9 +83,9 @@ describe('EmailService - Email Scheduling', () => {
       const mockError = new Error('Database error');
 
       // Mock to fail on the first call to updateEmailStatus (the 'scheduled' status update)
-      (emailDb.updateEmailStatus as jest.Mock).mockRejectedValueOnce(mockError);
+      (emailDb.updateEmailStatus as Mock).mockRejectedValueOnce(mockError);
       // Mock to succeed on the second call (the 'failed' status update in the catch block)
-      (emailDb.updateEmailStatus as jest.Mock).mockResolvedValueOnce(undefined);
+      (emailDb.updateEmailStatus as Mock).mockResolvedValueOnce(undefined);
 
       await expect(emailService.scheduleEmail(1, mockEmailData)).rejects.toThrow(mockError);
       expect(emailDb.updateEmailStatus).toHaveBeenCalledWith(1, null, 'scheduled');
@@ -105,7 +106,7 @@ describe('EmailService - Email Scheduling', () => {
         scheduledDate: futureDate,
       };
 
-      (emailDb.updateEmailStatus as jest.Mock).mockResolvedValue(undefined);
+      (emailDb.updateEmailStatus as Mock).mockResolvedValue(undefined);
 
       // First schedule the email
       await emailService.scheduleEmail(1, mockEmailData);
@@ -134,8 +135,8 @@ describe('EmailService - Email Scheduling', () => {
       };
       const mockError = new Error('Database error');
 
-      (emailDb.updateEmailStatus as jest.Mock).mockResolvedValueOnce(undefined); // for schedule
-      (emailDb.updateEmailStatus as jest.Mock).mockRejectedValueOnce(mockError); // for cancel
+      (emailDb.updateEmailStatus as Mock).mockResolvedValueOnce(undefined); // for schedule
+      (emailDb.updateEmailStatus as Mock).mockRejectedValueOnce(mockError); // for cancel
 
       await emailService.scheduleEmail(1, mockEmailData);
 
@@ -154,7 +155,7 @@ describe('EmailService - Email Scheduling', () => {
       const futureDate1 = new Date(Date.now() + 10000).toISOString();
       const futureDate2 = new Date(Date.now() + 20000).toISOString();
 
-      (emailDb.updateEmailStatus as jest.Mock).mockResolvedValue(undefined);
+      (emailDb.updateEmailStatus as Mock).mockResolvedValue(undefined);
 
       await emailService.scheduleEmail(1, {
         subject: 'Test 1',

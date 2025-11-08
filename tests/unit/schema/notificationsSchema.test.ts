@@ -7,6 +7,7 @@ import {
   readStatusQuerySchema,
   updateNotificationBodySchema,
 } from '@schema/notificationsSchema';
+import { describe, expect, it } from 'vitest';
 
 describe('notificationsSchema', () => {
   describe('notificationActionParamSchema', () => {

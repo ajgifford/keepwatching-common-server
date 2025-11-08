@@ -8,11 +8,12 @@ import {
   setCachedStreamingServiceIds,
 } from '@utils/watchProvidersUtility';
 import { TMDBShow } from 'dist/types/tmdbTypes';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@utils/db', () => ({
+vi.mock('@utils/db', () => ({
   __esModule: true,
   default: {
-    execute: jest.fn(),
+    execute: vi.fn(),
   },
 }));
 
@@ -262,7 +263,7 @@ describe('watchProvidersUtility', () => {
     it('should load streaming services from the database', async () => {
       const mockRows = [{ id: 1 }, { id: 2 }, { id: 8 }];
 
-      (pool.execute as jest.Mock).mockResolvedValue([mockRows]);
+      (pool.execute as Mock).mockResolvedValue([mockRows]);
 
       await loadStreamingService();
 
@@ -271,14 +272,14 @@ describe('watchProvidersUtility', () => {
     });
 
     it('should handle empty results from database', async () => {
-      (pool.execute as jest.Mock).mockResolvedValue([[]]);
+      (pool.execute as Mock).mockResolvedValue([[]]);
       await loadStreamingService();
       expect(getCachedStreamingServiceIds()).toEqual([]);
     });
 
     it('should propagate database errors', async () => {
       const dbError = new Error('Database connection error');
-      (pool.execute as jest.Mock).mockRejectedValue(dbError);
+      (pool.execute as Mock).mockRejectedValue(dbError);
 
       await expect(loadStreamingService()).rejects.toThrow('Database connection error');
     });

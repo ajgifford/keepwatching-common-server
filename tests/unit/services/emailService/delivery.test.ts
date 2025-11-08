@@ -4,6 +4,7 @@ import * as emailDb from '@db/emailDb';
 import { emailDeliveryService } from '@services/email/emailDeliveryService';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
+import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Email Delivery', () => {
   beforeEach(() => {
@@ -28,7 +29,7 @@ describe('EmailService - Email Delivery', () => {
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Database error');
-      (emailDb.createEmailRecipients as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.createEmailRecipients as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.saveRecipients(1, [1, 2])).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'saveRecipients');
@@ -46,8 +47,8 @@ describe('EmailService - Email Delivery', () => {
         scheduledDate: null,
       };
 
-      (emailDb.getEmailRecipients as jest.Mock).mockResolvedValue(mockEmailRecipients);
-      (emailDeliveryService.sendEmail as jest.Mock).mockResolvedValue(undefined);
+      (emailDb.getEmailRecipients as Mock).mockResolvedValue(mockEmailRecipients);
+      (emailDeliveryService.sendEmail as Mock).mockResolvedValue(undefined);
 
       await emailService.sendImmediately(1, mockEmailData);
 
@@ -68,8 +69,8 @@ describe('EmailService - Email Delivery', () => {
       };
       const mockError = new Error('Send failed');
 
-      (emailDb.getEmailRecipients as jest.Mock).mockResolvedValue(mockEmailRecipients);
-      (emailDeliveryService.sendEmail as jest.Mock).mockRejectedValueOnce(mockError).mockResolvedValueOnce(undefined);
+      (emailDb.getEmailRecipients as Mock).mockResolvedValue(mockEmailRecipients);
+      (emailDeliveryService.sendEmail as Mock).mockRejectedValueOnce(mockError).mockResolvedValueOnce(undefined);
 
       await emailService.sendImmediately(1, mockEmailData);
 
@@ -89,7 +90,7 @@ describe('EmailService - Email Delivery', () => {
       };
       const mockError = new Error('Database error');
 
-      (emailDb.getEmailRecipients as jest.Mock).mockRejectedValue(mockError);
+      (emailDb.getEmailRecipients as Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendImmediately(1, mockEmailData)).rejects.toThrow(mockError);
       expect(emailDb.updateEmailStatus).toHaveBeenCalledWith(1, null, 'failed');

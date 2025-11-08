@@ -14,6 +14,7 @@ import {
 } from '@utils/contentUtility';
 import { TMDBMovie } from 'dist/types/tmdbTypes';
 import { Show, ShowType } from 'streaming-availability';
+import { describe, expect, it } from 'vitest';
 
 describe('contentUtility', () => {
   describe('getUSNetwork', () => {

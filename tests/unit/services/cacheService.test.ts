@@ -2,20 +2,21 @@ import { ACCOUNT_KEYS, INVALIDATION_PATTERNS, PROFILE_KEYS } from '@constants/ca
 import { cliLogger } from '@logger/logger';
 import { CacheService } from '@services/cacheService';
 import NodeCache from 'node-cache';
+import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    info: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock('node-cache');
+vi.mock('node-cache');
 
 describe('CacheService', () => {
   let cacheService: CacheService;
-  let mockNodeCache: jest.Mocked<NodeCache>;
+  let mockNodeCache: MockedObject<NodeCache>;
 
   const accountId = 1;
   const profileId = 123;
@@ -26,28 +27,30 @@ describe('CacheService', () => {
 
     // Mock NodeCache implementation
     mockNodeCache = {
-      get: jest.fn(),
-      set: jest.fn(),
-      del: jest.fn(),
-      keys: jest.fn(),
-      flushAll: jest.fn(),
-      getStats: jest.fn(),
-    } as unknown as jest.Mocked<NodeCache>;
+      get: vi.fn(),
+      set: vi.fn(),
+      del: vi.fn(),
+      keys: vi.fn(),
+      flushAll: vi.fn(),
+      getStats: vi.fn(),
+    } as unknown as MockedObject<NodeCache>;
 
-    (NodeCache as unknown as jest.Mock).mockImplementation(() => mockNodeCache);
+    (NodeCache as unknown as Mock).mockImplementation(function (this: any) {
+      return mockNodeCache;
+    });
 
     // Get a fresh instance with our mocks
     cacheService = CacheService.getInstance();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getInstance', () => {
     it('should create a new instance when called for the first time', () => {
       // Reset mock call count before test
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       // Force null instance before test
       Object.defineProperty(CacheService, 'instance', { value: null, writable: true });
 
@@ -77,7 +80,7 @@ describe('CacheService', () => {
     it('should return cached value when it exists', async () => {
       const key = 'test-key';
       const cachedValue = { data: 'cached-data' };
-      const fn = jest.fn().mockResolvedValue({ data: 'new-data' });
+      const fn = vi.fn().mockResolvedValue({ data: 'new-data' });
 
       mockNodeCache.get.mockReturnValue(cachedValue);
 
@@ -93,7 +96,7 @@ describe('CacheService', () => {
       const key = 'test-key';
       const ttl = 600;
       const newValue = { data: 'new-data' };
-      const fn = jest.fn().mockResolvedValue(newValue);
+      const fn = vi.fn().mockResolvedValue(newValue);
 
       mockNodeCache.get.mockReturnValue(undefined);
       mockNodeCache.set.mockReturnValue(true);
@@ -109,7 +112,7 @@ describe('CacheService', () => {
     it('should use default TTL when not provided', async () => {
       const key = 'test-key';
       const newValue = { data: 'new-data' };
-      const fn = jest.fn().mockResolvedValue(newValue);
+      const fn = vi.fn().mockResolvedValue(newValue);
 
       mockNodeCache.get.mockReturnValue(undefined);
 
@@ -121,7 +124,7 @@ describe('CacheService', () => {
     it('should log error and rethrow when function throws', async () => {
       const key = 'test-key';
       const error = new Error('Test error');
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
 
       mockNodeCache.get.mockReturnValue(undefined);
 
@@ -298,7 +301,7 @@ describe('CacheService', () => {
       const pattern = INVALIDATION_PATTERNS.allProfileData(profileId);
 
       // Spy on the invalidatePattern method
-      jest.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
+      vi.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
 
       cacheService.invalidateProfile(profileId);
 
@@ -309,8 +312,8 @@ describe('CacheService', () => {
   describe('invalidateProfileShows', () => {
     it('should invalidate all profile show-related cache keys', () => {
       // Spy on methods that get called inside this function
-      jest.spyOn(cacheService, 'invalidateProfileStatistics').mockImplementation(() => {});
-      jest.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
+      vi.spyOn(cacheService, 'invalidateProfileStatistics').mockImplementation(() => {});
+      vi.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
 
       cacheService.invalidateProfileShows(accountId, profileId);
 
@@ -332,8 +335,8 @@ describe('CacheService', () => {
   describe('invalidateProfileMovies', () => {
     it('should invalidate all profile movie-related cache keys', () => {
       // Spy on methods that get called inside this function
-      jest.spyOn(cacheService, 'invalidateProfileStatistics').mockImplementation(() => {});
-      jest.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
+      vi.spyOn(cacheService, 'invalidateProfileStatistics').mockImplementation(() => {});
+      vi.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
 
       cacheService.invalidateProfileMovies(profileId);
 
@@ -353,8 +356,8 @@ describe('CacheService', () => {
   describe('invalidateAccount', () => {
     it('should invalidate all account-related cache keys', () => {
       // Spy on methods that get called inside this function
-      jest.spyOn(cacheService, 'invalidateAccountStatistics').mockImplementation(() => {});
-      jest.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
+      vi.spyOn(cacheService, 'invalidateAccountStatistics').mockImplementation(() => {});
+      vi.spyOn(cacheService, 'invalidatePattern').mockReturnValue(0);
 
       cacheService.invalidateAccount(accountId);
 

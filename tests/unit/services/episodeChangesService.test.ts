@@ -2,32 +2,33 @@ import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
 import { checkSeasonForEpisodeChanges } from '@services/episodeChangesService';
 import { getTMDBService } from '@services/tmdbService';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-jest.mock('@logger/logger', () => ({
+vi.mock('@logger/logger', () => ({
   cliLogger: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
   appLogger: {
-    error: jest.fn(),
+    error: vi.fn(),
   },
 }));
 
-jest.mock('@services/tmdbService', () => ({
-  getTMDBService: jest.fn(),
+vi.mock('@services/tmdbService', () => ({
+  getTMDBService: vi.fn(),
 }));
 
 describe('episodeChangesService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('checkSeasonForEpisodeChanges', () => {
     const mockTMDBService = {
-      getSeasonChanges: jest.fn(),
+      getSeasonChanges: vi.fn(),
     };
 
     beforeEach(() => {
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
     });
 
     it('should return true when episode changes are found', async () => {
