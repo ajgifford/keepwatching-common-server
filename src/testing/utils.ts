@@ -16,3 +16,20 @@ export const loadStreamingService = vi.fn();
 // Firebase mocks
 export const initializeFirebase = vi.fn();
 export const getFirebaseAdmin = vi.fn();
+
+// DbMonitor mock - simple implementation that just executes the query
+export const mockDbMonitorInstance = {
+  executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
+    return await queryFn();
+  }),
+  getStats: vi.fn().mockResolvedValue([]),
+  logStats: vi.fn().mockResolvedValue(undefined),
+  clearStats: vi.fn().mockResolvedValue(undefined),
+  disconnect: vi.fn().mockResolvedValue(undefined),
+};
+
+export const DbMonitor = {
+  getInstance: vi.fn(() => mockDbMonitorInstance),
+  createInstance: vi.fn(() => mockDbMonitorInstance),
+  resetInstance: vi.fn(),
+};

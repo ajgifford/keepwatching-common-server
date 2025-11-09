@@ -11,14 +11,14 @@ import { UserWatchStatus } from '@ajgifford/keepwatching-types';
  */
 export class WatchStatusService {
   private dbService: WatchStatusDbService;
-  private checkAchievements: (profileId: number, accountId: number) => Promise<void>;
+  private checkAchievements: (profileId: number, accountId: number) => Promise<number>;
 
   /**
    * Constructor accepts optional dependencies for testing
    */
   constructor(dependencies?: {
     dbService?: WatchStatusDbService;
-    checkAchievements?: (profileId: number, accountId: number) => Promise<void>;
+    checkAchievements?: (profileId: number, accountId: number) => Promise<number>;
   }) {
     this.dbService = dependencies?.dbService ?? new WatchStatusDbService();
     this.checkAchievements = dependencies?.checkAchievements ?? checkAndRecordAchievements;
@@ -239,7 +239,7 @@ export class WatchStatusService {
  */
 export function createWatchStatusService(dependencies?: {
   dbService?: WatchStatusDbService;
-  checkAchievements?: (profileId: number, accountId: number) => Promise<void>;
+  checkAchievements?: (profileId: number, accountId: number) => Promise<number>;
 }): WatchStatusService {
   return new WatchStatusService(dependencies);
 }
