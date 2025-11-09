@@ -1,4 +1,4 @@
-import { getProfileImage } from '../utils';
+import { getProfileImage } from '../utils/imageUtility';
 import {
   AdminProfile,
   AdminSeasonWatchProgress,

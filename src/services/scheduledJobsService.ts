@@ -4,7 +4,7 @@ import {
   getPersonUpdateSchedule,
   getShowsUpdateSchedule,
   isEmailEnabled,
-} from '../config';
+} from '../config/config';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { updateMovies, updatePeople, updateShows } from './contentUpdatesService';

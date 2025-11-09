@@ -1,4 +1,4 @@
-import { EmailConfig, getEmailConfig } from '../../config';
+import { EmailConfig, getEmailConfig } from '../../config/config';
 import { appLogger, cliLogger } from '../../logger/logger';
 import { DigestEmail, DiscoveryEmail, WelcomeEmail } from '../../types/emailTypes';
 import {
