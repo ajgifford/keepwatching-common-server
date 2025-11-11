@@ -29,15 +29,17 @@ export const validateSchema = <T extends AnyZodObject>(schema: T, source: 'query
       const validatedData = await schema.parseAsync(data);
 
       // Update request with validated data
+      // Note: req.query and req.params may be read-only in some Express versions,
+      // so we use Object.assign to merge the validated data
       switch (source) {
         case 'body':
           req.body = validatedData;
           break;
         case 'params':
-          req.params = validatedData as any;
+          Object.assign(req.params, validatedData);
           break;
         case 'query':
-          req.query = validatedData as any;
+          Object.assign(req.query, validatedData);
           break;
       }
 
@@ -99,9 +101,11 @@ export const validateRequest = <TBody, TParams, TQuery>(
       await Promise.all(promises);
 
       // Update request with validated data
+      // Note: req.query and req.params may be read-only in some Express versions,
+      // so we use Object.assign to merge the validated data
       if (results.body) req.body = results.body;
-      if (results.params) req.params = results.params as any;
-      if (results.query) req.query = results.query as any;
+      if (results.params) Object.assign(req.params, results.params);
+      if (results.query) Object.assign(req.query, results.query);
 
       next();
     } catch (error) {
