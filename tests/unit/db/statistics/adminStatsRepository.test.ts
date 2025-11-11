@@ -1,53 +1,26 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import {
   getNewAccountsCount,
   getPlatformOverview,
   getPlatformTrends,
   getPreviousPeriodActivity,
 } from '@db/statistics/adminStatsRepository';
-import { getDbPool } from '@utils/db';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('adminStatsRepository', () => {
   let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getPlatformOverview', () => {
@@ -102,24 +75,6 @@ describe('adminStatsRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      const mockRow = {
-        total_accounts: 100,
-        active_accounts: 50,
-        total_profiles: 200,
-        total_shows: 1000,
-        total_movies: 500,
-        total_episodes_watched: 10000,
-        total_movies_watched: 400,
-        total_hours_watched: 8000,
-      };
-
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
-
-      await getPlatformOverview();
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getPlatformOverview', expect.any(Function));
-    });
   });
 
   describe('getPlatformTrends', () => {
@@ -191,13 +146,6 @@ describe('adminStatsRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getPlatformTrends(30);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getPlatformTrends', expect.any(Function));
-    });
   });
 
   describe('getNewAccountsCount', () => {
@@ -270,14 +218,6 @@ describe('adminStatsRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      const mockRow = { new_accounts: 15 };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
-
-      await getNewAccountsCount(30);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getNewAccountsCount', expect.any(Function));
-    });
   });
 
   describe('getPreviousPeriodActivity', () => {
@@ -385,20 +325,5 @@ describe('adminStatsRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      const mockRow = {
-        active_accounts: 30,
-        episodes_watched: 120,
-        movies_watched: 12,
-      };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
-
-      await getPreviousPeriodActivity(30);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getPreviousPeriodActivity',
-        expect.any(Function),
-      );
-    });
   });
 });

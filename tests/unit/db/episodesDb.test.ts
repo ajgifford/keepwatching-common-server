@@ -1,40 +1,23 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { RecentUpcomingEpisodeRow } from '../../../src/types/episodeTypes';
 import { CreateEpisodeRequest, UpdateEpisodeRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodeModule from '@db/episodesDb';
-import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => {
-  const mockPool = {
-    execute: vi.fn(),
-  };
-  return {
-    getDbPool: vi.fn(() => mockPool),
-  };
-});
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('Episode Module', () => {
-  let mockPool: any;
+  let mockExecute: jest.Mock;
 
   beforeEach(() => {
-    mockPool = getDbPool();
-    mockPool.execute.mockReset();
+    jest.clearAllMocks();
+
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
   });
 
   describe('saveEpisode', () => {
     it('should insert episode into DB', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
 
       const episode: CreateEpisodeRequest = {
         tmdb_id: 98765,
@@ -52,8 +35,8 @@ describe('Episode Module', () => {
 
       const savedEpisodeId = await episodeModule.saveEpisode(episode);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
         [
           98765,
@@ -74,7 +57,7 @@ describe('Episode Module', () => {
 
     it('should throw error when saving fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       const episode: CreateEpisodeRequest = {
         tmdb_id: 98765,
@@ -94,7 +77,7 @@ describe('Episode Module', () => {
     });
 
     it('should throw error with default message when saving fails without error message', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       const episode: CreateEpisodeRequest = {
         tmdb_id: 98765,
@@ -116,7 +99,7 @@ describe('Episode Module', () => {
 
   describe('updateEpisode', () => {
     it('should update episode in DB', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
 
       const episode: UpdateEpisodeRequest = {
         tmdb_id: 98765,
@@ -134,8 +117,8 @@ describe('Episode Module', () => {
 
       await episodeModule.updateEpisode(episode);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), episode_number = ?, episode_type = ?, season_number = ?, title = ?, overview = ?, air_date = ?, runtime = ?, still_image = ?',
         [
           // Insert values
@@ -164,7 +147,7 @@ describe('Episode Module', () => {
     });
 
     it('should throw error with default message when updating fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       const episode: UpdateEpisodeRequest = {
         tmdb_id: 98765,
@@ -186,11 +169,11 @@ describe('Episode Module', () => {
 
   describe('saveFavorite', () => {
     it('should save episode as favorite', async () => {
-      mockPool.execute.mockResolvedValueOnce([{} as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{} as ResultSetHeader]);
 
       await episodeModule.saveFavorite(123, 5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id, status) VALUES (?,?,?)',
         [123, 5, WatchStatus.NOT_WATCHED],
       );
@@ -198,13 +181,13 @@ describe('Episode Module', () => {
 
     it('should throw error when saving favorite fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(episodeModule.saveFavorite(123, 5)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when saving favorite fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(episodeModule.saveFavorite(123, 5)).rejects.toThrow(
         'Unknown database error saving an episode as a favorite',
@@ -214,11 +197,11 @@ describe('Episode Module', () => {
 
   describe('removeFavorite', () => {
     it('should remove episode from favorites', async () => {
-      mockPool.execute.mockResolvedValueOnce([{} as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{} as ResultSetHeader]);
 
       await episodeModule.removeFavorite(123, 5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id = ?',
         [123, 5],
       );
@@ -226,13 +209,13 @@ describe('Episode Module', () => {
 
     it('should throw error when removing favorite fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(episodeModule.removeFavorite(123, 5)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when removing favorite fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(episodeModule.removeFavorite(123, 5)).rejects.toThrow(
         'Unknown database error removing an episode as a favorite',
@@ -252,11 +235,11 @@ describe('Episode Module', () => {
         { id: 2, title: 'Episode 2', watchStatus: 'NOT_WATCHED' },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
+      mockExecute.mockResolvedValueOnce([mockEpisodes]);
 
       const episodes = await episodeModule.getEpisodesForSeason(123, 5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM profile_episodes where profile_id = ? and season_id = ? ORDER BY episode_number',
         [123, 5],
       );
@@ -265,13 +248,13 @@ describe('Episode Module', () => {
 
     it('should throw error when getting episodes for season fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(episodeModule.getEpisodesForSeason(123, 5)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting episodes for season fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(episodeModule.getEpisodesForSeason(123, 5)).rejects.toThrow(
         'Unknown database error getting episodes for a season',
@@ -335,11 +318,11 @@ describe('Episode Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockUpcomingEpisodes]);
+      mockExecute.mockResolvedValueOnce([mockUpcomingEpisodes]);
 
       const result = await episodeModule.getUpcomingEpisodesForProfile(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6',
         [123],
       );
@@ -347,11 +330,11 @@ describe('Episode Module', () => {
     });
 
     it('should return empty array when no upcoming episodes exist', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const result = await episodeModule.getUpcomingEpisodesForProfile(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6',
         [123],
       );
@@ -360,13 +343,13 @@ describe('Episode Module', () => {
 
     it('should throw error when getting upcoming episodes fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(episodeModule.getUpcomingEpisodesForProfile(123)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting upcoming episodes fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(episodeModule.getUpcomingEpisodesForProfile(123)).rejects.toThrow(
         'Unknown database error getting upcoming episodes for a profile',
@@ -430,11 +413,11 @@ describe('Episode Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockRecentEpisodes]);
+      mockExecute.mockResolvedValueOnce([mockRecentEpisodes]);
 
       const result = await episodeModule.getRecentEpisodesForProfile(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6',
         [123],
       );
@@ -442,11 +425,11 @@ describe('Episode Module', () => {
     });
 
     it('should return empty array when no recent episodes exist', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const result = await episodeModule.getRecentEpisodesForProfile(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6',
         [123],
       );
@@ -455,13 +438,13 @@ describe('Episode Module', () => {
 
     it('should throw error when getting recent episodes fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(episodeModule.getRecentEpisodesForProfile(123)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting recent episodes fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(episodeModule.getRecentEpisodesForProfile(123)).rejects.toThrow(
         'Unknown database error getting recent episodes for a profile',

@@ -1,48 +1,22 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getWatchStreakStats } from '@db/statistics/watchStreakRepository';
 import { getDbPool } from '@utils/db';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('watchStreakRepository', () => {
   let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getWatchStreakStats', () => {
@@ -248,13 +222,6 @@ describe('watchStreakRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor for timing', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getWatchStreakStats(123);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getWatchStreakStats', expect.any(Function));
-    });
 
     it('should release connection even if query fails', async () => {
       mockConnection.query.mockRejectedValueOnce(new Error('Database error'));

@@ -1,41 +1,20 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { MovieReferenceRow } from '../../../../src/types/movieTypes';
 import { MovieReference } from '@ajgifford/keepwatching-types';
 import * as digestMovieRepository from '@db/movies/digestMovieRepository';
-import { getDbPool } from '@utils/db';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock the database utilities
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/errorHandlingUtility', () => ({
-  handleDatabaseError: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
+jest.mock('@utils/errorHandlingUtility');
 
 describe('digestMovieRepository', () => {
-  let mockPool: any;
-  let mockExecute: Mock;
+  let mockExecute: jest.Mock;
 
   beforeEach(() => {
-    mockExecute = vi.fn();
-    mockPool = {
-      execute: mockExecute,
-    };
+    jest.clearAllMocks();
 
-    (getDbPool as Mock).mockReturnValue(mockPool);
-    vi.clearAllMocks();
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
   });
 
   describe('getTrendingMovies', () => {

@@ -6,31 +6,30 @@ import { createMoviesService, resetMoviesService } from '@services/moviesService
 import { getTMDBService } from '@services/tmdbService';
 import * as contentUtility from '@utils/contentUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
-import { type Mock, vi } from 'vitest';
 
-vi.mock('@db/moviesDb');
-vi.mock('@db/personsDb');
-vi.mock('@services/cacheService');
-vi.mock('@services/errorService');
-vi.mock('@services/profileService');
-vi.mock('@services/achievementDetectionService', () => ({
-  checkAndRecordAchievements: vi.fn().mockResolvedValue(0),
-  detectShowCompletion: vi.fn().mockResolvedValue(false),
-  batchCheckAchievements: vi.fn().mockResolvedValue(new Map()),
+jest.mock('@db/moviesDb');
+jest.mock('@db/personsDb');
+jest.mock('@services/cacheService');
+jest.mock('@services/errorService');
+jest.mock('@services/profileService');
+jest.mock('@services/achievementDetectionService', () => ({
+  checkAndRecordAchievements: jest.fn().mockResolvedValue(0),
+  detectShowCompletion: jest.fn().mockResolvedValue(false),
+  batchCheckAchievements: jest.fn().mockResolvedValue(new Map()),
 }));
-vi.mock('@services/tmdbService');
-vi.mock('@services/watchStatusService');
-vi.mock('@utils/contentUtility');
-vi.mock('@utils/watchProvidersUtility');
-vi.mock('@utils/db');
-vi.mock('@logger/logger', () => ({
+jest.mock('@services/tmdbService');
+jest.mock('@services/watchStatusService');
+jest.mock('@utils/contentUtility');
+jest.mock('@utils/watchProvidersUtility');
+jest.mock('@utils/db');
+jest.mock('@logger/logger', () => ({
   cliLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
   appLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
 }));
 
@@ -39,19 +38,19 @@ vi.mock('@logger/logger', () => ({
  */
 export function createMockCache() {
   return {
-    getOrSet: vi.fn(),
-    get: vi.fn(),
-    set: vi.fn(),
-    invalidate: vi.fn(),
-    invalidatePattern: vi.fn(),
-    invalidateProfileShows: vi.fn(),
-    invalidateAccount: vi.fn(),
-    invalidateProfileMovies: vi.fn(),
-    invalidateProfileStatistics: vi.fn(),
-    invalidateAccountStatistics: vi.fn(),
-    flushAll: vi.fn(),
-    getStats: vi.fn(),
-    keys: vi.fn(),
+    getOrSet: jest.fn(),
+    get: jest.fn(),
+    set: jest.fn(),
+    invalidate: jest.fn(),
+    invalidatePattern: jest.fn(),
+    invalidateProfileShows: jest.fn(),
+    invalidateAccount: jest.fn(),
+    invalidateProfileMovies: jest.fn(),
+    invalidateProfileStatistics: jest.fn(),
+    invalidateAccountStatistics: jest.fn(),
+    flushAll: jest.fn(),
+    getStats: jest.fn(),
+    keys: jest.fn(),
   } as any;
 }
 
@@ -60,15 +59,15 @@ export function createMockCache() {
  */
 export function setupMocks() {
   // Reset all mocks
-  vi.clearAllMocks();
+  jest.clearAllMocks();
 
   // Set up error service to re-throw errors
-  (errorService.handleError as Mock).mockImplementation((error) => {
+  (errorService.handleError as jest.Mock).mockImplementation((error) => {
     throw error;
   });
 
   // Set up assertExists to pass through or throw as needed
-  (errorService.assertExists as Mock).mockImplementation((item) => {
+  (errorService.assertExists as jest.Mock).mockImplementation((item) => {
     if (!item) {
       throw new Error('Item not found');
     }
@@ -76,18 +75,18 @@ export function setupMocks() {
   });
 
   // Set up common content utility mocks
-  (contentUtility.getUSMPARating as Mock).mockReturnValue('PG-13');
-  (contentUtility.getDirectors as Mock).mockReturnValue('Director A');
-  (contentUtility.getUSProductionCompanies as Mock).mockReturnValue('Production A');
-  (watchProvidersUtility.getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
+  (contentUtility.getUSMPARating as jest.Mock).mockReturnValue('PG-13');
+  (contentUtility.getDirectors as jest.Mock).mockReturnValue('Director A');
+  (contentUtility.getUSProductionCompanies as jest.Mock).mockReturnValue('Production A');
+  (watchProvidersUtility.getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
 
   // Set up TMDB service mock with default implementation
-  (getTMDBService as Mock).mockReturnValue({
-    getMovieDetails: vi.fn().mockResolvedValue(mockTMDBResponses.movieDetails),
-    getMovieRecommendations: vi.fn().mockResolvedValue(mockTMDBResponses.movieRecommendations),
-    getSimilarMovies: vi.fn().mockResolvedValue(mockTMDBResponses.similarMovies),
-    getMovieChanges: vi.fn().mockResolvedValue(mockTMDBResponses.movieChanges),
-    getPersonDetails: vi.fn().mockResolvedValue(mockTMDBResponses.personDetails),
+  (getTMDBService as jest.Mock).mockReturnValue({
+    getMovieDetails: jest.fn().mockResolvedValue(mockTMDBResponses.movieDetails),
+    getMovieRecommendations: jest.fn().mockResolvedValue(mockTMDBResponses.movieRecommendations),
+    getSimilarMovies: jest.fn().mockResolvedValue(mockTMDBResponses.similarMovies),
+    getMovieChanges: jest.fn().mockResolvedValue(mockTMDBResponses.movieChanges),
+    getPersonDetails: jest.fn().mockResolvedValue(mockTMDBResponses.personDetails),
   });
 }
 
@@ -99,7 +98,7 @@ export function setupMoviesService() {
   setupMocks();
   resetMoviesService();
   const mockCache = createMockCache();
-  const mockCheckAchievements = vi.fn().mockResolvedValue(undefined);
+  const mockCheckAchievements = jest.fn().mockResolvedValue(undefined);
 
   // Create a fresh instance with the mock cache and achievement checker using factory pattern
   const service = createMoviesService({
@@ -125,14 +124,14 @@ export function setupDbMocks(
   } = {},
 ) {
   // Default moviesDb implementations
-  (moviesDb.updateMovie as Mock).mockResolvedValue(true);
-  (moviesDb.saveFavorite as Mock).mockResolvedValue(undefined);
-  (moviesDb.removeFavorite as Mock).mockResolvedValue(undefined);
-  (moviesDb.updateWatchStatus as Mock).mockResolvedValue(true);
+  (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
+  (moviesDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+  (moviesDb.removeFavorite as jest.Mock).mockResolvedValue(undefined);
+  (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
 
   // Default personsDb implementations
-  (personsDb.savePerson as Mock).mockResolvedValue(1);
-  (personsDb.saveMovieCast as Mock).mockResolvedValue(undefined);
+  (personsDb.savePerson as jest.Mock).mockResolvedValue(1);
+  (personsDb.saveMovieCast as jest.Mock).mockResolvedValue(undefined);
 
   // Apply any overrides
   if (overrides.moviesDb) {
@@ -156,7 +155,7 @@ export const testUtils = {
    * Creates a mock setTimeout that executes immediately
    */
   mockImmediateTimeout: () => {
-    return vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+    return jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
       callback();
       return {} as NodeJS.Timeout;
     });

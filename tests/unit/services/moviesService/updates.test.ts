@@ -1,22 +1,19 @@
+import { ContentUpdates } from '../../../../src/types/contentTypes';
+import { TMDBChange } from '../../../../src/types/tmdbTypes';
 import { setupMoviesService } from './helpers/mocks';
-import { ContentUpdates } from '../../../src/types/contentTypes';
-import { TMDBChange } from '../../../src/types/tmdbTypes';
 import * as moviesDb from '@db/moviesDb';
 import { appLogger } from '@logger/logger';
 import { errorService } from '@services/errorService';
 import { getTMDBService } from '@services/tmdbService';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '@utils/contentUtility';
 import { getUSWatchProvidersMovie } from '@utils/watchProvidersUtility';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('MoviesService - Updates', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
-  let mockCache: ReturnType<typeof setupMoviesService>['mockCache'];
 
   beforeEach(() => {
     const setup = setupMoviesService();
     service = setup.service;
-    mockCache = setup.mockCache;
   });
 
   describe('checkMovieForChanges', () => {
@@ -32,13 +29,13 @@ describe('MoviesService - Updates', () => {
     const currentDate = '2023-01-10';
 
     const mockTMDBService = {
-      getMovieChanges: vi.fn(),
-      getMovieDetails: vi.fn(),
+      getMovieChanges: jest.fn(),
+      getMovieDetails: jest.fn(),
     };
 
     beforeEach(() => {
-      vi.clearAllMocks();
-      (getTMDBService as Mock).mockReturnValue(mockTMDBService);
+      jest.clearAllMocks();
+      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
       mockTMDBService.getMovieChanges.mockResolvedValue({ changes: [] });
       mockTMDBService.getMovieDetails.mockResolvedValue({
@@ -55,10 +52,10 @@ describe('MoviesService - Updates', () => {
       });
 
       // Re-establish utility function mocks after clearAllMocks
-      (getUSMPARating as Mock).mockReturnValue('PG-13');
-      (getDirectors as Mock).mockReturnValue('Steven Jones');
-      (getUSProductionCompanies as Mock).mockReturnValue('MGM Global');
-      (getUSWatchProvidersMovie as Mock).mockReturnValue([8, 9]);
+      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
+      (getDirectors as jest.Mock).mockReturnValue('Steven Jones');
+      (getUSProductionCompanies as jest.Mock).mockReturnValue('MGM Global');
+      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
     });
 
     it('should do nothing when no changes are detected', async () => {
@@ -144,9 +141,7 @@ describe('MoviesService - Updates', () => {
       const mockError = new Error('API error');
       mockTMDBService.getMovieChanges.mockRejectedValue(mockError);
 
-      await expect(service.checkMovieForChanges(mockMovieContent, pastDate, currentDate)).rejects.toThrow(
-        'API error',
-      );
+      await expect(service.checkMovieForChanges(mockMovieContent, pastDate, currentDate)).rejects.toThrow('API error');
 
       expect(mockTMDBService.getMovieChanges).toHaveBeenCalledWith(456, pastDate, currentDate);
       expect(appLogger.error).toHaveBeenCalledWith('Unexpected error while checking for movie changes', {
@@ -261,7 +256,7 @@ describe('MoviesService - Updates', () => {
       mockTMDBService.getMovieChanges.mockResolvedValue({ changes: supportedChanges });
 
       const mockError = new Error('Database update error');
-      (moviesDb.updateMovie as Mock).mockRejectedValue(mockError);
+      (moviesDb.updateMovie as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.checkMovieForChanges(mockMovieContent, pastDate, currentDate)).rejects.toThrow(
         'Database update error',
@@ -279,7 +274,7 @@ describe('MoviesService - Updates', () => {
 
   describe('getMoviesForUpdates', () => {
     it('should return movies for updates', async () => {
-      (moviesDb.getMoviesForUpdates as Mock).mockResolvedValue([
+      (moviesDb.getMoviesForUpdates as jest.Mock).mockResolvedValue([
         { id: 1, tmdb_id: 100, title: 'Movie 1', created_at: '2025-01-01', updated_at: '2025-02-01' },
       ]);
 
@@ -291,7 +286,7 @@ describe('MoviesService - Updates', () => {
 
     it('should handle errors when getting movies for updates', async () => {
       const mockError = new Error('Database error');
-      (moviesDb.getMoviesForUpdates as Mock).mockRejectedValue(mockError);
+      (moviesDb.getMoviesForUpdates as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.getMoviesForUpdates()).rejects.toThrow('Database error');
 

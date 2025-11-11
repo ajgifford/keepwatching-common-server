@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryStatsStore } from '../../../../src/utils/stores/InMemoryStatsStore';
 
 describe('InMemoryStatsStore', () => {

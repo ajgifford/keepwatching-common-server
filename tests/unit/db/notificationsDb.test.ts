@@ -1,58 +1,23 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { NotificationRow } from '../../../src/types/notificationTypes';
 import { CreateNotificationRequest, UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
 import * as notificationsDb from '@db/notificationsDb';
-import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { ResultSetHeader } from 'mysql2';
-import { MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => {
-  const mockConnection = {
-    execute: vi.fn(),
-    query: vi.fn(),
-    commit: vi.fn(),
-    rollback: vi.fn(),
-    release: vi.fn(),
-  };
-
-  const mockPool = {
-    execute: vi.fn(),
-    getConnection: vi.fn().mockResolvedValue(mockConnection),
-  };
-
-  return {
-    getDbPool: vi.fn(() => mockPool),
-  };
-});
-
-vi.mock('@utils/transactionHelper');
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('notificationDb', () => {
-  let mockPool: any;
+  let mockExecute: jest.Mock;
   let mockConnection: any;
+  let mockTransactionHelper: jest.Mocked<TransactionHelper>;
 
   beforeEach(() => {
-    mockPool = getDbPool();
-    mockPool.execute.mockReset();
+    jest.clearAllMocks();
 
-    mockConnection = {
-      execute: vi.fn(),
-      query: vi.fn(),
-      commit: vi.fn(),
-      rollback: vi.fn(),
-      release: vi.fn(),
-    };
-
-    mockPool.getConnection.mockResolvedValue(mockConnection);
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockTransactionHelper = mocks.mockTransactionHelper;
+    mockConnection = mocks.mockConnection;
   });
 
   describe('getNotificationsForAccount()', () => {
@@ -63,7 +28,7 @@ describe('notificationDb', () => {
         { notification_id: 2, message: 'Test 2', start_date: date, end_date: date, dismissed: false, read: false },
         { notification_id: 3, message: 'Test 3', start_date: date, end_date: date, dismissed: false, read: false },
       ];
-      mockPool.execute.mockResolvedValue([dbNotifications]);
+      mockExecute.mockResolvedValue([dbNotifications]);
 
       const expectedNotifications = [
         { id: 1, message: 'Test 1', startDate: date, endDate: date, dismissed: false, read: false },
@@ -72,8 +37,8 @@ describe('notificationDb', () => {
       ];
 
       const notifications = await notificationsDb.getNotificationsForAccount(1);
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM current_notifications WHERE account_id = ? AND dismissed = 0',
         [1],
       );
@@ -88,7 +53,7 @@ describe('notificationDb', () => {
         { notification_id: 2, message: 'Test 2', start_date: date, end_date: date, dismissed: false, read: false },
         { notification_id: 3, message: 'Test 3', start_date: date, end_date: date, dismissed: true, read: false },
       ];
-      mockPool.execute.mockResolvedValue([dbNotifications]);
+      mockExecute.mockResolvedValue([dbNotifications]);
 
       const expectedNotifications = [
         { id: 1, message: 'Test 1', startDate: date, endDate: date, dismissed: false, read: false },
@@ -97,18 +62,18 @@ describe('notificationDb', () => {
       ];
 
       const notifications = await notificationsDb.getNotificationsForAccount(1, true);
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM current_notifications WHERE account_id = ?', [1]);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM current_notifications WHERE account_id = ?', [1]);
       expect(notifications).toHaveLength(3);
       expect(notifications).toEqual(expectedNotifications);
     });
 
     it('should get no notifications for account 2', async () => {
-      mockPool.execute.mockResolvedValue([[]]);
+      mockExecute.mockResolvedValue([[]]);
 
       const notifications = await notificationsDb.getNotificationsForAccount(2);
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM current_notifications WHERE account_id = ? AND dismissed = 0',
         [2],
       );
@@ -118,13 +83,13 @@ describe('notificationDb', () => {
 
     it('should throw error when getting notifications fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(notificationsDb.getNotificationsForAccount(1)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message when getting notifications fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(notificationsDb.getNotificationsForAccount(1)).rejects.toThrow(
         'Unknown database error getting notifications for an account',
@@ -134,12 +99,12 @@ describe('notificationDb', () => {
 
   describe('markNotificationRead()', () => {
     it('should mark a notification read', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+      mockExecute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markNotificationRead(1, 1);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`,
         [1, 1, 1],
       );
@@ -147,12 +112,12 @@ describe('notificationDb', () => {
     });
 
     it('should mark a notification unread', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+      mockExecute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markNotificationRead(1, 1, false);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`,
         [0, 1, 1],
       );
@@ -160,11 +125,11 @@ describe('notificationDb', () => {
     });
 
     it('should verify no update to notification read status', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markNotificationRead(2, 1);
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         `UPDATE account_notifications SET has_been_read = ? WHERE notification_id = ? AND account_id = ?;`,
         [1, 2, 1],
       );
@@ -173,13 +138,13 @@ describe('notificationDb', () => {
 
     it('should throw error when marking a notification read fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(notificationsDb.markNotificationRead(1, 1)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message marking a notification read fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(notificationsDb.markNotificationRead(1, 1)).rejects.toThrow(
         'Unknown database error marking a notification read',
@@ -189,12 +154,12 @@ describe('notificationDb', () => {
 
   describe('markAllNotificationRead()', () => {
     it('should mark all notifications read', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 3 } as ResultSetHeader]);
+      mockExecute.mockResolvedValue([{ affectedRows: 3 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markAllNotificationsRead(1);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;',
         [1, 1],
       );
@@ -202,12 +167,12 @@ describe('notificationDb', () => {
     });
 
     it('should mark all notifications unread', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 3 } as ResultSetHeader]);
+      mockExecute.mockResolvedValue([{ affectedRows: 3 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markAllNotificationsRead(1, false);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;',
         [0, 1],
       );
@@ -215,11 +180,11 @@ describe('notificationDb', () => {
     });
 
     it('should verify no updates to notifications read status', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.markAllNotificationsRead(2);
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE account_notifications SET has_been_read = ? WHERE account_id = ?;',
         [1, 2],
       );
@@ -228,13 +193,13 @@ describe('notificationDb', () => {
 
     it('should throw error when marking all notifications read fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(notificationsDb.markAllNotificationsRead(1)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message marking all notifications read fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(notificationsDb.markAllNotificationsRead(1)).rejects.toThrow(
         'Unknown database error marking all notifications read',
@@ -244,12 +209,12 @@ describe('notificationDb', () => {
 
   describe('dismissNotification()', () => {
     it('should dismiss a notification', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+      mockExecute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
 
       const updated = await notificationsDb.dismissNotification(1, 1);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE account_notifications SET dismissed = 1 WHERE notification_id = ? AND account_id = ?;',
         [1, 1],
       );
@@ -257,11 +222,11 @@ describe('notificationDb', () => {
     });
 
     it('should verify no update to notification dismissed status', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.dismissNotification(2, 1);
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE account_notifications SET dismissed = 1 WHERE notification_id = ? AND account_id = ?;',
         [2, 1],
       );
@@ -270,13 +235,13 @@ describe('notificationDb', () => {
 
     it('should throw error when dismissing a notification fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(notificationsDb.dismissNotification(1, 1)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message dismissing a notification fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(notificationsDb.dismissNotification(1, 1)).rejects.toThrow(
         'Unknown database error dismissing a notification',
@@ -286,39 +251,37 @@ describe('notificationDb', () => {
 
   describe('dismissAllNotification()', () => {
     it('should dismiss all notifications', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 3 } as ResultSetHeader]);
+      mockExecute.mockResolvedValue([{ affectedRows: 3 } as ResultSetHeader]);
 
       const updated = await notificationsDb.dismissAllNotifications(1);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;',
-        [1],
-      );
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;', [
+        1,
+      ]);
       expect(updated).toBe(true);
     });
 
     it('should verify no updates to notifications dismissed status', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const updated = await notificationsDb.dismissAllNotifications(2);
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        'UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;',
-        [2],
-      );
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;', [
+        2,
+      ]);
       expect(updated).toBe(false);
     });
 
     it('should throw error when dismissing all notifications fails', async () => {
       const mockError = new Error('DB connection failed');
-      mockPool.execute.mockRejectedValue(mockError);
+      mockExecute.mockRejectedValue(mockError);
 
       await expect(notificationsDb.dismissAllNotifications(1)).rejects.toThrow('DB connection failed');
     });
 
     it('should throw error with default message dismissing all notifications fails', async () => {
-      mockPool.execute.mockRejectedValue({});
+      mockExecute.mockRejectedValue({});
 
       await expect(notificationsDb.dismissAllNotifications(1)).rejects.toThrow(
         'Unknown database error dismissing all notifications',
@@ -327,20 +290,6 @@ describe('notificationDb', () => {
   });
 
   describe('addNotification()', () => {
-    let mockTransactionHelper: MockedObject<TransactionHelper>;
-
-    beforeEach(() => {
-      mockTransactionHelper = {
-        executeInTransaction: vi.fn().mockImplementation(async (callback) => {
-          return callback(mockConnection);
-        }),
-      } as unknown as MockedObject<TransactionHelper>;
-
-      vi.mocked(TransactionHelper).mockImplementation(function (this: any) {
-        return mockTransactionHelper;
-      } as any);
-    });
-
     it('should successfully save a notification for all accounts', async () => {
       const notification: CreateNotificationRequest = {
         title: 'Test title',
@@ -468,11 +417,11 @@ describe('notificationDb', () => {
         type: 'general',
       };
 
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await notificationsDb.updateNotification(notification);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE notifications SET title = ?, message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
         ['Updated title', 'Updated message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 'general', 1, null, 123],
       );
@@ -490,7 +439,7 @@ describe('notificationDb', () => {
         type: 'general',
       };
 
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       await expect(notificationsDb.updateNotification(notification)).rejects.toThrow(
         'No notification found with ID 999',
@@ -510,7 +459,7 @@ describe('notificationDb', () => {
       };
 
       const error = new Error('Database error');
-      mockPool.execute.mockRejectedValueOnce(error);
+      mockExecute.mockRejectedValueOnce(error);
 
       await expect(notificationsDb.updateNotification(notification)).rejects.toThrow(
         'Database error updating a notification: Database error',
@@ -533,11 +482,11 @@ describe('notificationDb', () => {
         },
       ] as NotificationRow[];
 
-      mockPool.execute.mockResolvedValueOnce([mockNotifications]);
+      mockExecute.mockResolvedValueOnce([mockNotifications]);
 
       const result = await notificationsDb.getAllNotifications({ expired: false });
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM notifications WHERE end_date > NOW() ORDER BY start_date DESC LIMIT 50 OFFSET 0',
         [],
       );
@@ -580,11 +529,11 @@ describe('notificationDb', () => {
         },
       ] as NotificationRow[];
 
-      mockPool.execute.mockResolvedValueOnce([mockNotifications]);
+      mockExecute.mockResolvedValueOnce([mockNotifications]);
 
       const result = await notificationsDb.getAllNotifications({ expired: true }, 10, 5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM notifications ORDER BY start_date DESC LIMIT 10 OFFSET 5',
         [],
       );
@@ -615,11 +564,11 @@ describe('notificationDb', () => {
 
     it('should filter by type', async () => {
       const mockNotifications = [] as NotificationRow[];
-      mockPool.execute.mockResolvedValueOnce([mockNotifications]);
+      mockExecute.mockResolvedValueOnce([mockNotifications]);
 
       await notificationsDb.getAllNotifications({ expired: false, type: 'maintenance' });
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM notifications WHERE end_date > NOW() AND type = ? ORDER BY start_date DESC LIMIT 50 OFFSET 0',
         ['maintenance'],
       );
@@ -627,7 +576,7 @@ describe('notificationDb', () => {
 
     it('should filter by date range', async () => {
       const mockNotifications = [] as NotificationRow[];
-      mockPool.execute.mockResolvedValueOnce([mockNotifications]);
+      mockExecute.mockResolvedValueOnce([mockNotifications]);
 
       await notificationsDb.getAllNotifications({
         expired: false,
@@ -635,7 +584,7 @@ describe('notificationDb', () => {
         endDate: '2025-12-31',
       });
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM notifications WHERE end_date > NOW() AND start_date >= ? AND end_date <= ? ORDER BY start_date DESC LIMIT 50 OFFSET 0',
         ['2024-12-31 18:00:00', '2025-12-30 18:00:00'],
       );
@@ -643,7 +592,7 @@ describe('notificationDb', () => {
 
     it('should handle database errors correctly', async () => {
       const error = new Error('Database error');
-      mockPool.execute.mockRejectedValueOnce(error);
+      mockExecute.mockRejectedValueOnce(error);
 
       await expect(notificationsDb.getAllNotifications({ expired: false })).rejects.toThrow(
         'Database error getting all notifications: Database error',
@@ -653,11 +602,11 @@ describe('notificationDb', () => {
 
   describe('getNotificationsCount()', () => {
     it('should get count of active notifications', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ total: 5 }]]);
+      mockExecute.mockResolvedValueOnce([[{ total: 5 }]]);
 
       const result = await notificationsDb.getNotificationsCount({ expired: false });
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT COUNT(*) AS total FROM notifications WHERE end_date > NOW()',
         [],
       );
@@ -665,7 +614,7 @@ describe('notificationDb', () => {
     });
 
     it('should get count with filters', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ total: 2 }]]);
+      mockExecute.mockResolvedValueOnce([[{ total: 2 }]]);
 
       const result = await notificationsDb.getNotificationsCount({
         expired: false,
@@ -673,7 +622,7 @@ describe('notificationDb', () => {
         startDate: '2025-01-01',
       });
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT COUNT(*) AS total FROM notifications WHERE end_date > NOW() AND type = ? AND start_date >= ?',
         ['maintenance', '2024-12-31 18:00:00'],
       );
@@ -682,7 +631,7 @@ describe('notificationDb', () => {
 
     it('should handle database errors correctly', async () => {
       const error = new Error('Database error');
-      mockPool.execute.mockRejectedValueOnce(error);
+      mockExecute.mockRejectedValueOnce(error);
 
       await expect(notificationsDb.getNotificationsCount({ expired: false })).rejects.toThrow(
         'Database error get a count of all notifications: Database error',
@@ -692,22 +641,22 @@ describe('notificationDb', () => {
 
   describe('deleteNotification()', () => {
     it('should successfully delete a notification', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await notificationsDb.deleteNotification(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('DELETE FROM notifications WHERE notification_id = ?', [123]);
+      expect(mockExecute).toHaveBeenCalledWith('DELETE FROM notifications WHERE notification_id = ?', [123]);
     });
 
     it('should throw a NoAffectedRowsError when a notification is not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       await expect(notificationsDb.deleteNotification(999)).rejects.toThrow('No notification found with ID 999');
     });
 
     it('should handle database errors correctly', async () => {
       const error = new Error('Database error');
-      mockPool.execute.mockRejectedValueOnce(error);
+      mockExecute.mockRejectedValueOnce(error);
 
       await expect(notificationsDb.deleteNotification(123)).rejects.toThrow(
         'Database error deleting a notification: Database error',

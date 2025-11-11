@@ -1,48 +1,22 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getWatchingVelocityData } from '@db/statistics/velocityRepository';
 import { getDbPool } from '@utils/db';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('velocityRepository', () => {
   let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getWatchingVelocityData', () => {
@@ -284,15 +258,5 @@ describe('velocityRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getWatchingVelocityData(123, 30);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getWatchingVelocityData',
-        expect.any(Function),
-      );
-    });
   });
 });

@@ -9,19 +9,18 @@ import {
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@db/episodesDb');
-vi.mock('@db/seasonsDb');
-vi.mock('@db/showsDb');
-vi.mock('@services/errorService');
-vi.mock('@services/showService');
-vi.mock('@services/watchStatusService');
+jest.mock('@db/episodesDb');
+jest.mock('@db/seasonsDb');
+jest.mock('@db/showsDb');
+jest.mock('@services/errorService');
+jest.mock('@services/showService');
+jest.mock('@services/watchStatusService');
 
-vi.mock('@logger/logger', () => ({
+jest.mock('@logger/logger', () => ({
   appLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
 }));
 
@@ -34,7 +33,7 @@ describe('episodesService', () => {
   const status = WatchStatus.WATCHED;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     resetEpisodesService();
     episodesService = createEpisodesService();
   });
@@ -48,15 +47,15 @@ describe('episodesService', () => {
       const mockNextUnwatchedEpisodes = [{ show_id: 1, episodes: [{ episode_id: 789 }] }];
       const mockShow = { id: 1, title: 'Show 1' };
 
-      (watchStatusService.updateEpisodeWatchStatus as Mock).mockResolvedValue({
+      (watchStatusService.updateEpisodeWatchStatus as jest.Mock).mockResolvedValue({
         success: true,
         message: 'Episode test message',
         affectedRows: 1,
         changes: [{}, {}],
       });
 
-      (showService.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
-      (showService.getShowDetailsForProfileByChild as Mock).mockResolvedValue(mockShow);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+      (showService.getShowDetailsForProfileByChild as jest.Mock).mockResolvedValue(mockShow);
 
       const result = await episodesService.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
@@ -77,8 +76,8 @@ describe('episodesService', () => {
     it('should handle database errors', async () => {
       const mockError = new Error('Database error');
 
-      (watchStatusService.updateEpisodeWatchStatus as Mock).mockRejectedValue(mockError);
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (watchStatusService.updateEpisodeWatchStatus as jest.Mock).mockRejectedValue(mockError);
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -99,7 +98,7 @@ describe('episodesService', () => {
         { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED' },
       ];
 
-      (episodesDb.getEpisodesForSeason as Mock).mockResolvedValue(mockEpisodes);
+      (episodesDb.getEpisodesForSeason as jest.Mock).mockResolvedValue(mockEpisodes);
 
       const result = await episodesService.getEpisodesForSeason(profileId, seasonId);
 
@@ -110,8 +109,8 @@ describe('episodesService', () => {
     it('should handle database errors', async () => {
       const mockError = new Error('Database error');
 
-      (episodesDb.getEpisodesForSeason as Mock).mockRejectedValue(mockError);
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (episodesDb.getEpisodesForSeason as jest.Mock).mockRejectedValue(mockError);
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -133,7 +132,7 @@ describe('episodesService', () => {
         { id: 2, title: 'Upcoming Episode 2', air_date: '2025-05-08' },
       ];
 
-      (episodesDb.getUpcomingEpisodesForProfile as Mock).mockResolvedValue(mockUpcomingEpisodes);
+      (episodesDb.getUpcomingEpisodesForProfile as jest.Mock).mockResolvedValue(mockUpcomingEpisodes);
 
       const result = await episodesService.getUpcomingEpisodesForProfile(profileId);
 
@@ -144,8 +143,8 @@ describe('episodesService', () => {
     it('should handle database errors', async () => {
       const mockError = new Error('Database error');
 
-      (episodesDb.getUpcomingEpisodesForProfile as Mock).mockRejectedValue(mockError);
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (episodesDb.getUpcomingEpisodesForProfile as jest.Mock).mockRejectedValue(mockError);
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -162,7 +161,7 @@ describe('episodesService', () => {
         { id: 2, title: 'Recent Episode 2', air_date: '2025-04-12' },
       ];
 
-      (episodesDb.getRecentEpisodesForProfile as Mock).mockResolvedValue(mockRecentEpisodes);
+      (episodesDb.getRecentEpisodesForProfile as jest.Mock).mockResolvedValue(mockRecentEpisodes);
 
       const result = await episodesService.getRecentEpisodesForProfile(profileId);
 
@@ -173,8 +172,8 @@ describe('episodesService', () => {
     it('should handle database errors', async () => {
       const mockError = new Error('Database error');
 
-      (episodesDb.getRecentEpisodesForProfile as Mock).mockRejectedValue(mockError);
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (episodesDb.getRecentEpisodesForProfile as jest.Mock).mockRejectedValue(mockError);
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -186,7 +185,7 @@ describe('episodesService', () => {
 
   describe('updateEpisode', () => {
     beforeEach(() => {
-      vi.clearAllMocks();
+      jest.clearAllMocks();
     });
 
     it('should update an episode successfully', async () => {
@@ -206,7 +205,7 @@ describe('episodesService', () => {
 
       const updatedEpisode = 500;
 
-      vi.spyOn(episodesDb, 'updateEpisode').mockResolvedValue(updatedEpisode);
+      jest.spyOn(episodesDb, 'updateEpisode').mockResolvedValue(updatedEpisode);
 
       const result = await episodesService.updateEpisode(episodeData);
 
@@ -231,8 +230,8 @@ describe('episodesService', () => {
 
       const error = new Error('Database error');
 
-      vi.spyOn(episodesDb, 'updateEpisode').mockRejectedValue(error);
-      vi.spyOn(errorService, 'handleError').mockImplementation((err) => {
+      jest.spyOn(episodesDb, 'updateEpisode').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
         throw err;
       });
 
@@ -243,11 +242,11 @@ describe('episodesService', () => {
 
   describe('addEpisodeToFavorites', () => {
     beforeEach(() => {
-      vi.clearAllMocks();
+      jest.clearAllMocks();
     });
 
     it('should add an episode to favorites with the default status', async () => {
-      vi.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
+      jest.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
 
       await episodesService.addEpisodeToFavorites(profileId, episodeId);
 
@@ -255,7 +254,7 @@ describe('episodesService', () => {
     });
 
     it('should add an episode to favorites with the provided status', async () => {
-      vi.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
+      jest.spyOn(episodesDb, 'saveFavorite').mockResolvedValue(undefined);
 
       await episodesService.addEpisodeToFavorites(profileId, episodeId, WatchStatus.UNAIRED);
 
@@ -265,8 +264,8 @@ describe('episodesService', () => {
     it('should handle errors when adding an episode to favorites', async () => {
       const error = new Error('Database error');
 
-      vi.spyOn(episodesDb, 'saveFavorite').mockRejectedValue(error);
-      vi.spyOn(errorService, 'handleError').mockImplementation((err) => {
+      jest.spyOn(episodesDb, 'saveFavorite').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
         throw err;
       });
 

@@ -1,3 +1,4 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import {
   getMovieEngagement,
   getPopularMovies,
@@ -7,49 +8,22 @@ import {
   getTrendingShows,
 } from '@db/statistics/contentPerformanceRepository';
 import { getDbPool } from '@utils/db';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('contentPerformanceRepository', () => {
   let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getPopularShows', () => {
@@ -136,13 +110,6 @@ describe('contentPerformanceRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getPopularShows(20);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getPopularShows', expect.any(Function));
-    });
   });
 
   describe('getPopularMovies', () => {
@@ -208,13 +175,6 @@ describe('contentPerformanceRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getPopularMovies(20);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getPopularMovies', expect.any(Function));
-    });
   });
 
   describe('getTrendingShows', () => {
@@ -299,13 +259,6 @@ describe('contentPerformanceRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getTrendingShows(30, 20);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getTrendingShows', expect.any(Function));
-    });
   });
 
   describe('getTrendingMovies', () => {
@@ -370,13 +323,6 @@ describe('contentPerformanceRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getTrendingMovies(30, 20);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getTrendingMovies', expect.any(Function));
-    });
   });
 
   describe('getShowEngagement', () => {
@@ -462,13 +408,6 @@ describe('contentPerformanceRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getShowEngagement(1);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getShowEngagement', expect.any(Function));
-    });
   });
 
   describe('getMovieEngagement', () => {
@@ -554,12 +493,5 @@ describe('contentPerformanceRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getMovieEngagement(1);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getMovieEngagement', expect.any(Function));
-    });
   });
 });

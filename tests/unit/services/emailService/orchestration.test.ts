@@ -5,7 +5,6 @@ import { appLogger } from '@logger/logger';
 import { emailDeliveryService } from '@services/email/emailDeliveryService';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
-import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Email Orchestration', () => {
   beforeEach(() => {
@@ -28,8 +27,8 @@ describe('EmailService - Email Orchestration', () => {
         scheduledDate: null,
       };
 
-      (emailDb.getEmailRecipients as Mock).mockResolvedValue(mockEmailRecipients);
-      (emailDeliveryService.sendEmail as Mock).mockResolvedValue(undefined);
+      (emailDb.getEmailRecipients as jest.Mock).mockResolvedValue(mockEmailRecipients);
+      (emailDeliveryService.sendEmail as jest.Mock).mockResolvedValue(undefined);
 
       const result = await emailService.sendScheduleOrSaveEmail(mockEmailData);
 
@@ -95,7 +94,7 @@ describe('EmailService - Email Orchestration', () => {
         scheduledDate: null,
       };
 
-      (emailDb.createEmail as Mock).mockResolvedValue(0);
+      (emailDb.createEmail as jest.Mock).mockResolvedValue(0);
 
       await expect(emailService.sendScheduleOrSaveEmail(mockEmailData)).rejects.toThrow(
         'Failed to save email record to database',
@@ -113,7 +112,7 @@ describe('EmailService - Email Orchestration', () => {
         scheduledDate: null,
       };
 
-      (emailDb.createEmail as Mock).mockRejectedValue(mockError);
+      (emailDb.createEmail as jest.Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendScheduleOrSaveEmail(mockEmailData)).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'sendScheduleOrSaveEmail');

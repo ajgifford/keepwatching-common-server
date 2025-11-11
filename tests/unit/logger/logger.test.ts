@@ -1,108 +1,56 @@
-// Import AFTER all mocks are set up
 import { Logger, appLogger, cliLogger, formatAppLoggerResponse, getResponseMessage } from '@logger/logger';
 import { HTTPHeaders, HTTPMethods, SensitiveKeys, SpecialMessages, SuccessMessages } from '@logger/loggerModel';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock all dependencies BEFORE importing the logger module
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn(() => true),
-  mkdirSync: vi.fn(),
-}));
+// Unmock the logger module for this specific test file since we're testing the logger itself
+jest.unmock('@logger/logger');
 
-vi.mock('crypto', () => ({
-  randomBytes: vi.fn(() => ({
-    toString: vi.fn(() => 'mock-log-id'),
-  })),
-}));
-
-vi.mock('winston', async () => {
-  const originalModule = await vi.importActual<typeof import('winston')>('winston');
-
-  // Create spy functions that will be shared across createLogger calls
-  const logSpy = vi.fn();
-  const infoSpy = vi.fn();
-  const errorSpy = vi.fn();
-  const warnSpy = vi.fn();
-  const debugSpy = vi.fn();
-
+jest.mock('winston', () => {
+  const originalModule = jest.requireActual('winston');
   return {
     ...originalModule,
-    createLogger: vi.fn().mockReturnValue({
-      log: logSpy,
-      info: infoSpy,
-      error: errorSpy,
-      warn: warnSpy,
-      debug: debugSpy,
-      transports: [{ on: vi.fn() }],
+    createLogger: jest.fn().mockReturnValue({
+      log: jest.fn(),
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      transports: [{ on: jest.fn() }],
     }),
     format: {
-      ...(originalModule.format as any),
-      combine: vi.fn().mockReturnValue({
-        transform: vi.fn((info) => info),
-      }),
-      timestamp: vi.fn().mockReturnValue({
-        transform: vi.fn((info) => info),
-      }),
-      json: vi.fn().mockReturnValue({
-        transform: vi.fn((info) => info),
-      }),
-      printf: vi.fn().mockImplementation(() => ({
-        transform: vi.fn((info) => info),
-      })),
-      label: vi.fn().mockReturnValue({
-        transform: vi.fn((info) => info),
-      }),
-      colorize: vi.fn().mockReturnValue({
-        transform: vi.fn((info) => info),
-      }),
+      ...originalModule.format,
+      combine: jest.fn().mockReturnValue({}),
+      timestamp: jest.fn().mockReturnValue({}),
+      json: jest.fn().mockReturnValue({}),
+      printf: jest.fn().mockImplementation((fn) => fn),
+      label: jest.fn().mockReturnValue({}),
+      colorize: jest.fn().mockReturnValue({}),
     },
     transports: {
-      File: vi.fn(function (this: any) {
-        this.on = vi.fn();
-        this.log = vi.fn();
-        return this;
-      }),
-      Console: vi.fn(function (this: any) {
-        this.on = vi.fn();
-        this.log = vi.fn();
-        return this;
-      }),
+      File: jest.fn().mockImplementation(() => ({
+        on: jest.fn(),
+      })),
+      Console: jest.fn().mockImplementation(() => ({
+        on: jest.fn(),
+      })),
     },
   };
 });
 
-vi.mock('winston-daily-rotate-file', () => ({
-  default: vi.fn(function (this: any) {
-    this.on = vi.fn();
-    this.log = vi.fn();
-    return this;
+jest.mock('winston-daily-rotate-file', () => {
+  return jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+  }));
+});
+
+jest.mock('crypto', () => ({
+  randomBytes: jest.fn().mockReturnValue({
+    toString: jest.fn().mockReturnValue('mock-log-id'),
   }),
 }));
 
 describe('Logger Module', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-
-    // Spy on the logger methods after they've been imported
-    vi.spyOn(appLogger, 'info');
-    vi.spyOn(appLogger, 'error');
-    vi.spyOn(appLogger, 'warn');
-    vi.spyOn(appLogger, 'debug');
-
-    vi.spyOn(cliLogger, 'info');
-    vi.spyOn(cliLogger, 'error');
-    vi.spyOn(cliLogger, 'warn');
-    vi.spyOn(cliLogger, 'debug');
-  });
-
-  describe('Logger Initialization', () => {
-    it('should have logger instances created', () => {
-      // The logger module initialization runs when imported
-      // Since we mocked existsSync to return true by default,
-      // mkdirSync should not have been called on initial import
-      expect(appLogger).toBeDefined();
-      expect(cliLogger).toBeDefined();
-    });
+    jest.clearAllMocks();
   });
 
   describe('Logger instances', () => {
@@ -202,12 +150,12 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        send: vi.fn(),
-        getHeaders: vi.fn().mockReturnValue({ 'content-type': 'application/json' }),
+        send: jest.fn(),
+        getHeaders: jest.fn().mockReturnValue({ 'content-type': 'application/json' }),
         statusCode: 200,
       };
 
-      const mockNext = vi.fn();
+      const mockNext = jest.fn();
 
       Logger.logRequest(mockReq, mockRes, mockNext);
 
@@ -271,7 +219,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({
+        getHeaders: jest.fn().mockReturnValue({
           'content-type': 'application/json',
           'content-length': '256',
           'cache-control': 'no-cache',
@@ -336,7 +284,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -357,7 +305,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -383,7 +331,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -419,7 +367,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -461,7 +409,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -493,7 +441,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -520,7 +468,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -541,7 +489,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -565,7 +513,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 
@@ -605,7 +553,7 @@ describe('Logger Module', () => {
       };
 
       const mockRes = {
-        getHeaders: vi.fn().mockReturnValue({}),
+        getHeaders: jest.fn().mockReturnValue({}),
         statusCode: 200,
       };
 

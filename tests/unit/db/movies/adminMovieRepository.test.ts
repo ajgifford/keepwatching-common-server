@@ -1,47 +1,31 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => {
-  const mockPool = {
-    execute: vi.fn(),
-  };
-  return {
-    getDbPool: vi.fn(() => mockPool),
-  };
-});
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('adminMovieRepository', () => {
-  let mockPool: any;
+  let mockExecute: jest.Mock;
 
   beforeEach(() => {
-    mockPool = getDbPool();
-    mockPool.execute.mockReset();
+    jest.clearAllMocks();
+
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
   });
 
   describe('getMoviesCount', () => {
     it('should return the total count of movies', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ total: 42 }]]);
+      mockExecute.mockResolvedValueOnce([[{ total: 42 }]]);
 
       const count = await moviesDb.getMoviesCount();
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT COUNT(DISTINCT m.id) AS total FROM movies m');
+      expect(mockExecute).toHaveBeenCalledWith('SELECT COUNT(DISTINCT m.id) AS total FROM movies m');
       expect(count).toBe(42);
     });
 
     it('should throw DatabaseError when count fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(moviesDb.getMoviesCount()).rejects.toThrow(
         'Database error getting the count of movies: Database connection failed',
@@ -53,11 +37,11 @@ describe('adminMovieRepository', () => {
     const profileId = 5;
 
     it('should return the count of movies for a specific profile', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ total: 15 }]]);
+      mockExecute.mockResolvedValueOnce([[{ total: 15 }]]);
 
       const count = await moviesDb.getMoviesCountByProfile(profileId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT COUNT(DISTINCT m.movie_id) AS total FROM profile_movies m WHERE m.profile_id = ?',
         [profileId],
       );
@@ -66,7 +50,7 @@ describe('adminMovieRepository', () => {
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Query execution failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(moviesDb.getMoviesCountByProfile(profileId)).rejects.toThrow(
         'Database error getting the count of movies for a profile: Query execution failed',
@@ -97,11 +81,11 @@ describe('adminMovieRepository', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockMovieRows]);
+      mockExecute.mockResolvedValueOnce([mockMovieRows]);
 
       const movies = await moviesDb.getAllMoviesByProfile(profileId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM admin_profile_movies WHERE profile_id = ? ORDER BY title asc LIMIT 50 OFFSET 0',
         [profileId],
       );
@@ -130,21 +114,21 @@ describe('adminMovieRepository', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockMovieRows]);
+      mockExecute.mockResolvedValueOnce([mockMovieRows]);
 
       const limit = 25;
       const offset = 10;
       const movies = await moviesDb.getAllMoviesByProfile(profileId, limit, offset);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`), [profileId]);
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`), [profileId]);
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY title asc'), [profileId]);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`), [profileId]);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`), [profileId]);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY title asc'), [profileId]);
       expect(movies).toHaveLength(1);
     });
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Connection timeout');
-      mockPool.execute.mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(moviesDb.getAllMoviesByProfile(profileId)).rejects.toThrow(
         'Database error getting all movies for a profile: Connection timeout',
@@ -189,12 +173,12 @@ describe('adminMovieRepository', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockMovieRows]);
+      mockExecute.mockResolvedValueOnce([mockMovieRows]);
 
       const movies = await moviesDb.getAllMovies();
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movies LIMIT 50 OFFSET 0');
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM admin_movies LIMIT 50 OFFSET 0');
       expect(movies).toHaveLength(2);
       expect(movies[0].id).toBe(1);
       expect(movies[0].tmdbId).toBe(12345);
@@ -205,7 +189,7 @@ describe('adminMovieRepository', () => {
     });
 
     it('should return movies with custom pagination', async () => {
-      mockPool.execute.mockResolvedValueOnce([
+      mockExecute.mockResolvedValueOnce([
         [
           {
             id: 3,
@@ -230,14 +214,14 @@ describe('adminMovieRepository', () => {
       const offset = 20;
       const movies = await moviesDb.getAllMovies(limit, offset);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`));
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`));
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`));
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`));
       expect(movies).toHaveLength(1);
     });
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(moviesDb.getAllMovies()).rejects.toThrow(
         'Database error getting all movies: Database connection failed',
@@ -268,11 +252,11 @@ describe('adminMovieRepository', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockReferenceRows]);
+      mockExecute.mockResolvedValueOnce([mockReferenceRows]);
 
       const references = await moviesDb.getAllMoviesReferences();
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM movies');
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM movies');
       expect(references).toHaveLength(3);
       expect(references[0]).toEqual({
         id: 1,
@@ -285,17 +269,17 @@ describe('adminMovieRepository', () => {
     });
 
     it('should return empty array when no movies exist', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const references = await moviesDb.getAllMoviesReferences();
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM movies');
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM movies');
       expect(references).toEqual([]);
     });
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Database unavailable');
-      mockPool.execute.mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(moviesDb.getAllMoviesReferences()).rejects.toThrow(
         'Database error getting all movies references: Database unavailable',
@@ -323,11 +307,11 @@ describe('adminMovieRepository', () => {
     };
 
     it('should return movie details when found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[mockMovieRow]]);
+      mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
 
       const movie = await moviesDb.getMovieDetails(movieId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_details WHERE id = ?', [movieId]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM admin_movie_details WHERE id = ?', [movieId]);
       expect(movie).toEqual({
         id: movieId,
         tmdbId: 45678,
@@ -346,15 +330,15 @@ describe('adminMovieRepository', () => {
     });
 
     it('should throw NotFoundError when movie is not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       await expect(moviesDb.getMovieDetails(movieId)).rejects.toThrow(`Movie with ID ${movieId} not found`);
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_details WHERE id = ?', [movieId]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM admin_movie_details WHERE id = ?', [movieId]);
     });
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Query execution failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(moviesDb.getMovieDetails(movieId)).rejects.toThrow(
         'Database error getMovieDetails(123): Query execution failed',
@@ -388,11 +372,11 @@ describe('adminMovieRepository', () => {
     ];
 
     it('should return profiles watching a movie', async () => {
-      mockPool.execute.mockResolvedValueOnce([mockProfiles]);
+      mockExecute.mockResolvedValueOnce([mockProfiles]);
 
       const profiles = await moviesDb.getMovieProfiles(movieId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_profiles WHERE movie_id = ?', [movieId]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM admin_movie_profiles WHERE movie_id = ?', [movieId]);
       expect(profiles).toHaveLength(2);
       expect(profiles[0]).toEqual({
         profileId: 1,
@@ -408,17 +392,17 @@ describe('adminMovieRepository', () => {
     });
 
     it('should return empty array when no profiles are found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const profiles = await moviesDb.getMovieProfiles(movieId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM admin_movie_profiles WHERE movie_id = ?', [movieId]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM admin_movie_profiles WHERE movie_id = ?', [movieId]);
       expect(profiles).toEqual([]);
     });
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Query execution failed');
-      mockPool.execute.mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(moviesDb.getMovieProfiles(movieId)).rejects.toThrow(
         'Database error getMovieProfiles(123): Query execution failed',

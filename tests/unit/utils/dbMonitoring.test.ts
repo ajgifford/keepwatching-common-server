@@ -1,6 +1,5 @@
 import { DbMonitor } from '../../../src/utils/dbMonitoring';
 import { InMemoryStatsStore } from '../../../src/utils/stores/InMemoryStatsStore';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('DbMonitor', () => {
   let store: InMemoryStatsStore;
@@ -14,7 +13,7 @@ describe('DbMonitor', () => {
 
   describe('executeWithTiming', () => {
     it('should execute the query function and return its result', async () => {
-      const mockQuery = vi.fn().mockResolvedValue({ id: 1, name: 'Test' });
+      const mockQuery = jest.fn().mockResolvedValue({ id: 1, name: 'Test' });
 
       const result = await monitor.executeWithTiming('testQuery', mockQuery);
 
@@ -23,7 +22,7 @@ describe('DbMonitor', () => {
     });
 
     it('should record query execution statistics', async () => {
-      const mockQuery = vi.fn().mockResolvedValue('success');
+      const mockQuery = jest.fn().mockResolvedValue('success');
 
       await monitor.executeWithTiming('testQuery', mockQuery);
 
@@ -35,7 +34,7 @@ describe('DbMonitor', () => {
     });
 
     it('should track multiple executions of the same query', async () => {
-      const mockQuery = vi.fn().mockResolvedValue('success');
+      const mockQuery = jest.fn().mockResolvedValue('success');
 
       await monitor.executeWithTiming('testQuery', mockQuery);
       await monitor.executeWithTiming('testQuery', mockQuery);
@@ -47,8 +46,8 @@ describe('DbMonitor', () => {
     });
 
     it('should track different queries separately', async () => {
-      const query1 = vi.fn().mockResolvedValue('result1');
-      const query2 = vi.fn().mockResolvedValue('result2');
+      const query1 = jest.fn().mockResolvedValue('result1');
+      const query2 = jest.fn().mockResolvedValue('result2');
 
       await monitor.executeWithTiming('query1', query1);
       await monitor.executeWithTiming('query2', query2);
@@ -61,12 +60,12 @@ describe('DbMonitor', () => {
 
     it('should calculate average and max execution times correctly', async () => {
       // Simulate queries with different execution times
-      const slowQuery = vi.fn(async () => {
+      const slowQuery = jest.fn(async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         return 'slow';
       });
 
-      const fastQuery = vi.fn().mockResolvedValue('fast');
+      const fastQuery = jest.fn().mockResolvedValue('fast');
 
       await monitor.executeWithTiming('slowQuery', slowQuery);
       await monitor.executeWithTiming('fastQuery', fastQuery);
@@ -81,13 +80,13 @@ describe('DbMonitor', () => {
     });
 
     it('should rethrow errors from failed queries', async () => {
-      const failingQuery = vi.fn().mockRejectedValue(new Error('Query failed'));
+      const failingQuery = jest.fn().mockRejectedValue(new Error('Query failed'));
 
       await expect(monitor.executeWithTiming('failingQuery', failingQuery)).rejects.toThrow('Query failed');
     });
 
     it('should record execution time even when query fails', async () => {
-      const failingQuery = vi.fn().mockRejectedValue(new Error('Query failed'));
+      const failingQuery = jest.fn().mockRejectedValue(new Error('Query failed'));
 
       try {
         await monitor.executeWithTiming('failingQuery', failingQuery);
@@ -112,7 +111,7 @@ describe('DbMonitor', () => {
     });
 
     it('should return all recorded query statistics', async () => {
-      const query = vi.fn().mockResolvedValue('success');
+      const query = jest.fn().mockResolvedValue('success');
 
       await monitor.executeWithTiming('query1', query);
       await monitor.executeWithTiming('query2', query);
@@ -125,7 +124,7 @@ describe('DbMonitor', () => {
     it('should return stats sorted by total time descending', async () => {
       // Execute queries with varying counts to create different total times
       // Add small delays to ensure measurable execution times
-      const query = vi.fn(async () => {
+      const query = jest.fn(async () => {
         await new Promise((resolve) => setTimeout(resolve, 2));
         return 'success';
       });
@@ -160,7 +159,7 @@ describe('DbMonitor', () => {
 
   describe('clearStats', () => {
     it('should remove all recorded statistics', async () => {
-      const query = vi.fn().mockResolvedValue('success');
+      const query = jest.fn().mockResolvedValue('success');
 
       await monitor.executeWithTiming('query1', query);
       await monitor.executeWithTiming('query2', query);
@@ -177,7 +176,7 @@ describe('DbMonitor', () => {
 
   describe('disconnect', () => {
     it('should call disconnect on the store', async () => {
-      const disconnectSpy = vi.spyOn(store, 'disconnect');
+      const disconnectSpy = jest.spyOn(store, 'disconnect');
 
       await monitor.disconnect();
 
@@ -187,7 +186,7 @@ describe('DbMonitor', () => {
 
   describe('InMemoryStatsStore helpers', () => {
     it('should provide hasQuery helper for testing', async () => {
-      const query = vi.fn().mockResolvedValue('success');
+      const query = jest.fn().mockResolvedValue('success');
 
       expect(store.hasQuery('testQuery')).toBe(false);
 
@@ -197,7 +196,7 @@ describe('DbMonitor', () => {
     });
 
     it('should provide getQueryStat helper for detailed inspection', async () => {
-      const query = vi.fn().mockResolvedValue('success');
+      const query = jest.fn().mockResolvedValue('success');
 
       await monitor.executeWithTiming('testQuery', query);
       await monitor.executeWithTiming('testQuery', query);

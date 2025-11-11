@@ -1,55 +1,32 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { CreateMovieRequest, UpdateMovieRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
 import { getDbPool } from '@utils/db';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => {
-  const mockPool = {
-    execute: vi.fn(),
-  };
-  return {
-    getDbPool: vi.fn(() => mockPool),
-  };
-});
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
-
-// Create a shared mock instance that will be returned by the TransactionHelper constructor
-const mockTransactionHelperInstance = {
-  executeInTransaction: vi.fn(),
-};
-
-vi.mock('@utils/transactionHelper', () => {
-  return {
-    TransactionHelper: class {
-      executeInTransaction = mockTransactionHelperInstance.executeInTransaction;
-    },
-  };
-});
+import { TransactionHelper } from '@utils/transactionHelper';
 
 describe('movieRepository', () => {
-  let mockPool: any;
+  let mockExecute: jest.Mock;
   let mockConnection: any;
+  let mockTransactionHelper: jest.Mocked<TransactionHelper>;
 
   beforeEach(() => {
-    mockPool = getDbPool();
-    mockPool.execute.mockReset();
+    jest.clearAllMocks();
 
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockTransactionHelper = mocks.mockTransactionHelper;
+
+    // Setup mock connection with custom default behavior
     mockConnection = {
-      execute: vi.fn().mockResolvedValue([{ insertId: 1 }]),
+      ...mocks.mockConnection,
+      execute: jest.fn().mockResolvedValue([{ insertId: 1 }]),
     };
 
-    // Reset and configure the mock transaction helper
-    mockTransactionHelperInstance.executeInTransaction.mockReset();
-    mockTransactionHelperInstance.executeInTransaction.mockImplementation((callback: any) => callback(mockConnection));
+    // Override the transaction helper to use our customized mockConnection
+    mockTransactionHelper.executeInTransaction.mockImplementation(async (callback) => {
+      return callback(mockConnection);
+    });
   });
 
   describe('saveMovie', () => {
@@ -81,7 +58,7 @@ describe('movieRepository', () => {
 
       const result = await moviesDb.saveMovie(movieData);
 
-      expect(mockTransactionHelperInstance.executeInTransaction).toHaveBeenCalled();
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalled();
 
       expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT into movies'), [
         12345,
@@ -165,7 +142,7 @@ describe('movieRepository', () => {
       };
 
       const dbError = new Error('Database connection failed');
-      mockTransactionHelperInstance.executeInTransaction.mockRejectedValue(dbError);
+      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
 
       await expect(moviesDb.saveMovie(movieData)).rejects.toThrow('Database error saving a movie');
     });
@@ -247,7 +224,7 @@ describe('movieRepository', () => {
       };
 
       const dbError = new Error('Update failed');
-      mockTransactionHelperInstance.executeInTransaction.mockRejectedValue(dbError);
+      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
 
       await expect(moviesDb.updateMovie(movieData)).rejects.toThrow('Database error updating a movie');
     });
@@ -255,11 +232,11 @@ describe('movieRepository', () => {
 
   describe('saveFavorite', () => {
     it('should add a movie to user favorites', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 1 }]);
+      mockExecute.mockResolvedValue([{ affectedRows: 1 }]);
 
       await moviesDb.saveFavorite(123, 456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'INSERT IGNORE INTO movie_watch_status (profile_id, movie_id, status) VALUES (?,?,?)',
         [123, 456, WatchStatus.NOT_WATCHED],
       );
@@ -267,7 +244,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when saving favorite fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.saveFavorite(123, 456)).rejects.toThrow('Database error saving a movie as a favorite');
     });
@@ -275,11 +252,11 @@ describe('movieRepository', () => {
 
   describe('removeFavorite', () => {
     it('should remove a movie from user favorites', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 1 }]);
+      mockExecute.mockResolvedValue([{ affectedRows: 1 }]);
 
       await moviesDb.removeFavorite(123, 456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'DELETE FROM movie_watch_status WHERE profile_id = ? AND movie_id = ?',
         [123, 456],
       );
@@ -287,7 +264,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when removing favorite fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.removeFavorite(123, 456)).rejects.toThrow('Database error removing a movie as a favorite');
     });
@@ -295,11 +272,11 @@ describe('movieRepository', () => {
 
   describe('updateWatchStatus', () => {
     it('should update watch status successfully', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 1 }]);
+      mockExecute.mockResolvedValue([{ affectedRows: 1 }]);
 
       const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED');
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?',
         ['WATCHED', 123, 456],
       );
@@ -307,7 +284,7 @@ describe('movieRepository', () => {
     });
 
     it('should return false if no rows were affected', async () => {
-      mockPool.execute.mockResolvedValue([{ affectedRows: 0 }]);
+      mockExecute.mockResolvedValue([{ affectedRows: 0 }]);
 
       const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED');
 
@@ -316,7 +293,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when update fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.updateWatchStatus(123, 456, 'WATCHED')).rejects.toThrow(
         'Database error updating a movie watch status',
@@ -332,11 +309,11 @@ describe('movieRepository', () => {
         title: 'Test Movie',
       };
 
-      mockPool.execute.mockResolvedValue([[mockMovie]]);
+      mockExecute.mockResolvedValue([[mockMovie]]);
 
       const result = await moviesDb.findMovieById(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, title, tmdb_id FROM movies WHERE id = ?', [123]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, title, tmdb_id FROM movies WHERE id = ?', [123]);
       expect(result).toEqual({
         id: 123,
         tmdbId: 12345,
@@ -345,17 +322,17 @@ describe('movieRepository', () => {
     });
 
     it('should return null if movie not found', async () => {
-      mockPool.execute.mockResolvedValue([[]]);
+      mockExecute.mockResolvedValue([[]]);
 
       const result = await moviesDb.findMovieById(999);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, title, tmdb_id FROM movies WHERE id = ?', [999]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, title, tmdb_id FROM movies WHERE id = ?', [999]);
       expect(result).toBeNull();
     });
 
     it('should throw DatabaseError when search fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.findMovieById(123)).rejects.toThrow('Database error finding a movie by id');
     });
@@ -370,11 +347,11 @@ describe('movieRepository', () => {
         release_date: '2025-01-01',
       };
 
-      mockPool.execute.mockResolvedValue([[mockMovie]]);
+      mockExecute.mockResolvedValue([[mockMovie]]);
 
       const result = await moviesDb.findMovieByTMDBId(12345);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT id, title, tmdb_id, release_date FROM movies WHERE tmdb_id = ?',
         [12345],
       );
@@ -387,11 +364,11 @@ describe('movieRepository', () => {
     });
 
     it('should return null if movie not found', async () => {
-      mockPool.execute.mockResolvedValue([[]]);
+      mockExecute.mockResolvedValue([[]]);
 
       const result = await moviesDb.findMovieByTMDBId(99999);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT id, title, tmdb_id, release_date FROM movies WHERE tmdb_id = ?',
         [99999],
       );
@@ -400,7 +377,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when search fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.findMovieByTMDBId(12345)).rejects.toThrow('Database error finding a movie by TMDB id');
     });
@@ -477,17 +454,17 @@ describe('movieRepository', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValue([profileMovies]);
+      mockExecute.mockResolvedValue([profileMovies]);
 
       const result = await moviesDb.getAllMoviesForProfile(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM profile_movies where profile_id = ?', [123]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM profile_movies where profile_id = ?', [123]);
       expect(result).toEqual(expectedMovies);
     });
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getAllMoviesForProfile(123)).rejects.toThrow(
         'Database error getting all movies for a profile',
@@ -530,11 +507,11 @@ describe('movieRepository', () => {
         streamingServices: 'Netflix, Disney+',
       };
 
-      mockPool.execute.mockResolvedValue([[profileMovie]]);
+      mockExecute.mockResolvedValue([[profileMovie]]);
 
       const result = await moviesDb.getMovieForProfile(123, 456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM profile_movies where profile_id = ? AND movie_id = ?',
         [123, 456],
       );
@@ -543,7 +520,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getMovieForProfile(123, 456)).rejects.toThrow(
         'Database error getting a movie for a profile',
@@ -594,11 +571,11 @@ describe('movieRepository', () => {
         revenue: 23456700,
       };
 
-      mockPool.execute.mockResolvedValue([[profileMovie]]);
+      mockExecute.mockResolvedValue([[profileMovie]]);
 
       const result = await moviesDb.getMovieDetailsForProfile(123, 456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM profile_movies_details where profile_id = ? AND movie_id = ?',
         [123, 456],
       );
@@ -607,7 +584,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getMovieDetailsForProfile(123, 456)).rejects.toThrow(
         'Database error getting a movie with details for a profile',
@@ -620,11 +597,11 @@ describe('movieRepository', () => {
       const recentMovies = [{ id: 1 }, { id: 2 }];
       const expectedMovies = [{ id: 1 }, { id: 2 }];
 
-      mockPool.execute.mockResolvedValue([recentMovies]);
+      mockExecute.mockResolvedValue([recentMovies]);
 
       const result = await moviesDb.getRecentMovieReleasesForProfile(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining(
           'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN',
         ),
@@ -635,7 +612,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getRecentMovieReleasesForProfile(123)).rejects.toThrow(
         'Database error getting recent movie releases for a profile: Database connection failed',
@@ -648,11 +625,11 @@ describe('movieRepository', () => {
       const upcomingMovies = [{ id: 1 }, { id: 2 }];
       const expectedMovies = [{ id: 1 }, { id: 2 }];
 
-      mockPool.execute.mockResolvedValue([upcomingMovies]);
+      mockExecute.mockResolvedValue([upcomingMovies]);
 
       const result = await moviesDb.getUpcomingMovieReleasesForProfile(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining(
           'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN',
         ),
@@ -663,7 +640,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getUpcomingMovieReleasesForProfile(123)).rejects.toThrow(
         'Database error getting upcoming movie releases for a profile: Database connection failed',
@@ -678,11 +655,11 @@ describe('movieRepository', () => {
         { id: 2, title: 'Movie 2', tmdb_id: 67890, created_at: '2025-02-01', updated_at: '2025-02-01' },
       ];
 
-      mockPool.execute.mockResolvedValue([mockMovies]);
+      mockExecute.mockResolvedValue([mockMovies]);
 
       const result = await moviesDb.getMoviesForUpdates();
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT id, title, tmdb_id, created_at, updated_at FROM movies WHERE release_date > NOW() - INTERVAL 30 DAY',
       );
       expect(result).toEqual(mockMovies);
@@ -690,7 +667,7 @@ describe('movieRepository', () => {
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValue(dbError);
+      mockExecute.mockRejectedValue(dbError);
 
       await expect(moviesDb.getMoviesForUpdates()).rejects.toThrow('Database error getting movies for updates');
     });

@@ -1,7 +1,6 @@
 import { cleanupScheduledJobs, setupMocks } from './helpers/mocks';
 import { emailDeliveryService } from '@services/email/emailDeliveryService';
 import { EmailService, emailService } from '@services/emailService';
-import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Basic Functionality', () => {
   beforeEach(() => {
@@ -27,7 +26,7 @@ describe('EmailService - Basic Functionality', () => {
 
   describe('verifyConnection', () => {
     it('should return true when connection is successful', async () => {
-      (emailDeliveryService.verifyConnection as Mock).mockResolvedValue(true);
+      (emailDeliveryService.verifyConnection as jest.Mock).mockResolvedValue(true);
 
       const result = await emailService.verifyConnection();
 
@@ -36,7 +35,7 @@ describe('EmailService - Basic Functionality', () => {
     });
 
     it('should return false when connection fails', async () => {
-      (emailDeliveryService.verifyConnection as Mock).mockResolvedValue(false);
+      (emailDeliveryService.verifyConnection as jest.Mock).mockResolvedValue(false);
 
       const result = await emailService.verifyConnection();
 

@@ -1,6 +1,5 @@
 import { setupMoviesService } from './helpers/mocks';
 import { profileService } from '@services/profileService';
-import { type Mock, beforeEach, describe, expect, it } from 'vitest';
 
 describe('MoviesService - Cache', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
@@ -19,7 +18,7 @@ describe('MoviesService - Cache', () => {
     ];
 
     it('should invalidate cache for all profiles in an account', async () => {
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValue(mockProfiles);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue(mockProfiles);
 
       await service.invalidateAccountCache(123);
 
@@ -31,7 +30,7 @@ describe('MoviesService - Cache', () => {
     });
 
     it('should handle empty profiles array', async () => {
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValue([]);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([]);
 
       await service.invalidateAccountCache(123);
 
@@ -42,7 +41,7 @@ describe('MoviesService - Cache', () => {
 
     it('should handle errors when fetching profiles', async () => {
       const mockError = new Error('Failed to get profiles');
-      (profileService.getProfilesByAccountId as Mock).mockRejectedValue(mockError);
+      (profileService.getProfilesByAccountId as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.invalidateAccountCache(123)).rejects.toThrow('Failed to get profiles');
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(123);

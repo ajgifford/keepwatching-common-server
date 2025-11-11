@@ -3,7 +3,6 @@ import {
   movieWatchStatusBodySchema,
   removeMovieFavoriteParamSchema,
 } from '@schema/movieSchema';
-import { describe, expect, it } from 'vitest';
 
 describe('movieSchema', () => {
   describe('addMovieFavoriteSchema', () => {

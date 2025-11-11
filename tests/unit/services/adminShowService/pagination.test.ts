@@ -7,34 +7,33 @@ import {
   resetAdminShowService,
 } from '@services/adminShowService';
 import { errorService } from '@services/errorService';
-import { type Mock, MockedObject, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the repositories and services
-vi.mock('@db/showsDb');
-vi.mock('@db/seasonsDb');
-vi.mock('@db/episodesDb');
-vi.mock('@services/cacheService');
-vi.mock('@services/errorService');
-vi.mock('@services/socketService');
-vi.mock('@services/showService');
-vi.mock('@services/tmdbService');
-vi.mock('@utils/db');
-vi.mock('@utils/contentUtility');
-vi.mock('@utils/notificationUtility');
-vi.mock('@utils/watchProvidersUtility');
-vi.mock('@logger/logger', () => ({
+jest.mock('@db/showsDb');
+jest.mock('@db/seasonsDb');
+jest.mock('@db/episodesDb');
+jest.mock('@services/cacheService');
+jest.mock('@services/errorService');
+jest.mock('@services/socketService');
+jest.mock('@services/showService');
+jest.mock('@services/tmdbService');
+jest.mock('@utils/db');
+jest.mock('@utils/contentUtility');
+jest.mock('@utils/notificationUtility');
+jest.mock('@utils/watchProvidersUtility');
+jest.mock('@logger/logger', () => ({
   cliLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
   appLogger: {
-    error: vi.fn(),
+    error: jest.fn(),
   },
 }));
 
 describe('AdminShowService - Pagination', () => {
   let adminShowService: AdminShowService;
-  let mockCacheService: MockedObject<any>;
+  let mockCacheService: jest.Mocked<any>;
 
   const mockPaginationResult = {
     shows: mockShows,
@@ -49,7 +48,7 @@ describe('AdminShowService - Pagination', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetAdminShowService();
 
@@ -58,18 +57,18 @@ describe('AdminShowService - Pagination', () => {
 
     adminShowService = createAdminShowService({ cacheService: mockCacheService as any });
 
-    (errorService.handleError as Mock).mockImplementation((error) => {
+    (errorService.handleError as jest.Mock).mockImplementation((error) => {
       throw error;
     });
 
     // Set up default mocks
-    (showsDb.getAllShows as Mock).mockResolvedValue(mockShows);
-    (showsDb.getShowsCount as Mock).mockResolvedValue(10);
+    (showsDb.getAllShows as jest.Mock).mockResolvedValue(mockShows);
+    (showsDb.getShowsCount as jest.Mock).mockResolvedValue(10);
   });
 
   afterEach(() => {
     resetAdminShowService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getAllShows', () => {
@@ -108,7 +107,7 @@ describe('AdminShowService - Pagination', () => {
 
     it('should calculate pagination correctly', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (showsDb.getShowsCount as Mock).mockResolvedValue(21);
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(21);
 
       const result = await adminShowService.getAllShows(2, 5, 5);
 
@@ -124,7 +123,7 @@ describe('AdminShowService - Pagination', () => {
 
     it('should handle pagination for the last page correctly', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (showsDb.getShowsCount as Mock).mockResolvedValue(20);
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(20);
 
       const result = await adminShowService.getAllShows(4, 15, 5);
 
@@ -140,8 +139,8 @@ describe('AdminShowService - Pagination', () => {
 
     it('should handle edge case with zero shows', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (showsDb.getShowsCount as Mock).mockResolvedValue(0);
-      (showsDb.getAllShows as Mock).mockResolvedValue([]);
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(0);
+      (showsDb.getAllShows as jest.Mock).mockResolvedValue([]);
 
       const result = await adminShowService.getAllShows(1, 0, 10);
 
@@ -160,7 +159,7 @@ describe('AdminShowService - Pagination', () => {
 
     it('should handle different pagination parameters', async () => {
       mockCacheService.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (showsDb.getShowsCount as Mock).mockResolvedValue(100);
+      (showsDb.getShowsCount as jest.Mock).mockResolvedValue(100);
 
       await adminShowService.getAllShows(3, 40, 20);
 
@@ -173,8 +172,8 @@ describe('AdminShowService - Pagination', () => {
     const mockProfileId = 101;
 
     beforeEach(() => {
-      (showsDb.getAllShowsByProfile as Mock).mockResolvedValue(mockShows);
-      (showsDb.getShowsCountByProfile as Mock).mockResolvedValue(10);
+      (showsDb.getAllShowsByProfile as jest.Mock).mockResolvedValue(mockShows);
+      (showsDb.getShowsCountByProfile as jest.Mock).mockResolvedValue(10);
     });
 
     it('should return shows with pagination from cache when available', async () => {
@@ -215,7 +214,7 @@ describe('AdminShowService - Pagination', () => {
 
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
-      (showsDb.getShowsCountByProfile as Mock).mockRejectedValue(error);
+      (showsDb.getShowsCountByProfile as jest.Mock).mockRejectedValue(error);
 
       mockCacheService.getOrSet.mockImplementation(async (_key: string, fetchFn: () => Promise<any>) => {
         return await fetchFn();

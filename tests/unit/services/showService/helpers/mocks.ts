@@ -8,30 +8,29 @@ import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';
 import * as contentUtility from '@utils/contentUtility';
 import * as watchProvidersUtility from '@utils/watchProvidersUtility';
-import { type Mock, vi } from 'vitest';
 
-vi.mock('@db/showsDb');
-vi.mock('@db/seasonsDb');
-vi.mock('@db/episodesDb');
-vi.mock('@services/profileService');
-vi.mock('@services/cacheService');
-vi.mock('@services/errorService');
-vi.mock('@services/notificationsService');
-vi.mock('@services/seasonChangesService');
-vi.mock('@services/socketService');
-vi.mock('@services/tmdbService');
-vi.mock('@utils/db');
-vi.mock('@utils/contentUtility');
-vi.mock('@utils/watchProvidersUtility');
-vi.mock('@services/watchStatusService');
-vi.mock('@logger/logger', () => ({
+jest.mock('@db/showsDb');
+jest.mock('@db/seasonsDb');
+jest.mock('@db/episodesDb');
+jest.mock('@services/profileService');
+jest.mock('@services/cacheService');
+jest.mock('@services/errorService');
+jest.mock('@services/notificationsService');
+jest.mock('@services/seasonChangesService');
+jest.mock('@services/socketService');
+jest.mock('@services/tmdbService');
+jest.mock('@utils/db');
+jest.mock('@utils/contentUtility');
+jest.mock('@utils/watchProvidersUtility');
+jest.mock('@services/watchStatusService');
+jest.mock('@logger/logger', () => ({
   cliLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
   appLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
 }));
 
@@ -40,19 +39,19 @@ vi.mock('@logger/logger', () => ({
  */
 export function createMockCache() {
   return {
-    getOrSet: vi.fn(),
-    get: vi.fn(),
-    set: vi.fn(),
-    invalidate: vi.fn(),
-    invalidatePattern: vi.fn(),
-    invalidateProfileShows: vi.fn(),
-    invalidateAccount: vi.fn(),
-    invalidateProfileMovies: vi.fn(),
-    invalidateProfileStatistics: vi.fn(),
-    invalidateAccountStatistics: vi.fn(),
-    flushAll: vi.fn(),
-    getStats: vi.fn(),
-    keys: vi.fn(),
+    getOrSet: jest.fn(),
+    get: jest.fn(),
+    set: jest.fn(),
+    invalidate: jest.fn(),
+    invalidatePattern: jest.fn(),
+    invalidateProfileShows: jest.fn(),
+    invalidateAccount: jest.fn(),
+    invalidateProfileMovies: jest.fn(),
+    invalidateProfileStatistics: jest.fn(),
+    invalidateAccountStatistics: jest.fn(),
+    flushAll: jest.fn(),
+    getStats: jest.fn(),
+    keys: jest.fn(),
   } as any;
 }
 
@@ -61,15 +60,15 @@ export function createMockCache() {
  */
 export function setupMocks() {
   // Reset all mocks
-  vi.clearAllMocks();
+  jest.clearAllMocks();
 
   // Set up error service to re-throw errors
-  (errorService.handleError as Mock).mockImplementation((error) => {
+  (errorService.handleError as jest.Mock).mockImplementation((error) => {
     throw error;
   });
 
   // Set up assertExists to pass through or throw as needed
-  (errorService.assertExists as Mock).mockImplementation((item) => {
+  (errorService.assertExists as jest.Mock).mockImplementation((item) => {
     if (!item) {
       throw new Error('Item not found');
     }
@@ -77,24 +76,24 @@ export function setupMocks() {
   });
 
   // Set up common content utility mocks
-  (contentUtility.getUSRating as Mock).mockReturnValue('TV-14');
-  (contentUtility.getInProduction as Mock).mockReturnValue(1);
-  (contentUtility.getEpisodeToAirId as Mock).mockReturnValue(null);
-  (contentUtility.getUSNetwork as Mock).mockReturnValue('HBO');
-  (watchProvidersUtility.getUSWatchProvidersShow as Mock).mockReturnValue([8, 9]);
+  (contentUtility.getUSRating as jest.Mock).mockReturnValue('TV-14');
+  (contentUtility.getInProduction as jest.Mock).mockReturnValue(1);
+  (contentUtility.getEpisodeToAirId as jest.Mock).mockReturnValue(null);
+  (contentUtility.getUSNetwork as jest.Mock).mockReturnValue('HBO');
+  (watchProvidersUtility.getUSWatchProvidersShow as jest.Mock).mockReturnValue([8, 9]);
 
   // Set up TMDB service mock with default implementation
-  (getTMDBService as Mock).mockReturnValue({
-    getShowDetails: vi.fn().mockResolvedValue(mockTMDBResponses.showDetails),
-    getSeasonDetails: vi.fn().mockResolvedValue(mockTMDBResponses.seasonDetails),
-    getShowRecommendations: vi.fn().mockResolvedValue(mockTMDBResponses.showRecommendations),
-    getSimilarShows: vi.fn().mockResolvedValue(mockTMDBResponses.similarShows),
-    getShowChanges: vi.fn().mockResolvedValue(mockTMDBResponses.showChanges),
+  (getTMDBService as jest.Mock).mockReturnValue({
+    getShowDetails: jest.fn().mockResolvedValue(mockTMDBResponses.showDetails),
+    getSeasonDetails: jest.fn().mockResolvedValue(mockTMDBResponses.seasonDetails),
+    getShowRecommendations: jest.fn().mockResolvedValue(mockTMDBResponses.showRecommendations),
+    getSimilarShows: jest.fn().mockResolvedValue(mockTMDBResponses.similarShows),
+    getShowChanges: jest.fn().mockResolvedValue(mockTMDBResponses.showChanges),
   });
 
   // Set up Socket service mock with default implementation
-  (socketService.notifyShowsUpdate as Mock).mockImplementation(() => {});
-  (socketService.notifyShowDataLoaded as Mock).mockImplementation(() => {});
+  (socketService.notifyShowsUpdate as jest.Mock).mockImplementation(() => {});
+  (socketService.notifyShowDataLoaded as jest.Mock).mockImplementation(() => {});
 }
 
 /**
@@ -127,17 +126,17 @@ export function setupDbMocks(
   } = {},
 ) {
   // Default showsDb implementations
-  (showsDb.updateShow as Mock).mockResolvedValue(true);
-  (showsDb.saveFavorite as Mock).mockResolvedValue(undefined);
-  (showsDb.getProfilesForShow as Mock).mockResolvedValue([1, 2, 3]);
+  (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
+  (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+  (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue([1, 2, 3]);
 
   // Default seasonsDb implementations
-  (seasonsDb.updateSeason as Mock).mockImplementation((season) => 200 + (season.season_number || 1));
-  (seasonsDb.saveFavorite as Mock).mockResolvedValue(undefined);
+  (seasonsDb.updateSeason as jest.Mock).mockImplementation((season) => 200 + (season.season_number || 1));
+  (seasonsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 
   // Default episodesDb implementations
-  (episodesDb.updateEpisode as Mock).mockImplementation((episode) => 300 + (episode.episode_number || 1));
-  (episodesDb.saveFavorite as Mock).mockResolvedValue(undefined);
+  (episodesDb.updateEpisode as jest.Mock).mockImplementation((episode) => 300 + (episode.episode_number || 1));
+  (episodesDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 
   // Apply any overrides
   if (overrides.showsDb) {
@@ -167,7 +166,7 @@ export const testUtils = {
    * Creates a mock setTimeout that executes immediately
    */
   mockImmediateTimeout: () => {
-    return vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+    return jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
       callback();
       return {} as NodeJS.Timeout;
     });

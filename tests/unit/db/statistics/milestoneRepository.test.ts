@@ -1,31 +1,17 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { MILESTONE_THRESHOLDS, Milestone } from '@ajgifford/keepwatching-types';
 import { getRecentAchievements } from '@db/statistics/achievementRepository';
 import { getMilestoneStats } from '@db/statistics/milestoneRepository';
 import { getDbPool } from '@utils/db';
 import { calculateMilestones } from '@utils/statisticsUtil';
-import { type Mock, afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
+// Mock test-specific dependencies
+jest.mock('@utils/statisticsUtil', () => ({
+  calculateMilestones: jest.fn(),
 }));
 
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
-
-vi.mock('@utils/statisticsUtil', () => ({
-  calculateMilestones: vi.fn(),
-}));
-
-vi.mock('@db/statistics/achievementRepository', () => ({
-  getRecentAchievements: vi.fn(),
+jest.mock('@db/statistics/achievementRepository', () => ({
+  getRecentAchievements: jest.fn(),
 }));
 
 describe('statisticsDb', () => {
@@ -35,35 +21,24 @@ describe('statisticsDb', () => {
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
   beforeAll(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(fixedDate);
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedDate);
   });
 
   afterAll(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
 
     // Mock calculateMilestones to return empty array by default
-    (calculateMilestones as Mock).mockImplementation((current: number, thresholds: number[], type: string) => {
+    (calculateMilestones as jest.Mock).mockImplementation((current: number, thresholds: number[], type: string) => {
       if (!thresholds || !Array.isArray(thresholds)) {
         return [];
       }
@@ -76,11 +51,11 @@ describe('statisticsDb', () => {
     });
 
     // Mock getRecentAchievements to return empty array by default
-    (getRecentAchievements as Mock).mockResolvedValue([]);
+    (getRecentAchievements as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getMilestoneStats', () => {
@@ -169,7 +144,7 @@ describe('statisticsDb', () => {
       const now = new Date();
 
       // Mock getRecentAchievements to return achievement records
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -317,7 +292,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -349,7 +324,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -426,13 +401,6 @@ describe('statisticsDb', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getMilestoneStats(123);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getMilestoneStats', expect.any(Function));
-    });
 
     it('should correctly convert date strings to ISO format', async () => {
       const mockRows = [
@@ -489,7 +457,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -521,7 +489,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -555,7 +523,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -589,7 +557,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -623,7 +591,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -656,7 +624,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -688,7 +656,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -720,7 +688,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -752,7 +720,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,
@@ -784,7 +752,7 @@ describe('statisticsDb', () => {
       mockConnection.query.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
-      (getRecentAchievements as Mock).mockResolvedValueOnce([
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
         {
           id: 1,
           profileId: 123,

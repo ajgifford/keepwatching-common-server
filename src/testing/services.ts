@@ -18,7 +18,6 @@ import {
   MockSocketService,
   createTypedServiceMock,
 } from './mockFactory';
-import { vi } from 'vitest';
 
 // Create and export mock services that can be used by external projects
 export const accountService = createTypedServiceMock<MockAccountService>([
@@ -184,46 +183,46 @@ export const scheduledJobsService = createTypedServiceMock<MockScheduledJobsServ
 
 // Custom implementations for services that need special handling
 export const errorService: MockErrorService = {
-  handleError: vi.fn((error) => {
+  handleError: jest.fn((error) => {
     throw error;
   }),
-  assertExists: vi.fn((item, entityName, id) => {
+  assertExists: jest.fn((item, entityName, id) => {
     if (!item) throw new Error(`${entityName} with ID ${id} not found`);
     return item;
   }),
-  assertNotExists: vi.fn((item, entityName, fieldName, fieldValue) => {
+  assertNotExists: jest.fn((item, entityName, fieldName, fieldValue) => {
     if (item) throw new Error(`${entityName} with ${fieldName} ${fieldValue} already exists`);
   }),
 };
 
 // Socket service mock
 export const socketService: MockSocketService = {
-  getInstance: vi.fn(() => socketService),
-  initialize: vi.fn(),
-  notifyShowsUpdate: vi.fn(),
-  notifyMoviesUpdate: vi.fn(),
-  notifyShowDataLoaded: vi.fn(),
-  disconnectUserSockets: vi.fn(),
-  isInitialized: vi.fn(() => true),
-  getServer: vi.fn(),
+  getInstance: jest.fn(() => socketService),
+  initialize: jest.fn(),
+  notifyShowsUpdate: jest.fn(),
+  notifyMoviesUpdate: jest.fn(),
+  notifyShowDataLoaded: jest.fn(),
+  disconnectUserSockets: jest.fn(),
+  isInitialized: jest.fn(() => true),
+  getServer: jest.fn(),
 };
 
 // Factory function for CacheService mock
 export const mockCacheService = (): MockCacheService => ({
-  getOrSet: vi.fn().mockImplementation((key, fn) => fn()),
-  get: vi.fn(),
-  set: vi.fn(),
-  invalidate: vi.fn(),
-  invalidatePattern: vi.fn(),
-  invalidateAccount: vi.fn(),
-  invalidateProfile: vi.fn(),
-  invalidateProfileShows: vi.fn(),
-  invalidateProfileMovies: vi.fn(),
-  invalidateProfileStatistics: vi.fn(),
-  invalidateAccountStatistics: vi.fn(),
-  flushAll: vi.fn(),
-  getStats: vi.fn(),
-  keys: vi.fn(),
+  getOrSet: jest.fn().mockImplementation((key, fn) => fn()),
+  get: jest.fn(),
+  set: jest.fn(),
+  invalidate: jest.fn(),
+  invalidatePattern: jest.fn(),
+  invalidateAccount: jest.fn(),
+  invalidateProfile: jest.fn(),
+  invalidateProfileShows: jest.fn(),
+  invalidateProfileMovies: jest.fn(),
+  invalidateProfileStatistics: jest.fn(),
+  invalidateAccountStatistics: jest.fn(),
+  flushAll: jest.fn(),
+  getStats: jest.fn(),
+  keys: jest.fn(),
 });
 
 // CacheService class with mock implementation
@@ -258,45 +257,45 @@ export class CacheService {
   keys = (...args: any[]) => this.mockImpl.keys(...args);
 }
 
-export const getTMDBService = vi.fn(() => ({
-  searchShows: vi.fn(),
-  searchMovies: vi.fn(),
-  getShowDetails: vi.fn(),
-  getMovieDetails: vi.fn(),
-  getSeasonDetails: vi.fn(),
-  getTrending: vi.fn(),
-  getShowRecommendations: vi.fn(),
-  getMovieRecommendations: vi.fn(),
-  getSimilarShows: vi.fn(),
-  getSimilarMovies: vi.fn(),
-  getShowChanges: vi.fn(),
-  getMovieChanges: vi.fn(),
-  getSeasonChanges: vi.fn(),
-  clearCache: vi.fn(),
+export const getTMDBService = jest.fn(() => ({
+  searchShows: jest.fn(),
+  searchMovies: jest.fn(),
+  getShowDetails: jest.fn(),
+  getMovieDetails: jest.fn(),
+  getSeasonDetails: jest.fn(),
+  getTrending: jest.fn(),
+  getShowRecommendations: jest.fn(),
+  getMovieRecommendations: jest.fn(),
+  getSimilarShows: jest.fn(),
+  getSimilarMovies: jest.fn(),
+  getShowChanges: jest.fn(),
+  getMovieChanges: jest.fn(),
+  getSeasonChanges: jest.fn(),
+  clearCache: jest.fn(),
 }));
 
 export const databaseService = {
-  getInstance: vi.fn().mockReturnThis(),
-  getPool: vi.fn().mockReturnValue({
-    execute: vi.fn().mockResolvedValue([[], []]),
-    query: vi.fn().mockResolvedValue([[], []]),
-    getConnection: vi.fn().mockResolvedValue({
-      beginTransaction: vi.fn().mockResolvedValue(undefined),
-      commit: vi.fn().mockResolvedValue(undefined),
-      rollback: vi.fn().mockResolvedValue(undefined),
-      release: vi.fn(),
-      execute: vi.fn().mockResolvedValue([[], []]),
-      query: vi.fn().mockResolvedValue([[], []]),
+  getInstance: jest.fn().mockReturnThis(),
+  getPool: jest.fn().mockReturnValue({
+    execute: jest.fn().mockResolvedValue([[], []]),
+    query: jest.fn().mockResolvedValue([[], []]),
+    getConnection: jest.fn().mockResolvedValue({
+      beginTransaction: jest.fn().mockResolvedValue(undefined),
+      commit: jest.fn().mockResolvedValue(undefined),
+      rollback: jest.fn().mockResolvedValue(undefined),
+      release: jest.fn(),
+      execute: jest.fn().mockResolvedValue([[], []]),
+      query: jest.fn().mockResolvedValue([[], []]),
     }),
-    end: vi.fn().mockResolvedValue(undefined),
+    end: jest.fn().mockResolvedValue(undefined),
   }),
-  isInShutdownMode: vi.fn().mockReturnValue(false),
-  shutdown: vi.fn().mockResolvedValue(undefined),
+  isInShutdownMode: jest.fn().mockReturnValue(false),
+  shutdown: jest.fn().mockResolvedValue(undefined),
   static: {
-    reset: vi.fn(),
+    reset: jest.fn(),
   },
   // Helper for setting up test data
-  setupMockData: vi.fn((data = {}) => {
+  setupMockData: jest.fn((data = {}) => {
     databaseService.getPool().query.mockImplementation((sql: any) => {
       // Simple parsing of SQL to determine which table's data to return
       const tableMatch = sql.toString().match(/from\s+(\w+)/i);
@@ -317,7 +316,7 @@ export const databaseService = {
     });
   }),
   // Helper to reset mocks
-  clearMocks: vi.fn(() => {
+  clearMocks: jest.fn(() => {
     databaseService.getPool().query.mockReset().mockResolvedValue([[], []]);
     databaseService.getPool().execute.mockReset().mockResolvedValue([[], []]);
   }),

@@ -9,15 +9,14 @@ import {
   notificationsService,
   resetNotificationsService,
 } from '@services/notificationsService';
-import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@db/notificationsDb');
-vi.mock('@services/errorService');
-vi.mock('@services/cacheService');
+jest.mock('@db/notificationsDb');
+jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
 
 describe('notificationsService', () => {
   let service: NotificationsService;
-  let mockCacheService: MockedObject<any>;
+  let mockCacheService: jest.Mocked<any>;
 
   const mockAccountNotifications = [
     {
@@ -93,14 +92,14 @@ describe('notificationsService', () => {
   ];
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetNotificationsService();
 
     mockCacheService = {
-      getOrSet: vi.fn(),
-      invalidate: vi.fn(),
-      invalidatePattern: vi.fn(),
+      getOrSet: jest.fn(),
+      invalidate: jest.fn(),
+      invalidatePattern: jest.fn(),
     };
 
     // Default implementation for cache.getOrSet - calls the fetch function
@@ -108,7 +107,7 @@ describe('notificationsService', () => {
       return await fetchFn();
     });
 
-    (errorService.handleError as Mock).mockImplementation((error) => {
+    (errorService.handleError as jest.Mock).mockImplementation((error) => {
       throw error;
     });
 
@@ -117,12 +116,12 @@ describe('notificationsService', () => {
 
   afterEach(() => {
     resetNotificationsService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getNotifications', () => {
     it('should return notifications for an account that are not dismissed', async () => {
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await service.getNotifications(123);
 
@@ -131,7 +130,7 @@ describe('notificationsService', () => {
     });
 
     it('should return all notifications for an account (dismissed or not)', async () => {
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAllAccountNotifications);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAllAccountNotifications);
 
       const result = await service.getNotifications(123, true);
 
@@ -140,7 +139,7 @@ describe('notificationsService', () => {
     });
 
     it('should handle empty notifications array', async () => {
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue([]);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getNotifications(123);
 
@@ -150,7 +149,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error');
-      (notificationsDb.getNotificationsForAccount as Mock).mockRejectedValue(mockError);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.getNotifications(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getNotifications(123, false)');
@@ -159,8 +158,8 @@ describe('notificationsService', () => {
 
   describe('markNotificationRead', () => {
     it('should mark a notification as read successfully', async () => {
-      (notificationsDb.markNotificationRead as Mock).mockResolvedValue(true);
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
+      (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await service.markNotificationRead(1, 123);
 
@@ -170,8 +169,8 @@ describe('notificationsService', () => {
     });
 
     it('should mark a notification as unread successfully', async () => {
-      (notificationsDb.markNotificationRead as Mock).mockResolvedValue(true);
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
+      (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await service.markNotificationRead(1, 123, false);
 
@@ -181,7 +180,7 @@ describe('notificationsService', () => {
     });
 
     it('should fail to mark a notification read', async () => {
-      (notificationsDb.markNotificationRead as Mock).mockResolvedValue(false);
+      (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notification was marked read');
 
       await expect(service.markNotificationRead(1, 123)).rejects.toThrow(
@@ -192,7 +191,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during mark read');
-      (notificationsDb.markNotificationRead as Mock).mockRejectedValue(mockError);
+      (notificationsDb.markNotificationRead as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.markNotificationRead(1, 123)).rejects.toThrow(
         'Database error during mark read',
@@ -203,8 +202,8 @@ describe('notificationsService', () => {
 
   describe('markAllNotificationsRead', () => {
     it('should mark all notifications as read successfully', async () => {
-      (notificationsDb.markAllNotificationsRead as Mock).mockResolvedValue(true);
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await service.markAllNotificationsRead(123);
 
@@ -214,8 +213,8 @@ describe('notificationsService', () => {
     });
 
     it('should mark all notifications as unread successfully', async () => {
-      (notificationsDb.markAllNotificationsRead as Mock).mockResolvedValue(true);
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await service.markAllNotificationsRead(123, false);
 
@@ -225,7 +224,7 @@ describe('notificationsService', () => {
     });
 
     it('should fail to mark all notifications read', async () => {
-      (notificationsDb.markAllNotificationsRead as Mock).mockResolvedValue(false);
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notifications were marked read');
 
       await expect(service.markAllNotificationsRead(123)).rejects.toThrow(
@@ -236,7 +235,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during marking read');
-      (notificationsDb.markAllNotificationsRead as Mock).mockRejectedValue(mockError);
+      (notificationsDb.markAllNotificationsRead as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.markAllNotificationsRead(123)).rejects.toThrow(
         'Database error during marking read',
@@ -247,8 +246,8 @@ describe('notificationsService', () => {
 
   describe('dismissNotification', () => {
     it('should dismiss a notification successfully', async () => {
-      (notificationsDb.dismissNotification as Mock).mockResolvedValue(true);
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
+      (notificationsDb.dismissNotification as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await service.dismissNotification(1, 123);
 
@@ -258,7 +257,7 @@ describe('notificationsService', () => {
     });
 
     it('should fail to dismiss a notification', async () => {
-      (notificationsDb.dismissNotification as Mock).mockResolvedValue(false);
+      (notificationsDb.dismissNotification as jest.Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notification was dismissed');
 
       await expect(service.dismissNotification(1, 123)).rejects.toThrow('No notification was dismissed');
@@ -267,7 +266,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during dismissal');
-      (notificationsDb.dismissNotification as Mock).mockRejectedValue(mockError);
+      (notificationsDb.dismissNotification as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.dismissNotification(1, 123)).rejects.toThrow('Database error during dismissal');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissNotification(1, 123, false)');
@@ -276,8 +275,8 @@ describe('notificationsService', () => {
 
   describe('dismissAllNotifications', () => {
     it('should dismiss all notifications successfully', async () => {
-      (notificationsDb.dismissAllNotifications as Mock).mockResolvedValue(true);
-      (notificationsDb.getNotificationsForAccount as Mock).mockResolvedValue(mockAccountNotifications);
+      (notificationsDb.dismissAllNotifications as jest.Mock).mockResolvedValue(true);
+      (notificationsDb.getNotificationsForAccount as jest.Mock).mockResolvedValue(mockAccountNotifications);
 
       const result = await service.dismissAllNotifications(123);
 
@@ -287,7 +286,7 @@ describe('notificationsService', () => {
     });
 
     it('should fail to dismiss all notifications', async () => {
-      (notificationsDb.dismissAllNotifications as Mock).mockResolvedValue(false);
+      (notificationsDb.dismissAllNotifications as jest.Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notifications were dismissed');
 
       await expect(service.dismissAllNotifications(123)).rejects.toThrow(
@@ -298,7 +297,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during dismissal');
-      (notificationsDb.dismissAllNotifications as Mock).mockRejectedValue(mockError);
+      (notificationsDb.dismissAllNotifications as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.dismissAllNotifications(123)).rejects.toThrow(
         'Database error during dismissal',
@@ -309,8 +308,8 @@ describe('notificationsService', () => {
 
   describe('getAllNotifications', () => {
     it('should return all notifications, including expired', async () => {
-      (notificationsDb.getNotificationsCount as Mock).mockResolvedValue(3);
-      (notificationsDb.getAllNotifications as Mock).mockResolvedValue(mockAdminNotifications);
+      (notificationsDb.getNotificationsCount as jest.Mock).mockResolvedValue(3);
+      (notificationsDb.getAllNotifications as jest.Mock).mockResolvedValue(mockAdminNotifications);
 
       const result = await service.getAllNotifications({ expired: true }, 1, 1, 25);
 
@@ -331,8 +330,8 @@ describe('notificationsService', () => {
     });
 
     it('should return all notifications, excluding expired', async () => {
-      (notificationsDb.getNotificationsCount as Mock).mockResolvedValue(3);
-      (notificationsDb.getAllNotifications as Mock).mockResolvedValue(mockAdminNotifications);
+      (notificationsDb.getNotificationsCount as jest.Mock).mockResolvedValue(3);
+      (notificationsDb.getAllNotifications as jest.Mock).mockResolvedValue(mockAdminNotifications);
 
       const result = await service.getAllNotifications({ expired: false }, 1, 1, 25);
 
@@ -353,8 +352,8 @@ describe('notificationsService', () => {
     });
 
     it('should handle empty notifications array', async () => {
-      (notificationsDb.getNotificationsCount as Mock).mockResolvedValue(0);
-      (notificationsDb.getAllNotifications as Mock).mockResolvedValue([]);
+      (notificationsDb.getNotificationsCount as jest.Mock).mockResolvedValue(0);
+      (notificationsDb.getAllNotifications as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getAllNotifications({ expired: true }, 1, 1, 25);
 
@@ -376,7 +375,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error');
-      (notificationsDb.getAllNotifications as Mock).mockRejectedValue(mockError);
+      (notificationsDb.getAllNotifications as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.getAllNotifications({ expired: true }, 1, 1, 25)).rejects.toThrow(
         'Database error',
@@ -397,7 +396,7 @@ describe('notificationsService', () => {
         type: 'general',
       };
 
-      (notificationsDb.addNotification as Mock).mockResolvedValue(undefined);
+      (notificationsDb.addNotification as jest.Mock).mockResolvedValue(undefined);
 
       await service.addNotification(mockNotification);
 
@@ -415,7 +414,7 @@ describe('notificationsService', () => {
         type: 'general',
       };
 
-      (notificationsDb.addNotification as Mock).mockResolvedValue(undefined);
+      (notificationsDb.addNotification as jest.Mock).mockResolvedValue(undefined);
 
       await service.addNotification(mockNotification);
 
@@ -424,7 +423,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during add');
-      (notificationsDb.addNotification as Mock).mockRejectedValue(mockError);
+      (notificationsDb.addNotification as jest.Mock).mockRejectedValue(mockError);
 
       await expect(
         service.addNotification({
@@ -457,7 +456,7 @@ describe('notificationsService', () => {
         id: 13,
       };
 
-      (notificationsDb.updateNotification as Mock).mockResolvedValue(mockNotification);
+      (notificationsDb.updateNotification as jest.Mock).mockResolvedValue(mockNotification);
 
       await service.updateNotification(mockNotification);
 
@@ -474,7 +473,7 @@ describe('notificationsService', () => {
         notification_id: 13,
       };
 
-      (notificationsDb.updateNotification as Mock).mockResolvedValue(mockNotification);
+      (notificationsDb.updateNotification as jest.Mock).mockResolvedValue(mockNotification);
 
       const updateRequest: UpdateNotificationRequest = {
         title: 'Test title',
@@ -493,7 +492,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during update');
-      (notificationsDb.updateNotification as Mock).mockRejectedValue(mockError);
+      (notificationsDb.updateNotification as jest.Mock).mockRejectedValue(mockError);
 
       const updateRequest: UpdateNotificationRequest = {
         title: 'title',
@@ -517,7 +516,7 @@ describe('notificationsService', () => {
 
   describe('deleteNotification', () => {
     it('should delete a notification successfully', async () => {
-      (notificationsDb.deleteNotification as Mock).mockResolvedValue(undefined);
+      (notificationsDb.deleteNotification as jest.Mock).mockResolvedValue(undefined);
 
       await service.deleteNotification(1);
 
@@ -526,7 +525,7 @@ describe('notificationsService', () => {
 
     it('should propagate database errors through errorService', async () => {
       const mockError = new Error('Database error during delete');
-      (notificationsDb.deleteNotification as Mock).mockRejectedValue(mockError);
+      (notificationsDb.deleteNotification as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.deleteNotification(1)).rejects.toThrow('Database error during delete');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'deleteNotification(1)');

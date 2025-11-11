@@ -13,30 +13,29 @@ import {
   createPreferencesService,
   resetPreferencesService,
 } from '@services/preferencesService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the database module
-vi.mock('@db/preferencesDb');
-vi.mock('@services/errorService');
+jest.mock('@db/preferencesDb');
+jest.mock('@services/errorService');
 
 describe('PreferencesService', () => {
   let service: PreferencesService;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetPreferencesService();
 
     service = createPreferencesService();
 
-    (errorService.handleError as Mock).mockImplementation((error) => {
+    (errorService.handleError as jest.Mock).mockImplementation((error) => {
       throw error;
     });
   });
 
   afterEach(() => {
     resetPreferencesService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getAccountPreferences', () => {
@@ -61,7 +60,7 @@ describe('PreferencesService', () => {
 
     it('should return account preferences successfully', async () => {
       const accountId = 123;
-      (preferencesDb.getAccountPreferences as Mock).mockResolvedValue(mockAccountPreferences);
+      (preferencesDb.getAccountPreferences as jest.Mock).mockResolvedValue(mockAccountPreferences);
 
       const result = await service.getAccountPreferences(accountId);
 
@@ -74,7 +73,7 @@ describe('PreferencesService', () => {
       const accountId = 123;
       const dbError = new Error('Database connection failed');
 
-      (preferencesDb.getAccountPreferences as Mock).mockRejectedValue(dbError);
+      (preferencesDb.getAccountPreferences as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.getAccountPreferences(accountId)).rejects.toThrow(dbError);
 
@@ -93,7 +92,7 @@ describe('PreferencesService', () => {
       const accountId = 123;
       const preferenceType: PreferenceType = 'email';
 
-      (preferencesDb.getPreferencesByType as Mock).mockResolvedValue(mockEmailPreferences);
+      (preferencesDb.getPreferencesByType as jest.Mock).mockResolvedValue(mockEmailPreferences);
 
       const result = await service.getPreferencesByType(accountId, preferenceType);
 
@@ -107,7 +106,7 @@ describe('PreferencesService', () => {
       const preferenceType: PreferenceType = 'email';
       const dbError = new Error('Database error');
 
-      (preferencesDb.getPreferencesByType as Mock).mockRejectedValue(dbError);
+      (preferencesDb.getPreferencesByType as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.getPreferencesByType(accountId, preferenceType)).rejects.toThrow(dbError);
 
@@ -141,8 +140,8 @@ describe('PreferencesService', () => {
       const preferenceType: PreferenceType = 'email';
       const updates = { weeklyDigest: false };
 
-      (preferencesDb.updatePreferences as Mock).mockResolvedValue(true);
-      (preferencesDb.getAccountPreferences as Mock).mockResolvedValue(mockAccountPreferences);
+      (preferencesDb.updatePreferences as jest.Mock).mockResolvedValue(true);
+      (preferencesDb.getAccountPreferences as jest.Mock).mockResolvedValue(mockAccountPreferences);
 
       const result = await service.updatePreferences(accountId, preferenceType, updates);
 
@@ -156,7 +155,7 @@ describe('PreferencesService', () => {
       const preferenceType: PreferenceType = 'email';
       const updates = { weeklyDigest: false };
 
-      (preferencesDb.updatePreferences as Mock).mockResolvedValue(false);
+      (preferencesDb.updatePreferences as jest.Mock).mockResolvedValue(false);
 
       await expect(service.updatePreferences(accountId, preferenceType, updates)).rejects.toThrow(NoAffectedRowsError);
 
@@ -170,7 +169,7 @@ describe('PreferencesService', () => {
       const updates = { weeklyDigest: false };
       const dbError = new Error('Update failed');
 
-      (preferencesDb.updatePreferences as Mock).mockRejectedValue(dbError);
+      (preferencesDb.updatePreferences as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.updatePreferences(accountId, preferenceType, updates)).rejects.toThrow(dbError);
 
@@ -187,8 +186,8 @@ describe('PreferencesService', () => {
       const updates = { weeklyDigest: false };
       const dbError = new Error('Get preferences failed');
 
-      (preferencesDb.updatePreferences as Mock).mockResolvedValue(true);
-      (preferencesDb.getAccountPreferences as Mock).mockRejectedValue(dbError);
+      (preferencesDb.updatePreferences as jest.Mock).mockResolvedValue(true);
+      (preferencesDb.getAccountPreferences as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.updatePreferences(accountId, preferenceType, updates)).rejects.toThrow(dbError);
 
@@ -225,8 +224,8 @@ describe('PreferencesService', () => {
         display: { theme: 'dark' },
       };
 
-      (preferencesDb.updateMultiplePreferences as Mock).mockResolvedValue(true);
-      (preferencesDb.getAccountPreferences as Mock).mockResolvedValue(mockAccountPreferences);
+      (preferencesDb.updateMultiplePreferences as jest.Mock).mockResolvedValue(true);
+      (preferencesDb.getAccountPreferences as jest.Mock).mockResolvedValue(mockAccountPreferences);
 
       const result = await service.updateMultiplePreferences(accountId, updates);
 
@@ -241,7 +240,7 @@ describe('PreferencesService', () => {
         email: { weeklyDigest: true },
       };
 
-      (preferencesDb.updateMultiplePreferences as Mock).mockResolvedValue(false);
+      (preferencesDb.updateMultiplePreferences as jest.Mock).mockResolvedValue(false);
 
       await expect(service.updateMultiplePreferences(accountId, updates)).rejects.toThrow(NoAffectedRowsError);
 
@@ -256,7 +255,7 @@ describe('PreferencesService', () => {
       };
       const dbError = new Error('Multiple update failed');
 
-      (preferencesDb.updateMultiplePreferences as Mock).mockRejectedValue(dbError);
+      (preferencesDb.updateMultiplePreferences as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.updateMultiplePreferences(accountId, updates)).rejects.toThrow(dbError);
 
@@ -269,7 +268,7 @@ describe('PreferencesService', () => {
     it('should initialize default preferences successfully', async () => {
       const accountId = 123;
 
-      (preferencesDb.initializeDefaultPreferences as Mock).mockResolvedValue(accountId);
+      (preferencesDb.initializeDefaultPreferences as jest.Mock).mockResolvedValue(accountId);
 
       await service.initializeDefaultPreferences(accountId);
 
@@ -281,7 +280,7 @@ describe('PreferencesService', () => {
       const accountId = 123;
       const dbError = new Error('Initialize failed');
 
-      (preferencesDb.initializeDefaultPreferences as Mock).mockRejectedValue(dbError);
+      (preferencesDb.initializeDefaultPreferences as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.initializeDefaultPreferences(accountId)).rejects.toThrow(dbError);
 
@@ -294,7 +293,7 @@ describe('PreferencesService', () => {
     it('should delete account preferences successfully', async () => {
       const accountId = 123;
 
-      (preferencesDb.deleteAccountPreferences as Mock).mockResolvedValue(accountId);
+      (preferencesDb.deleteAccountPreferences as jest.Mock).mockResolvedValue(accountId);
 
       await service.deleteAccountPreferences(accountId);
 
@@ -306,7 +305,7 @@ describe('PreferencesService', () => {
       const accountId = 123;
       const dbError = new Error('Delete failed');
 
-      (preferencesDb.deleteAccountPreferences as Mock).mockRejectedValue(dbError);
+      (preferencesDb.deleteAccountPreferences as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.deleteAccountPreferences(accountId)).rejects.toThrow(dbError);
 
@@ -332,7 +331,7 @@ describe('PreferencesService', () => {
     it('should return accounts with email preference successfully (default value true)', async () => {
       const preferenceKey: keyof EmailPreferences = 'weeklyDigest';
 
-      (preferencesDb.getAccountsWithEmailPreference as Mock).mockResolvedValue(mockAccountReferences);
+      (preferencesDb.getAccountsWithEmailPreference as jest.Mock).mockResolvedValue(mockAccountReferences);
 
       const result = await service.getAccountsWithEmailPreference(preferenceKey);
 
@@ -345,7 +344,7 @@ describe('PreferencesService', () => {
       const preferenceKey: keyof EmailPreferences = 'marketingEmails';
       const value = false;
 
-      (preferencesDb.getAccountsWithEmailPreference as Mock).mockResolvedValue(mockAccountReferences);
+      (preferencesDb.getAccountsWithEmailPreference as jest.Mock).mockResolvedValue(mockAccountReferences);
 
       const result = await service.getAccountsWithEmailPreference(preferenceKey, value);
 
@@ -357,7 +356,7 @@ describe('PreferencesService', () => {
     it('should return empty array when no accounts match', async () => {
       const preferenceKey: keyof EmailPreferences = 'weeklyDigest';
 
-      (preferencesDb.getAccountsWithEmailPreference as Mock).mockResolvedValue([]);
+      (preferencesDb.getAccountsWithEmailPreference as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getAccountsWithEmailPreference(preferenceKey);
 
@@ -370,7 +369,7 @@ describe('PreferencesService', () => {
       const value = true;
       const dbError = new Error('Query failed');
 
-      (preferencesDb.getAccountsWithEmailPreference as Mock).mockRejectedValue(dbError);
+      (preferencesDb.getAccountsWithEmailPreference as jest.Mock).mockRejectedValue(dbError);
 
       await expect(service.getAccountsWithEmailPreference(preferenceKey, value)).rejects.toThrow(dbError);
 
@@ -388,42 +387,42 @@ describe('PreferencesService', () => {
       const dbError = new Error('Test error');
       const handledError = new Error('Handled error');
 
-      (errorService.handleError as Mock).mockReturnValue(handledError);
+      (errorService.handleError as jest.Mock).mockReturnValue(handledError);
 
       // Test all methods that use errorService.handleError
       const testCases = [
         () => {
-          (preferencesDb.getAccountPreferences as Mock).mockRejectedValue(dbError);
+          (preferencesDb.getAccountPreferences as jest.Mock).mockRejectedValue(dbError);
           return service.getAccountPreferences(accountId);
         },
         () => {
-          (preferencesDb.getPreferencesByType as Mock).mockRejectedValue(dbError);
+          (preferencesDb.getPreferencesByType as jest.Mock).mockRejectedValue(dbError);
           return service.getPreferencesByType(accountId, 'email');
         },
         () => {
-          (preferencesDb.updatePreferences as Mock).mockRejectedValue(dbError);
+          (preferencesDb.updatePreferences as jest.Mock).mockRejectedValue(dbError);
           return service.updatePreferences(accountId, 'email', {});
         },
         () => {
-          (preferencesDb.updateMultiplePreferences as Mock).mockRejectedValue(dbError);
+          (preferencesDb.updateMultiplePreferences as jest.Mock).mockRejectedValue(dbError);
           return service.updateMultiplePreferences(accountId, {});
         },
         () => {
-          (preferencesDb.initializeDefaultPreferences as Mock).mockRejectedValue(dbError);
+          (preferencesDb.initializeDefaultPreferences as jest.Mock).mockRejectedValue(dbError);
           return service.initializeDefaultPreferences(accountId);
         },
         () => {
-          (preferencesDb.deleteAccountPreferences as Mock).mockRejectedValue(dbError);
+          (preferencesDb.deleteAccountPreferences as jest.Mock).mockRejectedValue(dbError);
           return service.deleteAccountPreferences(accountId);
         },
         () => {
-          (preferencesDb.getAccountsWithEmailPreference as Mock).mockRejectedValue(dbError);
+          (preferencesDb.getAccountsWithEmailPreference as jest.Mock).mockRejectedValue(dbError);
           return service.getAccountsWithEmailPreference('weeklyDigest');
         },
       ];
 
       for (const testCase of testCases) {
-        vi.clearAllMocks();
+        jest.clearAllMocks();
         await expect(testCase()).rejects.toThrow(handledError);
         expect(errorService.handleError).toHaveBeenCalledWith(dbError, expect.stringContaining('('));
       }

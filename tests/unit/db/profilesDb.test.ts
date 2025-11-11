@@ -1,35 +1,18 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import * as profilesDb from '@db/profilesDb';
 import { ResultSetHeader } from 'mysql2';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { mockExecute, mockGetDbPool } = vi.hoisted(() => {
-  const mockExecute = vi.fn();
-  const mockQuery = vi.fn();
-  const mockGetDbPool = vi.fn(() => ({
-    execute: mockExecute,
-    query: mockQuery,
-  }));
-
-  return { mockExecute, mockQuery, mockGetDbPool };
-});
-
-vi.mock('@utils/db', () => ({
-  getDbPool: mockGetDbPool,
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('profileDb', () => {
+  let mockExecute: jest.Mock;
+  let mockQuery: jest.Mock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
+
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockQuery = mocks.mockQuery;
   });
 
   describe('saveProfile()', () => {

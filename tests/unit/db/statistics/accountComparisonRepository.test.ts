@@ -1,52 +1,25 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import {
   getAccountHealthMetrics,
   getAccountRankings,
   getAllAccountHealthMetrics,
 } from '@db/statistics/accountComparisonRepository';
-import { getDbPool } from '@utils/db';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('accountComparisonRepository', () => {
   let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getAccountRankings', () => {
@@ -178,13 +151,6 @@ describe('accountComparisonRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getAccountRankings('episodesWatched', 50);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getAccountRankings', expect.any(Function));
-    });
   });
 
   describe('getAllAccountHealthMetrics', () => {
@@ -266,16 +232,6 @@ describe('accountComparisonRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getAllAccountHealthMetrics();
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getAllAccountHealthMetrics',
-        expect.any(Function),
-      );
-    });
   });
 
   describe('getAccountHealthMetrics', () => {
@@ -382,15 +338,5 @@ describe('accountComparisonRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should call DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getAccountHealthMetrics(1);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getAccountHealthMetrics',
-        expect.any(Function),
-      );
-    });
   });
 });

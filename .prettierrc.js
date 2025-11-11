@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   singleQuote: true,
   proseWrap: 'always',
   printWidth: 120,

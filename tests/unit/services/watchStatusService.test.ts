@@ -9,34 +9,33 @@ import {
   resetWatchStatusService,
   watchStatusService,
 } from '@services/watchStatusService';
-import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
-vi.mock('@db/watchStatusDb');
-vi.mock('@services/errorService');
-vi.mock('@services/showService');
+jest.mock('@db/watchStatusDb');
+jest.mock('@services/errorService');
+jest.mock('@services/showService');
 
 describe('WatchStatusService', () => {
   let service: WatchStatusService;
-  let mockDbService: MockedObject<WatchStatusDbService>;
-  let mockCheckAchievements: Mock;
+  let mockDbService: jest.Mocked<WatchStatusDbService>;
+  let mockCheckAchievements: jest.Mock;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetWatchStatusService();
 
     // Mock the db service
     mockDbService = {
-      updateEpisodeWatchStatus: vi.fn(),
-      updateSeasonWatchStatus: vi.fn(),
-      updateShowWatchStatus: vi.fn(),
-      checkAndUpdateShowWatchStatus: vi.fn(),
-      checkAndUpdateMovieWatchStatus: vi.fn(),
+      updateEpisodeWatchStatus: jest.fn(),
+      updateSeasonWatchStatus: jest.fn(),
+      updateShowWatchStatus: jest.fn(),
+      checkAndUpdateShowWatchStatus: jest.fn(),
+      checkAndUpdateMovieWatchStatus: jest.fn(),
     } as any;
 
     // Mock checkAchievements
-    mockCheckAchievements = vi.fn().mockResolvedValue(undefined);
+    mockCheckAchievements = jest.fn().mockResolvedValue(undefined);
 
     // Create a new instance for each test with mocked dependencies
     service = createWatchStatusService({
@@ -47,7 +46,7 @@ describe('WatchStatusService', () => {
 
   afterEach(() => {
     resetWatchStatusService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('constructor', () => {
@@ -89,7 +88,7 @@ describe('WatchStatusService', () => {
 
     it('should successfully update episode watch status', async () => {
       mockDbService.updateEpisodeWatchStatus.mockResolvedValue(mockDbResult);
-      (showService.invalidateProfileCache as Mock).mockResolvedValue(undefined);
+      (showService.invalidateProfileCache as jest.Mock).mockResolvedValue(undefined);
 
       const result = await service.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
@@ -120,7 +119,7 @@ describe('WatchStatusService', () => {
 
       mockDbService.updateEpisodeWatchStatus.mockResolvedValue(unsuccessfulResult);
 
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -135,7 +134,7 @@ describe('WatchStatusService', () => {
       const mockError = new Error('Database connection failed');
       mockDbService.updateEpisodeWatchStatus.mockRejectedValue(mockError);
 
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -242,6 +241,10 @@ describe('WatchStatusService', () => {
 
       mockDbService.updateSeasonWatchStatus.mockResolvedValue(unsuccessfulResult);
 
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
       await expect(service.updateSeasonWatchStatus(accountId, profileId, seasonId, status)).rejects.toThrow(
         'Handled: Failed to update season watch status',
       );
@@ -251,7 +254,7 @@ describe('WatchStatusService', () => {
       const mockError = new Error('Transaction failed');
       mockDbService.updateSeasonWatchStatus.mockRejectedValue(mockError);
 
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -335,6 +338,10 @@ describe('WatchStatusService', () => {
 
       mockDbService.updateShowWatchStatus.mockResolvedValue(unsuccessfulResult);
 
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
       await expect(service.updateShowWatchStatus(accountId, profileId, showId, status)).rejects.toThrow(
         'Handled: Failed to update show watch status',
       );
@@ -344,7 +351,7 @@ describe('WatchStatusService', () => {
       const mockError = new Error('Show not found');
       mockDbService.updateShowWatchStatus.mockRejectedValue(mockError);
 
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -423,6 +430,10 @@ describe('WatchStatusService', () => {
 
       mockDbService.checkAndUpdateShowWatchStatus.mockResolvedValue(unsuccessfulResult);
 
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
       await expect(service.checkAndUpdateShowStatus(accountId, profileId, showId)).rejects.toThrow(
         'Handled: Failed to recalculate and update show watch status',
       );
@@ -432,7 +443,7 @@ describe('WatchStatusService', () => {
       const mockError = new Error('Status calculation failed');
       mockDbService.checkAndUpdateShowWatchStatus.mockRejectedValue(mockError);
 
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 

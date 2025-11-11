@@ -1,13 +1,12 @@
 import { CustomError } from '@middleware/errorMiddleware';
 import { validateRequest, validateSchema } from '@middleware/validationMiddleware';
 import { Request, Response } from 'express';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 describe('Validation Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
-  let nextFunction: Mock;
+  let nextFunction: jest.Mock;
 
   beforeEach(() => {
     mockRequest = {
@@ -16,14 +15,14 @@ describe('Validation Middleware', () => {
       params: {},
     };
     mockResponse = {
-      json: vi.fn(),
+      json: jest.fn(),
     };
-    nextFunction = vi.fn();
+    nextFunction = jest.fn();
   });
 
   afterEach(() => {
     // Restore all spies to prevent leakage to other tests
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('validateSchema', () => {
@@ -161,7 +160,7 @@ describe('Validation Middleware', () => {
         name: z.string(),
       });
 
-      vi.spyOn(schema, 'parseAsync').mockImplementation(() => {
+      jest.spyOn(schema, 'parseAsync').mockImplementation(() => {
         throw new Error('Unexpected error');
       });
 
@@ -306,7 +305,7 @@ describe('Validation Middleware', () => {
         name: z.string(),
       });
 
-      vi.spyOn(bodySchema, 'parseAsync').mockImplementation(() => {
+      jest.spyOn(bodySchema, 'parseAsync').mockImplementation(() => {
         throw new Error('Unexpected error');
       });
 

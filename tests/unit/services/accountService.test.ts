@@ -12,25 +12,24 @@ import { profileService } from '@services/profileService';
 import { getFirebaseAdmin } from '@utils/firebaseUtil';
 import { getAccountImage, getPhotoForGoogleAccount } from '@utils/imageUtility';
 import { UserRecord } from 'firebase-admin/auth';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@logger/logger', () => ({
+jest.mock('@logger/logger', () => ({
   cliLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
   appLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
 }));
 
-vi.mock('@db/accountsDb');
-vi.mock('@services/errorService');
-vi.mock('@services/profileService');
-vi.mock('@services/preferencesService');
-vi.mock('@utils/imageUtility');
-vi.mock('@utils/firebaseUtil');
+jest.mock('@db/accountsDb');
+jest.mock('@services/errorService');
+jest.mock('@services/profileService');
+jest.mock('@services/preferencesService');
+jest.mock('@utils/imageUtility');
+jest.mock('@utils/firebaseUtil');
 
 type MockUserRecord = {
   uid: string;
@@ -72,9 +71,9 @@ function createMockUserRecord(data: Partial<MockUserRecord>): UserRecord {
 describe('AccountService', () => {
   let accountService: AccountService;
   const mockCacheService = {
-    getOrSet: vi.fn(),
-    invalidateAccount: vi.fn(),
-    invalidateProfile: vi.fn(),
+    getOrSet: jest.fn(),
+    invalidateAccount: jest.fn(),
+    invalidateProfile: jest.fn(),
   };
 
   const mockAccount = {
@@ -95,34 +94,34 @@ describe('AccountService', () => {
   ];
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetAccountService();
 
     accountService = createAccountService({ cacheService: mockCacheService as any });
 
-    (errorService.assertExists as Mock).mockImplementation((entity) => {
+    (errorService.assertExists as jest.Mock).mockImplementation((entity) => {
       if (!entity) throw new Error('Entity not found');
       return true;
     });
 
-    (errorService.assertNotExists as Mock).mockImplementation((entity, entityName, field, value) => {
+    (errorService.assertNotExists as jest.Mock).mockImplementation((entity, entityName, field, value) => {
       if (entity) throw new Error(`${entityName} with ${field} ${value} already exists`);
       return true;
     });
 
-    (errorService.handleError as Mock).mockImplementation((error) => {
+    (errorService.handleError as jest.Mock).mockImplementation((error) => {
       throw error;
     });
 
-    (profileService.getProfilesByAccountId as Mock).mockReturnValue(mockProfiles);
-    (getAccountImage as Mock).mockReturnValue('account-image-url.jpg');
-    (getPhotoForGoogleAccount as Mock).mockReturnValue('google-image-url.jpg');
+    (profileService.getProfilesByAccountId as jest.Mock).mockReturnValue(mockProfiles);
+    (getAccountImage as jest.Mock).mockReturnValue('account-image-url.jpg');
+    (getPhotoForGoogleAccount as jest.Mock).mockReturnValue('google-image-url.jpg');
   });
 
   afterEach(() => {
     resetAccountService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('editAccount', () => {
@@ -143,8 +142,8 @@ describe('AccountService', () => {
     };
 
     it('should update an account successfully', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(dbAccount);
-      (accountsDb.editAccount as Mock).mockResolvedValue(updatedDBAccount);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
+      (accountsDb.editAccount as jest.Mock).mockResolvedValue(updatedDBAccount);
 
       const result = await accountService.editAccount(123, 'Updated Account', 2);
 
@@ -161,15 +160,15 @@ describe('AccountService', () => {
     });
 
     it('should throw NotFoundError when account does not exist', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(null);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(null);
 
       await expect(accountService.editAccount(999, 'Test', 1)).rejects.toThrow(NotFoundError);
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(999);
     });
 
     it('should throw BadRequestError when update fails', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(dbAccount);
-      (accountsDb.editAccount as Mock).mockResolvedValue(null);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
+      (accountsDb.editAccount as jest.Mock).mockResolvedValue(null);
 
       await expect(accountService.editAccount(123, 'Updated Account', 2)).rejects.toThrow(BadRequestError);
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
@@ -178,8 +177,8 @@ describe('AccountService', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (accountsDb.findAccountById as Mock).mockResolvedValue(dbAccount);
-      (accountsDb.editAccount as Mock).mockRejectedValue(error);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
+      (accountsDb.editAccount as jest.Mock).mockRejectedValue(error);
 
       await expect(accountService.editAccount(123, 'Updated Account', 2)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'editAccount(123)');
@@ -188,7 +187,7 @@ describe('AccountService', () => {
 
   describe('login', () => {
     it('should successfully login an existing user', async () => {
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(mockAccount);
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(mockAccount);
 
       const result = await accountService.login('test-uid-123');
 
@@ -206,8 +205,8 @@ describe('AccountService', () => {
     });
 
     it('should throw error when user does not exist', async () => {
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(null);
-      (errorService.assertExists as Mock).mockImplementation(() => {
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(null);
+      (errorService.assertExists as jest.Mock).mockImplementation(() => {
         throw new Error('Account not found');
       });
 
@@ -219,7 +218,7 @@ describe('AccountService', () => {
 
     it('should handle unexpected errors during login', async () => {
       const dbError = new Error('Database connection failed');
-      (accountsDb.findAccountByUID as Mock).mockRejectedValue(dbError);
+      (accountsDb.findAccountByUID as jest.Mock).mockRejectedValue(dbError);
 
       await expect(accountService.login('test-uid-123')).rejects.toThrow('Database connection failed');
       expect(errorService.handleError).toHaveBeenCalledWith(dbError, 'login(test-uid-123)');
@@ -228,9 +227,9 @@ describe('AccountService', () => {
 
   describe('register', () => {
     it('should successfully register a new user', async () => {
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue(null);
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(null);
-      (accountsDb.registerAccount as Mock).mockResolvedValue({
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(null);
+      (accountsDb.registerAccount as jest.Mock).mockResolvedValue({
         account_id: 100,
         account_name: 'Test User',
         email: 'test@example.com',
@@ -256,8 +255,8 @@ describe('AccountService', () => {
     });
 
     it('should throw error when email already exists', async () => {
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue(mockAccount);
-      (errorService.assertNotExists as Mock).mockImplementation(() => {
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(mockAccount);
+      (errorService.assertNotExists as jest.Mock).mockImplementation(() => {
         throw new Error('Account with email test@example.com already exists');
       });
 
@@ -271,9 +270,9 @@ describe('AccountService', () => {
     });
 
     it('should throw error when UID already exists', async () => {
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue(null);
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(mockAccount);
-      (errorService.assertNotExists as Mock)
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(mockAccount);
+      (errorService.assertNotExists as jest.Mock)
         .mockImplementationOnce(() => true)
         .mockImplementationOnce(() => {
           throw new Error('Account with uid test-uid-123 already exists');
@@ -290,9 +289,9 @@ describe('AccountService', () => {
 
     it('should handle registration failure', async () => {
       const registerError = new Error('Registration failed');
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue(null);
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(null);
-      (accountsDb.registerAccount as Mock).mockRejectedValue(registerError);
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(null);
+      (accountsDb.registerAccount as jest.Mock).mockRejectedValue(registerError);
 
       await expect(accountService.register('Test User', 'test@example.com', 'new-uid-123')).rejects.toThrow(
         'Registration failed',
@@ -308,7 +307,7 @@ describe('AccountService', () => {
 
   describe('googleLogin', () => {
     it('should login existing user with Google credentials', async () => {
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(mockAccount);
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(mockAccount);
 
       const result = await accountService.googleLogin('Test User', 'test@example.com', 'test-uid-123', undefined);
 
@@ -340,9 +339,9 @@ describe('AccountService', () => {
         default_profile_id: 102,
       };
 
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(null);
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue(null);
-      (accountsDb.registerAccount as Mock).mockResolvedValue(mockNewAccount);
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(null);
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
+      (accountsDb.registerAccount as jest.Mock).mockResolvedValue(mockNewAccount);
 
       const result = await accountService.googleLogin('Google User', 'google@example.com', 'new-google-uid', undefined);
 
@@ -364,8 +363,8 @@ describe('AccountService', () => {
     });
 
     it('should throw error when email is already registered with different auth', async () => {
-      (accountsDb.findAccountByUID as Mock).mockResolvedValue(null);
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue({
+      (accountsDb.findAccountByUID as jest.Mock).mockResolvedValue(null);
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue({
         ...mockAccount,
         uid: 'different-auth-uid',
       });
@@ -380,7 +379,7 @@ describe('AccountService', () => {
 
     it('should handle errors in Google login process', async () => {
       const dbError = new Error('Database error');
-      (accountsDb.findAccountByUID as Mock).mockRejectedValue(dbError);
+      (accountsDb.findAccountByUID as jest.Mock).mockRejectedValue(dbError);
 
       await expect(
         accountService.googleLogin('Google User', 'google@example.com', 'google-uid-123', undefined),
@@ -412,7 +411,7 @@ describe('AccountService', () => {
         image: 'profile.jpg',
       };
 
-      (accountsDb.findAccountById as Mock).mockResolvedValue(mockAccountData);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccountData);
 
       const result = await accountService.findAccountById(1);
 
@@ -425,7 +424,7 @@ describe('AccountService', () => {
     });
 
     it('should return null when account does not exist', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(null);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(null);
 
       const result = await accountService.findAccountById(999);
 
@@ -436,7 +435,7 @@ describe('AccountService', () => {
 
     it('should handle and transform errors using errorService', async () => {
       const dbError = new Error('Database connection failed');
-      (accountsDb.findAccountById as Mock).mockRejectedValue(dbError);
+      (accountsDb.findAccountById as jest.Mock).mockRejectedValue(dbError);
 
       await expect(accountService.findAccountById(1)).rejects.toThrow('Database connection failed');
       expect(errorService.handleError).toHaveBeenCalledWith(dbError, 'findAccountById(1)');
@@ -448,7 +447,7 @@ describe('AccountService', () => {
       const profileId = 42;
       const accountId = 123;
 
-      (accountsDb.findAccountIdByProfileId as Mock).mockResolvedValue(accountId);
+      (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(accountId);
 
       const result = await accountService.findAccountIdByProfileId(profileId);
 
@@ -459,7 +458,7 @@ describe('AccountService', () => {
     it('should return null when profile does not exist', async () => {
       const profileId = 999;
 
-      (accountsDb.findAccountIdByProfileId as Mock).mockResolvedValue(null);
+      (accountsDb.findAccountIdByProfileId as jest.Mock).mockResolvedValue(null);
 
       const result = await accountService.findAccountIdByProfileId(profileId);
 
@@ -471,7 +470,7 @@ describe('AccountService', () => {
       const profileId = 42;
       const dbError = new Error('Database error');
 
-      (accountsDb.findAccountIdByProfileId as Mock).mockRejectedValue(dbError);
+      (accountsDb.findAccountIdByProfileId as jest.Mock).mockRejectedValue(dbError);
 
       await expect(accountService.findAccountIdByProfileId(profileId)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(dbError, `findAccountIdByProfileId(${profileId})`);
@@ -505,13 +504,13 @@ describe('AccountService', () => {
     });
 
     it('should return an account when the email exists', async () => {
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue(mockAccount);
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(mockAccount);
       const mockFirebaseAdmin = {
-        auth: vi.fn().mockReturnValue({
-          getUserByEmail: vi.fn().mockResolvedValueOnce(mockUser1),
+        auth: jest.fn().mockReturnValue({
+          getUserByEmail: jest.fn().mockResolvedValueOnce(mockUser1),
         }),
       };
-      (getFirebaseAdmin as Mock).mockReturnValue(mockFirebaseAdmin);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
 
       const result = await accountService.getCombinedAccountByEmail('smithfamily@example.com');
 
@@ -537,7 +536,7 @@ describe('AccountService', () => {
     });
 
     it('should return null when the email does not exist', async () => {
-      (accountsDb.findAccountByEmail as Mock).mockResolvedValue(null);
+      (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(null);
       const result = await accountService.getCombinedAccountByEmail('jonesfamily@example.com');
 
       expect(result).toBeNull();
@@ -546,7 +545,7 @@ describe('AccountService', () => {
     it('should handle and transform errors using errorService', async () => {
       const dbError = new Error('Database error');
 
-      (accountsDb.findAccountByEmail as Mock).mockRejectedValue(dbError);
+      (accountsDb.findAccountByEmail as jest.Mock).mockRejectedValue(dbError);
 
       await expect(accountService.getCombinedAccountByEmail('jonesfamily@gmail.com')).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(
@@ -569,7 +568,7 @@ describe('AccountService', () => {
         defaultProfileId: 5,
       };
 
-      (accountsDb.updateAccountImage as Mock).mockResolvedValue(updatedAccount);
+      (accountsDb.updateAccountImage as jest.Mock).mockResolvedValue(updatedAccount);
 
       mockCacheService.invalidateAccount.mockImplementation(() => {
         return;
@@ -593,7 +592,7 @@ describe('AccountService', () => {
       const id = 1;
       const image = 'new-image.jpg';
 
-      (accountsDb.updateAccountImage as Mock).mockResolvedValue(null);
+      (accountsDb.updateAccountImage as jest.Mock).mockResolvedValue(null);
 
       await expect(accountService.updateAccountImage(id, image)).rejects.toThrow(
         'Failed to update image for account 1',
@@ -607,7 +606,7 @@ describe('AccountService', () => {
       const imagePath = 'new-image.jpg';
       const dbError = new Error('Database error');
 
-      (accountsDb.updateAccountImage as Mock).mockRejectedValue(dbError);
+      (accountsDb.updateAccountImage as jest.Mock).mockRejectedValue(dbError);
 
       await expect(accountService.updateAccountImage(accountId, imagePath)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(dbError, `updateAccountImage(${accountId}, ${imagePath})`);
@@ -675,12 +674,12 @@ describe('AccountService', () => {
       };
 
       const mockFirebaseAdmin = {
-        auth: vi.fn().mockReturnValue({
-          listUsers: vi.fn().mockResolvedValueOnce(mockListUsersResult).mockResolvedValueOnce(mockListUsersResult2),
+        auth: jest.fn().mockReturnValue({
+          listUsers: jest.fn().mockResolvedValueOnce(mockListUsersResult).mockResolvedValueOnce(mockListUsersResult2),
         }),
       };
-      (getFirebaseAdmin as Mock).mockReturnValue(mockFirebaseAdmin);
-      (accountsDb.getAccounts as Mock).mockResolvedValue(mockDatabaseAccounts);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+      (accountsDb.getAccounts as jest.Mock).mockResolvedValue(mockDatabaseAccounts);
 
       const result = await accountService.getAccounts();
 
@@ -728,11 +727,11 @@ describe('AccountService', () => {
     it('should handle errors during account retrieval', async () => {
       const mockError = new Error('Failed to retrieve accounts');
       const mockFirebaseAdmin = {
-        auth: vi.fn().mockReturnValue({
-          listUsers: vi.fn().mockRejectedValue(mockError),
+        auth: jest.fn().mockReturnValue({
+          listUsers: jest.fn().mockRejectedValue(mockError),
         }),
       };
-      (getFirebaseAdmin as Mock).mockReturnValue(mockFirebaseAdmin);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
 
       await expect(accountService.getAccounts()).rejects.toThrow('Failed to retrieve accounts');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAccounts()');
@@ -748,15 +747,15 @@ describe('AccountService', () => {
     };
 
     it('should delete an account successfully', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(mockAccount);
-      (accountsDb.deleteAccount as Mock).mockResolvedValue(true);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(true);
 
       const mockFirebaseAdmin = {
-        auth: vi.fn().mockReturnValue({
-          deleteUser: vi.fn().mockResolvedValue(undefined),
+        auth: jest.fn().mockReturnValue({
+          deleteUser: jest.fn().mockResolvedValue(undefined),
         }),
       };
-      (getFirebaseAdmin as Mock).mockReturnValue(mockFirebaseAdmin);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
 
       const result = await accountService.deleteAccount(123);
 
@@ -770,9 +769,9 @@ describe('AccountService', () => {
     });
 
     it('should throw NotFoundError when account does not exist', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(null);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(null);
       const notFoundError = new NotFoundError('Account with ID 999 not found');
-      (errorService.handleError as Mock).mockImplementation(() => {
+      (errorService.handleError as jest.Mock).mockImplementation(() => {
         throw notFoundError;
       });
 
@@ -783,16 +782,16 @@ describe('AccountService', () => {
     });
 
     it('should still succeed when Firebase user deletion fails', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(mockAccount);
-      (accountsDb.deleteAccount as Mock).mockResolvedValue(true);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(true);
 
       const firebaseError = new Error('Firebase user not found');
       const mockFirebaseAdmin = {
-        auth: vi.fn().mockReturnValue({
-          deleteUser: vi.fn().mockRejectedValue(firebaseError),
+        auth: jest.fn().mockReturnValue({
+          deleteUser: jest.fn().mockRejectedValue(firebaseError),
         }),
       };
-      (getFirebaseAdmin as Mock).mockReturnValue(mockFirebaseAdmin);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
 
       const result = await accountService.deleteAccount(123);
 
@@ -806,9 +805,9 @@ describe('AccountService', () => {
     });
 
     it('should throw error when database deletion fails', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(mockAccount);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
       const dbError = new Error('Database deletion failed');
-      (accountsDb.deleteAccount as Mock).mockRejectedValue(dbError);
+      (accountsDb.deleteAccount as jest.Mock).mockRejectedValue(dbError);
 
       await expect(accountService.deleteAccount(123)).rejects.toThrow('Database deletion failed');
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
@@ -817,8 +816,8 @@ describe('AccountService', () => {
     });
 
     it('should handle case when deleteAccount returns false', async () => {
-      (accountsDb.findAccountById as Mock).mockResolvedValue(mockAccount);
-      (accountsDb.deleteAccount as Mock).mockResolvedValue(false);
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
+      (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(false);
 
       await expect(accountService.deleteAccount(123)).rejects.toThrow('Account deletion failed');
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);

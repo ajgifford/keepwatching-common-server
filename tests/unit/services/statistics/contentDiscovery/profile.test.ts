@@ -5,21 +5,20 @@ import {
   createProfileStatisticsService,
   resetProfileStatisticsService,
 } from '@services/statistics/profileStatisticsService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@db/statisticsDb');
-vi.mock('@services/errorService');
-vi.mock('@services/cacheService');
+jest.mock('@db/statisticsDb');
+jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
 
 describe('Statistics - ContentDiscovery - Profile', () => {
   let profileStatisticsService: ProfileStatisticsService;
   const mockCacheService = {
-    getOrSet: vi.fn(),
-    invalidate: vi.fn(),
+    getOrSet: jest.fn(),
+    invalidate: jest.fn(),
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetProfileStatisticsService();
 
@@ -28,7 +27,7 @@ describe('Statistics - ContentDiscovery - Profile', () => {
 
   afterEach(() => {
     resetProfileStatisticsService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getContentDiscoveryStats', () => {
@@ -72,7 +71,7 @@ describe('Statistics - ContentDiscovery - Profile', () => {
       };
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getContentDiscoveryStats as Mock).mockResolvedValue(mockStats);
+      (statisticsDb.getContentDiscoveryStats as jest.Mock).mockResolvedValue(mockStats);
 
       const result = await profileStatisticsService.getContentDiscoveryStats(123);
 
@@ -88,8 +87,8 @@ describe('Statistics - ContentDiscovery - Profile', () => {
     it('should handle errors when getting content discovery stats', async () => {
       const error = new Error('Failed to get content discovery stats');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getContentDiscoveryStats as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (statisticsDb.getContentDiscoveryStats as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

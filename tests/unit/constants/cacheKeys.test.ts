@@ -8,7 +8,6 @@ import {
   SEARCH_KEYS,
   SHOW_KEYS,
 } from '@constants/cacheKeys';
-import { describe, expect, it } from 'vitest';
 
 describe('Cache Keys Module', () => {
   describe('CACHE_KEY_PATTERNS', () => {

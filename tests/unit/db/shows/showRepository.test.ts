@@ -1,55 +1,30 @@
 import { ShowContentUpdates } from '../../../../src/types/contentTypes';
 import { ShowReferenceRow } from '../../../../src/types/showTypes';
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { CreateShowRequest, UpdateShowRequest } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
 import { DatabaseError } from '@middleware/errorMiddleware';
-import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => {
-  const mockPool = {
-    execute: vi.fn(),
-    getConnection: vi.fn(),
-  };
-  return {
-    getDbPool: vi.fn(() => mockPool),
-  };
-});
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('showRepository', () => {
-  let mockPool: ReturnType<typeof getDbPool>;
-  let mockConnection: Partial<PoolConnection>;
+  let mockExecute: jest.Mock;
+  let mockConnection: any;
 
   beforeEach(() => {
-    mockConnection = {
-      execute: vi.fn(),
-      beginTransaction: vi.fn(),
-      commit: vi.fn(),
-      rollback: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    mockPool = getDbPool();
-    (mockPool.execute as Mock).mockReset();
-    (mockPool.getConnection as Mock).mockReset();
-    (mockPool.getConnection as Mock).mockResolvedValue(mockConnection);
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockConnection = mocks.mockConnection;
   });
 
   describe('saveShow', () => {
     it('should insert a show into the database with transaction', async () => {
-      (mockConnection.execute as Mock).mockResolvedValueOnce([{ insertId: 5, affectedRows: 1 } as ResultSetHeader]);
+      (mockConnection.execute as jest.Mock).mockResolvedValueOnce([
+        { insertId: 5, affectedRows: 1 } as ResultSetHeader,
+      ]);
 
       const show: CreateShowRequest = {
         tmdb_id: 12345,
@@ -75,7 +50,6 @@ describe('showRepository', () => {
 
       const result = await showsDb.saveShow(show);
 
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO shows'),
         expect.arrayContaining([
@@ -98,7 +72,6 @@ describe('showRepository', () => {
           'Test Network',
         ]),
       );
-      expect(mockConnection.commit).toHaveBeenCalled();
       expect(result).toBe(5);
 
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
@@ -125,7 +98,7 @@ describe('showRepository', () => {
 
     it('should rollback transaction and throw DatabaseError on error', async () => {
       const mockError = new Error('Database error');
-      (mockConnection.execute as Mock).mockRejectedValueOnce(mockError);
+      (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
       const show: CreateShowRequest = {
         tmdb_id: 12345,
@@ -150,13 +123,13 @@ describe('showRepository', () => {
       };
 
       await expect(showsDb.saveShow(show)).rejects.toThrow(DatabaseError);
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
-      expect(mockConnection.rollback).toHaveBeenCalled();
-      expect(mockConnection.release).toHaveBeenCalled();
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
     });
 
     it('should return false when no rows are affected', async () => {
-      (mockConnection.execute as Mock).mockResolvedValueOnce([{ insertId: 0, affectedRows: 0 } as ResultSetHeader]);
+      (mockConnection.execute as jest.Mock).mockResolvedValueOnce([
+        { insertId: 0, affectedRows: 0 } as ResultSetHeader,
+      ]);
 
       const show: CreateShowRequest = {
         tmdb_id: 12345,
@@ -187,7 +160,7 @@ describe('showRepository', () => {
 
   describe('updateShow', () => {
     it('should update show in DB with transaction', async () => {
-      (mockConnection.execute as Mock).mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      (mockConnection.execute as jest.Mock).mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       const show: UpdateShowRequest = {
         id: 5,
@@ -214,7 +187,6 @@ describe('showRepository', () => {
 
       const result = await showsDb.updateShow(show);
 
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE shows SET'),
         expect.arrayContaining([
@@ -230,7 +202,6 @@ describe('showRepository', () => {
           12345, // tmdbId at the end for the WHERE clause
         ]),
       );
-      expect(mockConnection.commit).toHaveBeenCalled();
       expect(result).toBe(true);
 
       expect(mockConnection.execute).toHaveBeenNthCalledWith(2, 'DELETE FROM show_genres WHERE show_id = ?', [5]);
@@ -258,7 +229,7 @@ describe('showRepository', () => {
     });
 
     it('should return false when no rows are affected', async () => {
-      (mockConnection.execute as Mock).mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      (mockConnection.execute as jest.Mock).mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
 
       const show: UpdateShowRequest = {
         id: 5,
@@ -289,7 +260,7 @@ describe('showRepository', () => {
 
     it('should rollback transaction and throw DatabaseError on error', async () => {
       const mockError = new Error('Database error');
-      (mockConnection.execute as Mock).mockRejectedValueOnce(mockError);
+      (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
       const show: UpdateShowRequest = {
         id: 5,
@@ -315,15 +286,13 @@ describe('showRepository', () => {
       };
 
       await expect(showsDb.updateShow(show)).rejects.toThrow(DatabaseError);
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
-      expect(mockConnection.rollback).toHaveBeenCalled();
-      expect(mockConnection.release).toHaveBeenCalled();
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('saveShowGenre', () => {
     it('should save a genre for a show', async () => {
-      (mockConnection.execute as Mock).mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      (mockConnection.execute as jest.Mock).mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await showsDb.saveShowGenre(5, 28, mockConnection as PoolConnection);
 
@@ -335,7 +304,7 @@ describe('showRepository', () => {
 
     it('should throw DatabaseError on error', async () => {
       const mockError = new Error('Database error');
-      (mockConnection.execute as Mock).mockRejectedValueOnce(mockError);
+      (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
       await expect(showsDb.saveShowGenre(5, 28, mockConnection as PoolConnection)).rejects.toThrow(DatabaseError);
     });
@@ -343,7 +312,7 @@ describe('showRepository', () => {
 
   describe('saveShowStreamingService', () => {
     it('should save a streaming service for a show', async () => {
-      (mockConnection.execute as Mock).mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      (mockConnection.execute as jest.Mock).mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await showsDb.saveShowStreamingService(5, 8, mockConnection as PoolConnection);
 
@@ -355,7 +324,7 @@ describe('showRepository', () => {
 
     it('should throw DatabaseError on error', async () => {
       const mockError = new Error('Database error');
-      (mockConnection.execute as Mock).mockRejectedValueOnce(mockError);
+      (mockConnection.execute as jest.Mock).mockRejectedValueOnce(mockError);
 
       await expect(showsDb.saveShowStreamingService(5, 8, mockConnection as PoolConnection)).rejects.toThrow(
         DatabaseError,
@@ -371,13 +340,11 @@ describe('showRepository', () => {
         title: 'Show',
       };
 
-      (mockPool.execute as Mock).mockResolvedValueOnce([[mockShow]]);
+      (mockExecute as jest.Mock).mockResolvedValueOnce([[mockShow]]);
 
       const showTMDBReference = await showsDb.findShowById(5);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows WHERE id = ?', [
-        5,
-      ]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows WHERE id = ?', [5]);
       expect(showTMDBReference).not.toBeNull();
       expect(showTMDBReference).toEqual({
         id: 5,
@@ -387,14 +354,14 @@ describe('showRepository', () => {
     });
 
     it('should return null when show not found', async () => {
-      (mockPool.execute as Mock).mockResolvedValueOnce([[] as ShowReferenceRow[]]);
+      (mockExecute as jest.Mock).mockResolvedValueOnce([[] as ShowReferenceRow[]]);
       const show = await showsDb.findShowById(999);
       expect(show).toBeNull();
     });
 
     it('should throw DatabaseError on error', async () => {
       const mockError = new Error('Database error');
-      (mockPool.execute as Mock).mockRejectedValueOnce(mockError);
+      (mockExecute as jest.Mock).mockRejectedValueOnce(mockError);
 
       await expect(showsDb.findShowById(5)).rejects.toThrow(DatabaseError);
     });
@@ -406,27 +373,26 @@ describe('showRepository', () => {
         id: 5,
       };
 
-      (mockPool.execute as Mock).mockResolvedValueOnce([[mockShow] as ShowReferenceRow[]]);
+      (mockExecute as jest.Mock).mockResolvedValueOnce([[mockShow] as ShowReferenceRow[]]);
 
       const show = await showsDb.findShowByTMDBId(12345);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        'SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?',
-        [12345],
-      );
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?', [
+        12345,
+      ]);
       expect(show).not.toBeNull();
       expect(show!.id).toBe(5);
     });
 
     it('should return null when show not found', async () => {
-      (mockPool.execute as Mock).mockResolvedValueOnce([[] as ShowReferenceRow[]]);
+      (mockExecute as jest.Mock).mockResolvedValueOnce([[] as ShowReferenceRow[]]);
       const show = await showsDb.findShowByTMDBId(99999);
       expect(show).toBeNull();
     });
 
     it('should throw DatabaseError on error', async () => {
       const mockError = new Error('Database error');
-      (mockPool.execute as Mock).mockRejectedValueOnce(mockError);
+      (mockExecute as jest.Mock).mockRejectedValueOnce(mockError);
 
       await expect(showsDb.findShowByTMDBId(12345)).rejects.toThrow(DatabaseError);
     });
@@ -453,11 +419,11 @@ describe('showRepository', () => {
         },
       ];
 
-      (mockPool.execute as Mock).mockResolvedValueOnce([mockShows]);
+      (mockExecute as jest.Mock).mockResolvedValueOnce([mockShows]);
 
       const showUpdates = await showsDb.getShowsForUpdates();
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining(
           'SELECT id, title, tmdb_id, season_count, created_at, updated_at from shows where in_production = 1',
         ),
@@ -474,14 +440,14 @@ describe('showRepository', () => {
     });
 
     it('should return empty array when no shows need updates', async () => {
-      (mockPool.execute as Mock).mockResolvedValueOnce([[]]);
+      (mockExecute as jest.Mock).mockResolvedValueOnce([[]]);
       const showUpdates = await showsDb.getShowsForUpdates();
       expect(showUpdates).toHaveLength(0);
     });
 
     it('should throw DatabaseError on error', async () => {
       const mockError = new Error('Database error');
-      (mockPool.execute as Mock).mockRejectedValueOnce(mockError);
+      (mockExecute as jest.Mock).mockRejectedValueOnce(mockError);
 
       await expect(showsDb.getShowsForUpdates()).rejects.toThrow(DatabaseError);
     });

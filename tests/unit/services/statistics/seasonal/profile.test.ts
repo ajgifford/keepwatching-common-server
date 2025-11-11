@@ -5,21 +5,20 @@ import {
   createProfileStatisticsService,
   resetProfileStatisticsService,
 } from '@services/statistics/profileStatisticsService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@db/statisticsDb');
-vi.mock('@services/errorService');
-vi.mock('@services/cacheService');
+jest.mock('@db/statisticsDb');
+jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
 
 describe('Statistics - Seasonal - Profile', () => {
   let profileStatisticsService: ProfileStatisticsService;
   const mockCacheService = {
-    getOrSet: vi.fn(),
-    invalidate: vi.fn(),
+    getOrSet: jest.fn(),
+    invalidate: jest.fn(),
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetProfileStatisticsService();
 
@@ -28,7 +27,7 @@ describe('Statistics - Seasonal - Profile', () => {
 
   afterEach(() => {
     resetProfileStatisticsService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getSeasonalViewingStats', () => {
@@ -80,7 +79,7 @@ describe('Statistics - Seasonal - Profile', () => {
       };
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getSeasonalViewingStats as Mock).mockResolvedValue(mockStats);
+      (statisticsDb.getSeasonalViewingStats as jest.Mock).mockResolvedValue(mockStats);
 
       const result = await profileStatisticsService.getSeasonalViewingStats(123);
 
@@ -96,8 +95,8 @@ describe('Statistics - Seasonal - Profile', () => {
     it('should handle errors when getting seasonal viewing stats', async () => {
       const error = new Error('Failed to get seasonal viewing stats');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (statisticsDb.getSeasonalViewingStats as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (statisticsDb.getSeasonalViewingStats as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

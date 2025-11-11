@@ -7,22 +7,21 @@ import {
   resetAccountStatisticsService,
 } from '@services/statistics/accountStatisticsService';
 import { profileStatisticsService } from '@services/statistics/profileStatisticsService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@services/errorService');
-vi.mock('@services/cacheService');
-vi.mock('@services/profileService');
-vi.mock('@services/statistics/profileStatisticsService');
+jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
+jest.mock('@services/profileService');
+jest.mock('@services/statistics/profileStatisticsService');
 
 describe('Statistics - Velocity - Account', () => {
   let accountStatisticsService: AccountStatisticsService;
   const mockCacheService = {
-    getOrSet: vi.fn(),
-    invalidate: vi.fn(),
+    getOrSet: jest.fn(),
+    invalidate: jest.fn(),
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetAccountStatisticsService();
 
@@ -31,7 +30,7 @@ describe('Statistics - Velocity - Account', () => {
 
   afterEach(() => {
     resetAccountStatisticsService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getAccountWatchingVelocity', () => {
@@ -87,8 +86,8 @@ describe('Statistics - Velocity - Account', () => {
       };
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValueOnce(profiles);
-      (profileStatisticsService.getWatchingVelocity as Mock).mockImplementation((id) => {
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValueOnce(profiles);
+      (profileStatisticsService.getWatchingVelocity as jest.Mock).mockImplementation((id) => {
         if (id === 101) return profile1Stats;
         else if (id === 102) return profile2Stats;
         else return {};
@@ -105,12 +104,12 @@ describe('Statistics - Velocity - Account', () => {
         { id: 101, name: 'Profile 1' },
         { id: 102, name: 'Profile 2' },
       ];
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValueOnce(profiles);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValueOnce(profiles);
 
       const error = new Error('Failed to get watching velocity statistics');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (profileStatisticsService.getWatchingVelocity as Mock).mockRejectedValueOnce(error);
-      (errorService.handleError as Mock).mockImplementationOnce((err) => {
+      (profileStatisticsService.getWatchingVelocity as jest.Mock).mockRejectedValueOnce(error);
+      (errorService.handleError as jest.Mock).mockImplementationOnce((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 
@@ -122,9 +121,9 @@ describe('Statistics - Velocity - Account', () => {
     });
 
     it('should throw an error when an account has no profiles', async () => {
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValueOnce(undefined);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValueOnce(undefined);
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (errorService.handleError as Mock).mockImplementationOnce((err) => {
+      (errorService.handleError as jest.Mock).mockImplementationOnce((err) => {
         throw err;
       });
 

@@ -1,3 +1,4 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { transformAccountReferenceRow } from '../../../src/types/accountTypes';
 import {
   CreateEmailRow,
@@ -9,40 +10,20 @@ import { CreateEmailRecipient, CreateEmailTemplate, UpdateEmailTemplate } from '
 import * as emailDb from '@db/emailDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { ResultSetHeader } from 'mysql2';
-import { MockedFunction, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockExecute, mockGetDbPool } = vi.hoisted(() => {
-  const mockExecute = vi.fn();
-  const mockQuery = vi.fn();
-  const mockGetDbPool = vi.fn(() => ({
-    execute: mockExecute,
-    query: mockQuery,
-  }));
-
-  return { mockExecute, mockQuery, mockGetDbPool };
-});
-
-vi.mock('@utils/db', () => ({
-  getDbPool: mockGetDbPool,
-}));
-
-vi.mock('@utils/errorHandlingUtility');
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
-
-const mockHandleDatabaseError = handleDatabaseError as MockedFunction<typeof handleDatabaseError>;
+jest.mock('@utils/errorHandlingUtility');
 
 describe('emailDb', () => {
+  let mockExecute: jest.Mock;
+  let mockQuery: jest.Mock;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
+
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockQuery = mocks.mockQuery;
   });
 
   describe('getEmailTemplates', () => {
@@ -82,7 +63,7 @@ describe('emailDb', () => {
 
       await emailDb.getEmailTemplates();
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'getting all email templates');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'getting all email templates');
     });
   });
 
@@ -151,7 +132,7 @@ describe('emailDb', () => {
 
       await emailDb.createEmailTemplate(emailTemplate);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'creating an email template');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'creating an email template');
     });
   });
 
@@ -223,7 +204,7 @@ describe('emailDb', () => {
 
       await emailDb.updateEmailTemplate(emailTemplate);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email template');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email template');
     });
   });
 
@@ -271,7 +252,7 @@ describe('emailDb', () => {
 
       await emailDb.deleteEmailTemplate(1);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'deleting an email template');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'deleting an email template');
     });
   });
 
@@ -292,7 +273,7 @@ describe('emailDb', () => {
 
       await emailDb.getAllEmailsCount();
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'getting emails count');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'getting emails count');
     });
   });
 
@@ -366,7 +347,7 @@ describe('emailDb', () => {
 
       await emailDb.getAllEmails();
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'getting emails');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'getting emails');
     });
   });
 
@@ -495,7 +476,7 @@ describe('emailDb', () => {
 
       await emailDb.createEmail(sentEmail);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'creating an email');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'creating an email');
     });
   });
 
@@ -588,7 +569,7 @@ describe('emailDb', () => {
 
       await emailDb.updateEmail(emailSent);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email');
     });
   });
 
@@ -652,7 +633,7 @@ describe('emailDb', () => {
 
       await emailDb.updateEmailStatus(id, sentDate, status);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email status');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email status');
     });
   });
 
@@ -700,7 +681,7 @@ describe('emailDb', () => {
 
       await emailDb.deleteEmail(1);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'deleting an email');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'deleting an email');
     });
   });
 
@@ -742,7 +723,7 @@ describe('emailDb', () => {
 
       await emailDb.getEmail(1);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'get email');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'get email');
     });
   });
 
@@ -788,7 +769,7 @@ describe('emailDb', () => {
 
       await emailDb.getEmailRecipients(1);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'getting email recipients');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'getting email recipients');
     });
   });
 
@@ -863,7 +844,7 @@ describe('emailDb', () => {
 
       await emailDb.createEmailRecipient(recipient);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'creating an email recipient');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'creating an email recipient');
     });
   });
 
@@ -929,7 +910,7 @@ describe('emailDb', () => {
 
       await emailDb.updateEmailRecipientStatus(emailId, accountId, sentDate, status);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email recipient status');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email recipient status');
     });
   });
 
@@ -992,7 +973,7 @@ describe('emailDb', () => {
 
       await emailDb.updateEmailRecipientStatusFailure(emailId, accountId, errorMessage);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email recipient status for failure');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'updating an email recipient status for failure');
     });
   });
 
@@ -1094,7 +1075,7 @@ describe('emailDb', () => {
 
       await emailDb.createEmailRecipients(recipients);
 
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(mockError, 'creating email recipients');
+      expect(handleDatabaseError).toHaveBeenCalledWith(mockError, 'creating email recipients');
     });
   });
 });

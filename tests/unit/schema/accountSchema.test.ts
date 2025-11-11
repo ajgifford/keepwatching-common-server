@@ -7,7 +7,6 @@ import {
   registerAccountBodySchema,
   updateAccountBodySchema,
 } from '@schema/accountSchema';
-import { describe, expect, it } from 'vitest';
 
 describe('accountSchema', () => {
   describe('accountSchema', () => {

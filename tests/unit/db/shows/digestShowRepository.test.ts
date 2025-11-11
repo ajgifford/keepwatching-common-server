@@ -1,41 +1,15 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import * as digestShowRepository from '@db/shows/digestShowRepository';
-import { getDbPool } from '@utils/db';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/errorHandlingUtility', () => ({
-  handleDatabaseError: vi.fn((error: Error, operation: string) => {
-    throw new Error(`Database error ${operation}: ${error.message}`);
-  }),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('digestShowRepository', () => {
-  let mockPool: any;
-  let mockExecute: Mock;
+  let mockExecute: jest.Mock;
 
   beforeEach(() => {
-    mockExecute = vi.fn();
-    mockPool = {
-      execute: mockExecute,
-    };
-    (getDbPool as Mock).mockReturnValue(mockPool);
-  });
+    jest.clearAllMocks();
 
-  afterEach(() => {
-    vi.clearAllMocks();
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
   });
 
   describe('getTrendingShows', () => {

@@ -2,7 +2,6 @@ import { setupMoviesService } from './helpers/mocks';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
 import { errorService } from '@services/errorService';
-import { type Mock, beforeEach, describe, expect, it } from 'vitest';
 
 describe('MoviesService - Statistics', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
@@ -49,7 +48,7 @@ describe('MoviesService - Statistics', () => {
       ];
 
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
-      (moviesDb.getAllMoviesForProfile as Mock).mockResolvedValue(mockMovies);
+      (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue(mockMovies);
 
       const result = await service.getProfileMovieStatistics(123);
 
@@ -67,7 +66,7 @@ describe('MoviesService - Statistics', () => {
 
     it('should handle empty movie list', async () => {
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getAllMoviesForProfile as Mock).mockResolvedValue([]);
+      (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getProfileMovieStatistics(123);
 
@@ -84,8 +83,8 @@ describe('MoviesService - Statistics', () => {
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getAllMoviesForProfile as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (moviesDb.getAllMoviesForProfile as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 

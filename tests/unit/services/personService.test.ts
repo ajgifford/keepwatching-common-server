@@ -11,57 +11,56 @@ import {
   resetPersonService,
 } from '@services/personService';
 import { getTMDBService } from '@services/tmdbService';
-import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@db/personsDb');
-vi.mock('@services/tmdbService', () => ({
-  getTMDBService: vi.fn(),
+jest.mock('@db/personsDb');
+jest.mock('@services/tmdbService', () => ({
+  getTMDBService: jest.fn(),
 }));
-vi.mock('@services/errorService');
-vi.mock('@services/cacheService');
+jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
 
 const mockTMDBService = {
-  getPersonDetails: vi.fn(),
-  getPersonCredits: vi.fn(),
+  getPersonDetails: jest.fn(),
+  getPersonCredits: jest.fn(),
 } as any;
 
 describe('PersonService', () => {
   let service: PersonService;
-  let mockCache: MockedObject<CacheService>;
+  let mockCache: jest.Mocked<CacheService>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetPersonService();
 
     mockCache = {
-      getOrSet: vi.fn(),
-      get: vi.fn(),
-      set: vi.fn(),
-      invalidate: vi.fn(),
-      invalidatePerson: vi.fn(),
-      invalidatePattern: vi.fn(),
-      invalidateAccount: vi.fn(),
-      invalidateProfile: vi.fn(),
-      invalidateProfileStatistics: vi.fn(),
-      invalidateAccountStatistics: vi.fn(),
-      flushAll: vi.fn(),
-      getStats: vi.fn(),
-      keys: vi.fn(),
+      getOrSet: jest.fn(),
+      get: jest.fn(),
+      set: jest.fn(),
+      invalidate: jest.fn(),
+      invalidatePerson: jest.fn(),
+      invalidatePattern: jest.fn(),
+      invalidateAccount: jest.fn(),
+      invalidateProfile: jest.fn(),
+      invalidateProfileStatistics: jest.fn(),
+      invalidateAccountStatistics: jest.fn(),
+      flushAll: jest.fn(),
+      getStats: jest.fn(),
+      keys: jest.fn(),
     } as any;
 
-    (errorService.handleError as Mock).mockImplementation((error) => {
+    (errorService.handleError as jest.Mock).mockImplementation((error) => {
       throw error;
     });
 
-    (getTMDBService as Mock).mockReturnValue(mockTMDBService);
+    (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
     service = createPersonService({ cacheService: mockCache });
   });
 
   afterEach(() => {
     resetPersonService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('constructor', () => {
@@ -115,7 +114,7 @@ describe('PersonService', () => {
     it('should fetch from database when not in cache', async () => {
       const personId = 123;
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (personsDb.getPersonDetails as Mock).mockResolvedValue(mockPerson);
+      (personsDb.getPersonDetails as jest.Mock).mockResolvedValue(mockPerson);
 
       const result = await service.getPersonDetails(personId);
 
@@ -127,7 +126,7 @@ describe('PersonService', () => {
       const personId = 123;
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (personsDb.getPersonDetails as Mock).mockRejectedValue(error);
+      (personsDb.getPersonDetails as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getPersonDetails(personId)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, `getPersonDetails(${personId})`);
@@ -382,7 +381,7 @@ describe('PersonService', () => {
     it('should handle negative person IDs', async () => {
       const personId = -1;
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (personsDb.getPersonDetails as Mock).mockResolvedValue(null as any);
+      (personsDb.getPersonDetails as jest.Mock).mockResolvedValue(null as any);
 
       await expect(service.getPersonDetails(personId)).resolves.toBeNull();
     });
@@ -390,7 +389,7 @@ describe('PersonService', () => {
     it('should handle zero person IDs', async () => {
       const personId = 0;
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (personsDb.getPersonDetails as Mock).mockResolvedValue(null as any);
+      (personsDb.getPersonDetails as jest.Mock).mockResolvedValue(null as any);
 
       await expect(service.getPersonDetails(personId)).resolves.toBeNull();
     });
@@ -430,8 +429,8 @@ describe('PersonService', () => {
       };
 
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (personsDb.getPersonsAlphaCount as Mock).mockResolvedValue(totalCount);
-      (personsDb.getPersons as Mock).mockResolvedValue(mockPersons);
+      (personsDb.getPersonsAlphaCount as jest.Mock).mockResolvedValue(totalCount);
+      (personsDb.getPersons as jest.Mock).mockResolvedValue(mockPersons);
 
       const result = await service.getPersons(firstLetter, page, offset, limit);
 
@@ -453,8 +452,8 @@ describe('PersonService', () => {
       const mockPersons: Person[] = [];
 
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (personsDb.getPersonsAlphaCount as Mock).mockResolvedValue(totalCount);
-      (personsDb.getPersons as Mock).mockResolvedValue(mockPersons);
+      (personsDb.getPersonsAlphaCount as jest.Mock).mockResolvedValue(totalCount);
+      (personsDb.getPersons as jest.Mock).mockResolvedValue(mockPersons);
 
       const result = await service.getPersons(firstLetter, page, offset, limit);
 
@@ -480,7 +479,7 @@ describe('PersonService', () => {
   describe('getPersonsCount', () => {
     it('should return total persons count', async () => {
       const expectedCount = 150;
-      (personsDb.getPersonsCount as Mock).mockResolvedValue(expectedCount);
+      (personsDb.getPersonsCount as jest.Mock).mockResolvedValue(expectedCount);
 
       const result = await service.getPersonsCount();
 
@@ -490,7 +489,7 @@ describe('PersonService', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Count query failed');
-      (personsDb.getPersonsCount as Mock).mockRejectedValue(error);
+      (personsDb.getPersonsCount as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getPersonsCount()).rejects.toThrow('Count query failed');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getPersonsCount()');
@@ -514,7 +513,7 @@ describe('PersonService', () => {
         },
       ];
 
-      (personsDb.getPeopleForUpdates as Mock).mockResolvedValue(mockPeople);
+      (personsDb.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
 
       const result = await service.getPeopleForUpdates(blockNumber);
 
@@ -525,7 +524,7 @@ describe('PersonService', () => {
     it('should handle database errors', async () => {
       const blockNumber = 3;
       const error = new Error('Update query failed');
-      (personsDb.getPeopleForUpdates as Mock).mockRejectedValue(error);
+      (personsDb.getPeopleForUpdates as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getPeopleForUpdates(blockNumber)).rejects.toThrow('Update query failed');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getPeopleForUpdates()');
@@ -559,9 +558,9 @@ describe('PersonService', () => {
     };
 
     it('should update person successfully with changes', async () => {
-      (personsDb.getPerson as Mock).mockResolvedValue(mockPerson);
+      (personsDb.getPerson as jest.Mock).mockResolvedValue(mockPerson);
       mockTMDBService.getPersonDetails.mockResolvedValue(mockTMDBPerson);
-      (personsDb.updatePerson as Mock).mockResolvedValue(undefined);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
 
       const result = await service.updatePerson(123, 456);
 
@@ -582,7 +581,7 @@ describe('PersonService', () => {
         biography: 'Actor biography',
         profile_path: '/profile.jpg',
       };
-      (personsDb.getPerson as Mock).mockResolvedValue(mockPerson);
+      (personsDb.getPerson as jest.Mock).mockResolvedValue(mockPerson);
       mockTMDBService.getPersonDetails.mockResolvedValue(unchangedTMDBPerson);
 
       const result = await service.updatePerson(123, 456);
@@ -597,7 +596,7 @@ describe('PersonService', () => {
 
     it('should handle errors and log them', async () => {
       const error = new Error('Update failed');
-      (personsDb.getPerson as Mock).mockRejectedValue(error);
+      (personsDb.getPerson as jest.Mock).mockRejectedValue(error);
 
       await expect(service.updatePerson(123, 456)).rejects.toThrow('Update failed');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'updatePerson(123)');
@@ -632,7 +631,7 @@ describe('PersonService', () => {
 
     it('should check and update person with changes', async () => {
       mockTMDBService.getPersonDetails.mockResolvedValue(mockTMDBPerson);
-      (personsDb.updatePerson as Mock).mockResolvedValue(undefined);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
 
       const result = await service.checkAndUpdatePerson(mockPerson);
 
@@ -675,20 +674,20 @@ describe('PersonService', () => {
 
   describe('getTodayBlockInfo', () => {
     beforeEach(() => {
-      vi.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      vi.useRealTimers();
+      jest.useRealTimers();
     });
 
     it('should return today block information', async () => {
       const mockDate = new Date('2023-06-15T10:00:00Z');
-      vi.setSystemTime(mockDate);
+      jest.setSystemTime(mockDate);
 
       const mockPeople = [{ id: 1 }, { id: 2 }];
-      vi.spyOn(service, 'calculateBlockNumber').mockReturnValue(5);
-      vi.spyOn(service, 'getPeopleForUpdates').mockResolvedValue(mockPeople as any);
+      jest.spyOn(service, 'calculateBlockNumber').mockReturnValue(5);
+      jest.spyOn(service, 'getPeopleForUpdates').mockResolvedValue(mockPeople as any);
 
       const result = await service.getTodayBlockInfo();
 
@@ -754,7 +753,7 @@ describe('PersonService', () => {
       };
 
       mockTMDBService.getPersonDetails.mockResolvedValue(changedTMDBPerson);
-      (personsDb.updatePerson as Mock).mockResolvedValue(undefined);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
 
       const result = await service.checkAndUpdatePerson(basePerson);
 
@@ -818,7 +817,7 @@ describe('PersonService', () => {
       };
 
       mockTMDBService.getPersonDetails.mockResolvedValue(tmdbPersonWithValues);
-      (personsDb.updatePerson as Mock).mockResolvedValue(undefined);
+      (personsDb.updatePerson as jest.Mock).mockResolvedValue(undefined);
 
       const result = await service.checkAndUpdatePerson(personWithNulls);
 

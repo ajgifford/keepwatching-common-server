@@ -7,11 +7,10 @@ import {
   createShowService,
   resetShowService,
 } from '@services/showService';
-import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Digest', () => {
   let service: ShowService;
-  let mockCache: MockedObject<CacheService>;
+  let mockCache: jest.Mocked<CacheService>;
 
   beforeEach(() => {
     setupMocks();
@@ -27,7 +26,7 @@ describe('ShowService - Digest', () => {
 
   describe('getTrendingShows', () => {
     it('should return trending shows', async () => {
-      (showsDb.getTrendingShows as Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
+      (showsDb.getTrendingShows as jest.Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
 
       const result = await service.getTrendingShows();
       expect(result).toEqual([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
@@ -35,7 +34,7 @@ describe('ShowService - Digest', () => {
 
     it('should handle errors when getting trending shows', async () => {
       const mockError = new Error('Database error');
-      (showsDb.getTrendingShows as Mock).mockRejectedValue(mockError);
+      (showsDb.getTrendingShows as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.getTrendingShows()).rejects.toThrow('Database error');
 
@@ -45,7 +44,7 @@ describe('ShowService - Digest', () => {
 
   describe('getNewlyAddedShows', () => {
     it('should return newly added shows', async () => {
-      (showsDb.getNewlyAddedShows as Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
+      (showsDb.getNewlyAddedShows as jest.Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
 
       const result = await service.getNewlyAddedShows();
       expect(result).toEqual([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
@@ -53,7 +52,7 @@ describe('ShowService - Digest', () => {
 
     it('should handle errors when getting newly added shows', async () => {
       const mockError = new Error('Database error');
-      (showsDb.getNewlyAddedShows as Mock).mockRejectedValue(mockError);
+      (showsDb.getNewlyAddedShows as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.getNewlyAddedShows()).rejects.toThrow('Database error');
 
@@ -63,7 +62,7 @@ describe('ShowService - Digest', () => {
 
   describe('getTopRatedShows', () => {
     it('should return top rated shows', async () => {
-      (showsDb.getTopRatedShows as Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
+      (showsDb.getTopRatedShows as jest.Mock).mockResolvedValue([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
 
       const result = await service.getTopRatedShows();
       expect(result).toEqual([{ id: 1, tmdbId: 100, title: 'Show 1' }]);
@@ -71,7 +70,7 @@ describe('ShowService - Digest', () => {
 
     it('should handle errors when getting top rated shows', async () => {
       const mockError = new Error('Database error');
-      (showsDb.getTopRatedShows as Mock).mockRejectedValue(mockError);
+      (showsDb.getTopRatedShows as jest.Mock).mockRejectedValue(mockError);
 
       await expect(service.getTopRatedShows()).rejects.toThrow('Database error');
 

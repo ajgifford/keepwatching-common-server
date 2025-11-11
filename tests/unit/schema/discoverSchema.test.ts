@@ -4,7 +4,6 @@ import {
   discoverTopQuerySchema,
   discoverTrendingQuerySchema,
 } from '@schema/discoverSchema';
-import { describe, expect, it } from 'vitest';
 
 describe('discoverSchema', () => {
   describe('discoverTopQuerySchema', () => {

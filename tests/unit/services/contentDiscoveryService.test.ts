@@ -12,78 +12,77 @@ import { getTMDBService } from '@services/tmdbService';
 import { getStreamingPremieredDate, getTMDBItemName, getTMDBPremieredDate, stripPrefix } from '@utils/contentUtility';
 import { generateGenreArrayFromIds } from '@utils/genreUtility';
 import { buildTMDBImagePath } from '@utils/imageUtility';
-import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@services/cacheService');
-vi.mock('@services/errorService');
-vi.mock('@services/streamingAvailabilityService');
-vi.mock('@services/tmdbService');
-vi.mock('@utils/genreUtility');
-vi.mock('@utils/imageUtility');
-vi.mock('@utils/contentUtility');
+jest.mock('@services/cacheService');
+jest.mock('@services/errorService');
+jest.mock('@services/streamingAvailabilityService');
+jest.mock('@services/tmdbService');
+jest.mock('@utils/genreUtility');
+jest.mock('@utils/imageUtility');
+jest.mock('@utils/contentUtility');
 
 describe('ContentDiscoveryService', () => {
   let service: ContentDiscoveryService;
-  let mockCacheService: MockedObject<CacheService>;
+  let mockCacheService: jest.Mocked<CacheService>;
   let mockStreamingAvailabilityService: any;
   let mockStreamingAvailabilityClient: any;
   let mockTMDBService: any;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetContentDiscoveryService();
 
     // Cache Mock Setup
     mockCacheService = {
-      getOrSet: vi.fn(),
-      get: vi.fn(),
-      set: vi.fn(),
-      invalidate: vi.fn(),
-      invalidatePattern: vi.fn(),
-      invalidateAccount: vi.fn(),
-      invalidateProfile: vi.fn(),
-      invalidateProfileStatistics: vi.fn(),
-      invalidateAccountStatistics: vi.fn(),
-      flushAll: vi.fn(),
-      getStats: vi.fn(),
-      keys: vi.fn(),
+      getOrSet: jest.fn(),
+      get: jest.fn(),
+      set: jest.fn(),
+      invalidate: jest.fn(),
+      invalidatePattern: jest.fn(),
+      invalidateAccount: jest.fn(),
+      invalidateProfile: jest.fn(),
+      invalidateProfileStatistics: jest.fn(),
+      invalidateAccountStatistics: jest.fn(),
+      flushAll: jest.fn(),
+      getStats: jest.fn(),
+      keys: jest.fn(),
     } as any;
 
     // Streaming Availability Mock Setup
     mockStreamingAvailabilityClient = {
       showsApi: {
-        getTopShows: vi.fn(),
+        getTopShows: jest.fn(),
       },
       changesApi: {
-        getChanges: vi.fn(),
+        getChanges: jest.fn(),
       },
     };
 
     mockStreamingAvailabilityService = {
-      getClient: vi.fn().mockReturnValue(mockStreamingAvailabilityClient),
+      getClient: jest.fn().mockReturnValue(mockStreamingAvailabilityClient),
     };
 
     // TMDB Service Mock Setup
     mockTMDBService = {
-      getTrending: vi.fn(),
-      searchShows: vi.fn(),
-      searchMovies: vi.fn(),
-      searchPeople: vi.fn(),
+      getTrending: jest.fn(),
+      searchShows: jest.fn(),
+      searchMovies: jest.fn(),
+      searchPeople: jest.fn(),
     };
 
-    (getTMDBService as Mock).mockReturnValue(mockTMDBService);
+    (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
     // Utility Mocks
-    (stripPrefix as Mock).mockImplementation((val) => val.replace(/^(tv\/|movie\/)/, ''));
-    (getStreamingPremieredDate as Mock).mockReturnValue('2023-01-01');
-    (getTMDBPremieredDate as Mock).mockReturnValue('2023-01-01');
-    (getTMDBItemName as Mock).mockImplementation((type, result) => (type === 'movie' ? result.title : result.name));
-    (generateGenreArrayFromIds as Mock).mockReturnValue(['Action', 'Drama']);
-    (buildTMDBImagePath as Mock).mockReturnValue('https://image.tmdb.org/t/p/w185/poster.jpg');
+    (stripPrefix as jest.Mock).mockImplementation((val) => val.replace(/^(tv\/|movie\/)/, ''));
+    (getStreamingPremieredDate as jest.Mock).mockReturnValue('2023-01-01');
+    (getTMDBPremieredDate as jest.Mock).mockReturnValue('2023-01-01');
+    (getTMDBItemName as jest.Mock).mockImplementation((type, result) => (type === 'movie' ? result.title : result.name));
+    (generateGenreArrayFromIds as jest.Mock).mockReturnValue(['Action', 'Drama']);
+    (buildTMDBImagePath as jest.Mock).mockReturnValue('https://image.tmdb.org/t/p/w185/poster.jpg');
 
     // Error Service Mock
-    (errorService.handleError as Mock).mockImplementation((error, context) => {
+    (errorService.handleError as jest.Mock).mockImplementation((error, context) => {
       const handledError = new Error(`Handled: ${error.message} in context ${context}`);
       return handledError; // Return the error instead of throwing it
     });
@@ -96,7 +95,7 @@ describe('ContentDiscoveryService', () => {
 
   afterEach(() => {
     resetContentDiscoveryService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('discoverTopContent', () => {

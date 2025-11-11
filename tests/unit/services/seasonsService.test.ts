@@ -9,17 +9,16 @@ import {
 } from '@services/seasonsService';
 import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@db/seasonsDb');
-vi.mock('@services/errorService');
-vi.mock('@services/showService');
-vi.mock('@services/watchStatusService');
+jest.mock('@db/seasonsDb');
+jest.mock('@services/errorService');
+jest.mock('@services/showService');
+jest.mock('@services/watchStatusService');
 
-vi.mock('@logger/logger', () => ({
+jest.mock('@logger/logger', () => ({
   appLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
 }));
 
@@ -30,7 +29,7 @@ describe('seasonsService', () => {
   const seasonId = 789;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     resetSeasonsService();
     seasonsService = createSeasonsService();
   });
@@ -42,9 +41,9 @@ describe('seasonsService', () => {
   describe('updateSeasonWatchStatus', () => {
     it('should update season watch status', async () => {
       const mockNextUnwatchedEpisodes = [{ show_id: 1, episodes: [{ episode_id: 789 }] }];
-      (showService.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue(mockNextUnwatchedEpisodes);
 
-      (watchStatusService.updateSeasonWatchStatus as Mock).mockResolvedValue({
+      (watchStatusService.updateSeasonWatchStatus as jest.Mock).mockResolvedValue({
         success: true,
         message: 'Season test message',
         affectedRows: 1,
@@ -66,8 +65,8 @@ describe('seasonsService', () => {
 
     it('should handle errors when updating season watch status', async () => {
       const mockError = new Error('Update failed');
-      (watchStatusService.updateSeasonWatchStatus as Mock).mockRejectedValue(mockError);
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (watchStatusService.updateSeasonWatchStatus as jest.Mock).mockRejectedValue(mockError);
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -89,7 +88,7 @@ describe('seasonsService', () => {
         { season_id: 2, name: 'Season 2', episodes: [{ episode_id: 201 }] },
       ];
 
-      (seasonsDb.getSeasonsForShow as Mock).mockResolvedValue(mockSeasons);
+      (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValue(mockSeasons);
 
       const result = await seasonsService.getSeasonsForShow(456, 123);
 
@@ -99,8 +98,8 @@ describe('seasonsService', () => {
 
     it('should handle errors when getting seasons for a show', async () => {
       const mockError = new Error('Database error');
-      (seasonsDb.getSeasonsForShow as Mock).mockRejectedValue(mockError);
-      (errorService.handleError as Mock).mockImplementation((error) => {
+      (seasonsDb.getSeasonsForShow as jest.Mock).mockRejectedValue(mockError);
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
       });
 
@@ -112,7 +111,7 @@ describe('seasonsService', () => {
 
   describe('updateSeason', () => {
     beforeEach(() => {
-      vi.clearAllMocks();
+      jest.clearAllMocks();
     });
 
     it('should update a season successfully', async () => {
@@ -129,7 +128,7 @@ describe('seasonsService', () => {
 
       const updatedSeason = 500;
 
-      vi.spyOn(seasonsDb, 'updateSeason').mockResolvedValue(updatedSeason);
+      jest.spyOn(seasonsDb, 'updateSeason').mockResolvedValue(updatedSeason);
 
       const result = await seasonsService.updateSeason(seasonData);
 
@@ -151,8 +150,8 @@ describe('seasonsService', () => {
 
       const error = new Error('Database error');
 
-      vi.spyOn(seasonsDb, 'updateSeason').mockRejectedValue(error);
-      vi.spyOn(errorService, 'handleError').mockImplementation((err) => {
+      jest.spyOn(seasonsDb, 'updateSeason').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
         throw err;
       });
 
@@ -163,11 +162,11 @@ describe('seasonsService', () => {
 
   describe('addSeasonToFavorites', () => {
     beforeEach(() => {
-      vi.clearAllMocks();
+      jest.clearAllMocks();
     });
 
     it('should add a season to favorites successfully with the default status', async () => {
-      vi.spyOn(seasonsDb, 'saveFavorite').mockResolvedValue(undefined);
+      jest.spyOn(seasonsDb, 'saveFavorite').mockResolvedValue(undefined);
 
       await seasonsService.addSeasonToFavorites(profileId, seasonId);
 
@@ -175,7 +174,7 @@ describe('seasonsService', () => {
     });
 
     it('should add a season to favorites successfully with the provided status', async () => {
-      vi.spyOn(seasonsDb, 'saveFavorite').mockResolvedValue(undefined);
+      jest.spyOn(seasonsDb, 'saveFavorite').mockResolvedValue(undefined);
 
       await seasonsService.addSeasonToFavorites(profileId, seasonId, WatchStatus.UNAIRED);
 
@@ -185,8 +184,8 @@ describe('seasonsService', () => {
     it('should handle errors when adding a season to favorites', async () => {
       const error = new Error('Database error');
 
-      vi.spyOn(seasonsDb, 'saveFavorite').mockRejectedValue(error);
-      vi.spyOn(errorService, 'handleError').mockImplementation((err) => {
+      jest.spyOn(seasonsDb, 'saveFavorite').mockRejectedValue(error);
+      jest.spyOn(errorService, 'handleError').mockImplementation((err) => {
         throw err;
       });
 

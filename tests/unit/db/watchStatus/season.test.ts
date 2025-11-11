@@ -1,3 +1,4 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { createMockEpisodeRow, createMockSeasonExtendedRow, createMockSeasonRow } from './helpers/watchStatusTestTypes';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { WatchStatusDbService } from '@db/watchStatusDb';
@@ -5,57 +6,47 @@ import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { WatchStatusManager } from '@utils/watchStatusManager';
 import { PoolConnection, ResultSetHeader } from 'mysql2/promise';
-import { MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock dependencies
-vi.mock('@utils/transactionHelper');
-vi.mock('@utils/watchStatusManager');
-vi.mock('@utils/errorHandlingUtility', () => ({
-  handleDatabaseError: vi.fn((error: Error, operation: string) => {
-    throw new Error(`Database error ${operation}: ${error.message}`);
-  }),
-}));
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
+// Mock dependencies specific to this test
+jest.mock('@utils/watchStatusManager');
+jest.mock('@utils/errorHandlingUtility');
 
 describe('WatchStatusDbService - Season Operations', () => {
   let watchStatusDbService: WatchStatusDbService;
-  let mockTransactionHelper: MockedObject<TransactionHelper>;
-  let mockWatchStatusManager: MockedObject<WatchStatusManager>;
-  let mockConnection: MockedObject<PoolConnection>;
+  let mockTransactionHelper: jest.Mocked<TransactionHelper>;
+  let mockWatchStatusManager: jest.Mocked<WatchStatusManager>;
+  let mockConnection: jest.Mocked<PoolConnection>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
-    // Mock connection
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockTransactionHelper = mocks.mockTransactionHelper;
+
+    // Extend the mock connection with additional methods needed for these tests
     mockConnection = {
-      execute: vi.fn(),
-      beginTransaction: vi.fn(),
-      commit: vi.fn(),
-      rollback: vi.fn(),
-      release: vi.fn(),
-    } as unknown as MockedObject<PoolConnection>;
+      ...mocks.mockConnection,
+      beginTransaction: jest.fn(),
+      commit: jest.fn(),
+      rollback: jest.fn(),
+      release: jest.fn(),
+    } as unknown as jest.Mocked<PoolConnection>;
 
-    // Mock TransactionHelper
-    mockTransactionHelper = {
-      executeInTransaction: vi.fn(),
-    } as MockedObject<TransactionHelper>;
-
-    // Mock WatchStatusManager
+    // Mock WatchStatusManager (test-specific)
     mockWatchStatusManager = {
-      calculateEpisodeStatus: vi.fn(),
-      calculateSeasonStatus: vi.fn(),
-      calculateShowStatus: vi.fn(),
-      onStatusChange: vi.fn(),
-      generateStatusSummary: vi.fn(),
-    } as unknown as MockedObject<WatchStatusManager>;
+      calculateEpisodeStatus: jest.fn(),
+      calculateSeasonStatus: jest.fn(),
+      calculateShowStatus: jest.fn(),
+      onStatusChange: jest.fn(),
+      generateStatusSummary: jest.fn(),
+    } as unknown as jest.Mocked<WatchStatusManager>;
+
+    // Setup handleDatabaseError mock (test-specific)
+    jest.mocked(handleDatabaseError).mockImplementation((error, contextMessage) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Database error ${contextMessage}: ${errorMessage}`);
+    });
 
     // Create service instance with mocked dependencies
     watchStatusDbService = new WatchStatusDbService(mockWatchStatusManager, mockTransactionHelper);

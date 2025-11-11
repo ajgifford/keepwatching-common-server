@@ -13,17 +13,16 @@ import { preferencesService } from '@services/preferencesService';
 import { profileService } from '@services/profileService';
 import { showService } from '@services/showService';
 import * as emailUtility from '@utils/emailUtility';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@logger/logger');
-vi.mock('@services/errorService');
-vi.mock('@services/accountService');
-vi.mock('@services/profileService');
-vi.mock('@services/episodesService');
-vi.mock('@services/moviesService');
-vi.mock('@services/showService');
-vi.mock('@services/preferencesService');
-vi.mock('@utils/emailUtility');
+jest.mock('@logger/logger');
+jest.mock('@services/errorService');
+jest.mock('@services/accountService');
+jest.mock('@services/profileService');
+jest.mock('@services/episodesService');
+jest.mock('@services/moviesService');
+jest.mock('@services/showService');
+jest.mock('@services/preferencesService');
+jest.mock('@utils/emailUtility');
 
 describe('EmailContentService', () => {
   let emailContentService: EmailContentService;
@@ -65,24 +64,24 @@ describe('EmailContentService', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     resetEmailContentService();
     emailContentService = createEmailContentService();
 
     // Setup default mocks
-    (emailUtility.getUpcomingWeekRange as Mock).mockReturnValue(mockWeekRange);
-    (errorService.handleError as Mock).mockImplementation((error) => error);
-    (accountService.getCombinedAccountByEmail as Mock).mockResolvedValue(mockAccount);
-    (profileService.getProfilesByAccountId as Mock).mockResolvedValue([mockProfile]);
-    (episodesService.getUpcomingEpisodesForProfile as Mock).mockResolvedValue([mockUpcomingEpisode]);
-    (moviesService.getUpcomingMoviesForProfile as Mock).mockResolvedValue([mockUpcomingMovie]);
-    (showService.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue([mockContinueWatching]);
-    (showService.getTrendingShows as Mock).mockResolvedValue([{ id: 1, title: 'Trending Show' }]);
-    (showService.getTopRatedShows as Mock).mockResolvedValue([{ id: 2, title: 'Top Rated Show' }]);
-    (showService.getNewlyAddedShows as Mock).mockResolvedValue([{ id: 3, title: 'New Show' }]);
-    (moviesService.getTrendingMovies as Mock).mockResolvedValue([{ id: 4, title: 'Trending Movie' }]);
-    (moviesService.getTopRatedMovies as Mock).mockResolvedValue([{ id: 5, title: 'Top Rated Movie' }]);
-    (moviesService.getRecentlyReleasedMovies as Mock).mockResolvedValue([{ id: 6, title: 'Recent Movie' }]);
+    (emailUtility.getUpcomingWeekRange as jest.Mock).mockReturnValue(mockWeekRange);
+    (errorService.handleError as jest.Mock).mockImplementation((error) => error);
+    (accountService.getCombinedAccountByEmail as jest.Mock).mockResolvedValue(mockAccount);
+    (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([mockProfile]);
+    (episodesService.getUpcomingEpisodesForProfile as jest.Mock).mockResolvedValue([mockUpcomingEpisode]);
+    (moviesService.getUpcomingMoviesForProfile as jest.Mock).mockResolvedValue([mockUpcomingMovie]);
+    (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([mockContinueWatching]);
+    (showService.getTrendingShows as jest.Mock).mockResolvedValue([{ id: 1, title: 'Trending Show' }]);
+    (showService.getTopRatedShows as jest.Mock).mockResolvedValue([{ id: 2, title: 'Top Rated Show' }]);
+    (showService.getNewlyAddedShows as jest.Mock).mockResolvedValue([{ id: 3, title: 'New Show' }]);
+    (moviesService.getTrendingMovies as jest.Mock).mockResolvedValue([{ id: 4, title: 'Trending Movie' }]);
+    (moviesService.getTopRatedMovies as jest.Mock).mockResolvedValue([{ id: 5, title: 'Top Rated Movie' }]);
+    (moviesService.getRecentlyReleasedMovies as jest.Mock).mockResolvedValue([{ id: 6, title: 'Recent Movie' }]);
   });
 
   afterEach(() => {
@@ -103,9 +102,9 @@ describe('EmailContentService', () => {
 
     it('should generate discovery content when account has no upcoming content', async () => {
       // Mock no upcoming content
-      (episodesService.getUpcomingEpisodesForProfile as Mock).mockResolvedValue([]);
-      (moviesService.getUpcomingMoviesForProfile as Mock).mockResolvedValue([]);
-      (showService.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue([]);
+      (episodesService.getUpcomingEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+      (moviesService.getUpcomingMoviesForProfile as jest.Mock).mockResolvedValue([]);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
 
       const result = await emailContentService.generateEmailContent('test@example.com');
 
@@ -116,13 +115,13 @@ describe('EmailContentService', () => {
     });
 
     it('should throw NotFoundError when account not found', async () => {
-      (accountService.getCombinedAccountByEmail as Mock).mockResolvedValue(null);
+      (accountService.getCombinedAccountByEmail as jest.Mock).mockResolvedValue(null);
 
       await expect(emailContentService.generateEmailContent('missing@example.com')).rejects.toThrow(NotFoundError);
     });
 
     it('should throw NotVerifiedError when account email not verified', async () => {
-      (accountService.getCombinedAccountByEmail as Mock).mockResolvedValue({
+      (accountService.getCombinedAccountByEmail as jest.Mock).mockResolvedValue({
         ...mockAccount,
         emailVerified: false,
       });
@@ -131,7 +130,7 @@ describe('EmailContentService', () => {
     });
 
     it('should throw NotFoundError when account has no profiles', async () => {
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValue([]);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([]);
 
       await expect(emailContentService.generateEmailContent('test@example.com')).rejects.toThrow(NotFoundError);
     });
@@ -144,11 +143,11 @@ describe('EmailContentService', () => {
     ];
 
     beforeEach(() => {
-      (accountService.getAccounts as Mock).mockResolvedValue(mockAccounts);
-      (preferencesService.getAccountsWithEmailPreference as Mock)
+      (accountService.getAccounts as jest.Mock).mockResolvedValue(mockAccounts);
+      (preferencesService.getAccountsWithEmailPreference as jest.Mock)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         .mockResolvedValue(mockAccounts.map(({ emailVerified, ...rest }) => rest));
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValue([mockProfile]);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([mockProfile]);
     });
 
     it('should generate batch email content successfully', async () => {
@@ -161,7 +160,7 @@ describe('EmailContentService', () => {
     });
 
     it('should handle accounts without email preferences', async () => {
-      (preferencesService.getAccountsWithEmailPreference as Mock).mockResolvedValue([]);
+      (preferencesService.getAccountsWithEmailPreference as jest.Mock).mockResolvedValue([]);
 
       const result = await emailContentService.generateBatchEmailContent();
 
@@ -173,7 +172,7 @@ describe('EmailContentService', () => {
     });
 
     it('should return empty arrays when no accounts found', async () => {
-      (accountService.getAccounts as Mock).mockResolvedValue([]);
+      (accountService.getAccounts as jest.Mock).mockResolvedValue([]);
 
       const result = await emailContentService.generateBatchEmailContent();
 
@@ -194,9 +193,9 @@ describe('EmailContentService', () => {
 
     it('should throw NotFoundError when account has no upcoming content', async () => {
       // Mock no upcoming content
-      (episodesService.getUpcomingEpisodesForProfile as Mock).mockResolvedValue([]);
-      (moviesService.getUpcomingMoviesForProfile as Mock).mockResolvedValue([]);
-      (showService.getNextUnwatchedEpisodesForProfile as Mock).mockResolvedValue([]);
+      (episodesService.getUpcomingEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+      (moviesService.getUpcomingMoviesForProfile as jest.Mock).mockResolvedValue([]);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
 
       await expect(emailContentService.generateDigestContent('test@example.com')).rejects.toThrow(NotFoundError);
     });
@@ -229,12 +228,12 @@ describe('EmailContentService', () => {
 
     it('should return empty arrays when services fail', async () => {
       const error = new Error('Service failed');
-      (showService.getTrendingShows as Mock).mockRejectedValue(error);
-      (showService.getTopRatedShows as Mock).mockRejectedValue(error);
-      (showService.getNewlyAddedShows as Mock).mockRejectedValue(error);
-      (moviesService.getTrendingMovies as Mock).mockRejectedValue(error);
-      (moviesService.getTopRatedMovies as Mock).mockRejectedValue(error);
-      (moviesService.getRecentlyReleasedMovies as Mock).mockRejectedValue(error);
+      (showService.getTrendingShows as jest.Mock).mockRejectedValue(error);
+      (showService.getTopRatedShows as jest.Mock).mockRejectedValue(error);
+      (showService.getNewlyAddedShows as jest.Mock).mockRejectedValue(error);
+      (moviesService.getTrendingMovies as jest.Mock).mockRejectedValue(error);
+      (moviesService.getTopRatedMovies as jest.Mock).mockRejectedValue(error);
+      (moviesService.getRecentlyReleasedMovies as jest.Mock).mockRejectedValue(error);
 
       const result = await emailContentService.getFeaturedContent();
 
@@ -261,7 +260,7 @@ describe('EmailContentService', () => {
         { ...mockUpcomingEpisode, airDate: '2025-08-02' }, // In range
       ];
 
-      (episodesService.getUpcomingEpisodesForProfile as Mock).mockResolvedValue([
+      (episodesService.getUpcomingEpisodesForProfile as jest.Mock).mockResolvedValue([
         ...episodesOutsideRange,
         ...episodesInRange,
       ]);
@@ -276,8 +275,8 @@ describe('EmailContentService', () => {
     it('should deduplicate trending and top-rated content', async () => {
       // Mock overlapping content
       const overlappingShow = { id: 1, title: 'Popular Show' };
-      (showService.getTrendingShows as Mock).mockResolvedValue([overlappingShow]);
-      (showService.getTopRatedShows as Mock).mockResolvedValue([overlappingShow]);
+      (showService.getTrendingShows as jest.Mock).mockResolvedValue([overlappingShow]);
+      (showService.getTopRatedShows as jest.Mock).mockResolvedValue([overlappingShow]);
 
       const result = await emailContentService.getFeaturedContent();
 
@@ -289,19 +288,19 @@ describe('EmailContentService', () => {
       const profileWithContent = { id: 1, name: 'Profile 1' };
       const profileWithoutContent = { id: 2, name: 'Profile 2' };
 
-      (profileService.getProfilesByAccountId as Mock).mockResolvedValue([profileWithContent, profileWithoutContent]);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([profileWithContent, profileWithoutContent]);
 
-      (episodesService.getUpcomingEpisodesForProfile as Mock).mockImplementation((profileId) => {
+      (episodesService.getUpcomingEpisodesForProfile as jest.Mock).mockImplementation((profileId) => {
         if (profileId === 1) return Promise.resolve([mockUpcomingEpisode]);
         return Promise.resolve([]);
       });
 
-      (moviesService.getUpcomingMoviesForProfile as Mock).mockImplementation((profileId) => {
+      (moviesService.getUpcomingMoviesForProfile as jest.Mock).mockImplementation((profileId) => {
         if (profileId === 1) return Promise.resolve([mockUpcomingMovie]);
         return Promise.resolve([]);
       });
 
-      (showService.getNextUnwatchedEpisodesForProfile as Mock).mockImplementation((profileId) => {
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockImplementation((profileId) => {
         if (profileId === 1) return Promise.resolve([mockContinueWatching]);
         return Promise.resolve([]);
       });
@@ -318,8 +317,8 @@ describe('EmailContentService', () => {
 
   describe('error handling', () => {
     it('should handle service errors gracefully in featured content', async () => {
-      (showService.getTrendingShows as Mock).mockRejectedValue(new Error('Trending shows failed'));
-      (moviesService.getTrendingMovies as Mock).mockRejectedValue(new Error('Trending movies failed'));
+      (showService.getTrendingShows as jest.Mock).mockRejectedValue(new Error('Trending shows failed'));
+      (moviesService.getTrendingMovies as jest.Mock).mockRejectedValue(new Error('Trending movies failed'));
 
       const result = await emailContentService.getFeaturedContent();
 
@@ -335,12 +334,12 @@ describe('EmailContentService', () => {
         { id: 2, name: 'Bad Account', email: 'bad@example.com', emailVerified: true },
       ];
 
-      (accountService.getAccounts as Mock).mockResolvedValue(accounts);
-      (preferencesService.getAccountsWithEmailPreference as Mock)
+      (accountService.getAccounts as jest.Mock).mockResolvedValue(accounts);
+      (preferencesService.getAccountsWithEmailPreference as jest.Mock)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         .mockResolvedValue(accounts.map(({ emailVerified, ...rest }) => rest));
 
-      (profileService.getProfilesByAccountId as Mock).mockImplementation((accountId) => {
+      (profileService.getProfilesByAccountId as jest.Mock).mockImplementation((accountId) => {
         if (accountId === 1) return Promise.resolve([mockProfile]);
         if (accountId === 2) throw new Error('Profile service failed');
         return Promise.resolve([]);

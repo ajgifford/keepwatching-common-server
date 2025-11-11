@@ -10,11 +10,10 @@ import {
   resetShowService,
 } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
-import { type Mock, MockedObject, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Basic Functionality', () => {
   let service: ShowService;
-  let mockCache: MockedObject<CacheService>;
+  let mockCache: jest.Mocked<CacheService>;
 
   const accountId = 111;
   const profileId = 123;
@@ -27,7 +26,7 @@ describe('ShowService - Basic Functionality', () => {
 
     service = createShowService({ cacheService: mockCache });
 
-    (watchStatusService.checkAndUpdateShowStatus as Mock).mockResolvedValue({
+    (watchStatusService.checkAndUpdateShowStatus as jest.Mock).mockResolvedValue({
       success: true,
       message: 'Check and update show test message',
       affectedRows: 1,
@@ -51,7 +50,7 @@ describe('ShowService - Basic Functionality', () => {
 
     it('should fetch shows from database when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue(mockShows);
+      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockShows);
 
       const result = await service.getShowsForProfile(profileId);
 
@@ -63,7 +62,7 @@ describe('ShowService - Basic Functionality', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as Mock).mockRejectedValue(error);
+      (showsDb.getAllShowsForProfile as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getShowsForProfile(profileId)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, `getShowsForProfile(${profileId})`);
@@ -92,7 +91,7 @@ describe('ShowService - Basic Functionality', () => {
 
     it('should fetch show details from database when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getShowWithSeasonsForProfile as Mock).mockResolvedValue(mockShowWithSeasons);
+      (showsDb.getShowWithSeasonsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
 
       const result = await service.getShowDetailsForProfile(accountId, profileId, showId);
 
@@ -103,8 +102,8 @@ describe('ShowService - Basic Functionality', () => {
 
     it('should throw NotFoundError when show is not found', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getShowWithSeasonsForProfile as Mock).mockResolvedValue(null);
-      (errorService.assertExists as Mock).mockImplementation(() => {
+      (showsDb.getShowWithSeasonsForProfile as jest.Mock).mockResolvedValue(null);
+      (errorService.assertExists as jest.Mock).mockImplementation(() => {
         throw new NotFoundError('Show not found');
       });
 
@@ -116,7 +115,7 @@ describe('ShowService - Basic Functionality', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getShowWithSeasonsForProfile as Mock).mockRejectedValue(error);
+      (showsDb.getShowWithSeasonsForProfile as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getShowDetailsForProfile(accountId, profileId, showId)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(
@@ -150,7 +149,7 @@ describe('ShowService - Basic Functionality', () => {
 
     it('should fetch show details by episode from database when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getShowWithSeasonsForProfileByChild as Mock).mockResolvedValue(mockShowWithSeasons);
+      (showsDb.getShowWithSeasonsForProfileByChild as jest.Mock).mockResolvedValue(mockShowWithSeasons);
 
       const result = await service.getShowDetailsForProfileByChild(accountId, profileId, episodeId, 'episodes');
 
@@ -161,7 +160,7 @@ describe('ShowService - Basic Functionality', () => {
 
     it('should fetch show details by season from database when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getShowWithSeasonsForProfileByChild as Mock).mockResolvedValue(mockShowWithSeasons);
+      (showsDb.getShowWithSeasonsForProfileByChild as jest.Mock).mockResolvedValue(mockShowWithSeasons);
 
       const result = await service.getShowDetailsForProfileByChild(accountId, profileId, seasonId, 'seasons');
 
@@ -172,8 +171,8 @@ describe('ShowService - Basic Functionality', () => {
 
     it('should throw NotFoundError when show is not found', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getShowWithSeasonsForProfileByChild as Mock).mockResolvedValue(null);
-      (errorService.assertExists as Mock).mockImplementation(() => {
+      (showsDb.getShowWithSeasonsForProfileByChild as jest.Mock).mockResolvedValue(null);
+      (errorService.assertExists as jest.Mock).mockImplementation(() => {
         throw new NotFoundError('Show not found');
       });
 
@@ -187,7 +186,7 @@ describe('ShowService - Basic Functionality', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getShowWithSeasonsForProfileByChild as Mock).mockRejectedValue(error);
+      (showsDb.getShowWithSeasonsForProfileByChild as jest.Mock).mockRejectedValue(error);
 
       await expect(
         service.getShowDetailsForProfileByChild(accountId, profileId, episodeId, 'episodes'),

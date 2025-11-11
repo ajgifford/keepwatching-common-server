@@ -1,3 +1,4 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { AccountReference, DEFAULT_PREFERENCES, EmailPreferences, PreferenceType } from '@ajgifford/keepwatching-types';
 import {
   deleteAccountPreferences,
@@ -11,58 +12,31 @@ import {
 import { cliLogger } from '@logger/logger';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { ResultSetHeader } from 'mysql2/promise';
-import { Mocked, MockedFunction, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction } = vi.hoisted(() => {
-  const mockExecute = vi.fn();
-  const mockQuery = vi.fn();
-  const mockGetDbPool = vi.fn(() => ({
-    execute: mockExecute,
-    query: mockQuery,
-  }));
-  const mockExecuteInTransaction = vi.fn();
-
-  return { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction };
-});
-
-vi.mock('@utils/db', () => ({
-  getDbPool: mockGetDbPool,
-}));
-
-vi.mock('@utils/transactionHelper', () => ({
-  TransactionHelper: vi.fn(function (this: any) {
-    this.executeInTransaction = mockExecuteInTransaction;
-  }),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
-
-vi.mock('@logger/logger');
-vi.mock('@utils/errorHandlingUtility');
-const mockLogger = cliLogger as Mocked<typeof cliLogger>;
-const mockHandleDatabaseError = handleDatabaseError as MockedFunction<typeof handleDatabaseError>;
+jest.mock('@logger/logger');
+jest.mock('@utils/errorHandlingUtility');
 
 describe('preferencesDb', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockExecuteInTransaction.mockImplementation(async (callback) => {
-      const mockConnection = {
-        execute: mockExecute,
-      };
-      return callback(mockConnection);
-    });
+  let mockExecute: jest.Mock;
+  let mockQuery: jest.Mock;
+  let mockLogger: jest.Mocked<typeof cliLogger>;
+  let mockExecuteInTransaction: jest.Mock;
 
-    // Reset handleDatabaseError to throw by default
-    mockHandleDatabaseError.mockImplementation((error, context) => {
-      throw new Error(`Database error in ${context}: ${error}`);
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockQuery = mocks.mockQuery;
+    mockExecuteInTransaction = mocks.mockExecuteInTransaction;
+
+    // Setup other mocks specific to this test
+    mockLogger = cliLogger as jest.Mocked<typeof cliLogger>;
+
+    jest.mocked(handleDatabaseError).mockImplementation((error, contextMessage) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Database error ${contextMessage}: ${errorMessage}`);
     });
   });
 
@@ -156,9 +130,9 @@ describe('preferencesDb', () => {
       mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(getAccountPreferences(accountId)).rejects.toThrow(
-        'Database error in getting account preferences: Error: Connection failed',
+        'Database error getting account preferences: Connection failed',
       );
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(dbError, 'getting account preferences');
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'getting account preferences');
     });
   });
 
@@ -194,9 +168,9 @@ describe('preferencesDb', () => {
       mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(getPreferencesByType(accountId, preferenceType)).rejects.toThrow(
-        'Database error in getting account preferences by type: Error: Connection failed',
+        'Database error getting account preferences by type: Connection failed',
       );
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(dbError, 'getting account preferences by type');
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'getting account preferences by type');
     });
   });
 
@@ -239,9 +213,9 @@ describe('preferencesDb', () => {
         .mockRejectedValueOnce(dbError);
 
       await expect(updatePreferences(accountId, preferenceType, updates)).rejects.toThrow(
-        'Database error in updating account preferences: Error: Update failed',
+        'Database error updating account preferences: Update failed',
       );
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(dbError, 'updating account preferences');
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'updating account preferences');
     });
   });
 
@@ -287,9 +261,9 @@ describe('preferencesDb', () => {
       mockExecuteInTransaction.mockRejectedValueOnce(transactionError);
 
       await expect(updateMultiplePreferences(accountId, updates)).rejects.toThrow(
-        'Database error in updating multiple account preferences: Error: Transaction failed',
+        'Database error updating multiple account preferences: Transaction failed',
       );
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(transactionError, 'updating multiple account preferences');
+      expect(handleDatabaseError).toHaveBeenCalledWith(transactionError, 'updating multiple account preferences');
     });
   });
 
@@ -317,9 +291,9 @@ describe('preferencesDb', () => {
       mockQuery.mockRejectedValueOnce(dbError);
 
       await expect(initializeDefaultPreferences(accountId)).rejects.toThrow(
-        'Database error in initializing default preferences: Error: Insert failed',
+        'Database error initializing default preferences: Insert failed',
       );
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(dbError, 'initializing default preferences');
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'initializing default preferences');
     });
   });
 
@@ -339,9 +313,9 @@ describe('preferencesDb', () => {
       mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(deleteAccountPreferences(accountId)).rejects.toThrow(
-        'Database error in deleting account preferences: Error: Delete failed',
+        'Database error deleting account preferences: Delete failed',
       );
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(dbError, 'deleting account preferences');
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'deleting account preferences');
     });
   });
 
@@ -403,12 +377,9 @@ describe('preferencesDb', () => {
       mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(getAccountsWithEmailPreference(preferenceKey, value)).rejects.toThrow(
-        'Database error in getting accounts with email preference weeklyDigest: Error: Query failed',
+        'Database error getting accounts with email preference weeklyDigest: Query failed',
       );
-      expect(mockHandleDatabaseError).toHaveBeenCalledWith(
-        dbError,
-        'getting accounts with email preference weeklyDigest',
-      );
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'getting accounts with email preference weeklyDigest');
     });
   });
 

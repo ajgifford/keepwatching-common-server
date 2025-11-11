@@ -1,33 +1,29 @@
 import { cliLogger } from '@logger/logger';
 import { DatabaseService, databaseService } from '@services/databaseService';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as dbUtils from '@utils/db';
 
-const { mockPool, mockResetDbPool } = vi.hoisted(() => {
-  const mockPool = {
-    end: vi.fn().mockResolvedValue(undefined),
-  };
-
-  const mockResetDbPool = vi.fn();
-
-  return { mockPool, mockResetDbPool };
-});
-
-vi.mock('@logger/logger', () => ({
+jest.mock('@logger/logger', () => ({
   cliLogger: {
-    info: vi.fn(),
-    error: vi.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
   },
 }));
 
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(() => mockPool),
-  resetDbPool: mockResetDbPool,
-  createDbPool: vi.fn(() => mockPool),
+const mockPool = {
+  end: jest.fn().mockResolvedValue(undefined),
+};
+
+jest.mock('@utils/db', () => ({
+  getDbPool: jest.fn(),
+  resetDbPool: jest.fn(),
+  createDbPool: jest.fn(),
 }));
 
 describe('DatabaseService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
+    mockPool.end.mockResolvedValue(undefined);
+    (dbUtils.getDbPool as jest.Mock).mockReturnValue(mockPool);
     DatabaseService.reset();
   });
 
@@ -58,7 +54,7 @@ describe('DatabaseService', () => {
 
     it('should return true during shutdown', async () => {
       const originalMethod = databaseService.isInShutdownMode;
-      databaseService.isInShutdownMode = vi.fn().mockReturnValue(true);
+      databaseService.isInShutdownMode = jest.fn().mockReturnValue(true);
 
       expect(databaseService.isInShutdownMode()).toBe(true);
 
@@ -80,7 +76,7 @@ describe('DatabaseService', () => {
     it('should log an error if pool closing fails', async () => {
       const pool = databaseService.getPool();
       const error = new Error('Connection error');
-      (pool.end as Mock).mockRejectedValueOnce(error);
+      (pool.end as jest.Mock).mockRejectedValueOnce(error);
 
       await expect(databaseService.shutdown()).rejects.toThrow('Connection error');
       expect(cliLogger.error).toHaveBeenCalledWith('Error closing database connections', error);
@@ -88,7 +84,7 @@ describe('DatabaseService', () => {
 
     it('should not attempt another shutdown if one is in progress', async () => {
       const originalIsInShutdownMode = databaseService.isInShutdownMode;
-      databaseService.isInShutdownMode = vi.fn().mockReturnValue(true);
+      databaseService.isInShutdownMode = jest.fn().mockReturnValue(true);
 
       await databaseService.shutdown();
 
@@ -105,7 +101,7 @@ describe('DatabaseService', () => {
 
       DatabaseService.reset();
 
-      expect(mockResetDbPool).toHaveBeenCalled();
+      expect(dbUtils.resetDbPool).toHaveBeenCalled();
 
       const newInstance = DatabaseService.getInstance();
 

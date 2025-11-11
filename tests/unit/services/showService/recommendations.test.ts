@@ -5,7 +5,6 @@ import { NotFoundError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
 import { resetShowService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
-import { type Mock, Mocked, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('ShowService - Recommendations', () => {
   let service: ReturnType<typeof setupShowService>['service'];
@@ -42,7 +41,7 @@ describe('ShowService - Recommendations', () => {
         },
       ];
 
-      (showsDb.findShowById as Mock).mockResolvedValue(mockShowTMDBReference);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
       mockCache.getOrSet.mockResolvedValue(mockRecommendations);
 
       const result = await service.getShowRecommendations(123, 1);
@@ -53,12 +52,12 @@ describe('ShowService - Recommendations', () => {
     });
 
     it('should fetch recommendations from TMDB when not in cache', async () => {
-      (showsDb.findShowById as Mock).mockResolvedValue(mockShowTMDBReference);
-      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue(mockUserShows);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
+      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockUserShows);
 
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
 
-      const mockTMDBService = getTMDBService() as Mocked<ReturnType<typeof getTMDBService>>;
+      const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getShowRecommendations.mockResolvedValue(mockTMDBResponses.showRecommendations);
 
       const result = await service.getShowRecommendations(123, 1);
@@ -75,8 +74,8 @@ describe('ShowService - Recommendations', () => {
     });
 
     it('should throw NotFoundError when show does not exist', async () => {
-      (showsDb.findShowById as Mock).mockResolvedValue(null);
-      (errorService.assertExists as Mock).mockImplementation(() => {
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(null);
+      (errorService.assertExists as jest.Mock).mockImplementation(() => {
         throw new NotFoundError('Show not found');
       });
 
@@ -86,7 +85,7 @@ describe('ShowService - Recommendations', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (showsDb.findShowById as Mock).mockRejectedValue(error);
+      (showsDb.findShowById as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getShowRecommendations(123, 1)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getShowRecommendations(123, 1)');
@@ -114,7 +113,7 @@ describe('ShowService - Recommendations', () => {
         },
       ];
 
-      (showsDb.findShowById as Mock).mockResolvedValue(mockShowTMDBReference);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
       mockCache.getOrSet.mockResolvedValue(mockSimilarShows);
 
       const result = await service.getSimilarShows(123, 1);
@@ -125,12 +124,12 @@ describe('ShowService - Recommendations', () => {
     });
 
     it('should fetch similar shows from TMDB when not in cache', async () => {
-      (showsDb.findShowById as Mock).mockResolvedValue(mockShowTMDBReference);
-      (showsDb.getAllShowsForProfile as Mock).mockResolvedValue(mockUserShows);
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShowTMDBReference);
+      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockUserShows);
 
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
 
-      const mockTMDBService = getTMDBService() as Mocked<ReturnType<typeof getTMDBService>>;
+      const mockTMDBService = getTMDBService() as jest.Mocked<ReturnType<typeof getTMDBService>>;
       mockTMDBService.getSimilarShows.mockResolvedValue(mockTMDBResponses.similarShows);
 
       const result = await service.getSimilarShows(123, 1);
@@ -147,8 +146,8 @@ describe('ShowService - Recommendations', () => {
     });
 
     it('should throw NotFoundError when show does not exist', async () => {
-      (showsDb.findShowById as Mock).mockResolvedValue(null);
-      (errorService.assertExists as Mock).mockImplementation(() => {
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(null);
+      (errorService.assertExists as jest.Mock).mockImplementation(() => {
         throw new NotFoundError('Show not found');
       });
 
@@ -158,7 +157,7 @@ describe('ShowService - Recommendations', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (showsDb.findShowById as Mock).mockRejectedValue(error);
+      (showsDb.findShowById as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getSimilarShows(123, 1)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getSimilarShows(123, 1)');

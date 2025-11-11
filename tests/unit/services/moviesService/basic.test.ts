@@ -1,7 +1,6 @@
 import { setupMoviesService } from './helpers/mocks';
 import * as moviesDb from '@db/moviesDb';
 import { errorService } from '@services/errorService';
-import { type Mock, beforeEach, describe, expect, it } from 'vitest';
 
 describe('MoviesService - Basic Functionality', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
@@ -27,7 +26,7 @@ describe('MoviesService - Basic Functionality', () => {
     it('should fetch movies from database when not in cache', async () => {
       const mockMovies = [{ movie_id: 1, title: 'Test Movie' }];
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getAllMoviesForProfile as Mock).mockResolvedValue(mockMovies);
+      (moviesDb.getAllMoviesForProfile as jest.Mock).mockResolvedValue(mockMovies);
 
       const result = await service.getMoviesForProfile(123);
 
@@ -39,8 +38,8 @@ describe('MoviesService - Basic Functionality', () => {
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
-      (moviesDb.getAllMoviesForProfile as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (moviesDb.getAllMoviesForProfile as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 
@@ -63,7 +62,7 @@ describe('MoviesService - Basic Functionality', () => {
     it('should fetch movies from database when not in cache', async () => {
       const mockMovie = { id: 1, title: 'Test Movie' };
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getMovieDetailsForProfile as Mock).mockResolvedValue(mockMovie);
+      (moviesDb.getMovieDetailsForProfile as jest.Mock).mockResolvedValue(mockMovie);
 
       const result = await service.getMovieDetailsForProfile(123, 1);
 
@@ -75,8 +74,8 @@ describe('MoviesService - Basic Functionality', () => {
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (_key: any, fn: () => any) => fn());
-      (moviesDb.getMovieDetailsForProfile as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (moviesDb.getMovieDetailsForProfile as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 
@@ -90,7 +89,7 @@ describe('MoviesService - Basic Functionality', () => {
       const mockRecentMovies = [{ movie_id: 1, title: 'Recent Movie' }];
 
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getRecentMovieReleasesForProfile as Mock).mockResolvedValue(mockRecentMovies);
+      (moviesDb.getRecentMovieReleasesForProfile as jest.Mock).mockResolvedValue(mockRecentMovies);
 
       const result = await service.getRecentMoviesForProfile(123);
 
@@ -102,8 +101,8 @@ describe('MoviesService - Basic Functionality', () => {
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getRecentMovieReleasesForProfile as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (moviesDb.getRecentMovieReleasesForProfile as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 
@@ -117,7 +116,7 @@ describe('MoviesService - Basic Functionality', () => {
       const mockUpcomingMovies = [{ movie_id: 2, title: 'Upcoming Movie' }];
 
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getUpcomingMovieReleasesForProfile as Mock).mockResolvedValue(mockUpcomingMovies);
+      (moviesDb.getUpcomingMovieReleasesForProfile as jest.Mock).mockResolvedValue(mockUpcomingMovies);
 
       const result = await service.getUpcomingMoviesForProfile(123);
 
@@ -129,8 +128,8 @@ describe('MoviesService - Basic Functionality', () => {
     it('should handle errors properly', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (key: any, fn: () => any) => fn());
-      (moviesDb.getUpcomingMovieReleasesForProfile as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (moviesDb.getUpcomingMovieReleasesForProfile as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 

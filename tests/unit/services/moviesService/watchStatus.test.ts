@@ -2,7 +2,6 @@ import { setupMoviesService } from './helpers/mocks';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
 import { errorService } from '@services/errorService';
-import { type Mock, beforeEach, describe, expect, it } from 'vitest';
 
 describe('MoviesService - Watch Status', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
@@ -16,7 +15,7 @@ describe('MoviesService - Watch Status', () => {
 
   describe('updateMovieWatchStatus', () => {
     it('should update movie watch status successfully', async () => {
-      (moviesDb.updateWatchStatus as Mock).mockResolvedValue(true);
+      (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
 
       const result = await service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED);
 
@@ -26,8 +25,8 @@ describe('MoviesService - Watch Status', () => {
     });
 
     it('should throw BadRequestError when update fails', async () => {
-      (moviesDb.updateWatchStatus as Mock).mockResolvedValue(false);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(false);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 
@@ -39,8 +38,8 @@ describe('MoviesService - Watch Status', () => {
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      (moviesDb.updateWatchStatus as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (moviesDb.updateWatchStatus as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw err;
       });
 

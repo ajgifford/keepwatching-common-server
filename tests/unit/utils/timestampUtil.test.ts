@@ -1,11 +1,12 @@
 import * as config from '@config/config';
 import { TimestampUtil } from '@utils/timestampUtil';
-import { MockedFunction, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@config/config');
+jest.mock('@config/config');
 
 describe('TimestampUtil', () => {
-  const mockGetLogTimestampFormat = config.getLogTimestampFormat as MockedFunction<typeof config.getLogTimestampFormat>;
+  const mockGetLogTimestampFormat = config.getLogTimestampFormat as jest.MockedFunction<
+    typeof config.getLogTimestampFormat
+  >;
 
   beforeEach(() => {
     // Default mock: MMM-DD-YYYY HH:mm:ss
@@ -13,7 +14,7 @@ describe('TimestampUtil', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('formatDateToPattern', () => {

@@ -6,22 +6,21 @@ import {
   createProfileStatisticsService,
   resetProfileStatisticsService,
 } from '@services/statistics/profileStatisticsService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@services/showService');
-vi.mock('@services/errorService');
-vi.mock('@services/moviesService');
-vi.mock('@services/cacheService');
+jest.mock('@services/showService');
+jest.mock('@services/errorService');
+jest.mock('@services/moviesService');
+jest.mock('@services/cacheService');
 
 describe('profileStatisticsService', () => {
   let profileStatisticsService: ProfileStatisticsService;
   const mockCacheService = {
-    getOrSet: vi.fn(),
-    invalidate: vi.fn(),
+    getOrSet: jest.fn(),
+    invalidate: jest.fn(),
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetProfileStatisticsService();
 
@@ -30,7 +29,7 @@ describe('profileStatisticsService', () => {
 
   afterEach(() => {
     resetProfileStatisticsService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getProfileStatistics', () => {
@@ -59,9 +58,9 @@ describe('profileStatisticsService', () => {
       const mockWatchProgress = { watchedEpisodes: 20 };
 
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showService.getProfileShowStatistics as Mock).mockResolvedValue(mockShowStats);
-      (moviesService.getProfileMovieStatistics as Mock).mockResolvedValue(mockMovieStats);
-      (showService.getProfileWatchProgress as Mock).mockResolvedValue(mockWatchProgress);
+      (showService.getProfileShowStatistics as jest.Mock).mockResolvedValue(mockShowStats);
+      (moviesService.getProfileMovieStatistics as jest.Mock).mockResolvedValue(mockMovieStats);
+      (showService.getProfileWatchProgress as jest.Mock).mockResolvedValue(mockWatchProgress);
 
       const result = await profileStatisticsService.getProfileStatistics(123);
 
@@ -80,8 +79,8 @@ describe('profileStatisticsService', () => {
     it('should handle errors when getting profile statistics', async () => {
       const error = new Error('Failed to get show statistics');
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showService.getProfileShowStatistics as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (showService.getProfileShowStatistics as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

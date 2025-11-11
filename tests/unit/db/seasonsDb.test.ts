@@ -1,53 +1,41 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { CreateSeasonRequest, UpdateSeasonRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as seasonsDb from '@db/seasonsDb';
 import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => {
-  const mockPool = {
-    execute: vi.fn(),
-    getConnection: vi.fn(),
-  };
-  return {
-    getDbPool: vi.fn(() => mockPool),
-  };
-});
-
-vi.mock('@utils/transactionHelper');
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('seasonsDb Module', () => {
-  let mockPool: any;
+  let mockExecute: jest.Mock;
+  let mockGetConnection: jest.Mock;
   let mockConnection: any;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+
+    // Extend mockConnection with additional methods needed for this test
     mockConnection = {
-      execute: vi.fn(),
-      beginTransaction: vi.fn(),
-      commit: vi.fn(),
-      rollback: vi.fn(),
-      release: vi.fn(),
+      ...mocks.mockConnection,
+      beginTransaction: jest.fn(),
+      commit: jest.fn(),
+      rollback: jest.fn(),
+      release: jest.fn(),
     };
 
-    mockPool = getDbPool();
-    mockPool.execute.mockReset();
-    mockPool.getConnection.mockReset();
-    mockPool.getConnection.mockResolvedValue(mockConnection);
+    // Setup getConnection to return our extended mockConnection
+    mockGetConnection = jest.fn().mockResolvedValue(mockConnection);
+    (getDbPool as jest.Mock).mockReturnValue({
+      execute: mockExecute,
+      getConnection: mockGetConnection,
+    });
   });
 
   describe('saveSeason', () => {
     it('should save a season to the database', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
 
       const season: CreateSeasonRequest = {
         show_id: 10,
@@ -62,7 +50,7 @@ describe('seasonsDb Module', () => {
 
       const seasonId = await seasonsDb.saveSeason(season);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO seasons'), [
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO seasons'), [
         10,
         12345,
         'Season 1',
@@ -77,7 +65,7 @@ describe('seasonsDb Module', () => {
 
     it('should throw DatabaseError when saving fails', async () => {
       const mockError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       const season: CreateSeasonRequest = {
         show_id: 10,
@@ -96,7 +84,7 @@ describe('seasonsDb Module', () => {
     });
 
     it('should handle error with generic message when error has no message', async () => {
-      mockPool.execute.mockRejectedValueOnce({});
+      mockExecute.mockRejectedValueOnce({});
 
       const season: CreateSeasonRequest = {
         show_id: 10,
@@ -115,7 +103,7 @@ describe('seasonsDb Module', () => {
 
   describe('updateSeason', () => {
     it('should update an existing season or insert a new one', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ insertId: 5 } as ResultSetHeader]);
 
       const season: UpdateSeasonRequest = {
         show_id: 10,
@@ -130,7 +118,7 @@ describe('seasonsDb Module', () => {
 
       const seasonId = await seasonsDb.updateSeason(season);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO seasons'),
         expect.arrayContaining([
           // Insert values
@@ -156,7 +144,7 @@ describe('seasonsDb Module', () => {
 
     it('should throw DatabaseError when update fails', async () => {
       const mockError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       const season: CreateSeasonRequest = {
         show_id: 10,
@@ -177,11 +165,11 @@ describe('seasonsDb Module', () => {
 
   describe('saveFavorite', () => {
     it('should save a season as favorite for a profile', async () => {
-      mockPool.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await seasonsDb.saveFavorite(123, 456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'INSERT IGNORE INTO season_watch_status (profile_id, season_id, status) VALUES (?,?,?)',
         [123, 456, WatchStatus.NOT_WATCHED],
       );
@@ -194,7 +182,7 @@ describe('seasonsDb Module', () => {
 
     it('should throw DatabaseError when saving favorite fails', async () => {
       const mockError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(seasonsDb.saveFavorite(123, 456)).rejects.toThrow(
         'Database error saving a season as a favorite: Database connection failed',
@@ -298,17 +286,17 @@ describe('seasonsDb Module', () => {
         },
       ];
 
-      mockPool.execute.mockResolvedValueOnce([mockSeasons]).mockResolvedValueOnce([mockEpisodes]);
+      mockExecute.mockResolvedValueOnce([mockSeasons]).mockResolvedValueOnce([mockEpisodes]);
 
       const seasons = await seasonsDb.getSeasonsForShow(123, 100);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(2);
-      expect(mockPool.execute).toHaveBeenNthCalledWith(
+      expect(mockExecute).toHaveBeenCalledTimes(2);
+      expect(mockExecute).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining('SELECT * FROM profile_seasons'),
         [123, 100],
       );
-      expect(mockPool.execute).toHaveBeenNthCalledWith(
+      expect(mockExecute).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('SELECT * FROM profile_episodes'),
         expect.arrayContaining([123, 1, 2]),
@@ -324,7 +312,7 @@ describe('seasonsDb Module', () => {
     });
 
     it('should return empty array when no seasons found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const seasons = await seasonsDb.getSeasonsForShow(123, 100);
 
@@ -338,7 +326,7 @@ describe('seasonsDb Module', () => {
 
     it('should throw DatabaseError when getting seasons fails', async () => {
       const mockError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(seasonsDb.getSeasonsForShow(123, 100)).rejects.toThrow(
         'Database error getting all seasons for a show: Database connection failed',
@@ -348,16 +336,16 @@ describe('seasonsDb Module', () => {
 
   describe('getShowIdForSeason', () => {
     it('should return show ID for a season', async () => {
-      mockPool.execute.mockResolvedValueOnce([[{ show_id: 100 }]]);
+      mockExecute.mockResolvedValueOnce([[{ show_id: 100 }]]);
 
       const showId = await seasonsDb.getShowIdForSeason(1);
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT show_id FROM seasons WHERE id = ?', [1]);
+      expect(mockExecute).toHaveBeenCalledWith('SELECT show_id FROM seasons WHERE id = ?', [1]);
       expect(showId).toBe(100);
     });
 
     it('should return null when season not found', async () => {
-      mockPool.execute.mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const showId = await seasonsDb.getShowIdForSeason(999);
 
@@ -370,7 +358,7 @@ describe('seasonsDb Module', () => {
 
     it('should throw DatabaseError when getting show ID fails', async () => {
       const mockError = new Error('Database connection failed');
-      mockPool.execute.mockRejectedValueOnce(mockError);
+      mockExecute.mockRejectedValueOnce(mockError);
 
       await expect(seasonsDb.getShowIdForSeason(1)).rejects.toThrow(
         'Database error getting the show id for a season: Database connection failed',

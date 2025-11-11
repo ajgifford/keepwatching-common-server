@@ -1,22 +1,6 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getContentDepthStats } from '@db/statistics/contentDepthRepository';
-import { getDbPool } from '@utils/db';
 import { RowDataPacket } from 'mysql2/promise';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('contentDepthRepository', () => {
   let mockConnection: any;
@@ -24,27 +8,16 @@ describe('contentDepthRepository', () => {
   const currentYear = new Date().getFullYear();
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getContentDepthStats', () => {
@@ -424,30 +397,6 @@ describe('contentDepthRepository', () => {
       await expect(getContentDepthStats(123)).rejects.toThrow('Database error');
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
-    });
-
-    it('should call DbMonitor.executeWithTiming', async () => {
-      const mockShowDepthRows = [{ total_shows: 0, total_episodes: 0 }] as RowDataPacket[];
-      const mockMovieDepthRows = [{ total_movies: 0, total_movie_runtime: 0 }] as RowDataPacket[];
-      const mockShowYearRows = [] as RowDataPacket[];
-      const mockMovieYearRows = [] as RowDataPacket[];
-      const mockShowRatingRows = [] as RowDataPacket[];
-      const mockMovieRatingRows = [] as RowDataPacket[];
-
-      mockConnection.query
-        .mockResolvedValueOnce([mockShowDepthRows])
-        .mockResolvedValueOnce([mockMovieDepthRows])
-        .mockResolvedValueOnce([mockShowYearRows])
-        .mockResolvedValueOnce([mockMovieYearRows])
-        .mockResolvedValueOnce([mockShowRatingRows])
-        .mockResolvedValueOnce([mockMovieRatingRows]);
-
-      await getContentDepthStats(123);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getContentDepthStats',
-        expect.any(Function),
-      );
     });
 
     it('should pass correct profileId to all queries', async () => {

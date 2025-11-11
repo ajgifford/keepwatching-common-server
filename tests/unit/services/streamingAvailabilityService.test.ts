@@ -1,34 +1,52 @@
 import { getStreamingAPIKey } from '@config/config';
 import { StreamingAvailabilityService } from '@services/streamingAvailabilityService';
 import { Client, Configuration } from 'streaming-availability';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@config/config', () => ({
-  getStreamingAPIKey: vi.fn(),
+jest.mock('@config/config', () => ({
+  getStreamingAPIKey: jest.fn(),
 }));
 
-vi.mock('streaming-availability', () => {
+jest.mock('streaming-availability', () => {
   const mockClient = {
     showsApi: {
-      getTopShows: vi.fn(),
+      getTopShows: jest.fn(),
     },
     changesApi: {
-      getChanges: vi.fn(),
+      getChanges: jest.fn(),
     },
   };
 
   return {
-    Client: vi.fn(function () {
+    Client: jest.fn(function () {
       return mockClient;
     }),
-    Configuration: vi.fn(),
+    Configuration: jest.fn(),
   };
 });
 
 describe('StreamingAvailabilityService', () => {
+  let mockClient: any;
+
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(getStreamingAPIKey).mockReturnValue('mock-api-key');
+    jest.clearAllMocks();
+    jest.mocked(getStreamingAPIKey).mockReturnValue('mock-api-key');
+
+    // Reset the singleton instance before each test
+    Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
+
+    // Set up the mock client
+    mockClient = {
+      showsApi: {
+        getTopShows: jest.fn(),
+      },
+      changesApi: {
+        getChanges: jest.fn(),
+      },
+    };
+
+    jest.mocked(Client).mockImplementation(function () {
+      return mockClient;
+    } as any);
   });
 
   afterEach(() => {
@@ -37,8 +55,6 @@ describe('StreamingAvailabilityService', () => {
 
   describe('getInstance', () => {
     it('should create a new instance when called for the first time', () => {
-      Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
-
       const service = StreamingAvailabilityService.getInstance();
 
       expect(service).toBeInstanceOf(StreamingAvailabilityService);
@@ -90,7 +106,7 @@ describe('StreamingAvailabilityService', () => {
     });
 
     it('should handle missing API key gracefully', () => {
-      vi.mocked(getStreamingAPIKey).mockReturnValueOnce(undefined);
+      jest.mocked(getStreamingAPIKey).mockReturnValueOnce(undefined);
 
       StreamingAvailabilityService.getInstance();
 
@@ -103,20 +119,8 @@ describe('StreamingAvailabilityService', () => {
   describe('integration with client', () => {
     it('should allow calling client methods', async () => {
       const mockResponse = [{ title: 'Test Show', tmdbId: 'tv/123' }];
-      const mockClient = {
-        showsApi: {
-          getTopShows: vi.fn().mockResolvedValue(mockResponse),
-        },
-        changesApi: {
-          getChanges: vi.fn(),
-        },
-      };
+      mockClient.showsApi.getTopShows.mockResolvedValue(mockResponse);
 
-      vi.mocked(Client).mockImplementation(function () {
-        return mockClient;
-      } as any);
-
-      Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
       const service = StreamingAvailabilityService.getInstance();
       const client = service.getClient();
 
@@ -136,20 +140,8 @@ describe('StreamingAvailabilityService', () => {
 
     it('should integrate with changesApi methods', async () => {
       const mockResponse = { shows: { 'tv/123': { title: 'Changed Show' } } };
-      const mockClient = {
-        showsApi: {
-          getTopShows: vi.fn(),
-        },
-        changesApi: {
-          getChanges: vi.fn().mockResolvedValue(mockResponse),
-        },
-      };
+      mockClient.changesApi.getChanges.mockResolvedValue(mockResponse);
 
-      vi.mocked(Client).mockImplementation(function () {
-        return mockClient;
-      } as any);
-
-      Object.defineProperty(StreamingAvailabilityService, 'instance', { value: null, writable: true });
       const service = StreamingAvailabilityService.getInstance();
       const client = service.getClient();
 

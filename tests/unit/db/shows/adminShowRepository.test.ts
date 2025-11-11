@@ -1,36 +1,16 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import * as adminShowRepository from '@db/shows/adminShowRepository';
 import { NotFoundError } from '@middleware/errorMiddleware';
-import { getDbPool } from '@utils/db';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('adminShowRepository', () => {
-  let mockPool: any;
-  let mockExecute: Mock;
+  let mockExecute: jest.Mock;
 
   beforeEach(() => {
-    mockExecute = vi.fn();
-    mockPool = {
-      execute: mockExecute,
-    };
-    (getDbPool as Mock).mockReturnValue(mockPool);
-  });
+    jest.clearAllMocks();
 
-  afterEach(() => {
-    vi.clearAllMocks();
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
   });
 
   describe('getAllShows', () => {
@@ -82,11 +62,11 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as Mock).mockResolvedValueOnce([mockShowRows]);
+      mockExecute.mockResolvedValueOnce([mockShowRows]);
 
       const shows = await adminShowRepository.getAllShows();
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(shows).toHaveLength(2);
       expect(shows[0].id).toBe(1);
       expect(shows[0].tmdbId).toBe(12345);
@@ -98,7 +78,7 @@ describe('adminShowRepository', () => {
     });
 
     it('should return shows with custom pagination', async () => {
-      (mockPool.execute as Mock).mockResolvedValueOnce([
+      mockExecute.mockResolvedValueOnce([
         [
           {
             id: 3,
@@ -129,13 +109,13 @@ describe('adminShowRepository', () => {
       const offset = 20;
       const shows = await adminShowRepository.getAllShows(limit, offset);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(`SELECT * FROM admin_shows LIMIT ${limit} OFFSET ${offset}`);
+      expect(mockExecute).toHaveBeenCalledWith(`SELECT * FROM admin_shows LIMIT ${limit} OFFSET ${offset}`);
       expect(shows).toHaveLength(1);
     });
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Database connection failed');
-      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getAllShows()).rejects.toThrow(
         'Database error get all shows: Database connection failed',
@@ -145,17 +125,17 @@ describe('adminShowRepository', () => {
 
   describe('getShowsCount', () => {
     it('should return the total count of shows', async () => {
-      (mockPool.execute as Mock).mockResolvedValueOnce([[{ total: 42 }]]);
+      mockExecute.mockResolvedValueOnce([[{ total: 42 }]]);
 
       const count = await adminShowRepository.getShowsCount();
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT COUNT(DISTINCT s.id) AS total FROM shows s');
+      expect(mockExecute).toHaveBeenCalledWith('SELECT COUNT(DISTINCT s.id) AS total FROM shows s');
       expect(count).toBe(42);
     });
 
     it('should throw DatabaseError when count fails', async () => {
       const dbError = new Error('Database connection failed');
-      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getShowsCount()).rejects.toThrow(
         'Database error get a count of all shows: Database connection failed',
@@ -167,11 +147,11 @@ describe('adminShowRepository', () => {
     const profileId = 5;
 
     it('should return the count of shows for a specific profile', async () => {
-      (mockPool.execute as Mock).mockResolvedValueOnce([[{ total: 25 }]]);
+      mockExecute.mockResolvedValueOnce([[{ total: 25 }]]);
 
       const count = await adminShowRepository.getShowsCountByProfile(profileId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT COUNT(DISTINCT s.show_id) AS total FROM profile_shows s WHERE s.profile_id = ?',
         [profileId],
       );
@@ -180,7 +160,7 @@ describe('adminShowRepository', () => {
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Query execution failed');
-      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getShowsCountByProfile(profileId)).rejects.toThrow(
         'Database error getting a count of shows for a profile: Query execution failed',
@@ -217,11 +197,11 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as Mock).mockResolvedValueOnce([mockShowRows]);
+      mockExecute.mockResolvedValueOnce([mockShowRows]);
 
       const shows = await adminShowRepository.getAllShowsByProfile(profileId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
+      expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM admin_profile_shows WHERE profile_id = ? ORDER BY title asc LIMIT 50 OFFSET 0',
         [profileId],
       );
@@ -256,21 +236,21 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as Mock).mockResolvedValueOnce([mockShowRows]);
+      mockExecute.mockResolvedValueOnce([mockShowRows]);
 
       const limit = 25;
       const offset = 10;
       const shows = await adminShowRepository.getAllShowsByProfile(profileId, limit, offset);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`), [profileId]);
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`), [profileId]);
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY title asc'), [profileId]);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining(`LIMIT ${limit}`), [profileId]);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining(`OFFSET ${offset}`), [profileId]);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY title asc'), [profileId]);
       expect(shows).toHaveLength(1);
     });
 
     it('should throw DatabaseError when fetch fails', async () => {
       const dbError = new Error('Connection timeout');
-      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getAllShowsByProfile(profileId)).rejects.toThrow(
         'Database error get all shows for a profile: Connection timeout',
@@ -301,11 +281,11 @@ describe('adminShowRepository', () => {
         },
       ];
 
-      (mockPool.execute as Mock).mockResolvedValueOnce([mockReferenceRows]);
+      mockExecute.mockResolvedValueOnce([mockReferenceRows]);
 
       const references = await adminShowRepository.getAllShowReferences();
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows');
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows');
       expect(references).toHaveLength(3);
       expect(references[0]).toEqual({
         id: 1,
@@ -318,17 +298,17 @@ describe('adminShowRepository', () => {
     });
 
     it('should return empty array when no shows exist', async () => {
-      (mockPool.execute as Mock).mockResolvedValueOnce([[]]);
+      mockExecute.mockResolvedValueOnce([[]]);
 
       const references = await adminShowRepository.getAllShowReferences();
 
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows');
+      expect(mockExecute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows');
       expect(references).toEqual([]);
     });
 
     it('should throw DatabaseError when query fails', async () => {
       const dbError = new Error('Database unavailable');
-      (mockPool.execute as Mock).mockRejectedValueOnce(dbError);
+      mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(adminShowRepository.getAllShowReferences()).rejects.toThrow(
         'Database error get all show references: Database unavailable',

@@ -6,7 +6,6 @@ import { emailContentService } from '@services/email/emailContentService';
 import { emailDeliveryService } from '@services/email/emailDeliveryService';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
-import { type Mock, afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('EmailService - Discovery Email Sending', () => {
   beforeEach(() => {
@@ -20,7 +19,7 @@ describe('EmailService - Discovery Email Sending', () => {
 
   describe('sendDiscoveryEmailToAccount', () => {
     it('should send discovery email to specific account', async () => {
-      (emailContentService.generateDiscoveryContent as Mock).mockResolvedValue({
+      (emailContentService.generateDiscoveryContent as jest.Mock).mockResolvedValue({
         discoveryData: mockDiscoveryData,
       });
 
@@ -52,10 +51,10 @@ describe('EmailService - Discovery Email Sending', () => {
     it('should handle email send failure and update status', async () => {
       const mockError = new Error('Email delivery failed');
 
-      (emailContentService.generateDiscoveryContent as Mock).mockResolvedValue({
+      (emailContentService.generateDiscoveryContent as jest.Mock).mockResolvedValue({
         discoveryData: mockDiscoveryData,
       });
-      (emailDeliveryService.sendDiscoveryEmail as Mock).mockRejectedValue(mockError);
+      (emailDeliveryService.sendDiscoveryEmail as jest.Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendDiscoveryEmailToAccount('john@example.com')).rejects.toThrow(mockError);
 
@@ -64,10 +63,10 @@ describe('EmailService - Discovery Email Sending', () => {
     });
 
     it('should throw error if email record creation fails', async () => {
-      (emailContentService.generateDiscoveryContent as Mock).mockResolvedValue({
+      (emailContentService.generateDiscoveryContent as jest.Mock).mockResolvedValue({
         discoveryData: mockDiscoveryData,
       });
-      (emailDb.createEmail as Mock).mockResolvedValue(0);
+      (emailDb.createEmail as jest.Mock).mockResolvedValue(0);
 
       await expect(emailService.sendDiscoveryEmailToAccount('john@example.com')).rejects.toThrow(
         'Failed to create email record',
@@ -76,7 +75,7 @@ describe('EmailService - Discovery Email Sending', () => {
 
     it('should handle error and rethrow', async () => {
       const mockError = new Error('Content generation failed');
-      (emailContentService.generateDiscoveryContent as Mock).mockRejectedValue(mockError);
+      (emailContentService.generateDiscoveryContent as jest.Mock).mockRejectedValue(mockError);
 
       await expect(emailService.sendDiscoveryEmailToAccount('john@example.com')).rejects.toThrow(mockError);
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'sendDiscoveryEmailToAccount(john@example.com)');

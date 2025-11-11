@@ -1,6 +1,5 @@
 import { TMDBRelatedMovie, TMDBRelatedShow } from '../../../src/types/tmdbTypes';
 import { filterEnglishMovies, filterUSOrEnglishShows } from '@utils/usSearchFilter';
-import { describe, expect, it } from 'vitest';
 
 describe('usSearchFilter', () => {
   function createTMDBRelatedShow(

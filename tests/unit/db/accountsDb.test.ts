@@ -1,50 +1,22 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { Account, UpdateAccountRequest } from '@ajgifford/keepwatching-types';
 import * as accountsDb from '@db/accountsDb';
 import { DatabaseError } from '@middleware/errorMiddleware';
+import { getDbPool } from '@utils/db';
+import { TransactionHelper } from '@utils/transactionHelper';
 import { ResultSetHeader } from 'mysql2';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { mockExecute, mockGetDbPool, mockExecuteInTransaction } = vi.hoisted(() => {
-  const mockExecute = vi.fn();
-  const mockQuery = vi.fn();
-  const mockGetDbPool = vi.fn(() => ({
-    execute: mockExecute,
-    query: mockQuery,
-  }));
-  const mockExecuteInTransaction = vi.fn();
-
-  return { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction };
-});
-
-vi.mock('@utils/db', () => ({
-  getDbPool: mockGetDbPool,
-}));
-
-vi.mock('@utils/transactionHelper', () => ({
-  TransactionHelper: vi.fn(function (this: any) {
-    this.executeInTransaction = mockExecuteInTransaction;
-  }),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('accountsDb Module', () => {
+  let mockExecute: jest.Mock;
+  let mockTransactionHelper: jest.Mocked<TransactionHelper>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockExecuteInTransaction.mockImplementation(async (callback) => {
-      const mockConnection = {
-        execute: mockExecute,
-      };
-      return callback(mockConnection);
-    });
+    jest.clearAllMocks();
+
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockTransactionHelper = mocks.mockTransactionHelper;
   });
 
   describe('registerAccount()', () => {
@@ -77,7 +49,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.registerAccount(testAccount);
 
-      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(3);
       expect(mockExecute).toHaveBeenNthCalledWith(
         1,
@@ -114,10 +86,10 @@ describe('accountsDb Module', () => {
       };
 
       const dbError = new Error('Database connection error');
-      mockExecuteInTransaction.mockRejectedValue(dbError);
+      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
 
       await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
-      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
     });
 
     it('should throw DatabaseError when the account insert fails', async () => {
@@ -134,7 +106,7 @@ describe('accountsDb Module', () => {
       mockExecute.mockRejectedValueOnce(dbError);
 
       await expect(accountsDb.registerAccount(testAccount)).rejects.toThrow(DatabaseError);
-      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('INSERT INTO accounts (account_name, email, uid) VALUES (?, ?, ?)', [
         'Test User',
@@ -235,7 +207,7 @@ describe('accountsDb Module', () => {
       };
       const result = await accountsDb.editAccount(accountData);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(2);
+      expect(getDbPool).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(
         1,
@@ -296,7 +268,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateAccountImage({ id, image });
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(2);
+      expect(getDbPool).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(1, 'UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
       expect(mockExecute).toHaveBeenNthCalledWith(2, 'SELECT * FROM accounts WHERE account_id = ?', [id]);
@@ -319,7 +291,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateAccountImage({ id, image });
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
       expect(result).toBeNull();
@@ -333,7 +305,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateAccountImage({ id, image })).rejects.toThrow(DatabaseError);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
     });
@@ -347,7 +319,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateAccountImage({ id, image })).rejects.toThrow(DatabaseError);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(2);
+      expect(getDbPool).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(1, 'UPDATE accounts SET image = ? WHERE account_id = ?', [image, id]);
       expect(mockExecute).toHaveBeenNthCalledWith(2, 'SELECT * FROM accounts WHERE account_id = ?', [id]);
@@ -632,7 +604,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.deleteAccount(accountId);
 
-      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(mockExecute).toHaveBeenNthCalledWith(1, 'SELECT * FROM accounts WHERE account_id = ?', [accountId]);
       expect(mockExecute).toHaveBeenNthCalledWith(2, 'DELETE FROM accounts WHERE account_id = ?', [accountId]);
@@ -645,7 +617,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.deleteAccount(accountId);
 
-      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('SELECT * FROM accounts WHERE account_id = ?', [accountId]);
       expect(result).toBe(false);
@@ -657,7 +629,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.deleteAccount(accountId);
 
-      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(2);
       expect(result).toBe(false);
     });
@@ -665,10 +637,10 @@ describe('accountsDb Module', () => {
     it('should throw DatabaseError when transaction fails', async () => {
       const accountId = 1;
       const dbError = new Error('Transaction failed');
-      mockExecuteInTransaction.mockRejectedValueOnce(dbError);
+      mockTransactionHelper.executeInTransaction.mockRejectedValueOnce(dbError);
 
       await expect(accountsDb.deleteAccount(accountId)).rejects.toThrow('Transaction failed');
-      expect(mockExecuteInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -681,7 +653,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastLogin(uid);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
       expect(result).toBe(true);
@@ -695,7 +667,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastLogin(uid);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
       expect(result).toBe(false);
@@ -709,7 +681,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateLastLogin(uid)).rejects.toThrow(DatabaseError);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith('UPDATE accounts SET last_login = NOW() WHERE uid = ?', [uid]);
     });
@@ -736,7 +708,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastActivity(accountId);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
         `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
@@ -754,7 +726,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastActivity(accountId, throttleMinutes);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
         `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
@@ -771,7 +743,7 @@ describe('accountsDb Module', () => {
 
       const result = await accountsDb.updateLastActivity(accountId);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(result).toBe(false);
     });
@@ -784,7 +756,7 @@ describe('accountsDb Module', () => {
 
       await expect(accountsDb.updateLastActivity(accountId)).rejects.toThrow(DatabaseError);
 
-      expect(mockGetDbPool).toHaveBeenCalledTimes(1);
+      expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
     });
 

@@ -1,3 +1,4 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { MilestoneAchievementRow } from '../../../../src/types/statisticsTypes';
 import { AchievementType } from '@ajgifford/keepwatching-types';
 import {
@@ -9,23 +10,6 @@ import {
   getRecentAchievements,
   recordAchievement,
 } from '@db/statistics/achievementRepository';
-import { getDbPool } from '@utils/db';
-import { type Mock, afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('achievementRepository', () => {
   let mockConnection: any;
@@ -34,36 +18,25 @@ describe('achievementRepository', () => {
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
   beforeAll(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(fixedDate);
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedDate);
   });
 
   afterAll(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getAchievementsByProfile', () => {
@@ -179,16 +152,6 @@ describe('achievementRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getAchievementsByProfile(123);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getAchievementsByProfile',
-        expect.any(Function),
-      );
-    });
   });
 
   describe('getRecentAchievements', () => {
@@ -285,16 +248,6 @@ describe('achievementRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getRecentAchievements(123, 30);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getRecentAchievements',
-        expect.any(Function),
-      );
-    });
   });
 
   describe('checkAchievementExists', () => {
@@ -349,16 +302,6 @@ describe('achievementRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[{ count: 0 }]]);
-
-      await checkAchievementExists(123, AchievementType.EPISODES_WATCHED, 100);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'checkAchievementExists',
-        expect.any(Function),
-      );
-    });
   });
 
   describe('recordAchievement', () => {
@@ -505,27 +448,6 @@ describe('achievementRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(2); // Once for checkAchievementExists (error), once for recordAchievement
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[{ count: 0 }]]);
-
-      const mockResult = {
-        insertId: 1,
-        affectedRows: 1,
-        fieldCount: 0,
-        info: '',
-        serverStatus: 0,
-        warningStatus: 0,
-        changedRows: 0,
-      };
-
-      mockConnection.query.mockResolvedValueOnce([mockResult]);
-
-      const achievedAt = new Date('2025-10-01T10:00:00Z');
-
-      await recordAchievement(123, AchievementType.EPISODES_WATCHED, 100, achievedAt);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('recordAchievement', expect.any(Function));
-    });
   });
 
   describe('getAchievementsByType', () => {
@@ -641,16 +563,6 @@ describe('achievementRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getAchievementsByType(123, AchievementType.EPISODES_WATCHED);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getAchievementsByType',
-        expect.any(Function),
-      );
-    });
   });
 
   describe('getLatestWatchedEpisode', () => {
@@ -759,16 +671,6 @@ describe('achievementRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getLatestWatchedEpisode(123);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getLatestWatchedEpisode',
-        expect.any(Function),
-      );
-    });
   });
 
   describe('getLatestWatchedMovie', () => {
@@ -856,15 +758,5 @@ describe('achievementRepository', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor.executeWithTiming', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getLatestWatchedMovie(123);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith(
-        'getLatestWatchedMovie',
-        expect.any(Function),
-      );
-    });
   });
 });

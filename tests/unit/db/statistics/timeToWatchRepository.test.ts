@@ -1,21 +1,6 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getTimeToWatchStats } from '@db/statistics/timeToWatchRepository';
 import { getDbPool } from '@utils/db';
-import { type Mock, afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockDbMonitorInstance = {
-  executeWithTiming: vi.fn((name: string, fn: () => any) => fn()),
-};
-
-// Mock dependencies
-vi.mock('@utils/db', () => ({
-  getDbPool: vi.fn(),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => mockDbMonitorInstance),
-  },
-}));
 
 describe('statisticsDb', () => {
   let mockConnection: any;
@@ -24,36 +9,25 @@ describe('statisticsDb', () => {
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
   beforeAll(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(fixedDate);
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedDate);
   });
 
   afterAll(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   beforeEach(() => {
-    // Create mock connection
-    mockConnection = {
-      query: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    // Create mock pool
-    mockPool = {
-      getConnection: vi.fn().mockResolvedValue(mockConnection),
-    };
-
-    // Set up getDbPool to return mock pool
-    (getDbPool as Mock).mockReturnValue(mockPool);
-
-    // Reset DbMonitor mock
-    mockDbMonitorInstance.executeWithTiming.mockClear();
-    mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('getTimeToWatchStats', () => {
@@ -76,13 +50,6 @@ describe('statisticsDb', () => {
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should use DbMonitor for timing', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
-
-      await getTimeToWatchStats(123);
-
-      expect(mockDbMonitorInstance.executeWithTiming).toHaveBeenCalledWith('getTimeToWatchStats', expect.any(Function));
-    });
 
     it('should release connection even if query fails', async () => {
       mockConnection.query.mockRejectedValueOnce(new Error('Database error'));

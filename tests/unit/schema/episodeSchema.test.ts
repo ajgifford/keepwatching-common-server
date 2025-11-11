@@ -1,5 +1,4 @@
 import { episodeWatchStatusBodySchema } from '@schema/episodeSchema';
-import { describe, expect, it } from 'vitest';
 
 describe('episodeSchema', () => {
   describe('episodeWatchStatusBodySchema', () => {

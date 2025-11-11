@@ -1,28 +1,27 @@
 import * as emailDb from '@db/emailDb';
 import { errorService } from '@services/errorService';
-import { type Mock, vi } from 'vitest';
 
-vi.mock('@logger/logger');
-vi.mock('@services/errorService');
-vi.mock('@db/emailDb');
+jest.mock('@logger/logger');
+jest.mock('@services/errorService');
+jest.mock('@db/emailDb');
 
-vi.mock('@services/email/emailDeliveryService', () => ({
+jest.mock('@services/email/emailDeliveryService', () => ({
   emailDeliveryService: {
-    verifyConnection: vi.fn(),
-    sendDigestEmailBatch: vi.fn(),
-    sendDiscoveryEmailBatch: vi.fn(),
-    sendDigestEmail: vi.fn(),
-    sendDiscoveryEmail: vi.fn(),
-    sendEmail: vi.fn(),
+    verifyConnection: jest.fn(),
+    sendDigestEmailBatch: jest.fn(),
+    sendDiscoveryEmailBatch: jest.fn(),
+    sendDigestEmail: jest.fn(),
+    sendDiscoveryEmail: jest.fn(),
+    sendEmail: jest.fn(),
   },
 }));
 
-vi.mock('@services/email/emailContentService', () => ({
+jest.mock('@services/email/emailContentService', () => ({
   emailContentService: {
-    generateBatchEmailContent: vi.fn(),
-    generateDigestContent: vi.fn(),
-    generateDiscoveryContent: vi.fn(),
-    generateEmailContent: vi.fn(),
+    generateBatchEmailContent: jest.fn(),
+    generateDigestContent: jest.fn(),
+    generateDiscoveryContent: jest.fn(),
+    generateEmailContent: jest.fn(),
   },
 }));
 
@@ -30,9 +29,9 @@ vi.mock('@services/email/emailContentService', () => ({
  * Sets up common mocks with default behaviors
  */
 export function setupMocks() {
-  vi.clearAllMocks();
+  jest.clearAllMocks();
 
-  (errorService.handleError as Mock).mockImplementation((error) => {
+  (errorService.handleError as jest.Mock).mockImplementation((error) => {
     return error;
   });
 }
@@ -41,12 +40,12 @@ export function setupMocks() {
  * Sets up default mock implementations for emailDb functions
  */
 export function setupEmailDbMocks() {
-  (emailDb.createEmail as Mock).mockResolvedValue(1);
-  (emailDb.createEmailRecipients as Mock).mockResolvedValue(undefined);
-  (emailDb.updateEmailRecipientStatus as Mock).mockResolvedValue(undefined);
-  (emailDb.updateEmailRecipientStatusFailure as Mock).mockResolvedValue(undefined);
-  (emailDb.updateEmailStatus as Mock).mockResolvedValue(undefined);
-  (emailDb.createEmailRecipient as Mock).mockResolvedValue(undefined);
+  (emailDb.createEmail as jest.Mock).mockResolvedValue(1);
+  (emailDb.createEmailRecipients as jest.Mock).mockResolvedValue(undefined);
+  (emailDb.updateEmailRecipientStatus as jest.Mock).mockResolvedValue(undefined);
+  (emailDb.updateEmailRecipientStatusFailure as jest.Mock).mockResolvedValue(undefined);
+  (emailDb.updateEmailStatus as jest.Mock).mockResolvedValue(undefined);
+  (emailDb.createEmailRecipient as jest.Mock).mockResolvedValue(undefined);
 }
 
 /**

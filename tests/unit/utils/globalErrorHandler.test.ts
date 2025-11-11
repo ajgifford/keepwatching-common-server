@@ -1,17 +1,16 @@
 import { appLogger, cliLogger } from '@logger/logger';
 import { GlobalErrorHandler } from '@utils/globalErrorHandler';
-import { type Mock, afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the loggers
-vi.mock('@logger/logger', () => ({
+jest.mock('@logger/logger', () => ({
   appLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
   },
   cliLogger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
   },
 }));
 
@@ -27,9 +26,9 @@ describe('GlobalErrorHandler', () => {
   };
 
   // Mock containers
-  let mockProcessOn: Mock;
-  let mockProcessExit: Mock;
-  let mockSetTimeout: Mock;
+  let mockProcessOn: jest.Mock;
+  let mockProcessExit: jest.Mock;
+  let mockSetTimeout: jest.Mock;
   let registeredHandlers: Map<string, Function>;
 
   beforeAll(() => {
@@ -41,21 +40,21 @@ describe('GlobalErrorHandler', () => {
 
   beforeEach(() => {
     // Clear all mocks
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     // Reset the initialized state using reflection
     (GlobalErrorHandler as any).initialized = false;
 
     // Create mock functions
-    mockProcessOn = vi.fn();
-    mockProcessExit = vi.fn().mockImplementation(() => {
+    mockProcessOn = jest.fn();
+    mockProcessExit = jest.fn().mockImplementation(() => {
       // Don't actually exit in tests
       return undefined as never;
     });
-    mockSetTimeout = vi.fn((callback: Function, delay: number) => {
+    mockSetTimeout = jest.fn((callback: Function, delay: number) => {
       // Immediately execute the callback for testing purposes
       callback();
-      return { unref: vi.fn() } as unknown as NodeJS.Timeout;
+      return { unref: jest.fn() } as unknown as NodeJS.Timeout;
     });
 
     // Track registered handlers
@@ -400,7 +399,7 @@ describe('GlobalErrorHandler', () => {
   describe('Edge cases and error scenarios', () => {
     it('should handle errors thrown during error handling by letting them propagate', () => {
       // Mock cliLogger.error to throw an error
-      (cliLogger.error as Mock).mockImplementationOnce(() => {
+      (cliLogger.error as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Logger error');
       });
 

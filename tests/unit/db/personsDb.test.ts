@@ -1,3 +1,4 @@
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import {
   MovieCastMemberRow,
   MovieCreditRow,
@@ -11,55 +12,26 @@ import * as personsDb from '@db/personsDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { type Mock, MockedFunction, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction } = vi.hoisted(() => {
-  const mockExecute = vi.fn();
-  const mockQuery = vi.fn();
-  const mockGetDbPool = vi.fn(() => ({
-    execute: mockExecute,
-    query: mockQuery,
-  }));
-  const mockExecuteInTransaction = vi.fn();
-
-  return { mockExecute, mockQuery, mockGetDbPool, mockExecuteInTransaction };
-});
-
-vi.mock('@utils/db', () => ({
-  getDbPool: mockGetDbPool,
-}));
-
-vi.mock('@utils/transactionHelper', () => ({
-  TransactionHelper: vi.fn(function (this: any) {
-    this.executeInTransaction = mockExecuteInTransaction;
-  }),
-}));
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
-const mockHandleDatabaseError = handleDatabaseError as MockedFunction<typeof handleDatabaseError>;
-
-vi.mock('@utils/errorHandlingUtility');
+jest.mock('@utils/errorHandlingUtility');
 
 describe('personsDb', () => {
+  let mockExecute: jest.Mock;
+  let mockQuery: jest.Mock;
+  let mockTransactionHelper: jest.Mocked<TransactionHelper>;
+  let mockHandleDatabaseError: jest.MockedFunction<typeof handleDatabaseError>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
-    mockExecuteInTransaction.mockImplementation(async (callback) => {
-      const mockConnection = {
-        execute: mockExecute,
-      };
-      return callback(mockConnection);
-    });
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockExecute = mocks.mockExecute;
+    mockQuery = mocks.mockQuery;
+    mockTransactionHelper = mocks.mockTransactionHelper;
 
-    // Reset handleDatabaseError to throw by default
+    // Setup handleDatabaseError mock
+    mockHandleDatabaseError = handleDatabaseError as jest.MockedFunction<typeof handleDatabaseError>;
     mockHandleDatabaseError.mockImplementation((error, context) => {
       throw new Error(`Database error in ${context}: ${error}`);
     });
@@ -381,16 +353,10 @@ describe('personsDb', () => {
 
   describe('getPersonDetails', () => {
     it('should get person details with credits', async () => {
-      const mockConnectionExecute = vi.fn();
+      const mockConnectionExecute = jest.fn();
 
-      const mockTransactionInstance = {
-        executeInTransaction: vi.fn().mockImplementation(async (callback) => {
-          return callback({ execute: mockConnectionExecute });
-        }),
-      };
-
-      (TransactionHelper as unknown as Mock).mockImplementation(function () {
-        return mockTransactionInstance;
+      mockTransactionHelper.executeInTransaction.mockImplementation(async (callback) => {
+        return callback({ execute: mockConnectionExecute } as any);
       });
 
       mockConnectionExecute.mockResolvedValueOnce([
@@ -474,15 +440,8 @@ describe('personsDb', () => {
     });
 
     it('should handle database errors', async () => {
-      const mockTransactionInstance = {
-        executeInTransaction: vi.fn().mockRejectedValue(new Error('Database error')),
-      };
-
-      (TransactionHelper as unknown as Mock).mockImplementation(function () {
-        return mockTransactionInstance;
-      });
-
       const error = new Error('Database error');
+      mockTransactionHelper.executeInTransaction.mockRejectedValue(error);
 
       await expect(personsDb.getPersonDetails(123)).rejects.toThrow(
         'Database error in getting a person details: Error: Database error',
@@ -837,8 +796,8 @@ describe('personsDb', () => {
       ];
 
       // Mock Date to have consistent test results
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2024-01-01'));
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2024-01-01'));
 
       mockQuery.mockResolvedValue([mockPersonRows]);
 
@@ -875,7 +834,7 @@ describe('personsDb', () => {
       ]);
 
       // Restore real timers
-      vi.useRealTimers();
+      jest.useRealTimers();
     });
 
     it('should handle database errors', async () => {

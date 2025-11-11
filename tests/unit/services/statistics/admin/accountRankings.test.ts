@@ -5,21 +5,20 @@ import {
   createAdminStatisticsService,
   resetAdminStatisticsService,
 } from '@services/statistics/adminStatisticsService';
-import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@services/errorService');
-vi.mock('@services/cacheService');
-vi.mock('@db/statistics/accountComparisonRepository');
+jest.mock('@services/errorService');
+jest.mock('@services/cacheService');
+jest.mock('@db/statistics/accountComparisonRepository');
 
 describe('AdminStatisticsService - Account Rankings', () => {
   let adminStatisticsService: AdminStatisticsService;
   const mockCacheService = {
-    getOrSet: vi.fn(),
-    invalidate: vi.fn(),
+    getOrSet: jest.fn(),
+    invalidate: jest.fn(),
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
 
     resetAdminStatisticsService();
 
@@ -31,7 +30,7 @@ describe('AdminStatisticsService - Account Rankings', () => {
 
   afterEach(() => {
     resetAdminStatisticsService();
-    vi.resetModules();
+    jest.resetModules();
   });
 
   describe('getAccountRankings', () => {
@@ -106,7 +105,7 @@ describe('AdminStatisticsService - Account Rankings', () => {
     it('should fetch and transform account rankings on cache miss', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (accountComparisonRepository.getAccountRankings as Mock).mockResolvedValue(mockRankingsData);
+      (accountComparisonRepository.getAccountRankings as jest.Mock).mockResolvedValue(mockRankingsData);
 
       const result = await adminStatisticsService.getAccountRankings('engagement', 50);
 
@@ -134,7 +133,7 @@ describe('AdminStatisticsService - Account Rankings', () => {
     it('should use default parameters when not provided', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (accountComparisonRepository.getAccountRankings as Mock).mockResolvedValue([]);
+      (accountComparisonRepository.getAccountRankings as jest.Mock).mockResolvedValue([]);
 
       await adminStatisticsService.getAccountRankings();
 
@@ -144,7 +143,7 @@ describe('AdminStatisticsService - Account Rankings', () => {
     it('should support different ranking metrics', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (accountComparisonRepository.getAccountRankings as Mock).mockResolvedValue(mockRankingsData);
+      (accountComparisonRepository.getAccountRankings as jest.Mock).mockResolvedValue(mockRankingsData);
 
       // Test episodesWatched metric
       await adminStatisticsService.getAccountRankings('episodesWatched', 25);
@@ -162,7 +161,7 @@ describe('AdminStatisticsService - Account Rankings', () => {
     it('should handle empty rankings', async () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
-      (accountComparisonRepository.getAccountRankings as Mock).mockResolvedValue([]);
+      (accountComparisonRepository.getAccountRankings as jest.Mock).mockResolvedValue([]);
 
       const result = await adminStatisticsService.getAccountRankings('engagement', 50);
 
@@ -187,7 +186,7 @@ describe('AdminStatisticsService - Account Rankings', () => {
         },
       ];
 
-      (accountComparisonRepository.getAccountRankings as Mock).mockResolvedValue(mockDataWithoutNames);
+      (accountComparisonRepository.getAccountRankings as jest.Mock).mockResolvedValue(mockDataWithoutNames);
 
       const result = await adminStatisticsService.getAccountRankings('engagement', 50);
 
@@ -222,7 +221,7 @@ describe('AdminStatisticsService - Account Rankings', () => {
         },
       ];
 
-      (accountComparisonRepository.getAccountRankings as Mock).mockResolvedValue(mockDataWithDecimals);
+      (accountComparisonRepository.getAccountRankings as jest.Mock).mockResolvedValue(mockDataWithDecimals);
 
       const result = await adminStatisticsService.getAccountRankings('engagement', 50);
 
@@ -234,8 +233,8 @@ describe('AdminStatisticsService - Account Rankings', () => {
       mockCacheService.getOrSet.mockImplementation(async (_key, fn) => fn());
 
       const error = new Error('Database query failed');
-      (accountComparisonRepository.getAccountRankings as Mock).mockRejectedValue(error);
-      (errorService.handleError as Mock).mockImplementation((err) => {
+      (accountComparisonRepository.getAccountRankings as jest.Mock).mockRejectedValue(error);
+      (errorService.handleError as jest.Mock).mockImplementation((err) => {
         throw new Error(`Handled: ${err.message}`);
       });
 

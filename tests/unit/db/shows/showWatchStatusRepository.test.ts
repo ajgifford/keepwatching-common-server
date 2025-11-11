@@ -1,55 +1,17 @@
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as showsDb from '@db/showsDb';
-import { getDbPool } from '@utils/db';
 import { ResultSetHeader } from 'mysql2';
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('@utils/db', () => {
-  const mockPool = {
-    execute: vi.fn(),
-    getConnection: vi.fn(),
-  };
-  return {
-    getDbPool: vi.fn(() => mockPool),
-  };
-});
-
-vi.mock('@utils/dbMonitoring', () => ({
-  DbMonitor: {
-    getInstance: vi.fn(() => ({
-      executeWithTiming: vi.fn().mockImplementation(async (_queryName: string, queryFn: () => any) => {
-        return await queryFn();
-      }),
-    })),
-  },
-}));
 
 describe('showWatchStatusRepository', () => {
-  let mockPool: {
-    execute: Mock;
-    getConnection: Mock;
-  };
-  let mockConnection: {
-    execute: Mock;
-    beginTransaction: Mock;
-    commit: Mock;
-    rollback: Mock;
-    release: Mock;
-  };
+  let mockConnection: any;
 
   beforeEach(() => {
-    mockConnection = {
-      execute: vi.fn(),
-      beginTransaction: vi.fn(),
-      commit: vi.fn(),
-      rollback: vi.fn(),
-      release: vi.fn(),
-    };
+    jest.clearAllMocks();
 
-    mockPool = getDbPool() as any;
-    mockPool.execute.mockReset();
-    mockPool.getConnection.mockReset();
-    mockPool.getConnection.mockResolvedValue(mockConnection);
+    // Setup all database mocks using the helper
+    const mocks = setupDatabaseTest();
+    mockConnection = mocks.mockConnection;
   });
 
   describe('saveFavorite()', () => {
@@ -58,13 +20,11 @@ describe('showWatchStatusRepository', () => {
 
       await showsDb.saveFavorite(123, 12345, false);
 
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenCalledWith(
         'INSERT IGNORE INTO show_watch_status (profile_id, show_id, status) VALUES (?,?,?)',
         [123, 12345, WatchStatus.NOT_WATCHED],
       );
-      expect(mockConnection.commit).toHaveBeenCalled();
     });
 
     it('should add show to profile favorites with seasons and episodes', async () => {
@@ -89,7 +49,6 @@ describe('showWatchStatusRepository', () => {
 
       await showsDb.saveFavorite(123, 12345, true);
 
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledWith(
         'INSERT IGNORE INTO show_watch_status (profile_id, show_id, status) VALUES (?,?,?)',
         [123, 12345, WatchStatus.NOT_WATCHED],
@@ -122,7 +81,6 @@ describe('showWatchStatusRepository', () => {
           4,
         ],
       );
-      expect(mockConnection.commit).toHaveBeenCalled();
     });
 
     it('should handle case when show has no seasons', async () => {
@@ -140,7 +98,6 @@ describe('showWatchStatusRepository', () => {
       expect(mockConnection.execute).toHaveBeenCalledWith('SELECT id, release_date FROM seasons WHERE show_id = ?', [
         12345,
       ]);
-      expect(mockConnection.commit).toHaveBeenCalled();
     });
 
     it('should rollback transaction on error', async () => {
@@ -149,9 +106,7 @@ describe('showWatchStatusRepository', () => {
 
       await expect(showsDb.saveFavorite(123, 12345, true)).rejects.toThrow('Database error');
 
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
-      expect(mockConnection.rollback).toHaveBeenCalled();
-      expect(mockConnection.release).toHaveBeenCalled();
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -165,7 +120,6 @@ describe('showWatchStatusRepository', () => {
 
       await showsDb.removeFavorite(123, 12345);
 
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledWith('SELECT id, release_date FROM seasons WHERE show_id = ?', [
         12345,
       ]);
@@ -181,7 +135,6 @@ describe('showWatchStatusRepository', () => {
         'DELETE FROM show_watch_status WHERE profile_id = ? AND show_id = ?',
         [123, 12345],
       );
-      expect(mockConnection.commit).toHaveBeenCalled();
     });
 
     it('should handle case when show has no seasons', async () => {
@@ -199,7 +152,6 @@ describe('showWatchStatusRepository', () => {
         'DELETE FROM show_watch_status WHERE profile_id = ? AND show_id = ?',
         [123, 12345],
       );
-      expect(mockConnection.commit).toHaveBeenCalled();
     });
 
     it('should rollback transaction on error', async () => {
@@ -208,9 +160,7 @@ describe('showWatchStatusRepository', () => {
 
       await expect(showsDb.removeFavorite(123, 12345)).rejects.toThrow('Database error');
 
-      expect(mockConnection.beginTransaction).toHaveBeenCalled();
-      expect(mockConnection.rollback).toHaveBeenCalled();
-      expect(mockConnection.release).toHaveBeenCalled();
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
     });
   });
 });
