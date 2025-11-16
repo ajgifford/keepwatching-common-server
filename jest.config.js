@@ -82,6 +82,6 @@ export default {
     '/tests/unit/services/showService/helpers/',
   ],
 
-  // Transform ESM modules from @ajgifford scope (including keepwatching-types)
-  transformIgnorePatterns: ['node_modules/(?!@ajgifford)'],
+  // Transform ESM modules from @ajgifford scope and uuid (ESM-only in v13+)
+  transformIgnorePatterns: ['node_modules/(?!(@ajgifford|uuid)/)'],
 };
