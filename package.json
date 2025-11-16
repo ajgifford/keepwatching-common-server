@@ -1,6 +1,6 @@
 {
   "name": "@ajgifford/keepwatching-common-server",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Common utilities and services for KeepWatching API",
   "type": "module",
   "main": "dist/index.js",
