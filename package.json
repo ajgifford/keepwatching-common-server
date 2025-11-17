@@ -46,7 +46,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup",
     "clean": "rimraf dist",
     "rebuild": "yarn clean && yarn build",
     "prepare": "yarn build",
@@ -71,7 +71,7 @@
   "author": "Gifford Family Dev",
   "license": "ISC",
   "dependencies": {
-    "@ajgifford/keepwatching-types": "^0.7.4",
+    "@ajgifford/keepwatching-types": "^0.7.5",
     "axios": "1.13.2",
     "axios-retry": "^4.5.0",
     "cron-parser": "5.4.0",
@@ -109,9 +109,9 @@
     "prettier": "^3.5.3",
     "rimraf": "^6.1.0",
     "ts-jest": "^29.3.2",
-    "tsc-alias": "^1.8.10",
-    "tsx": "^4.19.2",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "8.46.4"
   },
