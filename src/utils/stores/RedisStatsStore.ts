@@ -1,10 +1,13 @@
 import Redis from 'ioredis';
 import { DBQueryStats } from '@ajgifford/keepwatching-types';
 import { appLogger } from '../../logger/logger';
-import { StatsStore } from '../../types/statsStore';
+import { StatsStore, QueryCallHistory } from '../../types/statsStore';
 
 const REDIS_KEY_PREFIX = 'db:query:stats:';
+const REDIS_HISTORY_PREFIX = 'db:query:history:';
 const STATS_EXPIRY_SECONDS = 86400; // 24 hours
+const HISTORY_EXPIRY_SECONDS = 86400; // 24 hours
+const MAX_HISTORY_PER_QUERY = 1000; // Keep last 1000 executions per query
 
 /**
  * Redis implementation of StatsStore for database query statistics.
@@ -40,27 +43,49 @@ export class RedisStatsStore implements StatsStore {
     });
   }
 
-  async recordQuery(queryName: string, executionTime: number): Promise<void> {
+  async recordQuery(queryName: string, executionTime: number, success: boolean = true, error?: string): Promise<void> {
     try {
-      const key = `${REDIS_KEY_PREFIX}${queryName}`;
+      const statsKey = `${REDIS_KEY_PREFIX}${queryName}`;
+      const historyKey = `${REDIS_HISTORY_PREFIX}${queryName}`;
+      const timestamp = Date.now();
+
       const multi = this.redis.multi();
 
+      // Update aggregated stats
       // Increment count
-      multi.hincrby(key, 'count', 1);
+      multi.hincrby(statsKey, 'count', 1);
 
       // Add to total time
-      multi.hincrbyfloat(key, 'totalTime', executionTime);
+      multi.hincrbyfloat(statsKey, 'totalTime', executionTime);
 
       // Get current max time to compare
-      const currentStats = await this.redis.hgetall(key);
+      const currentStats = await this.redis.hgetall(statsKey);
       const currentMaxTime = parseFloat(currentStats.maxTime || '0');
 
       if (executionTime > currentMaxTime) {
-        multi.hset(key, 'maxTime', executionTime);
+        multi.hset(statsKey, 'maxTime', executionTime);
       }
 
-      // Set expiry on the key
-      multi.expire(key, STATS_EXPIRY_SECONDS);
+      // Set expiry on the stats key
+      multi.expire(statsKey, STATS_EXPIRY_SECONDS);
+
+      // Store individual call history in a sorted set (sorted by timestamp)
+      const historyEntry: QueryCallHistory = {
+        timestamp,
+        executionTime,
+        success,
+        ...(error && { error }),
+      };
+
+      // Add to sorted set with timestamp as score
+      multi.zadd(historyKey, timestamp, JSON.stringify(historyEntry));
+
+      // Trim to keep only the most recent MAX_HISTORY_PER_QUERY entries
+      // This removes the oldest entries
+      multi.zremrangebyrank(historyKey, 0, -(MAX_HISTORY_PER_QUERY + 1));
+
+      // Set expiry on the history key
+      multi.expire(historyKey, HISTORY_EXPIRY_SECONDS);
 
       await multi.exec();
     } catch (error) {
@@ -99,12 +124,39 @@ export class RedisStatsStore implements StatsStore {
     }
   }
 
+  async getQueryHistory(queryName: string, limit: number = 100): Promise<QueryCallHistory[]> {
+    try {
+      const historyKey = `${REDIS_HISTORY_PREFIX}${queryName}`;
+
+      // Get the most recent entries (highest scores = most recent timestamps)
+      // Use ZREVRANGE to get in descending order (most recent first)
+      const entries = await this.redis.zrevrange(historyKey, 0, limit - 1);
+
+      const history: QueryCallHistory[] = entries.map((entry) => {
+        try {
+          return JSON.parse(entry) as QueryCallHistory;
+        } catch (parseError) {
+          appLogger.error(`Failed to parse history entry for ${queryName}:`, parseError);
+          return null;
+        }
+      }).filter((entry): entry is QueryCallHistory => entry !== null);
+
+      return history;
+    } catch (error) {
+      appLogger.error(`Failed to retrieve query history for ${queryName}:`, error);
+      return [];
+    }
+  }
+
   async clearStats(): Promise<void> {
     try {
-      const keys = await this.redis.keys(`${REDIS_KEY_PREFIX}*`);
-      if (keys.length > 0) {
-        await this.redis.del(...keys);
-        appLogger.info(`Cleared ${keys.length} query statistics from Redis`);
+      const statsKeys = await this.redis.keys(`${REDIS_KEY_PREFIX}*`);
+      const historyKeys = await this.redis.keys(`${REDIS_HISTORY_PREFIX}*`);
+      const allKeys = [...statsKeys, ...historyKeys];
+
+      if (allKeys.length > 0) {
+        await this.redis.del(...allKeys);
+        appLogger.info(`Cleared ${allKeys.length} query statistics and history entries from Redis`);
       }
     } catch (error) {
       appLogger.error('Failed to clear query stats:', error);

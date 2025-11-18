@@ -2,11 +2,13 @@ import { DatabaseHealthResponse } from '@ajgifford/keepwatching-types';
 import { errorService } from '@services/errorService';
 import { HealthService, healthService } from '@services/healthService';
 import { getDbPool } from '@utils/db';
+import { QueryCallHistory } from '../../../src/types/statsStore';
 
 // Mock must be defined before it's used
 const mockDbMonitorInstance = {
   executeWithTiming: jest.fn((name: string, fn: () => any) => fn()),
   getStats: jest.fn().mockResolvedValue([]),
+  getQueryHistory: jest.fn().mockResolvedValue([]),
 };
 
 jest.mock('@utils/db');
@@ -230,6 +232,83 @@ describe('HealthService', () => {
         activeConnections: 30,
         freeConnections: 10,
       });
+    });
+  });
+
+  describe('getQueryHistory', () => {
+    it('should return query history for a specific query', async () => {
+      const mockHistory = [
+        { timestamp: Date.now(), executionTime: 150, success: true },
+        { timestamp: Date.now() - 1000, executionTime: 200, success: true },
+        { timestamp: Date.now() - 2000, executionTime: 180, success: true },
+      ];
+
+      (mockDbMonitorInstance.getQueryHistory as jest.Mock) = jest.fn().mockResolvedValue(mockHistory);
+
+      const result = await healthService.getQueryHistory('SELECT * FROM shows');
+
+      expect(result).toEqual(mockHistory);
+      expect(mockDbMonitorInstance.getQueryHistory).toHaveBeenCalledWith('SELECT * FROM shows', 100);
+    });
+
+    it('should respect custom limit parameter', async () => {
+      const mockHistory = Array.from({ length: 50 }, (_, i) => ({
+        timestamp: Date.now() - i * 1000,
+        executionTime: 100 + i,
+        success: true,
+      }));
+
+      (mockDbMonitorInstance.getQueryHistory as jest.Mock) = jest.fn().mockResolvedValue(mockHistory);
+
+      const result = await healthService.getQueryHistory('SELECT * FROM movies', 50);
+
+      expect(result).toEqual(mockHistory);
+      expect(mockDbMonitorInstance.getQueryHistory).toHaveBeenCalledWith('SELECT * FROM movies', 50);
+    });
+
+    it('should enforce maximum limit of 1000', async () => {
+      const mockHistory: QueryCallHistory[] = [];
+      (mockDbMonitorInstance.getQueryHistory as jest.Mock) = jest.fn().mockResolvedValue(mockHistory);
+
+      await healthService.getQueryHistory('SELECT * FROM users', 5000);
+
+      expect(mockDbMonitorInstance.getQueryHistory).toHaveBeenCalledWith('SELECT * FROM users', 1000);
+    });
+
+    it('should handle query history with errors', async () => {
+      const mockHistory = [
+        { timestamp: Date.now(), executionTime: 150, success: true },
+        { timestamp: Date.now() - 1000, executionTime: 5000, success: false, error: 'Connection timeout' },
+        { timestamp: Date.now() - 2000, executionTime: 180, success: true },
+      ];
+
+      (mockDbMonitorInstance.getQueryHistory as jest.Mock) = jest.fn().mockResolvedValue(mockHistory);
+
+      const result = await healthService.getQueryHistory('SELECT * FROM orders');
+
+      expect(result).toEqual(mockHistory);
+      expect(result[1].success).toBe(false);
+      expect(result[1].error).toBe('Connection timeout');
+    });
+
+    it('should handle empty history', async () => {
+      (mockDbMonitorInstance.getQueryHistory as jest.Mock) = jest.fn().mockResolvedValue([]);
+
+      const result = await healthService.getQueryHistory('SELECT * FROM new_table');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle errors from DbMonitor', async () => {
+      const dbError = new Error('Failed to retrieve history');
+      (mockDbMonitorInstance.getQueryHistory as jest.Mock) = jest.fn().mockRejectedValue(dbError);
+
+      const handledError = new Error('Handled history error');
+      (errorService.handleError as jest.Mock).mockReturnValue(handledError);
+
+      await expect(healthService.getQueryHistory('SELECT * FROM shows')).rejects.toThrow('Handled history error');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, 'getQueryHistory(SELECT * FROM shows)');
     });
   });
 

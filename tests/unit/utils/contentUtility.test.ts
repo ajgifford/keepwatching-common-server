@@ -1,3 +1,4 @@
+import { TMDBMovie } from '../../../src/types/tmdbTypes';
 import {
   getDirectors,
   getEpisodeToAirId,
@@ -12,7 +13,6 @@ import {
   isFutureSeason,
   stripPrefix,
 } from '@utils/contentUtility';
-import { TMDBMovie } from 'dist/types/tmdbTypes';
 import { Show, ShowType } from 'streaming-availability';
 
 describe('contentUtility', () => {

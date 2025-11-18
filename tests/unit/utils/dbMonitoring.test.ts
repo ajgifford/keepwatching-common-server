@@ -94,13 +94,12 @@ describe('DbMonitor', () => {
         // Expected to throw
       }
 
-      // The store should NOT record failed queries in this implementation
-      // (recordQuery is called before the error is thrown)
+      // Failed queries should be recorded for debugging purposes
       const stats = await store.getStats();
-      // The actual behavior depends on when recordQuery is called
-      // In the current implementation, it's called before returning,
-      // so a failed query won't be recorded
-      expect(stats).toHaveLength(0);
+      expect(stats).toHaveLength(1);
+      expect(stats[0].query).toBe('failingQuery');
+      expect(stats[0].count).toBe(1);
+      expect(stats[0].totalTime).toBeGreaterThan(0);
     });
   });
 

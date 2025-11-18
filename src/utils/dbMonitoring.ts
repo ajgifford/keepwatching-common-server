@@ -1,6 +1,6 @@
 import { getRedisConfig } from '../config/config';
 import { appLogger } from '../logger/logger';
-import { StatsStore } from '../types/statsStore';
+import { QueryCallHistory, StatsStore } from '../types/statsStore';
 import { RedisStatsStore } from './stores/RedisStatsStore';
 import { DBQueryStats } from '@ajgifford/keepwatching-types';
 
@@ -53,7 +53,7 @@ export class DbMonitor {
       const result = await queryFn();
       const executionTime = performance.now() - startTime;
 
-      await this.store.recordQuery(queryName, executionTime);
+      await this.store.recordQuery(queryName, executionTime, true);
 
       if (executionTime > warnThresholdMs) {
         appLogger.warn(`Slow query detected: ${queryName} took ${executionTime}ms`);
@@ -62,13 +62,22 @@ export class DbMonitor {
       return result;
     } catch (error) {
       const executionTime = performance.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
       appLogger.error(`Query failed: ${queryName} after ${executionTime}ms`, error);
+
+      // Record the failed query with error information
+      await this.store.recordQuery(queryName, executionTime, false, errorMessage);
+
       throw error;
     }
   }
 
   async getStats(): Promise<DBQueryStats[]> {
     return await this.store.getStats();
+  }
+
+  async getQueryHistory(queryName: string, limit?: number): Promise<QueryCallHistory[]> {
+    return await this.store.getQueryHistory(queryName, limit);
   }
 
   async logStats(): Promise<void> {

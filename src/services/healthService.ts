@@ -2,6 +2,7 @@ import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { errorService } from './errorService';
 import { DatabaseHealthResponse } from '@ajgifford/keepwatching-types';
+import { QueryCallHistory } from '../types/statsStore';
 
 export class HealthService {
   /**
@@ -36,6 +37,24 @@ export class HealthService {
       } as DatabaseHealthResponse;
     } catch (error) {
       throw errorService.handleError(error, `getDatabaseHealth()`);
+    }
+  }
+
+  /**
+   * Retrieves call history for a specific query.
+   * This provides detailed execution information for monitoring and debugging.
+   *
+   * @param queryName - Name of the database query to retrieve history for
+   * @param limit - Maximum number of history entries to return (default: 100, max: 1000)
+   * @returns Array of query execution history entries
+   */
+  public async getQueryHistory(queryName: string, limit: number = 100): Promise<QueryCallHistory[]> {
+    try {
+      // Enforce maximum limit
+      const effectiveLimit = Math.min(limit, 1000);
+      return await DbMonitor.getInstance().getQueryHistory(queryName, effectiveLimit);
+    } catch (error) {
+      throw errorService.handleError(error, `getQueryHistory(${queryName})`);
     }
   }
 }

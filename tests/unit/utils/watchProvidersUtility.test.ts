@@ -1,4 +1,4 @@
-import { TMDBMovie } from '../../../src/types/tmdbTypes';
+import { TMDBMovie, TMDBShow } from '../../../src/types/tmdbTypes';
 import pool from '@utils/db';
 import {
   getCachedStreamingServiceIds,
@@ -7,7 +7,6 @@ import {
   loadStreamingService,
   setCachedStreamingServiceIds,
 } from '@utils/watchProvidersUtility';
-import { TMDBShow } from 'dist/types/tmdbTypes';
 
 jest.mock('@utils/db', () => ({
   __esModule: true,
