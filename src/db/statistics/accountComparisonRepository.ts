@@ -42,11 +42,11 @@ export async function getAccountRankings(
           a.email as account_email,
           a.account_name,
           COUNT(DISTINCT p.profile_id) as profile_count,
-          COALESCE(SUM(episode_stats.episodes_watched), 0) as total_episodes_watched,
-          COALESCE(SUM(movie_stats.movies_watched), 0) as total_movies_watched,
+          COALESCE(MAX(episode_stats.episodes_watched), 0) as total_episodes_watched,
+          COALESCE(MAX(movie_stats.movies_watched), 0) as total_movies_watched,
           (
-            COALESCE(SUM(episode_stats.total_runtime), 0) + 
-            COALESCE(SUM(movie_stats.total_runtime), 0)
+            COALESCE(MAX(episode_stats.total_runtime), 0) +
+            COALESCE(MAX(movie_stats.total_runtime), 0)
           ) / 60 as total_hours_watched,
           CASE 
             WHEN MAX(activity.last_activity) IS NULL THEN 0
