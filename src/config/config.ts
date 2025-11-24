@@ -187,6 +187,15 @@ export function getRedisConfig(): {
 }
 
 /**
+ * Get stats store type configuration
+ * @returns 'redis' | 'memory' - defaults to 'redis'
+ */
+export function getStatsStoreType(): 'redis' | 'memory' {
+  const type = process.env.STATS_STORE_TYPE?.toLowerCase();
+  return type === 'memory' ? 'memory' : 'redis';
+}
+
+/**
  * Validate email configuration
  */
 export function validateEmailConfig(): { isValid: boolean; errors: string[] } {

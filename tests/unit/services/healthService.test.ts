@@ -1,8 +1,7 @@
-import { DatabaseHealthResponse } from '@ajgifford/keepwatching-types';
+import { DBQueryCallHistory, DatabaseHealthResponse } from '@ajgifford/keepwatching-types';
 import { errorService } from '@services/errorService';
 import { HealthService, healthService } from '@services/healthService';
 import { getDbPool } from '@utils/db';
-import { QueryCallHistory } from '../../../src/types/statsStore';
 
 // Mock must be defined before it's used
 const mockDbMonitorInstance = {
@@ -267,7 +266,7 @@ describe('HealthService', () => {
     });
 
     it('should enforce maximum limit of 1000', async () => {
-      const mockHistory: QueryCallHistory[] = [];
+      const mockHistory: DBQueryCallHistory[] = [];
       (mockDbMonitorInstance.getQueryHistory as jest.Mock) = jest.fn().mockResolvedValue(mockHistory);
 
       await healthService.getQueryHistory('SELECT * FROM users', 5000);

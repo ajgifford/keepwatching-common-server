@@ -1,5 +1,5 @@
-import { StatsStore, QueryCallHistory } from '../../types/statsStore';
-import { DBQueryStats } from '@ajgifford/keepwatching-types';
+import { StatsStore } from '../../types/statsStore';
+import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
 
 interface QueryStat {
   count: number;
@@ -16,7 +16,7 @@ const MAX_HISTORY_PER_QUERY = 1000; // Keep last 1000 executions per query
  */
 export class InMemoryStatsStore implements StatsStore {
   private stats: Map<string, QueryStat> = new Map();
-  private history: Map<string, QueryCallHistory[]> = new Map();
+  private history: Map<string, DBQueryCallHistory[]> = new Map();
 
   async recordQuery(queryName: string, executionTime: number, success: boolean = true, error?: string): Promise<void> {
     // Update aggregated stats
@@ -33,7 +33,7 @@ export class InMemoryStatsStore implements StatsStore {
     this.stats.set(queryName, current);
 
     // Store individual call history
-    const historyEntry: QueryCallHistory = {
+    const historyEntry: DBQueryCallHistory = {
       timestamp: Date.now(),
       executionTime,
       success,
@@ -68,7 +68,7 @@ export class InMemoryStatsStore implements StatsStore {
     return result.sort((a, b) => b.totalTime - a.totalTime);
   }
 
-  async getQueryHistory(queryName: string, limit: number = 100): Promise<QueryCallHistory[]> {
+  async getQueryHistory(queryName: string, limit: number = 100): Promise<DBQueryCallHistory[]> {
     const queryHistory = this.history.get(queryName) || [];
 
     // Return most recent entries (last N items), in reverse chronological order
@@ -101,7 +101,7 @@ export class InMemoryStatsStore implements StatsStore {
   /**
    * Helper method for testing: get raw history for a specific query
    */
-  getQueryHistoryRaw(queryName: string): QueryCallHistory[] | undefined {
+  getQueryHistoryRaw(queryName: string): DBQueryCallHistory[] | undefined {
     return this.history.get(queryName);
   }
 }

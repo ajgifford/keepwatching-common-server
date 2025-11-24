@@ -1,8 +1,9 @@
-import { getRedisConfig } from '../config/config';
+import { getRedisConfig, getStatsStoreType } from '../config/config';
 import { appLogger } from '../logger/logger';
-import { QueryCallHistory, StatsStore } from '../types/statsStore';
+import { StatsStore } from '../types/statsStore';
+import { InMemoryStatsStore } from './stores/InMemoryStatsStore';
 import { RedisStatsStore } from './stores/RedisStatsStore';
-import { DBQueryStats } from '@ajgifford/keepwatching-types';
+import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
 
 /**
  * Database query monitor that tracks execution times and performance metrics.
@@ -18,12 +19,23 @@ export class DbMonitor {
 
   /**
    * Gets the singleton instance of DbMonitor.
-   * Creates a new instance with RedisStatsStore if one doesn't exist.
+   * Creates a new instance with RedisStatsStore or InMemoryStatsStore based on configuration.
+   * Automatically falls back to InMemoryStatsStore if Redis connection fails.
    */
   static getInstance(): DbMonitor {
     if (!DbMonitor.instance) {
-      const config = getRedisConfig();
-      const store = new RedisStatsStore(config);
+      const storeType = getStatsStoreType();
+      let store: StatsStore;
+
+      if (storeType === 'memory') {
+        appLogger.info('Using InMemoryStatsStore for database query statistics');
+        store = new InMemoryStatsStore();
+      } else {
+        appLogger.info('Using RedisStatsStore for database query statistics');
+        const config = getRedisConfig();
+        store = new RedisStatsStore(config);
+      }
+
       DbMonitor.instance = new DbMonitor(store);
     }
     return DbMonitor.instance;
@@ -76,7 +88,7 @@ export class DbMonitor {
     return await this.store.getStats();
   }
 
-  async getQueryHistory(queryName: string, limit?: number): Promise<QueryCallHistory[]> {
+  async getQueryHistory(queryName: string, limit?: number): Promise<DBQueryCallHistory[]> {
     return await this.store.getQueryHistory(queryName, limit);
   }
 
@@ -91,5 +103,37 @@ export class DbMonitor {
 
   async disconnect(): Promise<void> {
     await this.store.disconnect();
+  }
+
+  /**
+   * Get information about the stats store for logging/debugging
+   */
+  getStoreInfo(): { type: string; isRedis: boolean; status?: string; connected?: boolean } {
+    const isRedis = this.store.constructor.name === 'RedisStatsStore';
+    const info: { type: string; isRedis: boolean; status?: string; connected?: boolean } = {
+      type: isRedis ? 'Redis' : 'In-Memory',
+      isRedis,
+    };
+
+    // Add connection status for Redis stores
+    if (isRedis && this.store instanceof RedisStatsStore) {
+      info.status = this.store.getConnectionStatus();
+      info.connected = this.store.isConnected();
+    }
+
+    return info;
+  }
+
+  /**
+   * Wait for Redis connection to be established (only applicable for Redis stores)
+   * @param timeoutMs Maximum time to wait in milliseconds (default: 5000)
+   * @returns Promise that resolves to true if connected, false if timeout or not using Redis
+   */
+  async waitForConnection(timeoutMs: number = 5000): Promise<boolean> {
+    if (this.store instanceof RedisStatsStore) {
+      return await this.store.waitForConnection(timeoutMs);
+    }
+    // In-memory store is always "connected"
+    return true;
   }
 }

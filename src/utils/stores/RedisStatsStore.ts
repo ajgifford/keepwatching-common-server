@@ -1,7 +1,7 @@
-import Redis from 'ioredis';
-import { DBQueryStats } from '@ajgifford/keepwatching-types';
 import { appLogger } from '../../logger/logger';
-import { StatsStore, QueryCallHistory } from '../../types/statsStore';
+import { StatsStore } from '../../types/statsStore';
+import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
+import Redis from 'ioredis';
 
 const REDIS_KEY_PREFIX = 'db:query:stats:';
 const REDIS_HISTORY_PREFIX = 'db:query:history:';
@@ -45,6 +45,11 @@ export class RedisStatsStore implements StatsStore {
 
   async recordQuery(queryName: string, executionTime: number, success: boolean = true, error?: string): Promise<void> {
     try {
+      // Check if Redis is connected before attempting operations
+      if (this.redis.status !== 'ready') {
+        return; // Silently skip if Redis is not connected
+      }
+
       const statsKey = `${REDIS_KEY_PREFIX}${queryName}`;
       const historyKey = `${REDIS_HISTORY_PREFIX}${queryName}`;
       const timestamp = Date.now();
@@ -70,7 +75,7 @@ export class RedisStatsStore implements StatsStore {
       multi.expire(statsKey, STATS_EXPIRY_SECONDS);
 
       // Store individual call history in a sorted set (sorted by timestamp)
-      const historyEntry: QueryCallHistory = {
+      const historyEntry: DBQueryCallHistory = {
         timestamp,
         executionTime,
         success,
@@ -89,12 +94,18 @@ export class RedisStatsStore implements StatsStore {
 
       await multi.exec();
     } catch (error) {
-      appLogger.error(`Failed to record query stats for ${queryName}:`, error);
+      // Silently handle Redis errors to prevent disrupting application flow
+      appLogger.debug(`Failed to record query stats for ${queryName}:`, error);
     }
   }
 
   async getStats(): Promise<DBQueryStats[]> {
     try {
+      // Check if Redis is connected before attempting operations
+      if (this.redis.status !== 'ready') {
+        return [];
+      }
+
       const keys = await this.redis.keys(`${REDIS_KEY_PREFIX}*`);
       const stats: DBQueryStats[] = [];
 
@@ -119,31 +130,38 @@ export class RedisStatsStore implements StatsStore {
 
       return stats.sort((a, b) => b.totalTime - a.totalTime);
     } catch (error) {
-      appLogger.error('Failed to retrieve query stats:', error);
+      appLogger.debug('Failed to retrieve query stats:', error);
       return [];
     }
   }
 
-  async getQueryHistory(queryName: string, limit: number = 100): Promise<QueryCallHistory[]> {
+  async getQueryHistory(queryName: string, limit: number = 100): Promise<DBQueryCallHistory[]> {
     try {
+      // Check if Redis is connected before attempting operations
+      if (this.redis.status !== 'ready') {
+        return [];
+      }
+
       const historyKey = `${REDIS_HISTORY_PREFIX}${queryName}`;
 
       // Get the most recent entries (highest scores = most recent timestamps)
       // Use ZREVRANGE to get in descending order (most recent first)
       const entries = await this.redis.zrevrange(historyKey, 0, limit - 1);
 
-      const history: QueryCallHistory[] = entries.map((entry) => {
-        try {
-          return JSON.parse(entry) as QueryCallHistory;
-        } catch (parseError) {
-          appLogger.error(`Failed to parse history entry for ${queryName}:`, parseError);
-          return null;
-        }
-      }).filter((entry): entry is QueryCallHistory => entry !== null);
+      const history: DBQueryCallHistory[] = entries
+        .map((entry) => {
+          try {
+            return JSON.parse(entry) as DBQueryCallHistory;
+          } catch (parseError) {
+            appLogger.error(`Failed to parse history entry for ${queryName}:`, parseError);
+            return null;
+          }
+        })
+        .filter((entry): entry is DBQueryCallHistory => entry !== null);
 
       return history;
     } catch (error) {
-      appLogger.error(`Failed to retrieve query history for ${queryName}:`, error);
+      appLogger.debug(`Failed to retrieve query history for ${queryName}:`, error);
       return [];
     }
   }
@@ -170,5 +188,56 @@ export class RedisStatsStore implements StatsStore {
     } catch (error) {
       appLogger.error('Error disconnecting from Redis:', error);
     }
+  }
+
+  /**
+   * Get the connection status of Redis
+   */
+  getConnectionStatus(): string {
+    return this.redis.status;
+  }
+
+  /**
+   * Check if Redis is connected and ready
+   */
+  isConnected(): boolean {
+    return this.redis.status === 'ready';
+  }
+
+  /**
+   * Wait for Redis connection to be established
+   * @param timeoutMs Maximum time to wait in milliseconds (default: 5000)
+   * @returns Promise that resolves to true if connected, false if timeout
+   */
+  async waitForConnection(timeoutMs: number = 5000): Promise<boolean> {
+    if (this.redis.status === 'ready') {
+      return true;
+    }
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, timeoutMs);
+
+      const readyHandler = () => {
+        cleanup();
+        resolve(true);
+      };
+
+      const errorHandler = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        this.redis.off('ready', readyHandler);
+        this.redis.off('error', errorHandler);
+      };
+
+      this.redis.once('ready', readyHandler);
+      this.redis.once('error', errorHandler);
+    });
   }
 }

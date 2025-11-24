@@ -1,26 +1,4 @@
-import { DBQueryStats } from '@ajgifford/keepwatching-types';
-
-/**
- * Represents a single query execution in the call history.
- */
-export interface QueryCallHistory {
-  /**
-   * Timestamp when the query was executed
-   */
-  timestamp: number;
-  /**
-   * Execution time in milliseconds
-   */
-  executionTime: number;
-  /**
-   * Whether the query succeeded or failed
-   */
-  success: boolean;
-  /**
-   * Error message if the query failed
-   */
-  error?: string;
-}
+import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
 
 /**
  * Interface for storing and retrieving database query statistics.
@@ -54,7 +32,7 @@ export interface StatsStore {
    * @param limit - Maximum number of history entries to return (default: 100)
    * @returns Array of query call history entries, sorted by timestamp descending
    */
-  getQueryHistory(queryName: string, limit?: number): Promise<QueryCallHistory[]>;
+  getQueryHistory(queryName: string, limit?: number): Promise<DBQueryCallHistory[]>;
 
   /**
    * Clears all recorded query statistics.
