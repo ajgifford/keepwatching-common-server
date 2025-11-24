@@ -1,6 +1,5 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import * as moviesDb from '@db/moviesDb';
-import { getDbPool } from '@utils/db';
 
 describe('adminMovieRepository', () => {
   let mockExecute: jest.Mock;
