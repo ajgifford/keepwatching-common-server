@@ -8,7 +8,6 @@ let cacheLoadPromise: Promise<void> | null = null;
 
 export const getCachedStreamingServiceIds = (): number[] => cachedStreamingServiceIds;
 export const setCachedStreamingServiceIds = (data: number[]): void => {
-  console.log('SETTING CACHED SERVICE IDS');
   cachedStreamingServiceIds = data;
   cacheInitialized = true;
 };
@@ -39,16 +38,11 @@ async function getUSWatchProviders(content: TMDBContent): Promise<number[]> {
 
   const watchProviders = content['watch/providers']?.results;
   const usWatchProvider = watchProviders.US;
-  console.log('CACHED STREAMING ID', cachedStreamingServiceIds);
-  console.log('US WATCH PROVIDER', usWatchProvider);
   if (usWatchProvider && usWatchProvider.flatrate && usWatchProvider.flatrate.length > 0) {
-    console.log('HAS VALID US WATCH PROVIDERS');
     const streaming_service_ids: number[] = [];
     usWatchProvider.flatrate.forEach((item) => {
-      console.log('US WATCH PROVIDER > FLATRATE', item);
       const id = item.provider_id;
       if (cachedStreamingServiceIds.includes(id)) {
-        console.log('US WATCH PROVIDER ID IN CACHE');
         streaming_service_ids.push(item.provider_id);
       }
     });
@@ -88,7 +82,5 @@ export async function getUSWatchProvidersShow(show: TMDBShow): Promise<number[]>
 export async function loadStreamingService() {
   const query = `SELECT id FROM streaming_services`;
   const [rows] = await pool.execute<StreamingServiceReferenceRow[]>(query);
-  console.log('LOADING STREAMING SERVICES', rows);
   setCachedStreamingServiceIds(rows.map((item) => item.id));
-  console.log('CACHED STREAMING SERVICE IDS', cachedStreamingServiceIds);
 }
