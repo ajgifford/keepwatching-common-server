@@ -2,7 +2,6 @@ import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { MILESTONE_THRESHOLDS, Milestone } from '@ajgifford/keepwatching-types';
 import { getRecentAchievements } from '@db/statistics/achievementRepository';
 import { getMilestoneStats } from '@db/statistics/milestoneRepository';
-import { getDbPool } from '@utils/db';
 import { calculateMilestones } from '@utils/statisticsUtil';
 
 // Mock test-specific dependencies
@@ -16,7 +15,6 @@ jest.mock('@db/statistics/achievementRepository', () => ({
 
 describe('statisticsDb', () => {
   let mockConnection: any;
-  let mockPool: any;
 
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
@@ -35,7 +33,6 @@ describe('statisticsDb', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockConnection = mocks.mockConnection;
-    mockPool = mocks.mockPool;
 
     // Mock calculateMilestones to return empty array by default
     (calculateMilestones as jest.Mock).mockImplementation((current: number, thresholds: number[], type: string) => {
@@ -400,7 +397,6 @@ describe('statisticsDb', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
 
     it('should correctly convert date strings to ISO format', async () => {
       const mockRows = [

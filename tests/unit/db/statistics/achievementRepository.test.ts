@@ -1,5 +1,5 @@
-import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { MilestoneAchievementRow } from '../../../../src/types/statisticsTypes';
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { AchievementType } from '@ajgifford/keepwatching-types';
 import {
   checkAchievementExists,
@@ -13,7 +13,6 @@ import {
 
 describe('achievementRepository', () => {
   let mockConnection: any;
-  let mockPool: any;
 
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
@@ -32,7 +31,6 @@ describe('achievementRepository', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockConnection = mocks.mockConnection;
-    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
@@ -151,7 +149,6 @@ describe('achievementRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getRecentAchievements', () => {
@@ -247,7 +244,6 @@ describe('achievementRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('checkAchievementExists', () => {
@@ -301,7 +297,6 @@ describe('achievementRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('recordAchievement', () => {
@@ -447,7 +442,6 @@ describe('achievementRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(2); // Once for checkAchievementExists (error), once for recordAchievement
     });
-
   });
 
   describe('getAchievementsByType', () => {
@@ -562,7 +556,6 @@ describe('achievementRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getLatestWatchedEpisode', () => {
@@ -670,7 +663,6 @@ describe('achievementRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getLatestWatchedMovie', () => {
@@ -757,6 +749,5 @@ describe('achievementRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 });

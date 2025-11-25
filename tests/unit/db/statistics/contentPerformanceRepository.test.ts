@@ -7,7 +7,6 @@ import {
   getTrendingMovies,
   getTrendingShows,
 } from '@db/statistics/contentPerformanceRepository';
-import { getDbPool } from '@utils/db';
 
 describe('contentPerformanceRepository', () => {
   let mockConnection: any;
@@ -109,7 +108,6 @@ describe('contentPerformanceRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getPopularMovies', () => {
@@ -174,7 +172,6 @@ describe('contentPerformanceRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getTrendingShows', () => {
@@ -258,7 +255,6 @@ describe('contentPerformanceRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getTrendingMovies', () => {
@@ -322,7 +318,6 @@ describe('contentPerformanceRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getShowEngagement', () => {
@@ -407,7 +402,6 @@ describe('contentPerformanceRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getMovieEngagement', () => {
@@ -492,6 +486,5 @@ describe('contentPerformanceRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 });

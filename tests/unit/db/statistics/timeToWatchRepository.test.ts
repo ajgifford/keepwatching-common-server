@@ -1,32 +1,21 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getTimeToWatchStats } from '@db/statistics/timeToWatchRepository';
-import { getDbPool } from '@utils/db';
 
 describe('statisticsDb', () => {
   let mockConnection: any;
-  let mockPool: any;
-
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
-  beforeAll(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(fixedDate);
-  });
-
-  afterAll(() => {
-    jest.useRealTimers();
-  });
-
   beforeEach(() => {
+    jest.useFakeTimers({ now: fixedDate });
     jest.clearAllMocks();
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockConnection = mocks.mockConnection;
-    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.clearAllMocks();
   });
 
@@ -49,7 +38,6 @@ describe('statisticsDb', () => {
       expect(result).toEqual(expectedResult);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
 
     it('should release connection even if query fails', async () => {
       mockConnection.query.mockRejectedValueOnce(new Error('Database error'));

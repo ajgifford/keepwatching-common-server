@@ -4,7 +4,6 @@ import { RowDataPacket } from 'mysql2/promise';
 
 describe('bingeRepository', () => {
   let mockConnection: any;
-  let mockPool: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -12,7 +11,6 @@ describe('bingeRepository', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockConnection = mocks.mockConnection;
-    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {

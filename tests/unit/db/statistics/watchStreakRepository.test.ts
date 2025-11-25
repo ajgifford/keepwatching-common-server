@@ -1,10 +1,8 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getWatchStreakStats } from '@db/statistics/watchStreakRepository';
-import { getDbPool } from '@utils/db';
 
 describe('watchStreakRepository', () => {
   let mockConnection: any;
-  let mockPool: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -12,7 +10,6 @@ describe('watchStreakRepository', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockConnection = mocks.mockConnection;
-    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
@@ -221,7 +218,6 @@ describe('watchStreakRepository', () => {
       expect(result.averageStreakLength).toBe(9); // (8 + 12 + 7) / 3 = 9
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
 
     it('should release connection even if query fails', async () => {
       mockConnection.query.mockRejectedValueOnce(new Error('Database error'));

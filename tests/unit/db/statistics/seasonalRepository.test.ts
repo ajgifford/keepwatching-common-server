@@ -1,10 +1,8 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getSeasonalViewingStats } from '@db/statistics/seasonalRepository';
-import { getDbPool } from '@utils/db';
 
 describe('statisticsDb', () => {
   let mockConnection: any;
-  let mockPool: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -12,7 +10,6 @@ describe('statisticsDb', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockConnection = mocks.mockConnection;
-    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
@@ -226,6 +223,5 @@ describe('statisticsDb', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 });

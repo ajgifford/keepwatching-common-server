@@ -1,6 +1,5 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getProfileComparisonData } from '@db/statistics/profileComparisonRepository';
-import { getDbPool } from '@utils/db';
 
 describe('profileComparisonRepository', () => {
   let mockConnection: any;
@@ -428,7 +427,6 @@ describe('profileComparisonRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
 
     it('should handle top 3 genres per profile', async () => {
       const mockGenreRows = [

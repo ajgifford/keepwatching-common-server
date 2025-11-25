@@ -1,10 +1,8 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getUnairedContentStats } from '@db/statistics/unairedContentRepository';
-import { getDbPool } from '@utils/db';
 
 describe('statisticsDb', () => {
   let mockConnection: any;
-  let mockPool: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -12,7 +10,6 @@ describe('statisticsDb', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockConnection = mocks.mockConnection;
-    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
@@ -51,7 +48,6 @@ describe('statisticsDb', () => {
       expect(result).toEqual(expectedResult);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
 
     it('should release connection even if query fails', async () => {
       mockConnection.query.mockRejectedValueOnce(new Error('Database error'));

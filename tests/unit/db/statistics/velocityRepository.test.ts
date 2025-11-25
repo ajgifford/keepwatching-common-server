@@ -1,6 +1,5 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getWatchingVelocityData } from '@db/statistics/velocityRepository';
-import { getDbPool } from '@utils/db';
 
 describe('velocityRepository', () => {
   let mockConnection: any;
@@ -257,6 +256,5 @@ describe('velocityRepository', () => {
 
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 });
