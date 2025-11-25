@@ -4,7 +4,6 @@ import { ResultSetHeader } from 'mysql2';
 
 describe('profileDb', () => {
   let mockExecute: jest.Mock;
-  let mockQuery: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -12,7 +11,6 @@ describe('profileDb', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockExecute = mocks.mockExecute;
-    mockQuery = mocks.mockQuery;
   });
 
   describe('saveProfile()', () => {

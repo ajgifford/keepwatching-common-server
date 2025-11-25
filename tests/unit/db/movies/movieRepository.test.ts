@@ -1,7 +1,6 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { CreateMovieRequest, UpdateMovieRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
-import { getDbPool } from '@utils/db';
 import { TransactionHelper } from '@utils/transactionHelper';
 
 describe('movieRepository', () => {

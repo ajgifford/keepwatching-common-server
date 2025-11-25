@@ -2,12 +2,10 @@ import { MediaType } from '@ajgifford/keepwatching-types';
 import { CacheService } from '@services/cacheService';
 import {
   ContentDiscoveryService,
-  contentDiscoveryService,
   createContentDiscoveryService,
   resetContentDiscoveryService,
 } from '@services/contentDiscoveryService';
 import { errorService } from '@services/errorService';
-import { StreamingAvailabilityService } from '@services/streamingAvailabilityService';
 import { getTMDBService } from '@services/tmdbService';
 import { getStreamingPremieredDate, getTMDBItemName, getTMDBPremieredDate, stripPrefix } from '@utils/contentUtility';
 import { generateGenreArrayFromIds } from '@utils/genreUtility';
@@ -77,7 +75,9 @@ describe('ContentDiscoveryService', () => {
     (stripPrefix as jest.Mock).mockImplementation((val) => val.replace(/^(tv\/|movie\/)/, ''));
     (getStreamingPremieredDate as jest.Mock).mockReturnValue('2023-01-01');
     (getTMDBPremieredDate as jest.Mock).mockReturnValue('2023-01-01');
-    (getTMDBItemName as jest.Mock).mockImplementation((type, result) => (type === 'movie' ? result.title : result.name));
+    (getTMDBItemName as jest.Mock).mockImplementation((type, result) =>
+      type === 'movie' ? result.title : result.name,
+    );
     (generateGenreArrayFromIds as jest.Mock).mockReturnValue(['Action', 'Drama']);
     (buildTMDBImagePath as jest.Mock).mockReturnValue('https://image.tmdb.org/t/p/w185/poster.jpg');
 

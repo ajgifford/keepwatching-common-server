@@ -1,7 +1,6 @@
 import { CreateNotificationRequest, UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
 import * as notificationsDb from '@db/notificationsDb';
 import { NoAffectedRowsError } from '@middleware/errorMiddleware';
-import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
 import {
   NotificationsService,
@@ -183,9 +182,7 @@ describe('notificationsService', () => {
       (notificationsDb.markNotificationRead as jest.Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notification was marked read');
 
-      await expect(service.markNotificationRead(1, 123)).rejects.toThrow(
-        'No notification was marked read',
-      );
+      await expect(service.markNotificationRead(1, 123)).rejects.toThrow('No notification was marked read');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, true, false)');
     });
 
@@ -193,9 +190,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during mark read');
       (notificationsDb.markNotificationRead as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(service.markNotificationRead(1, 123)).rejects.toThrow(
-        'Database error during mark read',
-      );
+      await expect(service.markNotificationRead(1, 123)).rejects.toThrow('Database error during mark read');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markNotificationRead(1, 123, true, false)');
     });
   });
@@ -227,9 +222,7 @@ describe('notificationsService', () => {
       (notificationsDb.markAllNotificationsRead as jest.Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notifications were marked read');
 
-      await expect(service.markAllNotificationsRead(123)).rejects.toThrow(
-        'No notifications were marked read',
-      );
+      await expect(service.markAllNotificationsRead(123)).rejects.toThrow('No notifications were marked read');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, true, false)');
     });
 
@@ -237,9 +230,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during marking read');
       (notificationsDb.markAllNotificationsRead as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(service.markAllNotificationsRead(123)).rejects.toThrow(
-        'Database error during marking read',
-      );
+      await expect(service.markAllNotificationsRead(123)).rejects.toThrow('Database error during marking read');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'markAllNotificationsRead(123, true, false)');
     });
   });
@@ -289,9 +280,7 @@ describe('notificationsService', () => {
       (notificationsDb.dismissAllNotifications as jest.Mock).mockResolvedValue(false);
       const mockError = new NoAffectedRowsError('No notifications were dismissed');
 
-      await expect(service.dismissAllNotifications(123)).rejects.toThrow(
-        'No notifications were dismissed',
-      );
+      await expect(service.dismissAllNotifications(123)).rejects.toThrow('No notifications were dismissed');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissAllNotifications(123, false)');
     });
 
@@ -299,9 +288,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error during dismissal');
       (notificationsDb.dismissAllNotifications as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(service.dismissAllNotifications(123)).rejects.toThrow(
-        'Database error during dismissal',
-      );
+      await expect(service.dismissAllNotifications(123)).rejects.toThrow('Database error during dismissal');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'dismissAllNotifications(123, false)');
     });
   });
@@ -377,9 +364,7 @@ describe('notificationsService', () => {
       const mockError = new Error('Database error');
       (notificationsDb.getAllNotifications as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(service.getAllNotifications({ expired: true }, 1, 1, 25)).rejects.toThrow(
-        'Database error',
-      );
+      await expect(service.getAllNotifications({ expired: true }, 1, 1, 25)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAllNotifications({"expired":true})');
     });
   });
@@ -504,9 +489,7 @@ describe('notificationsService', () => {
         type: 'general',
         id: 13,
       };
-      await expect(service.updateNotification(updateRequest)).rejects.toThrow(
-        'Database error during update',
-      );
+      await expect(service.updateNotification(updateRequest)).rejects.toThrow('Database error during update');
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
         'updateNotification({"title":"title","message":"message","startDate":"2025-04-05","endDate":"2025-04-25","sendToAll":true,"accountId":null,"type":"general","id":13})',

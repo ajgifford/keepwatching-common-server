@@ -4,12 +4,10 @@ import { errorService } from '@services/errorService';
 
 describe('MoviesService - Digest', () => {
   let service: ReturnType<typeof setupMoviesService>['service'];
-  let mockCache: ReturnType<typeof setupMoviesService>['mockCache'];
 
   beforeEach(() => {
     const setup = setupMoviesService();
     service = setup.service;
-    mockCache = setup.mockCache;
   });
 
   describe('getTrendingMovies', () => {

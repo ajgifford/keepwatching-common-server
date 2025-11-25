@@ -1,4 +1,3 @@
-import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { transformAccountReferenceRow } from '../../../src/types/accountTypes';
 import {
   CreateEmailRow,
@@ -6,6 +5,7 @@ import {
   transformEmailRow,
   transformEmailTemplateRow,
 } from '../../../src/types/emailTypes';
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { CreateEmailRecipient, CreateEmailTemplate, UpdateEmailTemplate } from '@ajgifford/keepwatching-types';
 import * as emailDb from '@db/emailDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
@@ -15,7 +15,6 @@ jest.mock('@utils/errorHandlingUtility');
 
 describe('emailDb', () => {
   let mockExecute: jest.Mock;
-  let mockQuery: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -23,7 +22,6 @@ describe('emailDb', () => {
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
     mockExecute = mocks.mockExecute;
-    mockQuery = mocks.mockQuery;
   });
 
   describe('getEmailTemplates', () => {
