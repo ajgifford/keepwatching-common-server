@@ -305,7 +305,7 @@ export class MoviesService {
       production_companies: getUSProductionCompanies(movieResponse.production_companies),
       budget: movieResponse.budget,
       revenue: movieResponse.revenue,
-      streaming_service_ids: getUSWatchProvidersMovie(movieResponse),
+      streaming_service_ids: await getUSWatchProvidersMovie(movieResponse),
       genre_ids: movieResponse.genres.map((genre: TMDBGenre) => genre.id),
     };
 
@@ -570,7 +570,7 @@ export class MoviesService {
           production_companies: getUSProductionCompanies(movieDetails.production_companies),
           budget: movieDetails.budget,
           revenue: movieDetails.revenue,
-          streaming_service_ids: getUSWatchProvidersMovie(movieDetails),
+          streaming_service_ids: await getUSWatchProvidersMovie(movieDetails),
           genre_ids: movieDetails.genres.map((genre: TMDBGenre) => genre.id),
         };
 

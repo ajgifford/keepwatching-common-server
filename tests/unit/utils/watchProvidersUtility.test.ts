@@ -32,7 +32,7 @@ describe('watchProvidersUtility', () => {
   });
 
   describe('getUSWatchProvidersMovie', () => {
-    it('should return streaming service IDs from US flatrate providers when available', () => {
+    it('should return streaming service IDs from US flatrate providers when available', async () => {
       setCachedStreamingServiceIds([1, 2, 3, 8, 9]);
 
       const contentDetails = {
@@ -51,12 +51,12 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBMovie;
 
-      const result = getUSWatchProvidersMovie(contentDetails);
+      const result = await getUSWatchProvidersMovie(contentDetails);
 
       expect(result).toEqual([1, 8]);
     });
 
-    it('should return unavailable when US providers exist but none match cached IDs', () => {
+    it('should return unavailable when US providers exist but none match cached IDs', async () => {
       setCachedStreamingServiceIds([100, 200, 300]);
 
       const contentDetails = {
@@ -74,12 +74,12 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBMovie;
 
-      const result = getUSWatchProvidersMovie(contentDetails);
+      const result = await getUSWatchProvidersMovie(contentDetails);
 
       expect(result).toEqual([9997]);
     });
 
-    it('should return unavailable when US providers do not exist', () => {
+    it('should return unavailable when US providers do not exist', async () => {
       setCachedStreamingServiceIds([1, 2, 3]);
 
       const contentDetails = {
@@ -94,12 +94,12 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBMovie;
 
-      const result = getUSWatchProvidersMovie(contentDetails);
+      const result = await getUSWatchProvidersMovie(contentDetails);
 
       expect(result).toEqual([9997]);
     });
 
-    it('should return theater when there are no providers and the release date is last 90 days', () => {
+    it('should return theater when there are no providers and the release date is last 90 days', async () => {
       setCachedStreamingServiceIds([1, 2, 3]);
 
       const now = new Date();
@@ -118,12 +118,12 @@ describe('watchProvidersUtility', () => {
         release_date: thirtyDaysAgo.toISOString(),
       } as unknown as TMDBMovie;
 
-      const result = getUSWatchProvidersMovie(contentDetails);
+      const result = await getUSWatchProvidersMovie(contentDetails);
 
       expect(result).toEqual([9998]);
     });
 
-    it('should return coming soon when there are no providers and the release date is in the future', () => {
+    it('should return coming soon when there are no providers and the release date is in the future', async () => {
       setCachedStreamingServiceIds([1, 2, 3]);
 
       const now = new Date();
@@ -142,12 +142,12 @@ describe('watchProvidersUtility', () => {
         release_date: thirtyDaysFromNow.toISOString(),
       } as unknown as TMDBMovie;
 
-      const result = getUSWatchProvidersMovie(contentDetails);
+      const result = await getUSWatchProvidersMovie(contentDetails);
 
       expect(result).toEqual([9996]);
     });
 
-    it('should return default provider ID when flatrate is not available', () => {
+    it('should return default provider ID when flatrate is not available', async () => {
       setCachedStreamingServiceIds([1, 2, 3]);
 
       const contentDetails = {
@@ -162,14 +162,14 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBMovie;
 
-      const result = getUSWatchProvidersMovie(contentDetails);
+      const result = await getUSWatchProvidersMovie(contentDetails);
 
       expect(result).toEqual([9997]);
     });
   });
 
   describe('getUSWatchProvidersShow', () => {
-    it('should return streaming service IDs from US flatrate providers when available', () => {
+    it('should return streaming service IDs from US flatrate providers when available', async () => {
       setCachedStreamingServiceIds([1, 2, 3, 8, 9]);
 
       const contentDetails = {
@@ -188,12 +188,12 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBShow;
 
-      const result = getUSWatchProvidersShow(contentDetails);
+      const result = await getUSWatchProvidersShow(contentDetails);
 
       expect(result).toEqual([1, 8]);
     });
 
-    it('should return default provider ID when US providers exist but none match cached IDs', () => {
+    it('should return default provider ID when US providers exist but none match cached IDs', async () => {
       setCachedStreamingServiceIds([100, 200, 300]);
 
       const contentDetails = {
@@ -211,12 +211,12 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBShow;
 
-      const result = getUSWatchProvidersShow(contentDetails);
+      const result = await getUSWatchProvidersShow(contentDetails);
 
       expect(result).toEqual([9999]);
     });
 
-    it('should return default provider ID when US providers do not exist', () => {
+    it('should return default provider ID when US providers do not exist', async () => {
       setCachedStreamingServiceIds([1, 2, 3]);
 
       const contentDetails = {
@@ -231,12 +231,12 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBShow;
 
-      const result = getUSWatchProvidersShow(contentDetails);
+      const result = await getUSWatchProvidersShow(contentDetails);
 
       expect(result).toEqual([9999]);
     });
 
-    it('should return default provider ID when flatrate is not available', () => {
+    it('should return default provider ID when flatrate is not available', async () => {
       setCachedStreamingServiceIds([1, 2, 3]);
 
       const contentDetails = {
@@ -251,7 +251,7 @@ describe('watchProvidersUtility', () => {
         },
       } as unknown as TMDBShow;
 
-      const result = getUSWatchProvidersShow(contentDetails);
+      const result = await getUSWatchProvidersShow(contentDetails);
 
       expect(result).toEqual([9999]);
     });

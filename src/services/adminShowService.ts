@@ -303,7 +303,7 @@ export class AdminShowService {
         backdrop_image: showDetails.backdrop_path,
         user_rating: showDetails.vote_average,
         content_rating: getUSRating(showDetails.content_ratings),
-        streaming_service_ids: getUSWatchProvidersShow(showDetails),
+        streaming_service_ids: await getUSWatchProvidersShow(showDetails),
         season_count: showDetails.number_of_seasons,
         episode_count: showDetails.number_of_episodes,
         genre_ids: showDetails.genres.map((genre: TMDBGenre) => genre.id),

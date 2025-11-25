@@ -168,7 +168,7 @@ export class AdminMovieService {
         production_companies: getUSProductionCompanies(movieDetails.production_companies),
         budget: movieDetails.budget,
         revenue: movieDetails.revenue,
-        streaming_service_ids: getUSWatchProvidersMovie(movieDetails),
+        streaming_service_ids: await getUSWatchProvidersMovie(movieDetails),
         genre_ids: movieDetails.genres.map((genre: TMDBGenre) => genre.id),
       };
 
