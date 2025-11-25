@@ -9,11 +9,20 @@ import {
 import { Show } from 'streaming-availability';
 
 export function getUSNetwork(networks: TMDBNetwork[]): string | null {
+  // First pass: look for US networks
   for (const network of networks) {
     if (network.origin_country === 'US') {
       return network.name;
     }
   }
+
+  // Second pass: if no US network found, look for blank/empty origin_country
+  for (const network of networks) {
+    if (!network.origin_country || network.origin_country === '') {
+      return network.name;
+    }
+  }
+
   return null;
 }
 
