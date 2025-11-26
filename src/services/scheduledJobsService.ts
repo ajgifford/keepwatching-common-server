@@ -10,6 +10,7 @@ import { ErrorMessages } from '../logger/loggerModel';
 import { updateMovies, updatePeople, updateShows } from './contentUpdatesService';
 import { emailService } from './emailService';
 import { errorService } from './errorService';
+import { redisPubSubService } from './redisPubSubService';
 import parser from 'cron-parser';
 import cron, { ScheduledTask } from 'node-cron';
 
@@ -52,12 +53,6 @@ const jobs: Record<string, ScheduledJob> = {
   },
 };
 
-type NotificationCallback = () => void;
-let showUpdatesCallback: NotificationCallback | null = null;
-let movieUpdatesCallback: NotificationCallback | null = null;
-let peopleUpdatesCallback: NotificationCallback | null = null;
-let emailDigestCallback: NotificationCallback | null = null;
-
 const getScheduleConfig = () => {
   return {
     showsUpdateSchedule: getShowsUpdateSchedule(),
@@ -86,9 +81,8 @@ export async function runShowsUpdateJob(): Promise<boolean> {
   try {
     await updateShows();
 
-    if (showUpdatesCallback) {
-      showUpdatesCallback();
-    }
+    // Publish Redis event instead of calling callback
+    await redisPubSubService.publishShowsUpdate('Shows update job completed successfully');
 
     jobs.showsUpdate.lastRunStatus = 'success';
     cliLogger.info('Shows update job completed successfully');
@@ -124,9 +118,8 @@ export async function runMoviesUpdateJob(): Promise<boolean> {
   try {
     await updateMovies();
 
-    if (movieUpdatesCallback) {
-      movieUpdatesCallback();
-    }
+    // Publish Redis event instead of calling callback
+    await redisPubSubService.publishMoviesUpdate('Movies update job completed successfully');
 
     jobs.moviesUpdate.lastRunStatus = 'success';
     cliLogger.info('Movies update job completed successfully');
@@ -162,9 +155,8 @@ export async function runPeopleUpdateJob(): Promise<boolean> {
   try {
     await updatePeople();
 
-    if (peopleUpdatesCallback) {
-      peopleUpdatesCallback();
-    }
+    // Publish Redis event instead of calling callback
+    await redisPubSubService.publishPeopleUpdate('People update job completed successfully');
 
     jobs.peopleUpdate.lastRunStatus = 'success';
     cliLogger.info('People update job completed successfully');
@@ -205,9 +197,8 @@ export async function runEmailDigestJob(): Promise<boolean> {
   try {
     await emailService.sendWeeklyDigests();
 
-    if (emailDigestCallback) {
-      emailDigestCallback();
-    }
+    // Publish Redis event instead of calling callback
+    await redisPubSubService.publishEmailDigest('Email digest job completed successfully');
 
     jobs.emailDigest.lastRunStatus = 'success';
     cliLogger.info('Weekly email digest job completed successfully');
@@ -243,21 +234,9 @@ function getNextScheduledRun(cronExpression: string): Date | null {
 
 /**
  * Initialize scheduled jobs for content updates and email digests
- * @param notifyShowUpdates Callback to notify UI when shows are updated
- * @param notifyMovieUpdates Callback to notify UI when movies are updated
- * @param notifyEmailDigest Callback to notify UI when email digest is sent
+ * Jobs will publish events to Redis pub/sub when they complete
  */
-export function initScheduledJobs(
-  notifyShowUpdates: NotificationCallback,
-  notifyMovieUpdates: NotificationCallback,
-  notifyPeopleUpdates?: NotificationCallback,
-  notifyEmailDigest?: NotificationCallback,
-): void {
-  showUpdatesCallback = notifyShowUpdates;
-  movieUpdatesCallback = notifyMovieUpdates;
-  peopleUpdatesCallback = notifyPeopleUpdates || null;
-  emailDigestCallback = notifyEmailDigest || null;
-
+export function initScheduledJobs(): void {
   const { showsUpdateSchedule, moviesUpdateSchedule, peopleUpdateSchedule, emailSchedule } = getScheduleConfig();
 
   if (!cron.validate(showsUpdateSchedule)) {
@@ -445,4 +424,118 @@ export function resumeJobs(): void {
 export function shutdownJobs(): void {
   pauseJobs();
   cliLogger.info('Job scheduler shutdown complete');
+}
+
+/**
+ * Valid job names for manual execution and schedule updates
+ */
+export type JobName = 'showsUpdate' | 'moviesUpdate' | 'peopleUpdate' | 'emailDigest';
+
+/**
+ * Manually execute a scheduled job by name
+ * This allows administrators to trigger jobs on-demand
+ * @param jobName The name of the job to execute
+ * @returns Promise<boolean> - true if job executed successfully, false otherwise
+ */
+export async function manuallyExecuteJob(jobName: JobName): Promise<boolean> {
+  if (!jobs[jobName]) {
+    cliLogger.error(`Invalid job name: ${jobName}`);
+    throw new Error(`Invalid job name: ${jobName}`);
+  }
+
+  cliLogger.info(`Manually executing job: ${jobName}`);
+  appLogger.info(`Manual execution requested for job: ${jobName}`);
+
+  switch (jobName) {
+    case 'showsUpdate':
+      return await runShowsUpdateJob();
+    case 'moviesUpdate':
+      return await runMoviesUpdateJob();
+    case 'peopleUpdate':
+      return await runPeopleUpdateJob();
+    case 'emailDigest':
+      return await runEmailDigestJob();
+    default:
+      cliLogger.error(`Unknown job name: ${jobName}`);
+      return false;
+  }
+}
+
+/**
+ * Update the schedule for a specific job
+ * This allows dynamic modification of job schedules without restarting the service
+ * @param jobName The name of the job to update
+ * @param newCronExpression The new cron expression
+ * @returns boolean - true if schedule was updated successfully, false otherwise
+ */
+export function updateJobSchedule(jobName: JobName, newCronExpression: string): boolean {
+  if (!jobs[jobName]) {
+    cliLogger.error(`Invalid job name: ${jobName}`);
+    throw new Error(`Invalid job name: ${jobName}`);
+  }
+
+  // Validate the new cron expression
+  if (!cron.validate(newCronExpression)) {
+    cliLogger.error(`Invalid CRON expression for ${jobName}: ${newCronExpression}`);
+    throw new Error(`Invalid CRON expression: ${newCronExpression}`);
+  }
+
+  const oldExpression = jobs[jobName].cronExpression;
+
+  try {
+    // Stop the existing job if it exists
+    if (jobs[jobName].job) {
+      jobs[jobName].job!.stop();
+    }
+
+    // Create a new job with the updated schedule
+    const jobFunction = async () => {
+      try {
+        switch (jobName) {
+          case 'showsUpdate':
+            await runShowsUpdateJob();
+            break;
+          case 'moviesUpdate':
+            await runMoviesUpdateJob();
+            break;
+          case 'peopleUpdate':
+            await runPeopleUpdateJob();
+            break;
+          case 'emailDigest':
+            await runEmailDigestJob();
+            break;
+        }
+      } catch (error) {
+        cliLogger.error(`Unhandled error in ${jobName} job`, error);
+      }
+    };
+
+    jobs[jobName].job = cron.schedule(newCronExpression, jobFunction);
+    jobs[jobName].cronExpression = newCronExpression;
+    jobs[jobName].job.start();
+
+    cliLogger.info(`Updated schedule for ${jobName} from "${oldExpression}" to "${newCronExpression}"`);
+    appLogger.info(`Schedule updated for job: ${jobName}`, {
+      oldExpression,
+      newCronExpression,
+    });
+
+    return true;
+  } catch (error) {
+    cliLogger.error(`Failed to update schedule for ${jobName}`, error);
+    appLogger.error(`Failed to update schedule for job: ${jobName}`, { error });
+    return false;
+  }
+}
+
+/**
+ * Get the schedule for a specific job
+ * @param jobName The name of the job
+ * @returns The cron expression for the job
+ */
+export function getJobSchedule(jobName: JobName): string {
+  if (!jobs[jobName]) {
+    throw new Error(`Invalid job name: ${jobName}`);
+  }
+  return jobs[jobName].cronExpression;
 }

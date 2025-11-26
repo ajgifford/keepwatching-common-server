@@ -3,6 +3,7 @@ import { appLogger, cliLogger } from '@logger/logger';
 import { updateMovies, updatePeople, updateShows } from '@services/contentUpdatesService';
 import { emailService } from '@services/emailService';
 import { errorService } from '@services/errorService';
+import { redisPubSubService } from '@services/redisPubSubService';
 import {
   getJobsStatus,
   initScheduledJobs,
@@ -39,6 +40,14 @@ jest.mock('@services/contentUpdatesService', () => ({
 jest.mock('@services/emailService', () => ({
   emailService: {
     sendWeeklyDigests: jest.fn(),
+  },
+}));
+jest.mock('@services/redisPubSubService', () => ({
+  redisPubSubService: {
+    publishShowsUpdate: jest.fn(),
+    publishMoviesUpdate: jest.fn(),
+    publishPeopleUpdate: jest.fn(),
+    publishEmailDigest: jest.fn(),
   },
 }));
 jest.mock('@services/errorService');
@@ -110,19 +119,7 @@ describe('scheduledJobsService', () => {
 
   describe('initScheduledJobs', () => {
     it('should validate all cron expressions before scheduling', () => {
-      const mockCallbacks = {
-        showUpdates: jest.fn(),
-        movieUpdates: jest.fn(),
-        peopleUpdates: jest.fn(),
-        emailDigest: jest.fn(),
-      };
-
-      initScheduledJobs(
-        mockCallbacks.showUpdates,
-        mockCallbacks.movieUpdates,
-        mockCallbacks.peopleUpdates,
-        mockCallbacks.emailDigest,
-      );
+      initScheduledJobs();
 
       expect(mockCronValidate).toHaveBeenCalledWith('0 2 * * *');
       expect(mockCronValidate).toHaveBeenCalledWith('0 1 7,14,21,28 * *');
@@ -134,7 +131,7 @@ describe('scheduledJobsService', () => {
       mockCronValidate.mockReturnValue(false);
 
       expect(() => {
-        initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+        initScheduledJobs();
       }).toThrow('Invalid CRON expression for shows update');
 
       expect(cliLogger.error).toHaveBeenCalledWith('Invalid CRON expression for shows update: 0 2 * * *');
@@ -146,7 +143,7 @@ describe('scheduledJobsService', () => {
         .mockReturnValueOnce(false); // movies invalid
 
       expect(() => {
-        initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+        initScheduledJobs();
       }).toThrow('Invalid CRON expression for movies update');
     });
 
@@ -157,12 +154,12 @@ describe('scheduledJobsService', () => {
         .mockReturnValueOnce(false); // people invalid
 
       expect(() => {
-        initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+        initScheduledJobs();
       }).toThrow('Invalid CRON expression for people update');
     });
 
     it('should schedule all four jobs when email is enabled', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       expect(mockCronSchedule).toHaveBeenCalledTimes(4);
       expect(mockCronSchedule).toHaveBeenCalledWith('0 2 * * *', expect.any(Function));
@@ -172,7 +169,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should start all scheduled jobs', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       expect(mockScheduledTask.start).toHaveBeenCalledTimes(4);
     });
@@ -180,7 +177,7 @@ describe('scheduledJobsService', () => {
     it('should skip email job when email is disabled', () => {
       (config.isEmailEnabled as jest.Mock).mockReturnValue(false);
 
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       expect(mockCronSchedule).toHaveBeenCalledTimes(3);
       expect(mockCronSchedule).not.toHaveBeenCalledWith('0 9 * * 0', expect.any(Function));
@@ -195,20 +192,20 @@ describe('scheduledJobsService', () => {
         .mockReturnValueOnce(false); // email invalid
 
       expect(() => {
-        initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+        initScheduledJobs();
       }).toThrow('Invalid CRON expression for email digest');
     });
 
     it('should not validate email cron when email is disabled', () => {
       (config.isEmailEnabled as jest.Mock).mockReturnValue(false);
 
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       expect(mockCronValidate).toHaveBeenCalledTimes(3); // Only shows, movies, people
     });
 
     it('should log initialization success', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       expect(cliLogger.info).toHaveBeenCalledWith('Job Scheduler Initialized');
       expect(cliLogger.info).toHaveBeenCalledWith('Shows update scheduled with CRON: 0 2 * * *');
@@ -219,14 +216,13 @@ describe('scheduledJobsService', () => {
 
   describe('runShowsUpdateJob', () => {
     it('should execute shows update and invoke callback on success', async () => {
-      const mockCallback = jest.fn();
-      initScheduledJobs(mockCallback, jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       const result = await runShowsUpdateJob();
 
       expect(result).toBe(true);
       expect(updateShows).toHaveBeenCalledTimes(1);
-      expect(mockCallback).toHaveBeenCalledTimes(1);
+      expect(redisPubSubService.publishShowsUpdate).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Starting the show change job');
       expect(cliLogger.info).toHaveBeenCalledWith('Shows update job completed successfully');
       expect(appLogger.info).toHaveBeenCalledWith('Shows update job started');
@@ -234,15 +230,14 @@ describe('scheduledJobsService', () => {
     });
 
     it('should handle errors and not invoke callback on failure', async () => {
-      const mockCallback = jest.fn();
       const testError = new Error('Shows update failed');
       (updateShows as jest.Mock).mockRejectedValueOnce(testError);
 
-      initScheduledJobs(mockCallback, jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
       const result = await runShowsUpdateJob();
 
       expect(result).toBe(false);
-      expect(mockCallback).not.toHaveBeenCalled();
+      expect(redisPubSubService.publishShowsUpdate).not.toHaveBeenCalled();
       expect(cliLogger.error).toHaveBeenCalledWith('Failed to complete show update job', testError);
       expect(appLogger.error).toHaveBeenCalled();
     });
@@ -290,14 +285,13 @@ describe('scheduledJobsService', () => {
 
   describe('runMoviesUpdateJob', () => {
     it('should execute movies update and invoke callback on success', async () => {
-      const mockCallback = jest.fn();
-      initScheduledJobs(jest.fn(), mockCallback, jest.fn(), jest.fn());
+      initScheduledJobs();
 
       const result = await runMoviesUpdateJob();
 
       expect(result).toBe(true);
       expect(updateMovies).toHaveBeenCalledTimes(1);
-      expect(mockCallback).toHaveBeenCalledTimes(1);
+      expect(redisPubSubService.publishMoviesUpdate).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Starting the movie change job');
       expect(appLogger.info).toHaveBeenCalledWith('Movies update job started');
     });
@@ -328,14 +322,13 @@ describe('scheduledJobsService', () => {
 
   describe('runPeopleUpdateJob', () => {
     it('should execute people update and invoke callback on success', async () => {
-      const mockCallback = jest.fn();
-      initScheduledJobs(jest.fn(), jest.fn(), mockCallback, jest.fn());
+      initScheduledJobs();
 
       const result = await runPeopleUpdateJob();
 
       expect(result).toBe(true);
       expect(updatePeople).toHaveBeenCalledTimes(1);
-      expect(mockCallback).toHaveBeenCalledTimes(1);
+      expect(redisPubSubService.publishPeopleUpdate).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Starting the people change job');
       expect(appLogger.info).toHaveBeenCalledWith('People update job started');
     });
@@ -351,7 +344,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should work when callback is not provided', async () => {
-      initScheduledJobs(jest.fn(), jest.fn(), undefined, jest.fn());
+      initScheduledJobs();
 
       const result = await runPeopleUpdateJob();
 
@@ -385,14 +378,13 @@ describe('scheduledJobsService', () => {
     });
 
     it('should execute email digest and invoke callback on success', async () => {
-      const mockCallback = jest.fn();
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), mockCallback);
+      initScheduledJobs();
 
       const result = await runEmailDigestJob();
 
       expect(result).toBe(true);
       expect(emailService.sendWeeklyDigests).toHaveBeenCalledTimes(1);
-      expect(mockCallback).toHaveBeenCalledTimes(1);
+      expect(redisPubSubService.publishEmailDigest).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Starting the weekly email digest job');
       expect(appLogger.info).toHaveBeenCalledWith('Weekly email digest job started');
     });
@@ -426,7 +418,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should work when callback is not provided', async () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), undefined);
+      initScheduledJobs();
 
       const result = await runEmailDigestJob();
 
@@ -455,7 +447,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should calculate next run time from cron expression', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       const status = getJobsStatus();
 
@@ -483,7 +475,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should handle errors when parsing cron expression', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
       (parser.parse as jest.Mock).mockImplementation(() => {
         throw new Error('Invalid cron');
       });
@@ -515,7 +507,7 @@ describe('scheduledJobsService', () => {
 
   describe('pauseJobs and resumeJobs', () => {
     it('should pause all scheduled jobs', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       pauseJobs();
 
@@ -524,7 +516,7 @@ describe('scheduledJobsService', () => {
     });
 
     it('should resume all scheduled jobs when email is enabled', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
       jest.clearAllMocks();
 
       resumeJobs();
@@ -535,7 +527,7 @@ describe('scheduledJobsService', () => {
 
     it('should not resume email job when email is disabled', () => {
       (config.isEmailEnabled as jest.Mock).mockReturnValue(false);
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
       jest.clearAllMocks();
 
       resumeJobs();
@@ -556,7 +548,7 @@ describe('scheduledJobsService', () => {
 
   describe('shutdownJobs', () => {
     it('should stop all jobs and log shutdown', () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
       jest.clearAllMocks();
 
       shutdownJobs();
@@ -577,7 +569,7 @@ describe('scheduledJobsService', () => {
 
   describe('scheduled job execution via cron', () => {
     it('should execute shows update job when cron triggers', async () => {
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       // Get the function passed to cron.schedule for shows update
       const cronCallback = mockCronSchedule.mock.calls[0][1];
@@ -591,7 +583,7 @@ describe('scheduledJobsService', () => {
     it('should handle errors in cron callback without crashing', async () => {
       (updateShows as jest.Mock).mockRejectedValueOnce(new Error('Cron execution failed'));
 
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       const cronCallback = mockCronSchedule.mock.calls[0][1];
 
@@ -636,14 +628,14 @@ describe('scheduledJobsService', () => {
 
     it('should allow re-initialization with different schedules', () => {
       // First initialization
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       // Change schedules
       (config.getShowsUpdateSchedule as jest.Mock).mockReturnValue('0 4 * * *');
       (config.getMoviesUpdateSchedule as jest.Mock).mockReturnValue('0 2 1,15 * *');
 
       // Re-initialize
-      initScheduledJobs(jest.fn(), jest.fn(), jest.fn(), jest.fn());
+      initScheduledJobs();
 
       expect(mockCronSchedule).toHaveBeenCalledWith('0 4 * * *', expect.any(Function));
       expect(mockCronSchedule).toHaveBeenCalledWith('0 2 1,15 * *', expect.any(Function));
