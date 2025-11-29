@@ -111,7 +111,7 @@ describe('profileComparisonRepository', () => {
         most_watched_movie_count: 2,
       };
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockProfileRows])
         .mockResolvedValueOnce([mockGenreRows])
         .mockResolvedValueOnce([mockServiceRows])
@@ -121,7 +121,7 @@ describe('profileComparisonRepository', () => {
       const result = await getProfileComparisonData(1);
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledTimes(5);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(5);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
 
       expect(result.profiles).toEqual(mockProfileRows);
@@ -132,7 +132,7 @@ describe('profileComparisonRepository', () => {
     });
 
     it('should handle account with no profiles', async () => {
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
@@ -186,7 +186,7 @@ describe('profileComparisonRepository', () => {
         most_watched_movie_count: null,
       };
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockProfileRows])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
@@ -240,7 +240,7 @@ describe('profileComparisonRepository', () => {
         most_watched_movie_count: null,
       };
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockProfileRows])
         .mockResolvedValueOnce([
           [
@@ -307,7 +307,7 @@ describe('profileComparisonRepository', () => {
         most_watched_movie_count: 1,
       };
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockProfileRows])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
@@ -372,7 +372,7 @@ describe('profileComparisonRepository', () => {
         most_watched_movie_count: 2,
       };
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockProfileRows])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
@@ -401,7 +401,7 @@ describe('profileComparisonRepository', () => {
     });
 
     it('should query with correct account ID parameter', async () => {
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
@@ -411,17 +411,17 @@ describe('profileComparisonRepository', () => {
       await getProfileComparisonData(123);
 
       // First 4 queries should have accountId parameter
-      expect(mockConnection.query).toHaveBeenNthCalledWith(1, expect.any(String), expect.arrayContaining([123]));
-      expect(mockConnection.query).toHaveBeenNthCalledWith(2, expect.any(String), expect.arrayContaining([123]));
-      expect(mockConnection.query).toHaveBeenNthCalledWith(3, expect.any(String), expect.arrayContaining([123]));
-      expect(mockConnection.query).toHaveBeenNthCalledWith(4, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(3, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(4, expect.any(String), expect.arrayContaining([123]));
       // Summary query has multiple accountId parameters
-      expect(mockConnection.query).toHaveBeenNthCalledWith(5, expect.any(String), expect.arrayContaining([123]));
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(5, expect.any(String), expect.arrayContaining([123]));
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockConnection.execute.mockRejectedValueOnce(mockError);
 
       await expect(getProfileComparisonData(1)).rejects.toThrow('Database error');
 
@@ -447,7 +447,7 @@ describe('profileComparisonRepository', () => {
         },
       ];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([mockGenreRows])
         .mockResolvedValueOnce([[]])
@@ -481,7 +481,7 @@ describe('profileComparisonRepository', () => {
         },
       ];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([mockServiceRows])

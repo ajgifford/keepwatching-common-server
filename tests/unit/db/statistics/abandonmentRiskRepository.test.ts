@@ -45,14 +45,16 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledTimes(2);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(1, expect.stringContaining('days_since_last_watch'), [123]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(2, expect.stringContaining('total_started_shows'), [123]);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.stringContaining('days_since_last_watch'), [
+        123,
+      ]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.stringContaining('total_started_shows'), [123]);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
 
       expect(result).toEqual({
@@ -86,7 +88,7 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
@@ -107,7 +109,7 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
@@ -125,7 +127,7 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
@@ -143,7 +145,7 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
@@ -160,7 +162,7 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
@@ -199,7 +201,7 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
@@ -211,7 +213,7 @@ describe('abandonmentRiskRepository', () => {
 
     it('should release connection on error in first query', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockConnection.execute.mockRejectedValueOnce(mockError);
 
       await expect(getAbandonmentRiskStats(123)).rejects.toThrow('Database error');
 
@@ -222,7 +224,7 @@ describe('abandonmentRiskRepository', () => {
       const mockRiskRows = [] as RowDataPacket[];
       const mockError = new Error('Database error');
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockRejectedValueOnce(mockError);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockRejectedValueOnce(mockError);
 
       await expect(getAbandonmentRiskStats(123)).rejects.toThrow('Database error');
 
@@ -247,7 +249,7 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       const result = await getAbandonmentRiskStats(123);
 
@@ -270,12 +272,12 @@ describe('abandonmentRiskRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockRiskRows]).mockResolvedValueOnce([mockRateRows]);
 
       await getAbandonmentRiskStats(456);
 
-      expect(mockConnection.query).toHaveBeenNthCalledWith(1, expect.any(String), [456]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(2, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [456]);
     });
   });
 });

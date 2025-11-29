@@ -15,7 +15,7 @@ export async function getAbandonmentRiskStats(profileId: number): Promise<Abando
     const connection = await getDbPool().getConnection();
     try {
       // Get shows marked as WATCHING but haven't progressed in 30+ days
-      const [riskRows] = await connection.query<AbandonmentRiskDataRow[]>(
+      const [riskRows] = await connection.execute<AbandonmentRiskDataRow[]>(
         `
         SELECT 
           sws.show_id,
@@ -38,7 +38,7 @@ export async function getAbandonmentRiskStats(profileId: number): Promise<Abando
 
       // Calculate show abandonment rate
       // Shows started but not finished, excluding currently airing shows unless more than a season behind
-      const [rateRows] = await connection.query<AbandonmentRateDataRow[]>(
+      const [rateRows] = await connection.execute<AbandonmentRateDataRow[]>(
         `
         SELECT 
           COUNT(DISTINCT CASE 

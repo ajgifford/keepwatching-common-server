@@ -1,7 +1,17 @@
+import * as performanceArchiveDb from '../db/performanceArchiveDb';
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { errorService } from './errorService';
-import { DBQueryCallHistory, DBQueryStats, DatabaseHealthResponse } from '@ajgifford/keepwatching-types';
+import {
+  ArchiveLogEntry,
+  DBQueryCallHistory,
+  DBQueryStats,
+  DailySummary,
+  DatabaseHealthResponse,
+  QueryPerformanceOverview,
+  SlowestQuery,
+} from '@ajgifford/keepwatching-types';
+import { archiveNow } from '@utils/performanceArchiveUtil';
 
 export class HealthService {
   /**
@@ -64,6 +74,118 @@ export class HealthService {
       return await DbMonitor.getInstance().getQueryHistory(queryName, effectiveLimit);
     } catch (error) {
       throw errorService.handleError(error, `getQueryHistory(${queryName})`);
+    }
+  }
+
+  /**
+   * Gets historical performance trends for a specific query from archived data
+   * @param queryHash - Hash of the query to get trends for
+   * @param startDate - Start date for the range
+   * @param endDate - End date for the range
+   * @returns Array of daily performance trends
+   */
+  public async getHistoricalPerformanceTrends(
+    queryHash: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<DailySummary[]> {
+    try {
+      return await performanceArchiveDb.getPerformanceTrends(queryHash, startDate, endDate);
+    } catch (error) {
+      throw errorService.handleError(error, `getHistoricalPerformanceTrends(${queryHash}, ${startDate}, ${endDate})`);
+    }
+  }
+
+  /**
+   * Gets the slowest queries from archived data for a date range
+   * @param startDate - Start date for the range
+   * @param endDate - End date for the range
+   * @param limit - Maximum number of results to return (default: 10)
+   * @returns Array of slowest queries
+   */
+  public async getHistoricalSlowestQueries(
+    startDate: Date,
+    endDate: Date,
+    limit: number = 10,
+  ): Promise<SlowestQuery[]> {
+    try {
+      return await performanceArchiveDb.getSlowestQueries(startDate, endDate, limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getHistoricalSlowestQueries(${startDate}, ${endDate}, ${limit})`);
+    }
+  }
+
+  /**
+   * Gets the archive execution logs showing history of daily archiving operations
+   * @param limit - Maximum number of log entries to return (default: 10)
+   * @returns Array of archive log entries
+   */
+  public async getArchiveLogs(limit: number = 10): Promise<ArchiveLogEntry[]> {
+    try {
+      return await performanceArchiveDb.getArchiveLogs(limit);
+    } catch (error) {
+      throw errorService.handleError(error, `getArchiveLogs(${limit})`);
+    }
+  }
+
+  /**
+   * Gets aggregate statistics from archived performance data
+   * @param days - Number of days to look back (default: 7, max: 90)
+   * @returns Aggregate performance statistics
+   */
+  public async getArchiveStatistics(days: number = 7): Promise<{
+    totalQueries: number;
+    totalExecutions: number;
+    avgDuration: number;
+    slowestQuery: string | null;
+    dateRange: { start: Date; end: Date };
+  }> {
+    try {
+      // Enforce maximum lookback period
+      const effectiveDays = Math.min(days, 90);
+      return await performanceArchiveDb.getArchiveStatistics(effectiveDays);
+    } catch (error) {
+      throw errorService.handleError(error, `getArchiveStatistics(${days})`);
+    }
+  }
+
+  /**
+   * Gets comprehensive performance overview combining real-time and historical data
+   * @param days - Number of days to look back for historical data (default: 7)
+   * @returns Combined performance overview
+   */
+  public async getPerformanceOverview(days: number = 7): Promise<QueryPerformanceOverview> {
+    try {
+      const [realtimeStats, historicalStats, slowestQueries, archiveLogs] = await Promise.all([
+        this.getQueryStats(10),
+        performanceArchiveDb.getArchiveStatistics(days),
+        performanceArchiveDb.getSlowestQueries(new Date(Date.now() - days * 24 * 60 * 60 * 1000), new Date(), 10),
+        performanceArchiveDb.getArchiveLogs(5),
+      ]);
+
+      return {
+        realtime: {
+          queryStats: realtimeStats,
+        },
+        historical: {
+          statistics: historicalStats,
+          slowestQueries,
+          archiveLogs,
+        },
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `getPerformanceOverview(${days})`);
+    }
+  }
+
+  /**
+   * Archives the daily performance data manually
+   */
+  public async archiveDailyPerformanceNow(): Promise<void> {
+    try {
+      await archiveNow();
+    } catch (error) {
+      throw errorService.handleError(error, `archiveDailyPerformanceNow()`);
     }
   }
 }

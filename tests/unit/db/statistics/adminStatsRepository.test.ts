@@ -7,7 +7,6 @@ import {
 } from '@db/statistics/adminStatsRepository';
 
 describe('adminStatsRepository', () => {
-  let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
@@ -15,7 +14,6 @@ describe('adminStatsRepository', () => {
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
     mockPool = mocks.mockPool;
   });
 
@@ -36,13 +34,11 @@ describe('adminStatsRepository', () => {
         total_hours_watched: 12500.5,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getPlatformOverview();
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'));
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'));
 
       expect(result).toEqual(mockRow);
     });
@@ -59,22 +55,19 @@ describe('adminStatsRepository', () => {
         total_hours_watched: 0,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getPlatformOverview();
 
       expect(result).toEqual(mockRow);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getPlatformOverview()).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getPlatformTrends', () => {
@@ -100,52 +93,46 @@ describe('adminStatsRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getPlatformTrends(30);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [30, 30]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [30, 30]);
 
       expect(result).toEqual(mockRows);
       expect(result).toHaveLength(3);
     });
 
     it('should use default days parameter if not provided', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getPlatformTrends();
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [30, 30]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [30, 30]);
     });
 
     it('should handle custom days parameter', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getPlatformTrends(60);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [60, 60]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [60, 60]);
     });
 
     it('should return empty array when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getPlatformTrends(30);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getPlatformTrends(30)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getNewAccountsCount', () => {
@@ -154,37 +141,35 @@ describe('adminStatsRepository', () => {
         new_accounts: 25,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getNewAccountsCount(30);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'), [30]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'), [30]);
 
       expect(result).toBe(25);
     });
 
     it('should use default days parameter if not provided', async () => {
       const mockRow = { new_accounts: 10 };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       await getNewAccountsCount();
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'), [30]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'), [30]);
     });
 
     it('should handle custom days parameter', async () => {
       const mockRow = { new_accounts: 50 };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       await getNewAccountsCount(90);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'), [90]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'), [90]);
     });
 
     it('should return 0 when no rows returned', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getNewAccountsCount(30);
 
@@ -193,7 +178,7 @@ describe('adminStatsRepository', () => {
 
     it('should return 0 when new_accounts is undefined', async () => {
       const mockRow = {};
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getNewAccountsCount(30);
 
@@ -202,22 +187,19 @@ describe('adminStatsRepository', () => {
 
     it('should handle zero new accounts', async () => {
       const mockRow = { new_accounts: 0 };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getNewAccountsCount(30);
 
       expect(result).toBe(0);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getNewAccountsCount(30)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getPreviousPeriodActivity', () => {
@@ -228,13 +210,11 @@ describe('adminStatsRepository', () => {
         movies_watched: 20,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getPreviousPeriodActivity(30);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [60, 30, 60, 30]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [60, 30, 60, 30]);
 
       expect(result).toEqual({
         activeAccounts: 40,
@@ -249,11 +229,11 @@ describe('adminStatsRepository', () => {
         episodes_watched: 150,
         movies_watched: 15,
       };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       await getPreviousPeriodActivity();
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [60, 30, 60, 30]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [60, 30, 60, 30]);
     });
 
     it('should handle custom days parameter', async () => {
@@ -262,16 +242,16 @@ describe('adminStatsRepository', () => {
         episodes_watched: 200,
         movies_watched: 25,
       };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       await getPreviousPeriodActivity(60);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [120, 60, 120, 60]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [120, 60, 120, 60]);
     });
 
     it('should return zeros when no data', async () => {
       const mockRow = {};
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getPreviousPeriodActivity(30);
 
@@ -288,7 +268,7 @@ describe('adminStatsRepository', () => {
         episodes_watched: null,
         movies_watched: null,
       };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getPreviousPeriodActivity(30);
 
@@ -305,7 +285,7 @@ describe('adminStatsRepository', () => {
         episodes_watched: null,
         movies_watched: 10,
       };
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getPreviousPeriodActivity(30);
 
@@ -316,14 +296,11 @@ describe('adminStatsRepository', () => {
       });
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getPreviousPeriodActivity(30)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 });

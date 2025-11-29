@@ -6,7 +6,6 @@ import {
 } from '@db/statistics/accountComparisonRepository';
 
 describe('accountComparisonRepository', () => {
-  let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
@@ -14,7 +13,6 @@ describe('accountComparisonRepository', () => {
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
     mockPool = mocks.mockPool;
   });
 
@@ -49,74 +47,62 @@ describe('accountComparisonRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getAccountRankings('episodesWatched', 50);
-
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(
-        expect.stringContaining('ORDER BY total_episodes_watched DESC'),
-        [50],
-      );
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY total_episodes_watched DESC'));
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'));
 
       expect(result).toEqual(mockRows);
       expect(result).toHaveLength(2);
     });
 
     it('should return account rankings by moviesWatched', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getAccountRankings('moviesWatched', 50);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('ORDER BY total_movies_watched DESC'), [
-        50,
-      ]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY total_movies_watched DESC'));
     });
 
     it('should return account rankings by hoursWatched', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getAccountRankings('hoursWatched', 50);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('ORDER BY total_hours_watched DESC'), [
-        50,
-      ]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY total_hours_watched DESC'));
     });
 
     it('should return account rankings by engagement', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getAccountRankings('engagement', 50);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('ORDER BY engagement_score DESC'), [
-        50,
-      ]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY engagement_score DESC'));
     });
 
     it('should use default limit if not provided', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getAccountRankings('episodesWatched');
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [50]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'));
     });
 
     it('should handle custom limit parameter', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getAccountRankings('episodesWatched', 100);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [100]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 100'));
     });
 
     it('should return empty array when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getAccountRankings('episodesWatched', 50);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle accounts with no activity', async () => {
@@ -134,7 +120,7 @@ describe('accountComparisonRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getAccountRankings('episodesWatched', 50);
 
@@ -142,15 +128,12 @@ describe('accountComparisonRepository', () => {
       expect(result[0].engagement_score).toBe(0);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getAccountRankings('episodesWatched', 50)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getAllAccountHealthMetrics', () => {
@@ -180,25 +163,22 @@ describe('accountComparisonRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getAllAccountHealthMetrics();
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('ORDER BY days_since_last_activity'));
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY days_since_last_activity'));
 
       expect(result).toEqual(mockRows);
       expect(result).toHaveLength(2);
     });
 
     it('should return empty array when no accounts', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getAllAccountHealthMetrics();
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle accounts with no activity', async () => {
@@ -216,22 +196,19 @@ describe('accountComparisonRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getAllAccountHealthMetrics();
 
       expect(result[0].days_since_last_activity).toBe(9999);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getAllAccountHealthMetrics()).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getAccountHealthMetrics', () => {
@@ -248,24 +225,21 @@ describe('accountComparisonRepository', () => {
         days_since_last_activity: 0,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getAccountHealthMetrics(1);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('WHERE a.account_id = ?'), [1]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('WHERE a.account_id = ?'), [1]);
 
       expect(result).toEqual(mockRow);
     });
 
     it('should return null when account not found', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getAccountHealthMetrics(999);
 
       expect(result).toBeNull();
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle account with no profiles', async () => {
@@ -281,7 +255,7 @@ describe('accountComparisonRepository', () => {
         days_since_last_activity: 9999,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getAccountHealthMetrics(2);
 
@@ -301,7 +275,7 @@ describe('accountComparisonRepository', () => {
         days_since_last_activity: 1,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getAccountHealthMetrics(1);
 
@@ -322,21 +296,18 @@ describe('accountComparisonRepository', () => {
         days_since_last_activity: 32,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getAccountHealthMetrics(3);
 
       expect(result?.email_verified).toBe(false);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getAccountHealthMetrics(1)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 });

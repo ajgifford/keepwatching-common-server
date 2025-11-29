@@ -54,11 +54,16 @@ export async function getAllShowsForProfile(profileId: number): Promise<ProfileS
  */
 export async function getShowForProfile(profileId: number, showId: number): Promise<ProfileShow> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getShowForProfile', async () => {
-      const query = 'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = ?';
-      const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
-      return transformProfileShow(shows[0]);
-    });
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getShowForProfile',
+      async () => {
+        const query = 'SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = ?';
+        const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
+        return transformProfileShow(shows[0]);
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'getting a show for a profile');
   }
@@ -81,11 +86,16 @@ export async function getShowForProfileByChild(
   childEntity: 'episodes' | 'seasons',
 ): Promise<ProfileShow> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getShowForProfileByChild', async () => {
-      const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
-      const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
-      return transformProfileShow(shows[0]);
-    });
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getShowForProfileByChild',
+      async () => {
+        const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
+        const [shows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
+        return transformProfileShow(shows[0]);
+      },
+      1000,
+      { content: { id: childId, type: childEntity === 'episodes' ? 'episode' : 'season' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'getting a show for a profile by child');
   }
@@ -108,18 +118,23 @@ export async function getShowWithSeasonsForProfile(
   showId: number,
 ): Promise<ProfileShowWithSeasons | null> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getShowWithSeasonsForProfile', async () => {
-      const query = 'SELECT * FROM profile_shows where profile_id = ? AND show_id = ?';
-      const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
-      if (rows.length === 0) {
-        return null;
-      }
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getShowWithSeasonsForProfile',
+      async () => {
+        const query = 'SELECT * FROM profile_shows where profile_id = ? AND show_id = ?';
+        const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, showId]);
+        if (rows.length === 0) {
+          return null;
+        }
 
-      const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
-      show.seasons = await getShowSeasons(profileId, showId);
+        const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
+        show.seasons = await getShowSeasons(profileId, showId);
 
-      return show;
-    });
+        return show;
+      },
+      1000,
+      { content: { id: showId, type: 'show' }, resultCount: 1 },
+    );
   } catch (error) {
     handleDatabaseError(error, 'getting a show and its seasons for a profile');
   }
@@ -143,18 +158,23 @@ export async function getShowWithSeasonsForProfileByChild(
   childEntity: 'episodes' | 'seasons',
 ): Promise<ProfileShowWithSeasons | null> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getShowWithSeasonsForProfileByChild', async () => {
-      const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
-      const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
-      if (rows.length === 0) {
-        return null;
-      }
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getShowWithSeasonsForProfileByChild',
+      async () => {
+        const query = `SELECT * FROM profile_shows WHERE profile_id = ? AND show_id = (SELECT show_id from ${childEntity} where id = ?)`;
+        const [rows] = await getDbPool().execute<ProfileShowRow[]>(query, [profileId, childId]);
+        if (rows.length === 0) {
+          return null;
+        }
 
-      const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
-      show.seasons = await getShowSeasons(profileId, show.id);
+        const show = transformProfileShow(rows[0]) as ProfileShowWithSeasons;
+        show.seasons = await getShowSeasons(profileId, show.id);
 
-      return show;
-    });
+        return show;
+      },
+      1000,
+      { content: { id: childId, type: childEntity === 'episodes' ? 'episode' : 'season' }, resultCount: 1 },
+    );
   } catch (error) {
     handleDatabaseError(error, 'getting a show and its seasons for a profile by child');
   }
@@ -256,33 +276,38 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
  */
 export async function getProfilesForShow(showId: number): Promise<ProfilesForShowResponse> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getProfilesForShow', async () => {
-      const query = `SELECT 
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getProfilesForShow',
+      async () => {
+        const query = `SELECT
         sws.profile_id,
         p.account_id
-      FROM 
+      FROM
         show_watch_status sws
-      JOIN 
+      JOIN
         profiles p ON sws.profile_id = p.profile_id
-      WHERE 
+      WHERE
         sws.show_id = ?
-      ORDER BY 
+      ORDER BY
         p.account_id, sws.profile_id`;
 
-      const [rows] = await getDbPool().execute<ProfileForShowRow[]>(query, [showId]);
+        const [rows] = await getDbPool().execute<ProfileForShowRow[]>(query, [showId]);
 
-      const profileAccountMappings = rows.map((row) => ({
-        profileId: row.profile_id,
-        accountId: row.account_id,
-      }));
+        const profileAccountMappings = rows.map((row) => ({
+          profileId: row.profile_id,
+          accountId: row.account_id,
+        }));
 
-      const profileIds = rows.map((row) => row.profile_id);
-      return {
-        showId,
-        profileAccountMappings,
-        totalCount: profileIds.length,
-      };
-    });
+        const profileIds = rows.map((row) => row.profile_id);
+        return {
+          showId,
+          profileAccountMappings,
+          totalCount: profileIds.length,
+        };
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'getting the profiles that have favorited a show');
   }

@@ -1,20 +1,7 @@
 import { getRedisConfig } from '../config/config';
 import { appLogger, cliLogger } from '../logger/logger';
+import { CompletedJobEvent } from '@ajgifford/keepwatching-types';
 import Redis from 'ioredis';
-
-/**
- * Event types for content updates
- */
-export type ContentUpdateEventType = 'shows' | 'movies' | 'people' | 'email';
-
-/**
- * Content update event structure
- */
-export interface ContentUpdateEvent {
-  type: ContentUpdateEventType;
-  message: string;
-  timestamp: string;
-}
 
 /**
  * Redis pub/sub channels for content updates
@@ -24,12 +11,13 @@ const CHANNELS = {
   MOVIES_UPDATE: 'content:movies:updated',
   PEOPLE_UPDATE: 'content:people:updated',
   EMAIL_DIGEST: 'content:email:sent',
+  PERFORMANCE_ARCHIVE: 'content:performance:archived',
 } as const;
 
 /**
  * Type for event handlers
  */
-type EventHandler = (event: ContentUpdateEvent) => void | Promise<void>;
+type EventHandler = (event: CompletedJobEvent) => void | Promise<void>;
 
 /**
  * Service for Redis pub/sub communication between admin-server and api-server
@@ -161,7 +149,7 @@ export class RedisPubSubService {
    */
   private handleMessage(channel: string, message: string): void {
     try {
-      const event: ContentUpdateEvent = JSON.parse(message);
+      const event: CompletedJobEvent = JSON.parse(message);
       const handlers = this.handlers.get(channel);
 
       if (handlers && handlers.length > 0) {
@@ -223,9 +211,20 @@ export class RedisPubSubService {
   }
 
   /**
+   * Publish a performance archive event
+   */
+  public async publishPerformanceArchive(message: string = 'Performance data archived successfully'): Promise<void> {
+    await this.publish(CHANNELS.PERFORMANCE_ARCHIVE, {
+      type: 'performance-archive',
+      message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
    * Generic publish method
    */
-  private async publish(channel: string, event: ContentUpdateEvent): Promise<void> {
+  private async publish(channel: string, event: CompletedJobEvent): Promise<void> {
     if (!this.publisher || this.publisher.status !== 'ready') {
       cliLogger.warn(`Cannot publish to ${channel}: Redis publisher not ready`);
       return;
@@ -288,6 +287,13 @@ export class RedisPubSubService {
    */
   public async subscribeToEmailDigests(handler: EventHandler): Promise<void> {
     await this.subscribe(CHANNELS.EMAIL_DIGEST, handler);
+  }
+
+  /**
+   * Subscribe to performance archive events
+   */
+  public async subscribeToPerformanceArchive(handler: EventHandler): Promise<void> {
+    await this.subscribe(CHANNELS.PERFORMANCE_ARCHIVE, handler);
   }
 
   /**

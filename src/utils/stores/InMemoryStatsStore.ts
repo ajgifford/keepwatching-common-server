@@ -1,4 +1,4 @@
-import { StatsStore } from '../../types/statsStore';
+import { QueryExecutionMetadata, StatsStore } from '../../types/statsStore';
 import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
 
 interface QueryStat {
@@ -18,7 +18,13 @@ export class InMemoryStatsStore implements StatsStore {
   private stats: Map<string, QueryStat> = new Map();
   private history: Map<string, DBQueryCallHistory[]> = new Map();
 
-  async recordQuery(queryName: string, executionTime: number, success: boolean = true, error?: string): Promise<void> {
+  async recordQuery(
+    queryName: string,
+    executionTime: number,
+    success: boolean = true,
+    error?: string,
+    metadata?: QueryExecutionMetadata,
+  ): Promise<void> {
     // Update aggregated stats
     const current = this.stats.get(queryName) || {
       count: 0,
@@ -32,12 +38,17 @@ export class InMemoryStatsStore implements StatsStore {
 
     this.stats.set(queryName, current);
 
-    // Store individual call history
+    // Store individual call history with metadata
     const historyEntry: DBQueryCallHistory = {
       timestamp: Date.now(),
       executionTime,
       success,
       ...(error && { error }),
+      ...(metadata?.endpoint && { endpoint: metadata.endpoint }),
+      ...(metadata?.profileId && { profileId: metadata.profileId }),
+      ...(metadata?.accountId && { accountId: metadata.accountId }),
+      ...(metadata?.content && { content: metadata.content }),
+      ...(metadata?.resultCount !== undefined && { resultCount: metadata.resultCount }),
     };
 
     const queryHistory = this.history.get(queryName) || [];
@@ -78,6 +89,10 @@ export class InMemoryStatsStore implements StatsStore {
   async clearStats(): Promise<void> {
     this.stats.clear();
     this.history.clear();
+  }
+
+  async getAllQueryNames(): Promise<string[]> {
+    return Array.from(this.stats.keys());
   }
 
   async disconnect(): Promise<void> {

@@ -13,12 +13,10 @@ import { WatchingVelocityStats } from '@ajgifford/keepwatching-types';
  */
 export async function getWatchingVelocityData(profileId: number, days: number = 30): Promise<WatchingVelocityStats> {
   return await DbMonitor.getInstance().executeWithTiming('getWatchingVelocityData', async () => {
-    const connection = await getDbPool().getConnection();
-    try {
-      // Get episode counts per day for the specified period
-      const [dailyRows] = await connection.query<VelocityDataRow[]>(
-        `
-      SELECT 
+    // Get episode counts per day for the specified period
+    const [dailyRows] = await getDbPool().execute<VelocityDataRow[]>(
+      `
+      SELECT
         DATE(ews.updated_at) as watch_date,
         COUNT(*) as episode_count,
         COUNT(DISTINCT e.show_id) as show_count,
@@ -32,70 +30,67 @@ export async function getWatchingVelocityData(profileId: number, days: number = 
       GROUP BY watch_date, watch_hour, day_of_week
       ORDER BY watch_date DESC
       `,
-        [profileId, days],
-      );
+      [profileId, days],
+    );
 
-      if (dailyRows.length === 0) {
-        return createEmptyVelocityStats();
-      }
-
-      // Calculate episodes per time period
-      const totalEpisodes = dailyRows.reduce((sum, row) => sum + row.episode_count, 0);
-      const uniqueDays = new Set(dailyRows.map((row) => row.watch_date)).size;
-
-      const averageEpisodesPerDay = uniqueDays > 0 ? totalEpisodes / uniqueDays : 0;
-      const episodesPerWeek = averageEpisodesPerDay * 7;
-      const episodesPerMonth = averageEpisodesPerDay * 30;
-
-      // Get most active hour
-      const hourDistribution = new Map<number, number>();
-      dailyRows.forEach((row) => {
-        const count = hourDistribution.get(row.watch_hour) || 0;
-        hourDistribution.set(row.watch_hour, count + row.episode_count);
-      });
-
-      let mostActiveHour = 0;
-      let maxHourCount = 0;
-      hourDistribution.forEach((count, hour) => {
-        if (count > maxHourCount) {
-          maxHourCount = count;
-          mostActiveHour = hour;
-        }
-      });
-
-      // Get most active day of week
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const dayDistribution = new Map<number, number>();
-      dailyRows.forEach((row) => {
-        const count = dayDistribution.get(row.day_of_week) || 0;
-        dayDistribution.set(row.day_of_week, count + row.episode_count);
-      });
-
-      let mostActiveDayNum = 1;
-      let maxDayCount = 0;
-      dayDistribution.forEach((count, day) => {
-        if (count > maxDayCount) {
-          maxDayCount = count;
-          mostActiveDayNum = day;
-        }
-      });
-
-      const mostActiveDay = dayNames[mostActiveDayNum - 1] || 'Sunday';
-
-      // Calculate velocity trend (compare first half vs second half of period)
-      const velocityTrend = calculateVelocityTrend(dailyRows, uniqueDays);
-
-      return {
-        episodesPerWeek: Math.round(episodesPerWeek * 10) / 10,
-        episodesPerMonth: Math.round(episodesPerMonth),
-        averageEpisodesPerDay: Math.round(averageEpisodesPerDay * 10) / 10,
-        mostActiveDay,
-        mostActiveHour,
-        velocityTrend,
-      };
-    } finally {
-      connection.release();
+    if (dailyRows.length === 0) {
+      return createEmptyVelocityStats();
     }
+
+    // Calculate episodes per time period
+    const totalEpisodes = dailyRows.reduce((sum, row) => sum + row.episode_count, 0);
+    const uniqueDays = new Set(dailyRows.map((row) => row.watch_date)).size;
+
+    const averageEpisodesPerDay = uniqueDays > 0 ? totalEpisodes / uniqueDays : 0;
+    const episodesPerWeek = averageEpisodesPerDay * 7;
+    const episodesPerMonth = averageEpisodesPerDay * 30;
+
+    // Get most active hour
+    const hourDistribution = new Map<number, number>();
+    dailyRows.forEach((row) => {
+      const count = hourDistribution.get(row.watch_hour) || 0;
+      hourDistribution.set(row.watch_hour, count + row.episode_count);
+    });
+
+    let mostActiveHour = 0;
+    let maxHourCount = 0;
+    hourDistribution.forEach((count, hour) => {
+      if (count > maxHourCount) {
+        maxHourCount = count;
+        mostActiveHour = hour;
+      }
+    });
+
+    // Get most active day of week
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayDistribution = new Map<number, number>();
+    dailyRows.forEach((row) => {
+      const count = dayDistribution.get(row.day_of_week) || 0;
+      dayDistribution.set(row.day_of_week, count + row.episode_count);
+    });
+
+    let mostActiveDayNum = 1;
+    let maxDayCount = 0;
+    dayDistribution.forEach((count, day) => {
+      if (count > maxDayCount) {
+        maxDayCount = count;
+        mostActiveDayNum = day;
+      }
+    });
+
+    const mostActiveDay = dayNames[mostActiveDayNum - 1] || 'Sunday';
+
+    // Calculate velocity trend (compare first half vs second half of period)
+    const velocityTrend = calculateVelocityTrend(dailyRows, uniqueDays);
+
+    return {
+      episodesPerWeek: Math.round(episodesPerWeek * 10) / 10,
+      episodesPerMonth: Math.round(episodesPerMonth),
+      averageEpisodesPerDay: Math.round(averageEpisodesPerDay * 10) / 10,
+      mostActiveDay,
+      mostActiveHour,
+      velocityTrend,
+    };
   });
 }
 

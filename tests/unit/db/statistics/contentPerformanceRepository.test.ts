@@ -9,7 +9,6 @@ import {
 } from '@db/statistics/contentPerformanceRepository';
 
 describe('contentPerformanceRepository', () => {
-  let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
@@ -17,7 +16,6 @@ describe('contentPerformanceRepository', () => {
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
     mockPool = mocks.mockPool;
   });
 
@@ -50,33 +48,31 @@ describe('contentPerformanceRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getPopularShows();
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('ORDER BY profile_count DESC'), [20]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY profile_count DESC'));
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 20'));
 
       expect(result).toEqual(mockRows);
       expect(result).toHaveLength(2);
     });
 
     it('should handle custom limit parameter', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getPopularShows(50);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [50]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'));
     });
 
     it('should return empty array when no shows', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getPopularShows(20);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle shows with zero completion rate', async () => {
@@ -93,20 +89,18 @@ describe('contentPerformanceRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getPopularShows(20);
 
       expect(result[0].completion_rate).toBe(0);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getPopularShows(20)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -135,42 +129,38 @@ describe('contentPerformanceRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getPopularMovies();
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('ORDER BY profile_count DESC'), [20]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('ORDER BY profile_count DESC'));
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 20'));
 
       expect(result).toEqual(mockRows);
       expect(result).toHaveLength(2);
     });
 
     it('should handle custom limit parameter', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getPopularMovies(50);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [50]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'));
     });
 
     it('should return empty array when no movies', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getPopularMovies(20);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getPopularMovies(20)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -195,36 +185,34 @@ describe('contentPerformanceRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getTrendingShows();
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(
+      expect(mockPool.execute).toHaveBeenCalledWith(
         expect.stringContaining('HAVING new_additions > 0'),
-        [30, 30, 60, 30, 20],
+        [30, 30, 60, 30],
       );
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 20'), [30, 30, 60, 30]);
 
       expect(result).toEqual(mockRows);
       expect(result).toHaveLength(2);
     });
 
     it('should handle custom days and limit parameters', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getTrendingShows(60, 50);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [60, 60, 120, 60, 50]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'), [60, 60, 120, 60]);
     });
 
     it('should return empty array when no trending shows', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getTrendingShows(30, 20);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle shows with only new additions', async () => {
@@ -239,7 +227,7 @@ describe('contentPerformanceRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getTrendingShows(30, 20);
 
@@ -247,13 +235,11 @@ describe('contentPerformanceRepository', () => {
       expect(result[0].recent_watch_count).toBe(0);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getTrendingShows(30, 20)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -278,45 +264,41 @@ describe('contentPerformanceRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getTrendingMovies();
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(
+      expect(mockPool.execute).toHaveBeenCalledWith(
         expect.stringContaining('HAVING new_additions > 0'),
-        [30, 30, 60, 30, 20],
+        [30, 30, 60, 30],
       );
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 20'), [30, 30, 60, 30]);
 
       expect(result).toEqual(mockRows);
       expect(result).toHaveLength(2);
     });
 
     it('should handle custom days and limit parameters', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getTrendingMovies(60, 50);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [60, 60, 120, 60, 50]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'), [60, 60, 120, 60]);
     });
 
     it('should return empty array when no trending movies', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getTrendingMovies(30, 20);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getTrendingMovies(30, 20)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -334,24 +316,21 @@ describe('contentPerformanceRepository', () => {
         avg_progress: 65.75,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getShowEngagement(1);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('WHERE s.id = ?'), [1]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('WHERE s.id = ?'), [1]);
 
       expect(result).toEqual(mockRow);
     });
 
     it('should return null when show not found', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getShowEngagement(999);
 
       expect(result).toBeNull();
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle show with no profiles', async () => {
@@ -367,7 +346,7 @@ describe('contentPerformanceRepository', () => {
         avg_progress: 0,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getShowEngagement(2);
 
@@ -387,20 +366,18 @@ describe('contentPerformanceRepository', () => {
         avg_progress: 30.0,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getShowEngagement(3);
 
       expect(result?.abandoned_profiles).toBe(25);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getShowEngagement(1)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -418,24 +395,21 @@ describe('contentPerformanceRepository', () => {
         avg_progress: 87.5,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getMovieEngagement(1);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('WHERE m.id = ?'), [1]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('WHERE m.id = ?'), [1]);
 
       expect(result).toEqual(mockRow);
     });
 
     it('should return null when movie not found', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getMovieEngagement(999);
 
       expect(result).toBeNull();
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle movie with no profiles', async () => {
@@ -451,7 +425,7 @@ describe('contentPerformanceRepository', () => {
         avg_progress: 0,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getMovieEngagement(2);
 
@@ -471,20 +445,18 @@ describe('contentPerformanceRepository', () => {
         avg_progress: 100.0,
       };
 
-      mockConnection.query.mockResolvedValueOnce([[mockRow]]);
+      mockPool.execute.mockResolvedValueOnce([[mockRow]]);
 
       const result = await getMovieEngagement(3);
 
       expect(result?.avg_progress).toBe(100.0);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getMovieEngagement(1)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 });

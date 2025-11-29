@@ -13,11 +13,9 @@ import { RowDataPacket } from 'mysql2/promise';
  */
 export async function getDailyActivityTimeline(profileId: number, days: number = 30): Promise<DailyActivity[]> {
   return await DbMonitor.getInstance().executeWithTiming('getDailyActivityTimeline', async () => {
-    const connection = await getDbPool().getConnection();
-    try {
-      const [rows] = await connection.query<VelocityDataRow[]>(
-        `
-      SELECT 
+    const [rows] = await getDbPool().execute<VelocityDataRow[]>(
+      `
+      SELECT
         DATE(ews.updated_at) as watch_date,
         COUNT(*) as episode_count,
         COUNT(DISTINCT e.show_id) as show_count
@@ -29,17 +27,14 @@ export async function getDailyActivityTimeline(profileId: number, days: number =
       GROUP BY watch_date
       ORDER BY watch_date DESC
       `,
-        [profileId, days],
-      );
+      [profileId, days],
+    );
 
-      return rows.map((row) => ({
-        date: row.watch_date,
-        episodesWatched: row.episode_count,
-        showsWatched: row.show_count,
-      }));
-    } finally {
-      connection.release();
-    }
+    return rows.map((row) => ({
+      date: row.watch_date,
+      episodesWatched: row.episode_count,
+      showsWatched: row.show_count,
+    }));
   });
 }
 
@@ -52,11 +47,9 @@ export async function getDailyActivityTimeline(profileId: number, days: number =
  */
 export async function getWeeklyActivityTimeline(profileId: number, weeks: number = 12): Promise<WeeklyActivity[]> {
   return await DbMonitor.getInstance().executeWithTiming('getWeeklyActivityTimeline', async () => {
-    const connection = await getDbPool().getConnection();
-    try {
-      const [rows] = await connection.query<RowDataPacket[]>(
-        `
-      SELECT 
+    const [rows] = await getDbPool().execute<RowDataPacket[]>(
+      `
+      SELECT
         DATE_SUB(DATE(ews.updated_at), INTERVAL WEEKDAY(ews.updated_at) DAY) as week_start,
         COUNT(*) as episode_count
       FROM episode_watch_status ews
@@ -66,16 +59,13 @@ export async function getWeeklyActivityTimeline(profileId: number, weeks: number
       GROUP BY week_start
       ORDER BY week_start DESC
       `,
-        [profileId, weeks],
-      );
+      [profileId, weeks],
+    );
 
-      return rows.map((row) => ({
-        weekStart: row.week_start,
-        episodesWatched: row.episode_count,
-      }));
-    } finally {
-      connection.release();
-    }
+    return rows.map((row) => ({
+      weekStart: row.week_start,
+      episodesWatched: row.episode_count,
+    }));
   });
 }
 
@@ -88,11 +78,9 @@ export async function getWeeklyActivityTimeline(profileId: number, weeks: number
  */
 export async function getMonthlyActivityTimeline(profileId: number, months: number = 12): Promise<MonthlyActivity[]> {
   return await DbMonitor.getInstance().executeWithTiming('getMonthlyActivityTimeline', async () => {
-    const connection = await getDbPool().getConnection();
-    try {
-      const [rows] = await connection.query<RowDataPacket[]>(
-        `
-      SELECT 
+    const [rows] = await getDbPool().execute<RowDataPacket[]>(
+      `
+      SELECT
         DATE_FORMAT(ews.updated_at, '%Y-%m') as month,
         COUNT(*) as episode_count,
         0 as movie_count
@@ -101,10 +89,10 @@ export async function getMonthlyActivityTimeline(profileId: number, months: numb
         AND ews.status = 'WATCHED'
         AND ews.updated_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)
       GROUP BY month
-      
+
       UNION ALL
-      
-      SELECT 
+
+      SELECT
         DATE_FORMAT(mws.updated_at, '%Y-%m') as month,
         0 as episode_count,
         COUNT(*) as movie_count
@@ -113,31 +101,28 @@ export async function getMonthlyActivityTimeline(profileId: number, months: numb
         AND mws.status = 'WATCHED'
         AND mws.updated_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)
       GROUP BY month
-      
+
       ORDER BY month DESC
       `,
-        [profileId, months, profileId, months],
-      );
+      [profileId, months, profileId, months],
+    );
 
-      // Aggregate episodes and movies by month
-      const monthMap = new Map<string, { episodesWatched: number; moviesWatched: number }>();
+    // Aggregate episodes and movies by month
+    const monthMap = new Map<string, { episodesWatched: number; moviesWatched: number }>();
 
-      rows.forEach((row) => {
-        const existing = monthMap.get(row.month) || { episodesWatched: 0, moviesWatched: 0 };
-        existing.episodesWatched += row.episode_count;
-        existing.moviesWatched += row.movie_count;
-        monthMap.set(row.month, existing);
-      });
+    rows.forEach((row) => {
+      const existing = monthMap.get(row.month) || { episodesWatched: 0, moviesWatched: 0 };
+      existing.episodesWatched += row.episode_count;
+      existing.moviesWatched += row.movie_count;
+      monthMap.set(row.month, existing);
+    });
 
-      return Array.from(monthMap.entries())
-        .map(([month, data]) => ({
-          month,
-          episodesWatched: data.episodesWatched,
-          moviesWatched: data.moviesWatched,
-        }))
-        .sort((a, b) => b.month.localeCompare(a.month));
-    } finally {
-      connection.release();
-    }
+    return Array.from(monthMap.entries())
+      .map(([month, data]) => ({
+        month,
+        episodesWatched: data.episodesWatched,
+        moviesWatched: data.moviesWatched,
+      }))
+      .sort((a, b) => b.month.localeCompare(a.month));
   });
 }

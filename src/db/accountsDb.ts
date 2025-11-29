@@ -248,9 +248,9 @@ export async function updateLastActivity(accountId: number, throttleMinutes = 5)
   try {
     return await DbMonitor.getInstance().executeWithTiming('updateLastActivity', async () => {
       const query = `
-      UPDATE accounts 
-      SET last_activity = NOW() 
-      WHERE account_id = ? 
+      UPDATE accounts
+      SET last_activity = NOW()
+      WHERE account_id = ?
         AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))
     `;
       const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountId, throttleMinutes]);

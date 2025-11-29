@@ -1,17 +1,20 @@
 import {
   getEmailSchedule,
   getMoviesUpdateSchedule,
+  getPerformanceArchiveSchedule,
   getPersonUpdateSchedule,
   getShowsUpdateSchedule,
   isEmailEnabled,
 } from '../config/config';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
+import { archiveDailyPerformance } from '../utils/performanceArchiveUtil';
 import { updateMovies, updatePeople, updateShows } from './contentUpdatesService';
 import { emailService } from './emailService';
 import { errorService } from './errorService';
 import { redisPubSubService } from './redisPubSubService';
-import parser from 'cron-parser';
+import { JobName, JobStatusResponse } from '@ajgifford/keepwatching-types';
+import { CronExpressionParser } from 'cron-parser';
 import cron, { ScheduledTask } from 'node-cron';
 
 interface ScheduledJob {
@@ -51,6 +54,13 @@ const jobs: Record<string, ScheduledJob> = {
     lastRunStatus: 'never_run',
     isRunning: false,
   },
+  performanceArchive: {
+    job: null,
+    cronExpression: '',
+    lastRunTime: null,
+    lastRunStatus: 'never_run',
+    isRunning: false,
+  },
 };
 
 const getScheduleConfig = () => {
@@ -59,6 +69,7 @@ const getScheduleConfig = () => {
     moviesUpdateSchedule: getMoviesUpdateSchedule(),
     peopleUpdateSchedule: getPersonUpdateSchedule(),
     emailSchedule: getEmailSchedule(),
+    performanceArchiveSchedule: getPerformanceArchiveSchedule(),
   };
 };
 
@@ -174,6 +185,43 @@ export async function runPeopleUpdateJob(): Promise<boolean> {
 }
 
 /**
+ * Run the performance archive job
+ * Extracted into a separate function to allow manual triggering
+ */
+export async function runPerformanceArchiveJob(): Promise<boolean> {
+  if (jobs.performanceArchive.isRunning) {
+    cliLogger.warn('Performance archive job already running, skipping this execution');
+    return false;
+  }
+
+  jobs.performanceArchive.isRunning = true;
+  jobs.performanceArchive.lastRunTime = new Date();
+
+  cliLogger.info('Starting the performance archive job');
+  appLogger.info('Performance archive job started');
+
+  try {
+    await archiveDailyPerformance();
+
+    // Publish Redis event instead of calling callback
+    await redisPubSubService.publishPerformanceArchive('Performance archive job completed successfully');
+
+    jobs.performanceArchive.lastRunStatus = 'success';
+    cliLogger.info('Performance archive job completed successfully');
+    appLogger.info('Performance archive job completed successfully');
+    return true;
+  } catch (error) {
+    jobs.performanceArchive.lastRunStatus = 'failed';
+    cliLogger.error('Failed to complete performance archive job', error);
+    appLogger.error('Performance archive job failed', { error });
+    return false;
+  } finally {
+    jobs.performanceArchive.isRunning = false;
+    cliLogger.info('Ending the performance archive job');
+  }
+}
+
+/**
  * Run the weekly email digest job
  * Extracted into a separate function to allow manual triggering
  */
@@ -220,12 +268,12 @@ export async function runEmailDigestJob(): Promise<boolean> {
  * @param cronExpression The cron expression to parse
  * @returns The next date when the job will run, or null if it can't be determined
  */
-function getNextScheduledRun(cronExpression: string): Date | null {
+function getNextScheduledRun(cronExpression: string): string | null {
   try {
     if (!cronExpression) return null;
 
-    const interval = parser.parse(cronExpression);
-    return interval.next().toDate();
+    const interval = CronExpressionParser.parse(cronExpression);
+    return interval.next().toDate().toISOString();
   } catch (error) {
     cliLogger.error(`Error parsing cron expression: ${cronExpression}`, error);
     return null;
@@ -236,8 +284,9 @@ function getNextScheduledRun(cronExpression: string): Date | null {
  * Initialize scheduled jobs for content updates and email digests
  * Jobs will publish events to Redis pub/sub when they complete
  */
-export function initScheduledJobs(): void {
-  const { showsUpdateSchedule, moviesUpdateSchedule, peopleUpdateSchedule, emailSchedule } = getScheduleConfig();
+export async function initScheduledJobs(): Promise<void> {
+  const { showsUpdateSchedule, moviesUpdateSchedule, peopleUpdateSchedule, emailSchedule, performanceArchiveSchedule } =
+    getScheduleConfig();
 
   if (!cron.validate(showsUpdateSchedule)) {
     cliLogger.error(`Invalid CRON expression for shows update: ${showsUpdateSchedule}`);
@@ -271,6 +320,14 @@ export function initScheduledJobs(): void {
     );
   }
 
+  if (!cron.validate(performanceArchiveSchedule)) {
+    cliLogger.error(`Invalid CRON expression for performance archive: ${performanceArchiveSchedule}`);
+    throw errorService.handleError(
+      new Error(`Invalid CRON expression for performance archive: ${performanceArchiveSchedule}`),
+      'initScheduledJobs',
+    );
+  }
+
   jobs.showsUpdate.job = cron.schedule(showsUpdateSchedule, async () => {
     try {
       await runShowsUpdateJob();
@@ -279,6 +336,8 @@ export function initScheduledJobs(): void {
     }
   });
   jobs.showsUpdate.cronExpression = showsUpdateSchedule;
+  jobs.showsUpdate.job.start();
+  cliLogger.info(`Shows update scheduled with CRON: ${showsUpdateSchedule}`);
 
   jobs.moviesUpdate.job = cron.schedule(moviesUpdateSchedule, async () => {
     try {
@@ -288,6 +347,9 @@ export function initScheduledJobs(): void {
     }
   });
   jobs.moviesUpdate.cronExpression = moviesUpdateSchedule;
+  jobs.moviesUpdate.job.start();
+
+  cliLogger.info(`Movies update scheduled with CRON: ${moviesUpdateSchedule}`);
 
   jobs.peopleUpdate.job = cron.schedule(peopleUpdateSchedule, async () => {
     try {
@@ -297,6 +359,8 @@ export function initScheduledJobs(): void {
     }
   });
   jobs.peopleUpdate.cronExpression = peopleUpdateSchedule;
+  jobs.peopleUpdate.job.start();
+  cliLogger.info(`People update scheduled with CRON: ${peopleUpdateSchedule}`);
 
   if (isEmailEnabled()) {
     jobs.emailDigest.job = cron.schedule(emailSchedule, async () => {
@@ -313,61 +377,70 @@ export function initScheduledJobs(): void {
     cliLogger.info('Email service is disabled, skipping email digest scheduling');
   }
 
-  // Start all jobs
-  jobs.showsUpdate.job.start();
-  jobs.moviesUpdate.job.start();
-  jobs.peopleUpdate.job.start();
+  // Schedule performance archive job
+  jobs.performanceArchive.job = cron.schedule(performanceArchiveSchedule, async () => {
+    try {
+      await runPerformanceArchiveJob();
+    } catch (error) {
+      cliLogger.error('Unhandled error in performance archive job', error);
+    }
+  });
+  jobs.performanceArchive.cronExpression = performanceArchiveSchedule;
+  jobs.performanceArchive.job.start();
+  cliLogger.info(`Performance archive scheduled with CRON: ${performanceArchiveSchedule}`);
 
   cliLogger.info('Job Scheduler Initialized');
-  cliLogger.info(`Shows update scheduled with CRON: ${showsUpdateSchedule}`);
-  cliLogger.info(`Movies update scheduled with CRON: ${moviesUpdateSchedule}`);
-  cliLogger.info(`People update scheduled with CRON: ${peopleUpdateSchedule}`);
 }
 
 /**
  * Get the current status of scheduled jobs
  * Useful for admin dashboards and monitoring
  */
-export function getJobsStatus(): Record<
-  string,
-  {
-    lastRunTime: Date | null;
-    lastRunStatus: string;
-    isRunning: boolean;
-    nextRunTime: Date | null;
-    cronExpression: string;
-  }
-> {
+export function getJobsStatus(): JobStatusResponse {
   return {
     showsUpdate: {
-      lastRunTime: jobs.showsUpdate.lastRunTime,
+      lastRunTime: toDateResponse(jobs.showsUpdate.lastRunTime),
       lastRunStatus: jobs.showsUpdate.lastRunStatus,
       isRunning: jobs.showsUpdate.isRunning,
       nextRunTime: getNextScheduledRun(jobs.showsUpdate.cronExpression),
       cronExpression: jobs.showsUpdate.cronExpression,
     },
     moviesUpdate: {
-      lastRunTime: jobs.moviesUpdate.lastRunTime,
+      lastRunTime: toDateResponse(jobs.moviesUpdate.lastRunTime),
       lastRunStatus: jobs.moviesUpdate.lastRunStatus,
       isRunning: jobs.moviesUpdate.isRunning,
       nextRunTime: getNextScheduledRun(jobs.moviesUpdate.cronExpression),
       cronExpression: jobs.moviesUpdate.cronExpression,
     },
     peopleUpdate: {
-      lastRunTime: jobs.peopleUpdate.lastRunTime,
+      lastRunTime: toDateResponse(jobs.peopleUpdate.lastRunTime),
       lastRunStatus: jobs.peopleUpdate.lastRunStatus,
       isRunning: jobs.peopleUpdate.isRunning,
       nextRunTime: getNextScheduledRun(jobs.peopleUpdate.cronExpression),
       cronExpression: jobs.peopleUpdate.cronExpression,
     },
     emailDigest: {
-      lastRunTime: jobs.emailDigest.lastRunTime,
+      lastRunTime: toDateResponse(jobs.emailDigest.lastRunTime),
       lastRunStatus: jobs.emailDigest.lastRunStatus,
       isRunning: jobs.emailDigest.isRunning,
       nextRunTime: getNextScheduledRun(jobs.emailDigest.cronExpression),
       cronExpression: jobs.emailDigest.cronExpression,
     },
+    performanceArchive: {
+      lastRunTime: toDateResponse(jobs.performanceArchive.lastRunTime),
+      lastRunStatus: jobs.performanceArchive.lastRunStatus,
+      isRunning: jobs.performanceArchive.isRunning,
+      nextRunTime: getNextScheduledRun(jobs.performanceArchive.cronExpression),
+      cronExpression: jobs.performanceArchive.cronExpression,
+    },
   };
+}
+
+function toDateResponse(date: Date | null) {
+  if (date) {
+    return date.toISOString();
+  }
+  return null;
 }
 
 /**
@@ -389,6 +462,10 @@ export function pauseJobs(): void {
 
   if (jobs.emailDigest.job) {
     jobs.emailDigest.job.stop();
+  }
+
+  if (jobs.performanceArchive.job) {
+    jobs.performanceArchive.job.stop();
   }
 
   cliLogger.info('All scheduled jobs paused');
@@ -414,6 +491,10 @@ export function resumeJobs(): void {
     jobs.emailDigest.job.start();
   }
 
+  if (jobs.performanceArchive.job) {
+    jobs.performanceArchive.job.start();
+  }
+
   cliLogger.info('All scheduled jobs resumed');
 }
 
@@ -421,15 +502,10 @@ export function resumeJobs(): void {
  * Clean up resources when shutting down
  * Should be called when the application is shutting down
  */
-export function shutdownJobs(): void {
+export async function shutdownJobs(): Promise<void> {
   pauseJobs();
   cliLogger.info('Job scheduler shutdown complete');
 }
-
-/**
- * Valid job names for manual execution and schedule updates
- */
-export type JobName = 'showsUpdate' | 'moviesUpdate' | 'peopleUpdate' | 'emailDigest';
 
 /**
  * Manually execute a scheduled job by name
@@ -455,6 +531,8 @@ export async function manuallyExecuteJob(jobName: JobName): Promise<boolean> {
       return await runPeopleUpdateJob();
     case 'emailDigest':
       return await runEmailDigestJob();
+    case 'performanceArchive':
+      return await runPerformanceArchiveJob();
     default:
       cliLogger.error(`Unknown job name: ${jobName}`);
       return false;
@@ -503,6 +581,9 @@ export function updateJobSchedule(jobName: JobName, newCronExpression: string): 
             break;
           case 'emailDigest':
             await runEmailDigestJob();
+            break;
+          case 'performanceArchive':
+            await runPerformanceArchiveJob();
             break;
         }
       } catch (error) {

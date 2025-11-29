@@ -15,9 +15,9 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
     const connection = await getDbPool().getConnection();
     try {
       // Get average episode count per show
-      const [showDepthRows] = await connection.query<ContentDepthDataRow[]>(
+      const [showDepthRows] = await connection.execute<ContentDepthDataRow[]>(
         `
-        SELECT 
+        SELECT
           COUNT(DISTINCT sws.show_id) as total_shows,
           COUNT(DISTINCT e.id) as total_episodes
         FROM show_watch_status sws
@@ -28,7 +28,7 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
       );
 
       // Get average movie runtime (separate query to avoid cross join)
-      const [movieDepthRows] = await connection.query<ContentDepthDataRow[]>(
+      const [movieDepthRows] = await connection.execute<ContentDepthDataRow[]>(
         `
         SELECT 
           COUNT(DISTINCT mws.movie_id) as total_movies,
@@ -49,7 +49,7 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
         movieDepthData.total_movies > 0 ? movieDepthData.total_movie_runtime / movieDepthData.total_movies : 0;
 
       // Get release year distribution for shows
-      const [showYearRows] = await connection.query<ReleaseYearDataRow[]>(
+      const [showYearRows] = await connection.execute<ReleaseYearDataRow[]>(
         `
         SELECT 
           YEAR(s.release_date) as release_year,
@@ -63,7 +63,7 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
       );
 
       // Get release year distribution for movies
-      const [movieYearRows] = await connection.query<ReleaseYearDataRow[]>(
+      const [movieYearRows] = await connection.execute<ReleaseYearDataRow[]>(
         `
         SELECT 
           YEAR(m.release_date) as release_year,
@@ -80,7 +80,7 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
       const releaseYearDistribution = categorizeReleaseYears([...showYearRows, ...movieYearRows]);
 
       // Get content rating distribution for shows
-      const [showRatingRows] = await connection.query<ContentRatingDataRow[]>(
+      const [showRatingRows] = await connection.execute<ContentRatingDataRow[]>(
         `
         SELECT 
           s.content_rating,
@@ -94,7 +94,7 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
       );
 
       // Get content rating distribution for movies
-      const [movieRatingRows] = await connection.query<ContentRatingDataRow[]>(
+      const [movieRatingRows] = await connection.execute<ContentRatingDataRow[]>(
         `
         SELECT 
           m.mpa_rating as content_rating,

@@ -1,20 +1,41 @@
 import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
 
 /**
+ * Optional metadata that can be recorded with a query execution
+ */
+export interface QueryExecutionMetadata {
+  endpoint?: string;
+  profileId?: number;
+  accountId?: number;
+  resultCount?: number;
+  content?: {
+    id: number;
+    type: 'show' | 'movie' | 'episode' | 'season' | 'person';
+  };
+}
+
+/**
  * Interface for storing and retrieving database query statistics.
  * Implementations can use Redis, in-memory storage, or any other backend.
  */
 export interface StatsStore {
   /**
-   * Records a query execution with its execution time.
+   * Records a query execution with its execution time and optional metadata.
    * Updates count, total time, and max time for the given query.
    *
    * @param queryName - Name of the database query
    * @param executionTime - Time taken to execute the query in milliseconds
    * @param success - Whether the query succeeded (default: true)
    * @param error - Error message if the query failed
+   * @param metadata - Optional metadata about the query execution (endpoint, userId, etc.)
    */
-  recordQuery(queryName: string, executionTime: number, success?: boolean, error?: string): Promise<void>;
+  recordQuery(
+    queryName: string,
+    executionTime: number,
+    success?: boolean,
+    error?: string,
+    metadata?: QueryExecutionMetadata,
+  ): Promise<void>;
 
   /**
    * Retrieves all recorded query statistics.
@@ -38,6 +59,14 @@ export interface StatsStore {
    * Clears all recorded query statistics.
    */
   clearStats(): Promise<void>;
+
+  /**
+   * Retrieves a list of all query names that have recorded statistics.
+   * Useful for archiving operations that need to iterate over all queries.
+   *
+   * @returns Array of query names
+   */
+  getAllQueryNames(): Promise<string[]>;
 
   /**
    * Disconnects from the underlying storage.

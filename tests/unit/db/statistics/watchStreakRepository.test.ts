@@ -2,14 +2,14 @@ import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getWatchStreakStats } from '@db/statistics/watchStreakRepository';
 
 describe('watchStreakRepository', () => {
-  let mockConnection: any;
+  let mockPool: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
@@ -18,7 +18,7 @@ describe('watchStreakRepository', () => {
 
   describe('getWatchStreakStats', () => {
     it('should return empty stats when no watch data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getWatchStreakStats(123);
 
@@ -35,7 +35,6 @@ describe('watchStreakRepository', () => {
         averageStreakLength: 0,
       };
       expect(result).toEqual(expectedResult);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should calculate single day streak', async () => {
@@ -45,7 +44,7 @@ describe('watchStreakRepository', () => {
       // Format as YYYY-MM-DD in local timezone
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-      mockConnection.query.mockResolvedValueOnce([[{ watch_date: todayStr }]]);
+      mockPool.execute.mockResolvedValueOnce([[{ watch_date: todayStr }]]);
 
       const result = await getWatchStreakStats(123);
 
@@ -55,7 +54,6 @@ describe('watchStreakRepository', () => {
       expect(result.longestStreakPeriod.days).toBe(1);
       expect(result.streaksOver7Days).toBe(0);
       expect(result.averageStreakLength).toBe(1);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should calculate consecutive day streaks', async () => {
@@ -66,7 +64,7 @@ describe('watchStreakRepository', () => {
       const twoDaysAgo = new Date(today);
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
-      mockConnection.query.mockResolvedValueOnce([
+      mockPool.execute.mockResolvedValueOnce([
         [
           { watch_date: twoDaysAgo.toISOString().split('T')[0] },
           { watch_date: yesterday.toISOString().split('T')[0] },
@@ -84,7 +82,6 @@ describe('watchStreakRepository', () => {
       expect(result.longestStreakPeriod.endDate).toBe(today.toISOString().split('T')[0]);
       expect(result.streaksOver7Days).toBe(0);
       expect(result.averageStreakLength).toBe(3);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle streak ending yesterday as current streak', async () => {
@@ -98,7 +95,7 @@ describe('watchStreakRepository', () => {
 
       // Use toISOString().split('T')[0] to get consistent YYYY-MM-DD format
       // This ensures dates are compared correctly in the implementation
-      mockConnection.query.mockResolvedValueOnce([
+      mockPool.execute.mockResolvedValueOnce([
         [{ watch_date: twoDaysAgo.toISOString().split('T')[0] }, { watch_date: yesterday.toISOString().split('T')[0] }],
       ]);
 
@@ -107,7 +104,6 @@ describe('watchStreakRepository', () => {
       expect(result.currentStreak).toBe(2);
       expect(result.longestStreak).toBe(2);
       expect(result.currentStreakStartDate).toBe(twoDaysAgo.toISOString().split('T')[0]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle broken streaks', async () => {
@@ -126,7 +122,7 @@ describe('watchStreakRepository', () => {
       const date5 = new Date(date4);
       date5.setDate(date5.getDate() + 1);
 
-      mockConnection.query.mockResolvedValueOnce([
+      mockPool.execute.mockResolvedValueOnce([
         [
           { watch_date: date1.toISOString().split('T')[0] },
           { watch_date: date2.toISOString().split('T')[0] },
@@ -146,7 +142,6 @@ describe('watchStreakRepository', () => {
       expect(result.longestStreakPeriod.endDate).toBe(date3.toISOString().split('T')[0]);
       expect(result.streaksOver7Days).toBe(0);
       expect(result.averageStreakLength).toBe(2.5); // (3 + 2) / 2
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should count streaks over 7 days', async () => {
@@ -170,14 +165,13 @@ describe('watchStreakRepository', () => {
         dates.push({ watch_date: date.toISOString().split('T')[0] });
       }
 
-      mockConnection.query.mockResolvedValueOnce([dates]);
+      mockPool.execute.mockResolvedValueOnce([dates]);
 
       const result = await getWatchStreakStats(123);
 
       expect(result.longestStreak).toBe(10);
       expect(result.streaksOver7Days).toBe(1); // Only the 10-day streak
       expect(result.averageStreakLength).toBe(7.5); // (10 + 5) / 2
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle multiple long streaks', async () => {
@@ -209,42 +203,35 @@ describe('watchStreakRepository', () => {
         dates.push({ watch_date: date.toISOString().split('T')[0] });
       }
 
-      mockConnection.query.mockResolvedValueOnce([dates]);
+      mockPool.execute.mockResolvedValueOnce([dates]);
 
       const result = await getWatchStreakStats(123);
 
       expect(result.longestStreak).toBe(12);
       expect(result.streaksOver7Days).toBe(3); // All three streaks are >= 7 days
       expect(result.averageStreakLength).toBe(9); // (8 + 12 + 7) / 3 = 9
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should release connection even if query fails', async () => {
-      mockConnection.query.mockRejectedValueOnce(new Error('Database error'));
+      mockPool.execute.mockRejectedValueOnce(new Error('Database error'));
 
       await expect(getWatchStreakStats(123)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should pass correct profile ID to query', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getWatchStreakStats(456);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('WHERE profile_id = ?'), [456]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('WHERE profile_id = ?'), [456]);
     });
 
     it('should only query WATCHED episodes', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getWatchStreakStats(123);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(
-        expect.stringContaining("status = 'WATCHED'"),
-        expect.any(Array),
-      );
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining("status = 'WATCHED'"), expect.any(Array));
     });
 
     it('should round average streak length to 1 decimal place', async () => {
@@ -276,13 +263,12 @@ describe('watchStreakRepository', () => {
         dates.push({ watch_date: date.toISOString().split('T')[0] });
       }
 
-      mockConnection.query.mockResolvedValueOnce([dates]);
+      mockPool.execute.mockResolvedValueOnce([dates]);
 
       const result = await getWatchStreakStats(123);
 
       // (3 + 5 + 2) / 3 = 3.333... should round to 3.3
       expect(result.averageStreakLength).toBe(3.3);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 });

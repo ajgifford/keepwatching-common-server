@@ -14,7 +14,7 @@ jest.mock('@db/statistics/achievementRepository', () => ({
 }));
 
 describe('statisticsDb', () => {
-  let mockConnection: any;
+  let mockPool: any;
 
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
@@ -32,7 +32,7 @@ describe('statisticsDb', () => {
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
 
     // Mock calculateMilestones to return empty array by default
     (calculateMilestones as jest.Mock).mockImplementation((current: number, thresholds: number[], type: string) => {
@@ -57,7 +57,7 @@ describe('statisticsDb', () => {
 
   describe('getMilestoneStats', () => {
     it('should return empty object when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getMilestoneStats(123);
 
@@ -72,7 +72,6 @@ describe('statisticsDb', () => {
         recentAchievements: [],
       };
       expect(result).toEqual(expectedResult);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle null database values', async () => {
@@ -86,14 +85,13 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.createdAt).toBeUndefined();
       expect(result.firstEpisodeWatchedAt).toBeUndefined();
       expect(result.firstMovieWatchedAt).toBeUndefined();
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should return milestone data with no recent achievements', async () => {
@@ -107,7 +105,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const expectedResult = {
         totalEpisodesWatched: 235,
@@ -122,7 +120,6 @@ describe('statisticsDb', () => {
 
       const result = await getMilestoneStats(123);
       expect(result).toEqual(expectedResult);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should return milestone data with recent achievements', async () => {
@@ -136,7 +133,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
 
@@ -196,7 +193,6 @@ describe('statisticsDb', () => {
 
       const result = await getMilestoneStats(123);
       expect(result).toEqual(expectedResult);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should correctly round runtime minutes to hours', async () => {
@@ -210,12 +206,11 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.totalHoursWatched).toBe(2);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should not include episode achievement when count is beyond threshold + 10', async () => {
@@ -229,12 +224,11 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.recentAchievements).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should not include movie achievement when count is beyond threshold + 5', async () => {
@@ -248,12 +242,11 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.recentAchievements).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should not include hours achievement when count is beyond threshold + 10', async () => {
@@ -267,12 +260,11 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.recentAchievements).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should include episode achievement at exact threshold', async () => {
@@ -286,7 +278,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -304,7 +296,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('100 Episodes Watched');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should include movie achievement at exact threshold', async () => {
@@ -318,7 +309,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -336,7 +327,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('50 Movies Watched');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle only episodes watched (no movies)', async () => {
@@ -350,14 +340,13 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.totalEpisodesWatched).toBe(150);
       expect(result.totalMoviesWatched).toBe(0);
       expect(result.firstMovieWatchedAt).toBeUndefined();
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle only movies watched (no episodes)', async () => {
@@ -371,31 +360,27 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.totalEpisodesWatched).toBe(0);
       expect(result.totalMoviesWatched).toBe(30);
       expect(result.firstEpisodeWatchedAt).toBeUndefined();
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should pass correct profileId parameters to query', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getMilestoneStats(456);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [456, 456, 456, 456, 456, 456, 456]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456, 456, 456, 456, 456, 456, 456]);
     });
 
     it('should release connection even if query throws error', async () => {
-      mockConnection.query.mockRejectedValueOnce(new Error('Database error'));
+      mockPool.execute.mockRejectedValueOnce(new Error('Database error'));
 
       await expect(getMilestoneStats(123)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should correctly convert date strings to ISO format', async () => {
@@ -409,14 +394,13 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17T20:15:00',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       expect(result.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
       expect(result.firstEpisodeWatchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
       expect(result.firstMovieWatchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should combine milestones from all three categories', async () => {
@@ -430,13 +414,12 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMilestoneStats(123);
 
       const expectedMilestones = generateMilestones(100, 50, 100);
       expect(result.milestones).toEqual(expectedMilestones);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should only include latest milestone as recent achievement', async () => {
@@ -450,7 +433,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -468,7 +451,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('500 Episodes Watched');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format FIRST_EPISODE achievement type correctly', async () => {
@@ -482,7 +464,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -502,7 +484,6 @@ describe('statisticsDb', () => {
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('First Episode Watched');
       expect(result.recentAchievements[0].metadata).toEqual({ showTitle: 'Breaking Bad', episodeTitle: 'Pilot' });
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format FIRST_MOVIE achievement type correctly', async () => {
@@ -516,7 +497,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -536,7 +517,6 @@ describe('statisticsDb', () => {
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('First Movie Watched');
       expect(result.recentAchievements[0].metadata).toEqual({ movieTitle: 'The Shawshank Redemption' });
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format SHOW_COMPLETED achievement type correctly', async () => {
@@ -550,7 +530,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -570,7 +550,6 @@ describe('statisticsDb', () => {
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('Completed: Breaking Bad');
       expect(result.recentAchievements[0].metadata).toEqual({ showTitle: 'Breaking Bad', showId: 1234 });
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format SHOW_COMPLETED achievement type with fallback when showTitle is missing', async () => {
@@ -584,7 +563,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: null,
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -603,7 +582,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('Completed: Show');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format WATCH_STREAK achievement type correctly', async () => {
@@ -617,7 +595,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -635,7 +613,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('7 Day Watch Streak');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format BINGE_SESSION achievement type correctly', async () => {
@@ -649,7 +626,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -667,7 +644,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('5 Episode Binge Session');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format PROFILE_ANNIVERSARY achievement type correctly', async () => {
@@ -681,7 +657,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2024-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -699,7 +675,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('1 Year Anniversary');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should format unknown achievement type with default case', async () => {
@@ -713,7 +688,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -731,7 +706,6 @@ describe('statisticsDb', () => {
 
       expect(result.recentAchievements.length).toBe(1);
       expect(result.recentAchievements[0].description).toBe('Achievement: 42');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle multiple different achievement types together', async () => {
@@ -745,7 +719,7 @@ describe('statisticsDb', () => {
           first_movie_watched_at: '2025-01-17',
         },
       ];
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const now = new Date();
       (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
@@ -791,7 +765,6 @@ describe('statisticsDb', () => {
       expect(result.recentAchievements[1].description).toBe('7 Day Watch Streak');
       expect(result.recentAchievements[2].description).toBe('Completed: The Wire');
       expect(result.recentAchievements[3].description).toBe('10 Episode Binge Session');
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -1,5 +1,5 @@
-import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { NotificationRow } from '../../../src/types/notificationTypes';
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { CreateNotificationRequest, UpdateNotificationRequest } from '@ajgifford/keepwatching-types';
 import * as notificationsDb from '@db/notificationsDb';
 import { TransactionHelper } from '@utils/transactionHelper';
@@ -309,7 +309,7 @@ describe('notificationDb', () => {
       ];
 
       mockConnection.execute.mockResolvedValueOnce(notificationInsertResult);
-      mockConnection.query.mockResolvedValueOnce([mockAccounts, []]);
+      mockConnection.execute.mockResolvedValueOnce([mockAccounts, []]);
       mockConnection.execute.mockResolvedValueOnce([]);
 
       await notificationsDb.addNotification(notification);
@@ -321,9 +321,9 @@ describe('notificationDb', () => {
         ['Test title', 'Test message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null, 'general'],
       );
 
-      expect(mockConnection.query).toHaveBeenNthCalledWith(1, 'SELECT account_id, account_name, email FROM accounts');
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, 'SELECT account_id, account_name, email FROM accounts');
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
-        2,
+        3,
         'INSERT INTO account_notifications (notification_id, account_id, dismissed) VALUES (?,?,?),(?,?,?)',
         [123, 1, false, 123, 2, false],
       );
@@ -375,7 +375,7 @@ describe('notificationDb', () => {
       };
 
       mockConnection.execute.mockResolvedValueOnce([{ insertId: 123 }]);
-      mockConnection.query.mockResolvedValueOnce([[], []]); // empty accounts result
+      mockConnection.execute.mockResolvedValueOnce([[], []]); // empty accounts result
 
       await expect(notificationsDb.addNotification(notification)).rejects.toThrow(
         'No accounts found when sending a notification to all accounts',

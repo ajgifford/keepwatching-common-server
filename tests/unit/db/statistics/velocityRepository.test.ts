@@ -2,7 +2,6 @@ import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getWatchingVelocityData } from '@db/statistics/velocityRepository';
 
 describe('velocityRepository', () => {
-  let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
@@ -10,7 +9,6 @@ describe('velocityRepository', () => {
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
     mockPool = mocks.mockPool;
   });
 
@@ -44,14 +42,12 @@ describe('velocityRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWatchingVelocityData(123, 30);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 30]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 30]);
 
       expect(result).toMatchObject({
         episodesPerWeek: expect.any(Number),
@@ -69,7 +65,7 @@ describe('velocityRepository', () => {
     });
 
     it('should return empty statistics when no data is available', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getWatchingVelocityData(123, 30);
 
@@ -81,8 +77,6 @@ describe('velocityRepository', () => {
         mostActiveHour: 0,
         velocityTrend: 'stable',
       });
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle different days parameter', async () => {
@@ -96,11 +90,11 @@ describe('velocityRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       await getWatchingVelocityData(123, 60);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 60]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 60]);
     });
 
     it('should calculate most active hour correctly', async () => {
@@ -128,7 +122,7 @@ describe('velocityRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWatchingVelocityData(123, 30);
 
@@ -153,7 +147,7 @@ describe('velocityRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWatchingVelocityData(123, 30);
 
@@ -170,7 +164,7 @@ describe('velocityRepository', () => {
         day_of_week: (i % 7) + 1,
       }));
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWatchingVelocityData(123, 30);
 
@@ -187,7 +181,7 @@ describe('velocityRepository', () => {
         day_of_week: (i % 7) + 1,
       }));
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWatchingVelocityData(123, 30);
 
@@ -204,7 +198,7 @@ describe('velocityRepository', () => {
         day_of_week: (i % 7) + 1,
       }));
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWatchingVelocityData(123, 30);
 
@@ -236,7 +230,7 @@ describe('velocityRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWatchingVelocityData(123, 30);
 
@@ -248,13 +242,11 @@ describe('velocityRepository', () => {
       expect(Number.isInteger(result.episodesPerMonth)).toBe(true);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getWatchingVelocityData(123, 30)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 });

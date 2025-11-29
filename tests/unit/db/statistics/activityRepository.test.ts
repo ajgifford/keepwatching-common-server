@@ -7,7 +7,6 @@ import {
 import { RowDataPacket } from 'mysql2/promise';
 
 describe('activityRepository', () => {
-  let mockConnection: any;
   let mockPool: any;
 
   beforeEach(() => {
@@ -15,7 +14,6 @@ describe('activityRepository', () => {
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
     mockPool = mocks.mockPool;
   });
 
@@ -43,13 +41,11 @@ describe('activityRepository', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getDailyActivityTimeline(123, 30);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 30]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 30]);
 
       expect(result).toEqual([
         {
@@ -71,31 +67,27 @@ describe('activityRepository', () => {
     });
 
     it('should return empty array when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getDailyActivityTimeline(123, 30);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle different days parameter', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getDailyActivityTimeline(123, 60);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 60]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 60]);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getDailyActivityTimeline(123, 30)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getWeeklyActivityTimeline', () => {
@@ -115,13 +107,11 @@ describe('activityRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getWeeklyActivityTimeline(123, 12);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 12]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 12]);
 
       expect(result).toEqual([
         {
@@ -140,31 +130,27 @@ describe('activityRepository', () => {
     });
 
     it('should return empty array when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getWeeklyActivityTimeline(123, 12);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle different weeks parameter', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getWeeklyActivityTimeline(123, 24);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 24]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 24]);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getWeeklyActivityTimeline(123, 12)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('getMonthlyActivityTimeline', () => {
@@ -192,13 +178,11 @@ describe('activityRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMonthlyActivityTimeline(123, 12);
 
-      expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [123, 12, 123, 12]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [123, 12, 123, 12]);
 
       expect(result).toEqual([
         {
@@ -238,7 +222,7 @@ describe('activityRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMonthlyActivityTimeline(123, 12);
 
@@ -252,20 +236,19 @@ describe('activityRepository', () => {
     });
 
     it('should return empty array when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getMonthlyActivityTimeline(123, 12);
 
       expect(result).toEqual([]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle different months parameter', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getMonthlyActivityTimeline(123, 24);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [123, 24, 123, 24]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('UNION ALL'), [123, 24, 123, 24]);
     });
 
     it('should sort results by month in descending order', async () => {
@@ -287,7 +270,7 @@ describe('activityRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMonthlyActivityTimeline(123, 12);
 
@@ -296,13 +279,11 @@ describe('activityRepository', () => {
       expect(result[2].month).toBe('2025-08');
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getMonthlyActivityTimeline(123, 12)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should handle months with only episodes', async () => {
@@ -314,7 +295,7 @@ describe('activityRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMonthlyActivityTimeline(123, 12);
 
@@ -336,7 +317,7 @@ describe('activityRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockRows]);
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
 
       const result = await getMonthlyActivityTimeline(123, 12);
 

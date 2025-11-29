@@ -509,7 +509,7 @@ export async function addNotification(notificationRequest: CreateNotificationReq
         const notificationId = result.insertId;
 
         if (notificationRequest.sendToAll) {
-          const [accounts] = await connection.query<AccountReferenceRow[]>(
+          const [accounts] = await connection.execute<AccountReferenceRow[]>(
             'SELECT account_id, account_name, email FROM accounts',
           );
 

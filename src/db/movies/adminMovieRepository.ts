@@ -80,15 +80,20 @@ export async function getAllMoviesReferences(): Promise<MovieReference[]> {
 
 export async function getMovieDetails(movieId: number): Promise<AdminMovieDetails> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getMovieDetails', async () => {
-      const query = `SELECT * FROM admin_movie_details WHERE id = ?`;
-      const [movieRows] = await getDbPool().execute<AdminMovieDetailsRow[]>(query, [movieId]);
-      if (movieRows.length === 0) {
-        throw new NotFoundError(`Movie with ID ${movieId} not found`);
-      }
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getMovieDetails',
+      async () => {
+        const query = `SELECT * FROM admin_movie_details WHERE id = ?`;
+        const [movieRows] = await getDbPool().execute<AdminMovieDetailsRow[]>(query, [movieId]);
+        if (movieRows.length === 0) {
+          throw new NotFoundError(`Movie with ID ${movieId} not found`);
+        }
 
-      return transformAdminMovieDetails(movieRows[0]);
-    });
+        return transformAdminMovieDetails(movieRows[0]);
+      },
+      1000,
+      { content: { id: movieId, type: 'movie' } },
+    );
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw error;
@@ -99,11 +104,16 @@ export async function getMovieDetails(movieId: number): Promise<AdminMovieDetail
 
 export async function getMovieProfiles(movieId: number): Promise<ContentProfiles[]> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getMovieProfiles', async () => {
-      const query = `SELECT * FROM admin_movie_profiles WHERE movie_id = ?`;
-      const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [movieId]);
-      return profileRows.map(transformContentProfiles);
-    });
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getMovieProfiles',
+      async () => {
+        const query = `SELECT * FROM admin_movie_profiles WHERE movie_id = ?`;
+        const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [movieId]);
+        return profileRows.map(transformContentProfiles);
+      },
+      1000,
+      { content: { id: movieId, type: 'movie' } },
+    );
   } catch (error) {
     handleDatabaseError(error, `getMovieProfiles(${movieId})`);
   }

@@ -1,5 +1,5 @@
 import { appLogger } from '../../logger/logger';
-import { StatsStore } from '../../types/statsStore';
+import { QueryExecutionMetadata, StatsStore } from '../../types/statsStore';
 import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
 import Redis from 'ioredis';
 
@@ -43,7 +43,13 @@ export class RedisStatsStore implements StatsStore {
     });
   }
 
-  async recordQuery(queryName: string, executionTime: number, success: boolean = true, error?: string): Promise<void> {
+  async recordQuery(
+    queryName: string,
+    executionTime: number,
+    success: boolean = true,
+    error?: string,
+    metadata?: QueryExecutionMetadata,
+  ): Promise<void> {
     try {
       // Check if Redis is connected before attempting operations
       if (this.redis.status !== 'ready') {
@@ -80,6 +86,11 @@ export class RedisStatsStore implements StatsStore {
         executionTime,
         success,
         ...(error && { error }),
+        ...(metadata?.endpoint && { endpoint: metadata.endpoint }),
+        ...(metadata?.profileId && { profileId: metadata.profileId }),
+        ...(metadata?.accountId && { accountId: metadata.accountId }),
+        ...(metadata?.content && { content: metadata.content }),
+        ...(metadata?.resultCount !== undefined && { resultCount: metadata.resultCount }),
       };
 
       // Add to sorted set with timestamp as score
@@ -178,6 +189,21 @@ export class RedisStatsStore implements StatsStore {
       }
     } catch (error) {
       appLogger.error('Failed to clear query stats:', error);
+    }
+  }
+
+  async getAllQueryNames(): Promise<string[]> {
+    try {
+      // Check if Redis is connected before attempting operations
+      if (this.redis.status !== 'ready') {
+        return [];
+      }
+
+      const keys = await this.redis.keys(`${REDIS_KEY_PREFIX}*`);
+      return keys.map((key) => key.replace(REDIS_KEY_PREFIX, ''));
+    } catch (error) {
+      appLogger.debug('Failed to retrieve query names:', error);
+      return [];
     }
   }
 

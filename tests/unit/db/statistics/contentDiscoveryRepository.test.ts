@@ -35,7 +35,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -65,7 +65,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -87,7 +87,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -112,7 +112,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -136,7 +136,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -161,7 +161,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -186,7 +186,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -209,7 +209,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -232,7 +232,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -260,12 +260,12 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
 
       expect(result.daysSinceLastContentAdded).toBe(2);
@@ -277,7 +277,7 @@ describe('contentDiscoveryRepository', () => {
 
     it('should release connection on error in first query', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockConnection.execute.mockRejectedValueOnce(mockError);
 
       await expect(getContentDiscoveryStats(123)).rejects.toThrow('Database error');
 
@@ -294,7 +294,7 @@ describe('contentDiscoveryRepository', () => {
       ] as RowDataPacket[];
       const mockError = new Error('Database error');
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockRejectedValueOnce(mockError);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockRejectedValueOnce(mockError);
 
       await expect(getContentDiscoveryStats(123)).rejects.toThrow('Database error');
 
@@ -316,12 +316,12 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       await getContentDiscoveryStats(456);
 
       // First query has 4 profileId parameters
-      expect(mockConnection.query).toHaveBeenNthCalledWith(1, expect.any(String), [456, 456, 456, 456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [456, 456, 456, 456]);
     });
 
     it('should pass correct profileId to second query', async () => {
@@ -339,12 +339,12 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       await getContentDiscoveryStats(789);
 
       // Second query has 2 profileId parameters
-      expect(mockConnection.query).toHaveBeenNthCalledWith(2, expect.any(String), [789, 789]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [789, 789]);
     });
 
     it('should handle very large numbers of additions', async () => {
@@ -362,7 +362,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -390,7 +390,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 
@@ -412,7 +412,7 @@ describe('contentDiscoveryRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
 
       const result = await getContentDiscoveryStats(123);
 

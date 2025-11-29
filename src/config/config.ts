@@ -103,6 +103,11 @@ export function getPersonUpdateSchedule() {
   return process.env.PERSON_UPDATE_SCHEDULE || '0 3 * * *';
 }
 
+export function getPerformanceArchiveSchedule() {
+  // Default: Daily at 11:50 PM (10 minutes before Redis TTL expires at midnight)
+  return process.env.PERFORMANCE_ARCHIVE_SCHEDULE || '50 23 * * *';
+}
+
 export function getStreamingAPIKey() {
   return process.env.STREAMING_API_KEY;
 }
@@ -193,6 +198,20 @@ export function getRedisConfig(): {
 export function getStatsStoreType(): 'redis' | 'memory' {
   const type = process.env.STATS_STORE_TYPE?.toLowerCase();
   return type === 'memory' ? 'memory' : 'redis';
+}
+
+/**
+ * Get performance metrics retention configuration
+ * Controls how long detailed metrics and daily summaries are kept
+ */
+export function getPerformanceRetentionConfig(): {
+  detailedMetricsDays: number;
+  dailySummaryDays: number;
+} {
+  return {
+    detailedMetricsDays: Number(process.env.PERFORMANCE_DETAILED_RETENTION_DAYS) || 10,
+    dailySummaryDays: Number(process.env.PERFORMANCE_SUMMARY_RETENTION_DAYS) || 90,
+  };
 }
 
 /**

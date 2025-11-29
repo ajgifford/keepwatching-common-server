@@ -29,7 +29,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -60,7 +60,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -82,7 +82,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -104,7 +104,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -126,7 +126,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -155,7 +155,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -188,7 +188,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -221,7 +221,7 @@ describe('contentDepthRepository', () => {
         { content_rating: 'R', content_count: 4 },
       ] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -253,7 +253,7 @@ describe('contentDepthRepository', () => {
         { content_rating: 'R', content_count: 4 },
       ] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -284,7 +284,7 @@ describe('contentDepthRepository', () => {
         { content_rating: 'PG-13', content_count: 4 },
       ] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -309,7 +309,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [{ content_rating: 'TV-14', content_count: 5 }] as RowDataPacket[];
       const mockMovieRatingRows = [{ content_rating: 'PG-13', content_count: 7 }] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -320,7 +320,7 @@ describe('contentDepthRepository', () => {
       const result = await getContentDepthStats(123);
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
-      expect(mockConnection.query).toHaveBeenCalledTimes(6);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(6);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
 
       expect(result.averageEpisodeCountPerShow).toBe(10.0);
@@ -341,7 +341,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -362,7 +362,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -377,7 +377,7 @@ describe('contentDepthRepository', () => {
 
     it('should release connection on error in first query', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockConnection.execute.mockRejectedValueOnce(mockError);
 
       await expect(getContentDepthStats(123)).rejects.toThrow('Database error');
 
@@ -389,7 +389,7 @@ describe('contentDepthRepository', () => {
       const mockMovieDepthRows = [{ total_movies: 0, total_movie_runtime: 0 }] as RowDataPacket[];
       const mockError = new Error('Database error');
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockRejectedValueOnce(mockError);
@@ -407,7 +407,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])
@@ -417,12 +417,12 @@ describe('contentDepthRepository', () => {
 
       await getContentDepthStats(456);
 
-      expect(mockConnection.query).toHaveBeenNthCalledWith(1, expect.any(String), [456]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(2, expect.any(String), [456]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(3, expect.any(String), [456]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(4, expect.any(String), [456]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(5, expect.any(String), [456]);
-      expect(mockConnection.query).toHaveBeenNthCalledWith(6, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(3, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(4, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(5, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(6, expect.any(String), [456]);
     });
 
     it('should handle edge case with content at year boundary', async () => {
@@ -436,7 +436,7 @@ describe('contentDepthRepository', () => {
       const mockShowRatingRows = [] as RowDataPacket[];
       const mockMovieRatingRows = [] as RowDataPacket[];
 
-      mockConnection.query
+      mockConnection.execute
         .mockResolvedValueOnce([mockShowDepthRows])
         .mockResolvedValueOnce([mockMovieDepthRows])
         .mockResolvedValueOnce([mockShowYearRows])

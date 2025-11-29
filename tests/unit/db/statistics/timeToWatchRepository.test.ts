@@ -2,7 +2,7 @@ import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { getTimeToWatchStats } from '@db/statistics/timeToWatchRepository';
 
 describe('statisticsDb', () => {
-  let mockConnection: any;
+  let mockPool: any;
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
   beforeEach(() => {
@@ -11,7 +11,7 @@ describe('statisticsDb', () => {
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
@@ -21,7 +21,7 @@ describe('statisticsDb', () => {
 
   describe('getTimeToWatchStats', () => {
     it('should return empty object when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -36,41 +36,37 @@ describe('statisticsDb', () => {
         },
       };
       expect(result).toEqual(expectedResult);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should release connection even if query fails', async () => {
-      mockConnection.query.mockRejectedValueOnce(new Error('Database error'));
+      mockPool.execute.mockRejectedValueOnce(new Error('Database error'));
 
       await expect(getTimeToWatchStats(123)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should pass correct profile ID to query', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getTimeToWatchStats(456);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [456]);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456]);
     });
 
     it('should query for WATCHED episodes only', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getTimeToWatchStats(123);
 
-      const queryCall = mockConnection.query.mock.calls[0][0];
+      const queryCall = mockPool.execute.mock.calls[0][0];
       expect(queryCall).toContain("status = 'WATCHED'");
     });
 
     it('should include show_watch_status and episode_watch_status joins', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getTimeToWatchStats(123);
 
-      const queryCall = mockConnection.query.mock.calls[0][0];
+      const queryCall = mockPool.execute.mock.calls[0][0];
       expect(queryCall).toContain('show_watch_status');
       expect(queryCall).toContain('episode_watch_status');
     });
@@ -97,7 +93,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -127,7 +123,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -166,7 +162,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -187,7 +183,7 @@ describe('statisticsDb', () => {
         days_to_complete: i + 1,
       }));
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -227,7 +223,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -262,7 +258,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -293,7 +289,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -324,7 +320,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -355,7 +351,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 
@@ -387,7 +383,7 @@ describe('statisticsDb', () => {
         },
       ];
 
-      mockConnection.query.mockResolvedValueOnce([shows]);
+      mockPool.execute.mockResolvedValueOnce([shows]);
 
       const result = await getTimeToWatchStats(123);
 

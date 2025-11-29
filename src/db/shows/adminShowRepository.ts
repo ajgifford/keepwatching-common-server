@@ -99,16 +99,21 @@ export async function getAllShowReferences(): Promise<ShowReference[]> {
  */
 export async function getAdminShowDetails(showId: number): Promise<AdminShow> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getAdminShowDetails', async () => {
-      const query = `SELECT * FROM admin_show_details WHERE id = ?`;
-      const [rows] = await getDbPool().execute<AdminShowRow[]>(query, [showId]);
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getAdminShowDetails',
+      async () => {
+        const query = `SELECT * FROM admin_show_details WHERE id = ?`;
+        const [rows] = await getDbPool().execute<AdminShowRow[]>(query, [showId]);
 
-      if (rows.length === 0) {
-        throw new NotFoundError(`Show with ID ${showId} not found`);
-      }
+        if (rows.length === 0) {
+          throw new NotFoundError(`Show with ID ${showId} not found`);
+        }
 
-      return transformAdminShow(rows[0]);
-    });
+        return transformAdminShow(rows[0]);
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw error;
@@ -126,11 +131,16 @@ export async function getAdminShowDetails(showId: number): Promise<AdminShow> {
  */
 export async function getAdminShowSeasons(showId: number): Promise<AdminSeason[]> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getAdminShowSeasons', async () => {
-      const query = `SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`;
-      const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(query, [showId]);
-      return seasonRows.map(transformAdminSeason);
-    });
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getAdminShowSeasons',
+      async () => {
+        const query = `SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`;
+        const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(query, [showId]);
+        return seasonRows.map(transformAdminSeason);
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
   } catch (error) {
     handleDatabaseError(error, `getAdminShowSeasons(${showId})`);
   }
@@ -145,30 +155,35 @@ export async function getAdminShowSeasons(showId: number): Promise<AdminSeason[]
  */
 export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<AdminSeasonWithEpisodes[]> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getAdminShowSeasonsWithEpisodes', async () => {
-      const seasonsQuery = `SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`;
-      const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(seasonsQuery, [showId]);
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getAdminShowSeasonsWithEpisodes',
+      async () => {
+        const seasonsQuery = `SELECT * FROM seasons WHERE show_id = ? ORDER BY season_number`;
+        const [seasonRows] = await getDbPool().execute<AdminSeasonRow[]>(seasonsQuery, [showId]);
 
-      if (seasonRows.length === 0) {
-        return [];
-      }
-
-      const seasonIds = seasonRows.map((row) => row.id);
-      const placeholders = seasonIds.map(() => '?').join(',');
-      const episodesQuery = `SELECT * FROM episodes WHERE season_id IN (${placeholders}) ORDER BY season_id, episode_number`;
-      const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(episodesQuery, seasonIds);
-
-      const episodesBySeason: Record<number, AdminEpisode[]> = {};
-      episodeRows.forEach((episodeRow) => {
-        if (!episodesBySeason[episodeRow.season_id]) {
-          episodesBySeason[episodeRow.season_id] = [];
+        if (seasonRows.length === 0) {
+          return [];
         }
 
-        episodesBySeason[episodeRow.season_id].push(transformAdminEpisode(episodeRow));
-      });
+        const seasonIds = seasonRows.map((row) => row.id);
+        const placeholders = seasonIds.map(() => '?').join(',');
+        const episodesQuery = `SELECT * FROM episodes WHERE season_id IN (${placeholders}) ORDER BY season_id, episode_number`;
+        const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(episodesQuery, seasonIds);
 
-      return seasonRows.map((season) => transformAdminSeasonWithEpisodes(season, episodesBySeason));
-    });
+        const episodesBySeason: Record<number, AdminEpisode[]> = {};
+        episodeRows.forEach((episodeRow) => {
+          if (!episodesBySeason[episodeRow.season_id]) {
+            episodesBySeason[episodeRow.season_id] = [];
+          }
+
+          episodesBySeason[episodeRow.season_id].push(transformAdminEpisode(episodeRow));
+        });
+
+        return seasonRows.map((season) => transformAdminSeasonWithEpisodes(season, episodesBySeason));
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
   } catch (error) {
     handleDatabaseError(error, `getAdminShowSeasonsWithEpisodes(${showId})`);
   }
@@ -183,11 +198,16 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<A
  */
 export async function getAdminSeasonEpisodes(seasonId: number): Promise<AdminEpisode[]> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getAdminSeasonEpisodes', async () => {
-      const query = `SELECT * FROM episodes WHERE season_id = ? ORDER BY episode_number`;
-      const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(query, [seasonId]);
-      return episodeRows.map(transformAdminEpisode);
-    });
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getAdminSeasonEpisodes',
+      async () => {
+        const query = `SELECT * FROM episodes WHERE season_id = ? ORDER BY episode_number`;
+        const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(query, [seasonId]);
+        return episodeRows.map(transformAdminEpisode);
+      },
+      1000,
+      { content: { id: seasonId, type: 'season' } },
+    );
   } catch (error) {
     handleDatabaseError(error, `getAdminSeasonEpisodes(${seasonId})`);
   }
@@ -202,11 +222,16 @@ export async function getAdminSeasonEpisodes(seasonId: number): Promise<AdminEpi
  */
 export async function getAdminShowProfiles(showId: number): Promise<ContentProfiles[]> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getAdminShowProfiles', async () => {
-      const query = `SELECT * FROM admin_show_profiles WHERE show_id = ?`;
-      const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [showId]);
-      return profileRows.map(transformContentProfiles);
-    });
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getAdminShowProfiles',
+      async () => {
+        const query = `SELECT * FROM admin_show_profiles WHERE show_id = ?`;
+        const [profileRows] = await getDbPool().execute<ContentProfilesRow[]>(query, [showId]);
+        return profileRows.map(transformContentProfiles);
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
   } catch (error) {
     handleDatabaseError(error, `getAdminShowProfiles(${showId})`);
   }
@@ -221,8 +246,10 @@ export async function getAdminShowProfiles(showId: number): Promise<ContentProfi
  */
 export async function getAdminShowWatchProgress(showId: number): Promise<AdminShowWatchProgressResult> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getAdminShowWatchProgress', async () => {
-      const profilesQuery = `
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getAdminShowWatchProgress',
+      async () => {
+        const profilesQuery = `
       SELECT 
         p.profile_id,
         p.name,
@@ -234,39 +261,42 @@ export async function getAdminShowWatchProgress(showId: number): Promise<AdminSh
       WHERE 
         sws.show_id = ?`;
 
-      const [profileRows] = await getDbPool().execute<ProfileShowStatusRow[]>(profilesQuery, [showId]);
+        const [profileRows] = await getDbPool().execute<ProfileShowStatusRow[]>(profilesQuery, [showId]);
 
-      if (profileRows.length === 0) {
-        return [];
-      }
+        if (profileRows.length === 0) {
+          return [];
+        }
 
-      const results = await Promise.all(
-        profileRows.map(async (profile) => {
-          const seasonQuery = `SELECT * FROM admin_season_watch_progress WHERE show_id = ? and profile_id = ?`;
-          const [seasonRows] = await getDbPool().execute<AdminSeasonWatchProgressRow[]>(seasonQuery, [
-            showId,
-            profile.profile_id,
-          ]);
+        const results = await Promise.all(
+          profileRows.map(async (profile) => {
+            const seasonQuery = `SELECT * FROM admin_season_watch_progress WHERE show_id = ? and profile_id = ?`;
+            const [seasonRows] = await getDbPool().execute<AdminSeasonWatchProgressRow[]>(seasonQuery, [
+              showId,
+              profile.profile_id,
+            ]);
 
-          const seasons = seasonRows.map(transformAdminSeasonWatchProgress);
-          const totalEpisodes = seasonRows.reduce((sum, season) => sum + season.number_of_episodes, 0);
-          const watchedEpisodes = seasonRows.reduce((sum, season) => sum + season.watched_episodes, 0);
-          const percentComplete = totalEpisodes > 0 ? Math.round((watchedEpisodes / totalEpisodes) * 100) : 0;
+            const seasons = seasonRows.map(transformAdminSeasonWatchProgress);
+            const totalEpisodes = seasonRows.reduce((sum, season) => sum + season.number_of_episodes, 0);
+            const watchedEpisodes = seasonRows.reduce((sum, season) => sum + season.watched_episodes, 0);
+            const percentComplete = totalEpisodes > 0 ? Math.round((watchedEpisodes / totalEpisodes) * 100) : 0;
 
-          return {
-            profileId: profile.profile_id,
-            name: profile.name,
-            showStatus: profile.show_status as WatchStatus,
-            totalEpisodes,
-            watchedEpisodes,
-            percentComplete,
-            seasons,
-          } as AdminProfileWatchProgress;
-        }),
-      );
+            return {
+              profileId: profile.profile_id,
+              name: profile.name,
+              showStatus: profile.show_status as WatchStatus,
+              totalEpisodes,
+              watchedEpisodes,
+              percentComplete,
+              seasons,
+            } as AdminProfileWatchProgress;
+          }),
+        );
 
-      return results;
-    });
+        return results;
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
   } catch (error) {
     handleDatabaseError(error, `getAdminShowWatchProgress(${showId})`);
   }

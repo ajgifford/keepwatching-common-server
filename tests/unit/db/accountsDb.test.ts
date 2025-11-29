@@ -711,7 +711,7 @@ describe('accountsDb Module', () => {
       expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
-        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        `\n      UPDATE accounts\n      SET last_activity = NOW()\n      WHERE account_id = ?\n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
         [accountId, 5],
       );
       expect(result).toBe(true);
@@ -729,7 +729,7 @@ describe('accountsDb Module', () => {
       expect(getDbPool).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
-        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        `\n      UPDATE accounts\n      SET last_activity = NOW()\n      WHERE account_id = ?\n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
         [accountId, throttleMinutes],
       );
       expect(result).toBe(true);
@@ -770,7 +770,7 @@ describe('accountsDb Module', () => {
       const result = await accountsDb.updateLastActivity(accountId, throttleMinutes);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        `\n      UPDATE accounts\n      SET last_activity = NOW()\n      WHERE account_id = ?\n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
         [accountId, 0],
       );
       expect(result).toBe(true);
@@ -786,7 +786,7 @@ describe('accountsDb Module', () => {
       const result = await accountsDb.updateLastActivity(accountId, throttleMinutes);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        `\n      UPDATE accounts \n      SET last_activity = NOW() \n      WHERE account_id = ? \n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
+        `\n      UPDATE accounts\n      SET last_activity = NOW()\n      WHERE account_id = ?\n        AND (last_activity IS NULL OR last_activity < DATE_SUB(NOW(), INTERVAL ? MINUTE))\n    `,
         [accountId, 1440],
       );
       expect(result).toBe(true);

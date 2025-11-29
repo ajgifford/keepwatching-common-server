@@ -25,7 +25,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
     const connection = await getDbPool().getConnection();
     try {
       // Get basic profile metrics
-      const [profileRows] = await connection.query<ProfileComparisonRow[]>(
+      const [profileRows] = await connection.execute<ProfileComparisonRow[]>(
         `
         SELECT
           p.profile_id as profile_id,
@@ -144,7 +144,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
       );
 
       // Get top genres per profile
-      const [genreRows] = await connection.query<ProfileGenreRow[]>(
+      const [genreRows] = await connection.execute<ProfileGenreRow[]>(
         `
         SELECT 
           profile_id,
@@ -170,7 +170,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
       );
 
       // Get top services per profile
-      const [serviceRows] = await connection.query<ProfileServiceRow[]>(
+      const [serviceRows] = await connection.execute<ProfileServiceRow[]>(
         `
         SELECT 
           profile_id,
@@ -196,7 +196,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
       );
 
       // Get velocity data per profile
-      const [velocityRows] = await connection.query<ProfileVelocityRow[]>(
+      const [velocityRows] = await connection.execute<ProfileVelocityRow[]>(
         `
         SELECT
           p.profile_id as profile_id,
@@ -222,7 +222,7 @@ export async function getProfileComparisonData(accountId: number): Promise<{
       );
 
       // Get account-wide summary
-      const [summaryRows] = await connection.query<AccountSummaryRow[]>(
+      const [summaryRows] = await connection.execute<AccountSummaryRow[]>(
         `
         SELECT 
           COUNT(DISTINCT ps.show_id) as total_unique_shows,

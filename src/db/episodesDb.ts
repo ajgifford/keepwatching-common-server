@@ -47,25 +47,32 @@ import { ResultSetHeader } from 'mysql2';
  */
 export async function saveEpisode(episode: CreateEpisodeRequest): Promise<number> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('saveEpisode', async () => {
-      const query =
-        'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?)';
-      const [result] = await getDbPool().execute<ResultSetHeader>(query, [
-        episode.tmdb_id,
-        episode.season_id,
-        episode.show_id,
-        episode.episode_number,
-        episode.episode_type,
-        episode.season_number,
-        episode.title,
-        episode.overview,
-        episode.air_date,
-        episode.runtime,
-        episode.still_image,
-      ]);
+    let insertId = 0;
+    return await DbMonitor.getInstance().executeWithTiming(
+      'saveEpisode',
+      async () => {
+        const query =
+          'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?)';
+        const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+          episode.tmdb_id,
+          episode.season_id,
+          episode.show_id,
+          episode.episode_number,
+          episode.episode_type,
+          episode.season_number,
+          episode.title,
+          episode.overview,
+          episode.air_date,
+          episode.runtime,
+          episode.still_image,
+        ]);
 
-      return result.insertId;
-    });
+        insertId = result.insertId;
+        return insertId;
+      },
+      1000,
+      { content: { id: insertId, type: 'episode' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'saving an episode');
   }
@@ -103,35 +110,42 @@ export async function saveEpisode(episode: CreateEpisodeRequest): Promise<number
  */
 export async function updateEpisode(episode: UpdateEpisodeRequest): Promise<number> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('updateEpisode', async () => {
-      const query =
-        'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), episode_number = ?, episode_type = ?, season_number = ?, title = ?, overview = ?, air_date = ?, runtime = ?, still_image = ?';
-      const [result] = await getDbPool().execute<ResultSetHeader>(query, [
-        //Insert Values
-        episode.tmdb_id,
-        episode.season_id,
-        episode.show_id,
-        episode.episode_number,
-        episode.episode_type,
-        episode.season_number,
-        episode.title,
-        episode.overview,
-        episode.air_date,
-        episode.runtime,
-        episode.still_image,
-        //Update Values
-        episode.episode_number,
-        episode.episode_type,
-        episode.season_number,
-        episode.title,
-        episode.overview,
-        episode.air_date,
-        episode.runtime,
-        episode.still_image,
-      ]);
+    let insertId = 0;
+    return await DbMonitor.getInstance().executeWithTiming(
+      'updateEpisode',
+      async () => {
+        const query =
+          'INSERT into episodes (tmdb_id, season_id, show_id, episode_number, episode_type, season_number, title, overview, air_date, runtime, still_image) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), episode_number = ?, episode_type = ?, season_number = ?, title = ?, overview = ?, air_date = ?, runtime = ?, still_image = ?';
+        const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+          //Insert Values
+          episode.tmdb_id,
+          episode.season_id,
+          episode.show_id,
+          episode.episode_number,
+          episode.episode_type,
+          episode.season_number,
+          episode.title,
+          episode.overview,
+          episode.air_date,
+          episode.runtime,
+          episode.still_image,
+          //Update Values
+          episode.episode_number,
+          episode.episode_type,
+          episode.season_number,
+          episode.title,
+          episode.overview,
+          episode.air_date,
+          episode.runtime,
+          episode.still_image,
+        ]);
 
-      return result.insertId;
-    });
+        insertId = result.insertId;
+        return insertId;
+      },
+      1000,
+      { content: { id: insertId, type: 'episode' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'updating an episode');
   }
@@ -156,10 +170,15 @@ export async function saveFavorite(
   status: SimpleWatchStatus = WatchStatus.NOT_WATCHED,
 ): Promise<void> {
   try {
-    await DbMonitor.getInstance().executeWithTiming('saveFavorite', async () => {
-      const query = 'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id, status) VALUES (?,?,?)';
-      await getDbPool().execute(query, [profileId, episodeId, status]);
-    });
+    await DbMonitor.getInstance().executeWithTiming(
+      'saveFavorite',
+      async () => {
+        const query = 'INSERT IGNORE INTO episode_watch_status (profile_id, episode_id, status) VALUES (?,?,?)';
+        await getDbPool().execute(query, [profileId, episodeId, status]);
+      },
+      1000,
+      { content: { id: episodeId, type: 'episode' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'saving an episode as a favorite');
   }
@@ -182,10 +201,15 @@ export async function saveFavorite(
  */
 export async function removeFavorite(profileId: number, episodeId: number): Promise<void> {
   try {
-    await DbMonitor.getInstance().executeWithTiming('removeFavorite', async () => {
-      const query = 'DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id = ?';
-      await getDbPool().execute(query, [profileId, episodeId]);
-    });
+    await DbMonitor.getInstance().executeWithTiming(
+      'removeFavorite',
+      async () => {
+        const query = 'DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id = ?';
+        await getDbPool().execute(query, [profileId, episodeId]);
+      },
+      1000,
+      { content: { id: episodeId, type: 'episode' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'removing an episode as a favorite');
   }
@@ -217,11 +241,17 @@ export async function removeFavorite(profileId: number, episodeId: number): Prom
  */
 export async function getEpisodesForSeason(profileId: number, seasonId: number): Promise<ProfileEpisode[]> {
   try {
-    return await DbMonitor.getInstance().executeWithTiming('getEpisodesForSeason', async () => {
-      const query = 'SELECT * FROM profile_episodes where profile_id = ? and season_id = ? ORDER BY episode_number';
-      const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(query, [Number(profileId), seasonId]);
-      return episodeRows.map(transformProfileEpisode);
-    });
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getEpisodesForSeason',
+      async () => {
+        const query = 'SELECT * FROM profile_episodes where profile_id = ? and season_id = ? ORDER BY episode_number';
+        const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(query, [Number(profileId), seasonId]);
+        const result = episodeRows.map(transformProfileEpisode);
+        return result;
+      },
+      1000,
+      { content: { id: seasonId, type: 'season' } },
+    );
   } catch (error) {
     handleDatabaseError(error, 'getting episodes for a season');
   }
@@ -247,7 +277,8 @@ export async function getUpcomingEpisodesForProfile(profileId: number): Promise<
     return await DbMonitor.getInstance().executeWithTiming('getUpcomingEpisodesForProfile', async () => {
       const query = 'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6';
       const [episodeRows] = await getDbPool().execute<RecentUpcomingEpisodeRow[]>(query, [Number(profileId)]);
-      return episodeRows.map(transformRecentUpcomingEpisode);
+      const result = episodeRows.map(transformRecentUpcomingEpisode);
+      return result;
     });
   } catch (error) {
     handleDatabaseError(error, 'getting upcoming episodes for a profile');
@@ -274,7 +305,8 @@ export async function getRecentEpisodesForProfile(profileId: number): Promise<Re
     return await DbMonitor.getInstance().executeWithTiming('getRecentEpisodesForProfile', async () => {
       const query = 'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6';
       const [episodeRows] = await getDbPool().execute<RecentUpcomingEpisodeRow[]>(query, [Number(profileId)]);
-      return episodeRows.map(transformRecentUpcomingEpisode);
+      const result = episodeRows.map(transformRecentUpcomingEpisode);
+      return result;
     });
   } catch (error) {
     handleDatabaseError(error, 'getting recent episodes for a profile');

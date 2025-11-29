@@ -228,7 +228,7 @@ export async function updatePreferences<T extends PreferenceData>(
       const query = `
       INSERT INTO account_preferences (account_id, preference_type, preferences)
       VALUES (?, ?, ?)
-      ON DUPLICATE KEY UPDATE 
+      ON DUPLICATE KEY UPDATE
         preferences = VALUES(preferences),
         updated_at = CURRENT_TIMESTAMP
     `;
@@ -298,7 +298,7 @@ export async function updateMultiplePreferences(
             const query = `
             INSERT INTO account_preferences (account_id, preference_type, preferences)
             VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE 
+            ON DUPLICATE KEY UPDATE
               preferences = VALUES(preferences),
               updated_at = CURRENT_TIMESTAMP`;
 

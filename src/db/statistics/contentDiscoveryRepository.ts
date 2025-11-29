@@ -15,9 +15,9 @@ export async function getContentDiscoveryStats(profileId: number): Promise<Conte
     const connection = await getDbPool().getConnection();
     try {
       // Get last content added and content added in last 30 days
-      const [additionRows] = await connection.query<ContentAdditionDataRow[]>(
+      const [additionRows] = await connection.execute<ContentAdditionDataRow[]>(
         `
-        SELECT 
+        SELECT
           MAX(GREATEST(
             COALESCE((SELECT MAX(created_at) FROM show_watch_status WHERE profile_id = ?), '1970-01-01'),
             COALESCE((SELECT MAX(created_at) FROM movie_watch_status WHERE profile_id = ?), '1970-01-01')
@@ -39,7 +39,7 @@ export async function getContentDiscoveryStats(profileId: number): Promise<Conte
       const moviesPerMonth = additionData.movies_added_30_days * (30 / 30);
 
       // Get watch completion data for last 30 days
-      const [completionRows] = await connection.query<WatchCompletionDataRow[]>(
+      const [completionRows] = await connection.execute<WatchCompletionDataRow[]>(
         `
         SELECT 
           (SELECT COUNT(DISTINCT sws.show_id) 

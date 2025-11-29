@@ -3,14 +3,14 @@ import { getBingeWatchingStats } from '@db/statistics/bingeRepository';
 import { RowDataPacket } from 'mysql2/promise';
 
 describe('bingeRepository', () => {
-  let mockConnection: any;
+  let mockPool: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Setup all database mocks using the helper
     const mocks = setupDatabaseTest();
-    mockConnection = mocks.mockConnection;
+    mockPool = mocks.mockPool;
   });
 
   afterEach(() => {
@@ -19,7 +19,7 @@ describe('bingeRepository', () => {
 
   describe('getBingeWatchingStats', () => {
     it('should return empty object when no data', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -34,7 +34,6 @@ describe('bingeRepository', () => {
         topBingedShows: [],
       };
       expect(result).toEqual(expectedResult);
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should detect a single binge session with 3 episodes', async () => {
@@ -60,7 +59,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -97,7 +96,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -134,7 +133,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -191,7 +190,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -250,7 +249,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -339,7 +338,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -391,7 +390,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -473,7 +472,7 @@ describe('bingeRepository', () => {
         });
       }
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -573,7 +572,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -607,7 +606,7 @@ describe('bingeRepository', () => {
         },
       ] as RowDataPacket[];
 
-      mockConnection.query.mockResolvedValueOnce([mockEpisodes]);
+      mockPool.execute.mockResolvedValueOnce([mockEpisodes]);
 
       const result = await getBingeWatchingStats(123);
 
@@ -616,21 +615,19 @@ describe('bingeRepository', () => {
       expect(result.averageEpisodesPerBinge).toBe(3);
     });
 
-    it('should release connection on error', async () => {
+    it('should handle error', async () => {
       const mockError = new Error('Database error');
-      mockConnection.query.mockRejectedValueOnce(mockError);
+      mockPool.execute.mockRejectedValueOnce(mockError);
 
       await expect(getBingeWatchingStats(123)).rejects.toThrow('Database error');
-
-      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
     it('should pass correct profileId to query', async () => {
-      mockConnection.query.mockResolvedValueOnce([[]]);
+      mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getBingeWatchingStats(456);
 
-      expect(mockConnection.query).toHaveBeenCalledWith(expect.any(String), [456]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456]);
     });
   });
 });

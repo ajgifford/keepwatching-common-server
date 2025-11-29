@@ -1,6 +1,7 @@
 import { getRedisConfig, getStatsStoreType } from '../config/config';
+import { requestContext } from '../context/requestContext';
 import { appLogger } from '../logger/logger';
-import { StatsStore } from '../types/statsStore';
+import { QueryExecutionMetadata, StatsStore } from '../types/statsStore';
 import { InMemoryStatsStore } from './stores/InMemoryStatsStore';
 import { RedisStatsStore } from './stores/RedisStatsStore';
 import { DBQueryCallHistory, DBQueryStats } from '@ajgifford/keepwatching-types';
@@ -58,14 +59,27 @@ export class DbMonitor {
     DbMonitor.instance = null;
   }
 
-  async executeWithTiming<T>(queryName: string, queryFn: () => Promise<T>, warnThresholdMs: number = 1000): Promise<T> {
+  async executeWithTiming<T>(
+    queryName: string,
+    queryFn: () => Promise<T>,
+    warnThresholdMs: number = 1000,
+    metadata?: QueryExecutionMetadata,
+  ): Promise<T> {
     const startTime = performance.now();
+
+    const ctx = requestContext.getStore();
+    const mergedMetadata: QueryExecutionMetadata = {
+      ...metadata,
+      accountId: metadata?.accountId ?? ctx?.accountId,
+      profileId: metadata?.profileId ?? ctx?.profileId,
+      endpoint: metadata?.endpoint ?? ctx?.endpoint,
+    };
 
     try {
       const result = await queryFn();
       const executionTime = performance.now() - startTime;
 
-      await this.store.recordQuery(queryName, executionTime, true);
+      await this.store.recordQuery(queryName, executionTime, true, undefined, mergedMetadata);
 
       if (executionTime > warnThresholdMs) {
         appLogger.warn(`Slow query detected: ${queryName} took ${executionTime}ms`);
@@ -78,7 +92,7 @@ export class DbMonitor {
       appLogger.error(`Query failed: ${queryName} after ${executionTime}ms`, error);
 
       // Record the failed query with error information
-      await this.store.recordQuery(queryName, executionTime, false, errorMessage);
+      await this.store.recordQuery(queryName, executionTime, false, errorMessage, mergedMetadata);
 
       throw error;
     }
@@ -90,6 +104,10 @@ export class DbMonitor {
 
   async getQueryHistory(queryName: string, limit?: number): Promise<DBQueryCallHistory[]> {
     return await this.store.getQueryHistory(queryName, limit);
+  }
+
+  async getAllQueryNames(): Promise<string[]> {
+    return await this.store.getAllQueryNames();
   }
 
   async logStats(): Promise<void> {
