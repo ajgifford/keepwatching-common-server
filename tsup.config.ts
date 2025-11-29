@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
     schema: 'src/schema.ts',
     config: 'src/config.ts',
+    context: 'src/context.ts',
     services: 'src/services.ts',
     utils: 'src/utils.ts',
     logger: 'src/logger.ts',
@@ -16,7 +17,7 @@ export default defineConfig({
   clean: true,
   dts: true,
   sourcemap: false,
-  splitting: false,
+  splitting: true,
   bundle: true,
   external: [
     '@ajgifford/keepwatching-types',

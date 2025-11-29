@@ -13,6 +13,7 @@ export default {
   moduleNameMapper: {
     '^@config/(.*)$': '<rootDir>/src/config/$1',
     '^@constants/(.*)$': '<rootDir>/src/constants/$1',
+    '^@context/(.*)$': '<rootDir>/src/context/$1',
     '^@db/(.*)$': '<rootDir>/src/db/$1',
     '^@logger/(.*)$': '<rootDir>/src/logger/$1',
     '^@middleware/(.*)$': '<rootDir>/src/middleware/$1',
@@ -60,6 +61,7 @@ export default {
   collectCoverageFrom: ['src/**/*.ts', '!src/index.ts', '!src/testing/**/*', '!dist/**', '!tests/**'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
+  coverageProvider: 'v8',
 
   // Mock settings
   clearMocks: true,

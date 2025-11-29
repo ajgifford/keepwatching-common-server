@@ -4,6 +4,7 @@
     "paths": {
       "@config/*": ["src/config/*"],
       "@constants/*": ["src/constants/*"],
+      "@context/*": ["src/context/*"],
       "@db/*": ["src/db/*"],
       "@logger/*": ["src/logger/*"],
       "@middleware/*": ["src/middleware/*"],

@@ -16,6 +16,7 @@
     "paths": {
       "@config/*": ["src/config/*"],
       "@constants/*": ["src/constants/*"],
+      "@context/*": ["src/context/*"],
       "@db/*": ["src/db/*"],
       "@logger/*": ["src/logger/*"],
       "@middleware/*": ["src/middleware/*"],
@@ -24,13 +25,6 @@
       "@utils/*": ["src/utils/*"]
     }
   },
-  "include": [
-    "src/**/*",
-    "src/services.ts",
-    "src/utils.ts",
-    "src/logger.ts",
-    "src/schema.ts",
-    "src/migrateWatchStatus.ts"
-  ],
+  "include": ["src/**/*", "src/services.ts", "src/utils.ts", "src/logger.ts", "src/schema.ts", "src/context.ts"],
   "exclude": ["node_modules", "tests", "dist"]
 }
