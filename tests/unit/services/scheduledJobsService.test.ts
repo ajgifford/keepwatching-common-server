@@ -95,7 +95,7 @@ describe('scheduledJobsService', () => {
     (config.getMoviesUpdateSchedule as jest.Mock).mockReturnValue('0 1 7,14,21,28 * *');
     (config.getPersonUpdateSchedule as jest.Mock).mockReturnValue('0 3 * * *');
     (config.getEmailSchedule as jest.Mock).mockReturnValue('0 9 * * 0');
-    (config.getPerformanceArchiveSchedule as jest.Mock).mockReturnValue('0 1 * * *');
+    (config.getPerformanceArchiveSchedule as jest.Mock).mockReturnValue('59 23 * * *');
     (config.isEmailEnabled as jest.Mock).mockReturnValue(true);
 
     // Setup content update service mocks
@@ -136,7 +136,7 @@ describe('scheduledJobsService', () => {
       expect(mockCronValidate).toHaveBeenCalledWith('0 1 7,14,21,28 * *');
       expect(mockCronValidate).toHaveBeenCalledWith('0 3 * * *');
       expect(mockCronValidate).toHaveBeenCalledWith('0 9 * * 0');
-      expect(mockCronValidate).toHaveBeenCalledWith('0 1 * * *');
+      expect(mockCronValidate).toHaveBeenCalledWith('59 23 * * *');
     });
 
     it('should throw error if shows update cron expression is invalid', async () => {
@@ -172,7 +172,7 @@ describe('scheduledJobsService', () => {
       expect(mockCronSchedule).toHaveBeenCalledWith('0 1 7,14,21,28 * *', expect.any(Function));
       expect(mockCronSchedule).toHaveBeenCalledWith('0 3 * * *', expect.any(Function));
       expect(mockCronSchedule).toHaveBeenCalledWith('0 9 * * 0', expect.any(Function));
-      expect(mockCronSchedule).toHaveBeenCalledWith('0 1 * * *', expect.any(Function));
+      expect(mockCronSchedule).toHaveBeenCalledWith('59 23 * * *', expect.any(Function));
     });
 
     it('should start all scheduled jobs', async () => {
@@ -534,7 +534,7 @@ describe('scheduledJobsService', () => {
       expect(parser.parse).toHaveBeenCalledWith('0 1 7,14,21,28 * *');
       expect(parser.parse).toHaveBeenCalledWith('0 3 * * *');
       expect(parser.parse).toHaveBeenCalledWith('0 9 * * 0');
-      expect(parser.parse).toHaveBeenCalledWith('0 1 * * *');
+      expect(parser.parse).toHaveBeenCalledWith('59 23 * * *');
 
       expect(status.showsUpdate.nextRunTime).toEqual('2025-04-01T02:00:00.000Z');
     });
@@ -836,7 +836,7 @@ describe('scheduledJobsService', () => {
       expect(getJobSchedule('moviesUpdate')).toBe('0 1 7,14,21,28 * *');
       expect(getJobSchedule('peopleUpdate')).toBe('0 3 * * *');
       expect(getJobSchedule('emailDigest')).toBe('0 9 * * 0');
-      expect(getJobSchedule('performanceArchive')).toBe('0 1 * * *');
+      expect(getJobSchedule('performanceArchive')).toBe('59 23 * * *');
     });
 
     it('should return updated schedule after updateJobSchedule', async () => {

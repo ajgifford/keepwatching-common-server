@@ -32,6 +32,7 @@ describe('performanceArchiveUtil Module', () => {
       getQueryHistory: jest.fn(),
       getAllQueryNames: jest.fn(),
       getStoreInfo: jest.fn(),
+      clearStats: jest.fn(),
     } as any;
 
     (DbMonitor.getInstance as jest.Mock).mockReturnValue(mockDbMonitor);
@@ -143,6 +144,10 @@ describe('performanceArchiveUtil Module', () => {
       expect(cliLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Archive completed'),
       );
+
+      // Verify Redis stats were cleared after successful archive
+      expect(mockDbMonitor.clearStats).toHaveBeenCalledTimes(1);
+      expect(cliLogger.info).toHaveBeenCalledWith('Redis stats cleared after successful archive');
     });
 
     it('should handle empty query history correctly', async () => {
@@ -169,6 +174,9 @@ describe('performanceArchiveUtil Module', () => {
         2, // 2 queries processed
         mockConnection,
       );
+
+      // Verify Redis stats were still cleared even with empty history
+      expect(mockDbMonitor.clearStats).toHaveBeenCalledTimes(1);
     });
 
     it('should calculate percentiles correctly for large dataset', async () => {
@@ -283,6 +291,8 @@ describe('performanceArchiveUtil Module', () => {
       expect(cliLogger.warn).toHaveBeenCalledWith('Cannot archive: Redis client not ready');
       expect(mockDbMonitor.getAllQueryNames).not.toHaveBeenCalled();
       expect(mockTransactionHelper.executeInTransaction).not.toHaveBeenCalled();
+      // Should not clear stats if archive didn't run
+      expect(mockDbMonitor.clearStats).not.toHaveBeenCalled();
     });
 
     it('should continue archiving when Redis is connected', async () => {
@@ -306,6 +316,8 @@ describe('performanceArchiveUtil Module', () => {
 
       expect(cliLogger.warn).not.toHaveBeenCalled();
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
+      // Verify Redis stats were cleared after successful archive
+      expect(mockDbMonitor.clearStats).toHaveBeenCalledTimes(1);
     });
 
     it('should handle errors during archive and log failure', async () => {
@@ -340,6 +352,9 @@ describe('performanceArchiveUtil Module', () => {
 
       // Verify error service was called
       expect(errorService.handleError).toHaveBeenCalledWith(testError, 'archiveDailyPerformance()');
+
+      // Verify Redis stats were NOT cleared after failed archive
+      expect(mockDbMonitor.clearStats).not.toHaveBeenCalled();
     });
 
     it('should handle non-Error exceptions during archive', async () => {

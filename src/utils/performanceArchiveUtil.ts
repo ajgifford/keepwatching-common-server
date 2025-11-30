@@ -106,8 +106,9 @@ async function archiveDetailedMetricsFromMonitor(
 }
 
 /**
- * Main archive method - exports all DbMonitor performance data to MySQL
- * and cleans up old data based on retention policy
+ * Main archive method - exports all DbMonitor performance data to MySQL,
+ * clears Redis stats to prevent duplication, and cleans up old data based on retention policy.
+ * Typically runs at 11:59 PM daily to archive the previous day's data and start fresh.
  */
 export async function archiveDailyPerformance(): Promise<void> {
   const dbMonitor = DbMonitor.getInstance();
@@ -168,6 +169,10 @@ export async function archiveDailyPerformance(): Promise<void> {
           `${detailedMetricsDeleted} detailed metrics deleted, ${dailySummariesDeleted} summaries deleted`,
       );
     });
+
+    // Clear Redis stats after successful archive to prevent duplication and start fresh for new day
+    await dbMonitor.clearStats();
+    cliLogger.info('Redis stats cleared after successful archive');
   } catch (error) {
     await helper.executeInTransaction(async (connection) => {
       // Log failure

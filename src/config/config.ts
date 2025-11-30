@@ -104,8 +104,8 @@ export function getPersonUpdateSchedule() {
 }
 
 export function getPerformanceArchiveSchedule() {
-  // Default: Daily at 11:50 PM (10 minutes before Redis TTL expires at midnight)
-  return process.env.PERFORMANCE_ARCHIVE_SCHEDULE || '50 23 * * *';
+  // Default: Daily at 11:59 PM (archives previous day's data, then clears Redis for new day)
+  return process.env.PERFORMANCE_ARCHIVE_SCHEDULE || '59 23 * * *';
 }
 
 export function getStreamingAPIKey() {
