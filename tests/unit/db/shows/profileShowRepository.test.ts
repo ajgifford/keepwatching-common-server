@@ -437,81 +437,94 @@ describe('profileShowRepository', () => {
 
   describe('getNextUnwatchedEpisodesForProfile', () => {
     it('should return next unwatched episodes for shows the profile is watching', async () => {
-      const mockRecentShows = [
+      const mockRows = [
         {
           show_id: 1,
           show_title: 'Test Show 1',
           poster_image: '/path/to/poster1.jpg',
           last_watched_date: new Date('2023-01-10'),
-          profile_id: 123,
+          episode_id: 101,
+          episode_title: 'Next Episode 1',
+          overview: 'Episode 1 overview',
+          episode_number: 3,
+          season_number: 1,
+          season_id: 1001,
+          still_image: '/path/to/still1.jpg',
+          air_date: '2023-01-15',
+          network: 'Network 1',
+          streaming_services: 'Netflix, Hulu',
+        },
+        {
+          show_id: 1,
+          show_title: 'Test Show 1',
+          poster_image: '/path/to/poster1.jpg',
+          last_watched_date: new Date('2023-01-10'),
+          episode_id: 102,
+          episode_title: 'Next Episode 2',
+          overview: 'Episode 2 overview',
+          episode_number: 4,
+          season_number: 1,
+          season_id: 1001,
+          still_image: '/path/to/still2.jpg',
+          air_date: '2023-01-22',
+          network: 'Network 1',
+          streaming_services: 'Netflix, Hulu',
         },
         {
           show_id: 2,
           show_title: 'Test Show 2',
           poster_image: '/path/to/poster2.jpg',
           last_watched_date: new Date('2023-01-05'),
-          profile_id: 123,
-        },
-      ];
-
-      const mockShow1Episodes = [
-        {
-          episode_id: 101,
-          episode_title: 'Next Episode 1',
-          show_id: 1,
-          show_name: 'Test Show 1',
-          season_id: 1001,
-          episode_number: 3,
-          season_number: 1,
-          episode_rank: 1,
-          profile_id: 123,
-        },
-        {
-          episode_id: 102,
-          episode_title: 'Next Episode 2',
-          show_id: 1,
-          show_name: 'Test Show 1',
-          season_id: 1001,
-          episode_number: 4,
-          season_number: 1,
-          episode_rank: 2,
-          profile_id: 123,
-        },
-      ];
-
-      const mockShow2Episodes = [
-        {
           episode_id: 201,
           episode_title: 'Next Episode for Show 2',
-          show_id: 2,
-          show_name: 'Test Show 2',
-          season_id: 2001,
+          overview: 'Show 2 episode overview',
           episode_number: 5,
           season_number: 2,
-          episode_rank: 1,
-          profile_id: 123,
+          season_id: 2001,
+          still_image: '/path/to/still3.jpg',
+          air_date: '2023-01-08',
+          network: 'Network 2',
+          streaming_services: 'Prime Video',
         },
       ];
 
-      mockExecute.mockResolvedValueOnce([mockRecentShows]);
-      mockExecute.mockResolvedValueOnce([mockShow1Episodes]);
-      mockExecute.mockResolvedValueOnce([mockShow2Episodes]);
+      mockExecute.mockResolvedValueOnce([mockRows]);
 
       const result = await showsDb.getNextUnwatchedEpisodesForProfile(123);
 
-      expect(mockExecute).toHaveBeenCalledTimes(3);
-      expect(mockExecute).toHaveBeenNthCalledWith(
-        1,
-        expect.stringContaining('SELECT * FROM profile_recent_shows_with_unwatched WHERE profile_id'),
-        [123],
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('WITH recent_shows AS'),
+        [123, 123, 123, 123],
       );
 
       expect(result).toHaveLength(2);
+
+      // Verify first show (most recently watched)
       expect(result[0].showId).toBe(1);
       expect(result[0].showTitle).toBe('Test Show 1');
+      expect(result[0].posterImage).toBe('/path/to/poster1.jpg');
+      expect(result[0].lastWatched).toBe(new Date('2023-01-10').toISOString());
       expect(result[0].episodes).toHaveLength(2);
+
+      // Verify first show's episodes
+      expect(result[0].episodes[0].episodeId).toBe(101);
+      expect(result[0].episodes[0].episodeTitle).toBe('Next Episode 1');
+      expect(result[0].episodes[0].overview).toBe('Episode 1 overview');
+      expect(result[0].episodes[0].episodeNumber).toBe(3);
+      expect(result[0].episodes[0].seasonNumber).toBe(1);
+      expect(result[0].episodes[0].seasonId).toBe(1001);
+      expect(result[0].episodes[0].episodeStillImage).toBe('/path/to/still1.jpg');
+      expect(result[0].episodes[0].airDate).toBe('2023-01-15');
+      expect(result[0].episodes[0].network).toBe('Network 1');
+      expect(result[0].episodes[0].streamingServices).toBe('Netflix, Hulu');
+      expect(result[0].episodes[0].profileId).toBe(123);
+
+      // Verify second show
       expect(result[1].showId).toBe(2);
+      expect(result[1].showTitle).toBe('Test Show 2');
       expect(result[1].episodes).toHaveLength(1);
+      expect(result[1].episodes[0].episodeId).toBe(201);
     });
 
     it('should return empty array when no shows are being watched', async () => {
@@ -521,6 +534,101 @@ describe('profileShowRepository', () => {
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(0);
+    });
+
+    it('should limit episodes to 2 per show', async () => {
+      const mockRows = [
+        {
+          show_id: 1,
+          show_title: 'Test Show 1',
+          poster_image: '/path/to/poster1.jpg',
+          last_watched_date: new Date('2023-01-10'),
+          episode_id: 101,
+          episode_title: 'Episode 1',
+          overview: 'Overview 1',
+          episode_number: 1,
+          season_number: 1,
+          season_id: 1001,
+          still_image: '/still1.jpg',
+          air_date: '2023-01-01',
+          network: 'Network 1',
+          streaming_services: 'Netflix',
+        },
+        {
+          show_id: 1,
+          show_title: 'Test Show 1',
+          poster_image: '/path/to/poster1.jpg',
+          last_watched_date: new Date('2023-01-10'),
+          episode_id: 102,
+          episode_title: 'Episode 2',
+          overview: 'Overview 2',
+          episode_number: 2,
+          season_number: 1,
+          season_id: 1001,
+          still_image: '/still2.jpg',
+          air_date: '2023-01-08',
+          network: 'Network 1',
+          streaming_services: 'Netflix',
+        },
+        {
+          show_id: 1,
+          show_title: 'Test Show 1',
+          poster_image: '/path/to/poster1.jpg',
+          last_watched_date: new Date('2023-01-10'),
+          episode_id: 103,
+          episode_title: 'Episode 3',
+          overview: 'Overview 3',
+          episode_number: 3,
+          season_number: 1,
+          season_id: 1001,
+          still_image: '/still3.jpg',
+          air_date: '2023-01-15',
+          network: 'Network 1',
+          streaming_services: 'Netflix',
+        },
+      ];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await showsDb.getNextUnwatchedEpisodesForProfile(123);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].showId).toBe(1);
+      expect(result[0].episodes).toHaveLength(2);
+      expect(result[0].episodes[0].episodeId).toBe(101);
+      expect(result[0].episodes[1].episodeId).toBe(102);
+    });
+
+    it('should handle null values for optional fields', async () => {
+      const mockRows = [
+        {
+          show_id: 1,
+          show_title: 'Test Show',
+          poster_image: null,
+          last_watched_date: new Date('2023-01-10'),
+          episode_id: 101,
+          episode_title: 'Episode',
+          overview: null,
+          episode_number: 1,
+          season_number: 1,
+          season_id: 1001,
+          still_image: null,
+          air_date: '2023-01-01',
+          network: null,
+          streaming_services: null,
+        },
+      ];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await showsDb.getNextUnwatchedEpisodesForProfile(123);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].posterImage).toBe('');
+      expect(result[0].episodes[0].overview).toBe('');
+      expect(result[0].episodes[0].episodeStillImage).toBe('');
+      expect(result[0].episodes[0].network).toBe('');
+      expect(result[0].episodes[0].streamingServices).toBe('');
     });
 
     it('should handle database error properly', async () => {
