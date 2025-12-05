@@ -10,12 +10,13 @@ export {
 
 export {
   getAllShowsForProfile,
+  getNextUnwatchedEpisodesForProfile,
+  getProfilesForShow,
   getShowForProfile,
   getShowForProfileByChild,
   getShowWithSeasonsForProfile,
   getShowWithSeasonsForProfileByChild,
-  getNextUnwatchedEpisodesForProfile,
-  getProfilesForShow,
+  getWatchProgressForProfile,
 } from './shows/profileShowRepository';
 
 export { saveFavorite, removeFavorite } from './shows/showWatchStatusRepository';

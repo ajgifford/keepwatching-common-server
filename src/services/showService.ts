@@ -40,7 +40,6 @@ import {
   EpisodesForProfile,
   KeepWatchingShow,
   ProfileAccountMapping,
-  ProfileSeason,
   ProfileShow,
   ProfileShowWithSeasons,
   ProfileWatchProgressResponse,
@@ -848,42 +847,17 @@ export class ShowService {
       return await this.cache.getOrSet(
         PROFILE_KEYS.watchProgress(profileId),
         async () => {
-          const shows = await showsDb.getAllShowsForProfile(profileId);
+          const showsProgress = await showsDb.getWatchProgressForProfile(profileId);
 
           let totalEpisodes = 0;
           let watchedEpisodes = 0;
           let unairedEpisodes = 0;
 
-          const showsProgress = await Promise.all(
-            shows.map(async (show) => {
-              const seasons = await seasonsDb.getSeasonsForShow(profileId, show.id);
-
-              const showEpisodeCount = seasons.reduce((sum, season: ProfileSeason) => sum + season.episodes.length, 0);
-              const showWatchedCount = seasons.reduce((sum, season: ProfileSeason) => {
-                return sum + season.episodes.filter((ep) => ep.watchStatus === WatchStatus.WATCHED).length;
-              }, 0);
-              const showUnairedCount = seasons.reduce((sum, season: ProfileSeason) => {
-                return sum + season.episodes.filter((ep) => ep.watchStatus === WatchStatus.UNAIRED).length;
-              }, 0);
-
-              totalEpisodes += showEpisodeCount;
-              watchedEpisodes += showWatchedCount;
-              unairedEpisodes += showUnairedCount;
-
-              return {
-                showId: show.id,
-                title: show.title,
-                status: show.watchStatus,
-                totalEpisodes: showEpisodeCount,
-                watchedEpisodes: showWatchedCount,
-                unairedEpisodes: showUnairedCount,
-                percentComplete:
-                  showEpisodeCount > 0
-                    ? Math.round((showWatchedCount / (showEpisodeCount - showUnairedCount)) * 100)
-                    : 0,
-              };
-            }),
-          );
+          for (const show of showsProgress) {
+            totalEpisodes += show.totalEpisodes;
+            watchedEpisodes += show.watchedEpisodes;
+            unairedEpisodes += show.unairedEpisodes;
+          }
 
           return {
             totalEpisodes,

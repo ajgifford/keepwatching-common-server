@@ -1,6 +1,5 @@
 import { mockProfileShows } from './helpers/fixtures';
 import { createMockCache, setupMocks } from './helpers/mocks';
-import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
@@ -89,43 +88,24 @@ describe('ShowService - Statistics', () => {
   });
 
   describe('getProfileWatchProgress', () => {
-    const mockShows = [
-      { id: 1, title: 'Show 1', watchStatus: 'WATCHED' },
-      { id: 2, title: 'Show 2', watchStatus: 'WATCHING' },
-    ];
-
-    const mockSeasons1 = [
+    const mockShowsProgress = [
       {
-        id: 101,
         showId: 1,
-        name: 'Season 1',
-        episodes: [
-          { id: 1001, watchStatus: 'WATCHED' },
-          { id: 1002, watchStatus: 'WATCHED' },
-        ],
+        title: 'Show 1',
+        status: 'WATCHED',
+        totalEpisodes: 4,
+        watchedEpisodes: 4,
+        unairedEpisodes: 0,
+        percentComplete: 100,
       },
       {
-        season_id: 102,
-        show_id: 1,
-        name: 'Season 2',
-        episodes: [
-          { id: 1003, watchStatus: 'WATCHED' },
-          { id: 1004, watchStatus: 'WATCHED' },
-        ],
-      },
-    ];
-
-    const mockSeasons2 = [
-      {
-        id: 201,
         showId: 2,
-        name: 'Season 1',
-        episodes: [
-          { id: 2001, watchStatus: 'WATCHED' },
-          { id: 2002, watchStatus: 'WATCHED' },
-          { id: 2003, watchStatus: 'NOT_WATCHED' },
-          { id: 2004, watchStatus: 'NOT_WATCHED' },
-        ],
+        title: 'Show 2',
+        status: 'WATCHING',
+        totalEpisodes: 4,
+        watchedEpisodes: 2,
+        unairedEpisodes: 0,
+        percentComplete: 50,
       },
     ];
 
@@ -163,17 +143,15 @@ describe('ShowService - Statistics', () => {
 
     it('should calculate watch progress when not in cache', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue(mockShows);
-      (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValueOnce(mockSeasons1).mockResolvedValueOnce(mockSeasons2);
+      (showsDb.getWatchProgressForProfile as jest.Mock).mockResolvedValue(mockShowsProgress);
 
       const result = await service.getProfileWatchProgress(123);
 
-      expect(showsDb.getAllShowsForProfile).toHaveBeenCalledWith(123);
-      expect(seasonsDb.getSeasonsForShow).toHaveBeenCalledWith(123, 1);
-      expect(seasonsDb.getSeasonsForShow).toHaveBeenCalledWith(123, 2);
+      expect(showsDb.getWatchProgressForProfile).toHaveBeenCalledWith(123);
 
       expect(result).toHaveProperty('totalEpisodes', 8);
       expect(result).toHaveProperty('watchedEpisodes', 6);
+      expect(result).toHaveProperty('unairedEpisodes', 0);
       expect(result).toHaveProperty('overallProgress', 75); // 6/8 * 100 = 75
       expect(result).toHaveProperty('showsProgress');
       expect(result.showsProgress).toHaveLength(2);
@@ -181,41 +159,53 @@ describe('ShowService - Statistics', () => {
       expect(result.showsProgress[0]).toHaveProperty('showId', 1);
       expect(result.showsProgress[0]).toHaveProperty('totalEpisodes', 4);
       expect(result.showsProgress[0]).toHaveProperty('watchedEpisodes', 4);
+      expect(result.showsProgress[0]).toHaveProperty('unairedEpisodes', 0);
       expect(result.showsProgress[0]).toHaveProperty('percentComplete', 100);
 
       expect(result.showsProgress[1]).toHaveProperty('showId', 2);
       expect(result.showsProgress[1]).toHaveProperty('totalEpisodes', 4);
       expect(result.showsProgress[1]).toHaveProperty('watchedEpisodes', 2);
+      expect(result.showsProgress[1]).toHaveProperty('unairedEpisodes', 0);
       expect(result.showsProgress[1]).toHaveProperty('percentComplete', 50);
     });
 
     it('should handle shows with no episodes', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue([
-        { id: 3, title: 'Empty Show', watchStatus: 'NOT_WATCHED' },
+      (showsDb.getWatchProgressForProfile as jest.Mock).mockResolvedValue([
+        {
+          showId: 3,
+          title: 'Empty Show',
+          status: 'NOT_WATCHED',
+          totalEpisodes: 0,
+          watchedEpisodes: 0,
+          unairedEpisodes: 0,
+          percentComplete: 0,
+        },
       ]);
-      (seasonsDb.getSeasonsForShow as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getProfileWatchProgress(123);
 
       expect(result).toHaveProperty('totalEpisodes', 0);
       expect(result).toHaveProperty('watchedEpisodes', 0);
+      expect(result).toHaveProperty('unairedEpisodes', 0);
       expect(result).toHaveProperty('overallProgress', 0);
       expect(result.showsProgress).toHaveLength(1);
       expect(result.showsProgress[0]).toHaveProperty('showId', 3);
       expect(result.showsProgress[0]).toHaveProperty('totalEpisodes', 0);
       expect(result.showsProgress[0]).toHaveProperty('watchedEpisodes', 0);
+      expect(result.showsProgress[0]).toHaveProperty('unairedEpisodes', 0);
       expect(result.showsProgress[0]).toHaveProperty('percentComplete', 0);
     });
 
     it('should handle no shows in profile', async () => {
       mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockResolvedValue([]);
+      (showsDb.getWatchProgressForProfile as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getProfileWatchProgress(123);
 
       expect(result).toHaveProperty('totalEpisodes', 0);
       expect(result).toHaveProperty('watchedEpisodes', 0);
+      expect(result).toHaveProperty('unairedEpisodes', 0);
       expect(result).toHaveProperty('overallProgress', 0);
       expect(result.showsProgress).toHaveLength(0);
     });
@@ -223,7 +213,7 @@ describe('ShowService - Statistics', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockCache.getOrSet.mockImplementation(async (key, fn) => fn());
-      (showsDb.getAllShowsForProfile as jest.Mock).mockRejectedValue(error);
+      (showsDb.getWatchProgressForProfile as jest.Mock).mockRejectedValue(error);
 
       await expect(service.getProfileWatchProgress(123)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getWatchProgress(123)');

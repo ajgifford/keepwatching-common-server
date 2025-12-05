@@ -1,6 +1,12 @@
 import { ProfileEpisodeRow, transformProfileEpisode } from '../../types/episodeTypes';
 import { ProfileSeasonRow, transformProfileSeason } from '../../types/seasonTypes';
-import { ProfileForShowRow, ProfileShowRow, transformProfileShow } from '../../types/showTypes';
+import {
+  ProfileForShowRow,
+  ProfileShowRow,
+  ProfileShowWatchProgressRow,
+  transformProfileShow,
+  transformProfileShowWatchProgress,
+} from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
@@ -412,5 +418,24 @@ export async function getProfilesForShow(showId: number): Promise<ProfilesForSho
     );
   } catch (error) {
     handleDatabaseError(error, 'getting the profiles that have favorited a show');
+  }
+}
+
+/**
+ * Gets watch progress data for all shows in a profile using an optimized database view
+ *
+ * @param profileId - ID of the profile to get watch progress for
+ * @returns Array of show watch progress data with episode counts and percentages
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getWatchProgressForProfile(profileId: number) {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getWatchProgressForProfile', async () => {
+      const query = 'SELECT * FROM profile_show_watch_progress WHERE profile_id = ? ORDER BY show_id';
+      const [rows] = await getDbPool().execute<ProfileShowWatchProgressRow[]>(query, [profileId]);
+      return rows.map(transformProfileShowWatchProgress);
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'getting watch progress for a profile');
   }
 }

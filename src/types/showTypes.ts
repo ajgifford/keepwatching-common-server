@@ -115,3 +115,32 @@ export function transformAdminShow(show: AdminShowRow): AdminShow {
     lastUpdated: show.updated_at.toISOString(),
   };
 }
+
+export interface ProfileShowWatchProgressRow extends RowDataPacket {
+  profile_id: number;
+  show_id: number;
+  title: string;
+  watch_status: WatchStatusType;
+  total_episodes: number;
+  watched_episodes: number;
+  unaired_episodes: number;
+}
+
+export function transformProfileShowWatchProgress(row: ProfileShowWatchProgressRow) {
+  const totalEpisodes = Number(row.total_episodes) || 0;
+  const watchedEpisodes = Number(row.watched_episodes) || 0;
+  const unairedEpisodes = Number(row.unaired_episodes) || 0;
+  
+  return {
+    showId: row.show_id,
+    title: row.title,
+    status: row.watch_status as WatchStatus,
+    totalEpisodes,
+    watchedEpisodes,
+    unairedEpisodes,
+    percentComplete:
+      totalEpisodes > 0
+        ? Math.round((watchedEpisodes / (totalEpisodes - unairedEpisodes)) * 100)
+        : 0,
+  };
+}
