@@ -3,9 +3,9 @@ import {
   DBQueryCallHistory,
   DBQueryStats,
   DatabaseHealthResponse,
+  MonthlyPerformanceSummary,
   SlowestQuery,
 } from '@ajgifford/keepwatching-types';
-import { MonthlyPerformanceSummary } from '../../../src/types/performanceTypes';
 import { errorService } from '@services/errorService';
 import { HealthService, healthService } from '@services/healthService';
 import { getDbPool } from '@utils/db';
@@ -424,6 +424,25 @@ describe('HealthService', () => {
       expect(performanceArchiveDb.getPerformanceTrends).toHaveBeenCalledWith(queryHash, startDate, endDate);
     });
 
+    it('should use cache for historical performance trends', async () => {
+      const queryHash = 'abc123';
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-07');
+      const mockTrends = [
+        { date: '2025-01-01', avgDuration: 100, maxDuration: 200, callCount: 50 },
+      ];
+
+      (performanceArchiveDb.getPerformanceTrends as jest.Mock).mockResolvedValue(mockTrends);
+
+      await healthService.getHistoricalPerformanceTrends(queryHash, startDate, endDate);
+
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith(
+        'performance_trends_abc123_2025-01-01_2025-01-07',
+        expect.any(Function),
+        1800,
+      );
+    });
+
     it('should handle empty trends', async () => {
       const queryHash = 'xyz789';
       const startDate = new Date('2025-01-01');
@@ -473,6 +492,24 @@ describe('HealthService', () => {
 
       expect(result).toEqual(mockQueries);
       expect(performanceArchiveDb.getSlowestQueries).toHaveBeenCalledWith(startDate, endDate, 10);
+    });
+
+    it('should use cache for slowest queries', async () => {
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-07');
+      const mockQueries = [
+        { queryHash: 'hash1', queryName: 'SELECT * FROM large_table', avgDuration: 500, maxDuration: 1000 },
+      ];
+
+      (performanceArchiveDb.getSlowestQueries as jest.Mock).mockResolvedValue(mockQueries);
+
+      await healthService.getHistoricalSlowestQueries(startDate, endDate, 10);
+
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith(
+        'performance_slowest_2025-01-01_2025-01-07_10',
+        expect.any(Function),
+        1800,
+      );
     });
 
     it('should respect custom limit parameter', async () => {
@@ -556,6 +593,31 @@ describe('HealthService', () => {
 
       expect(result).toEqual(mockLogs);
       expect(performanceArchiveDb.getArchiveLogs).toHaveBeenCalledWith(10);
+    });
+
+    it('should use cache for archive logs', async () => {
+      const mockLogs = [
+        {
+          id: 1,
+          archiveDate: new Date('2025-01-07'),
+          startedAt: new Date('2025-01-07T00:00:00Z'),
+          completedAt: new Date('2025-01-07T00:05:00Z'),
+          status: 'completed' as const,
+          metricsArchived: 100,
+          queriesProcessed: 50,
+          errorMessage: null,
+        },
+      ];
+
+      (performanceArchiveDb.getArchiveLogs as jest.Mock).mockResolvedValue(mockLogs);
+
+      await healthService.getArchiveLogs(10);
+
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith(
+        'performance_archive_logs_10',
+        expect.any(Function),
+        900,
+      );
     });
 
     it('should respect custom limit parameter', async () => {
@@ -652,6 +714,25 @@ describe('HealthService', () => {
 
       expect(result).toEqual(mockStats);
       expect(performanceArchiveDb.getArchiveStatistics).toHaveBeenCalledWith(7);
+    });
+
+    it('should use cache for archive statistics', async () => {
+      const mockStats = {
+        totalQueries: 500,
+        totalExecutions: 10000,
+        avgDuration: 125.5,
+        slowestQuery: 'SELECT * FROM large_table',
+        dateRange: {
+          start: new Date('2025-01-01'),
+          end: new Date('2025-01-07'),
+        },
+      };
+
+      (performanceArchiveDb.getArchiveStatistics as jest.Mock).mockResolvedValue(mockStats);
+
+      await healthService.getArchiveStatistics(7);
+
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith('performance_archive_stats_7', expect.any(Function), 1800);
     });
 
     it('should respect custom days parameter', async () => {
@@ -781,6 +862,46 @@ describe('HealthService', () => {
       expect(performanceArchiveDb.getArchiveLogs).toHaveBeenCalledWith(5);
     });
 
+    it('should use cache for performance overview', async () => {
+      const mockRealtimeStats = [
+        { query: 'SELECT * FROM shows', count: 100, avgTime: 50, maxTime: 200, totalTime: 5000 },
+      ];
+      const mockHistoricalStats = {
+        totalQueries: 500,
+        totalExecutions: 10000,
+        avgDuration: 125.5,
+        slowestQuery: 'SELECT * FROM large_table',
+        dateRange: {
+          start: new Date('2025-01-01'),
+          end: new Date('2025-01-07'),
+        },
+      };
+      const mockSlowestQueries = [
+        { queryHash: 'hash1', queryName: 'SELECT * FROM large_table', avgDuration: 500, maxDuration: 1000 },
+      ];
+      const mockArchiveLogs = [
+        {
+          id: 1,
+          archiveDate: new Date('2025-01-07'),
+          startedAt: new Date('2025-01-07T00:00:00Z'),
+          completedAt: new Date('2025-01-07T00:05:00Z'),
+          status: 'completed' as const,
+          metricsArchived: 100,
+          queriesProcessed: 50,
+          errorMessage: null,
+        },
+      ];
+
+      (mockDbMonitorInstance.getStats as jest.Mock).mockResolvedValue(mockRealtimeStats);
+      (performanceArchiveDb.getArchiveStatistics as jest.Mock).mockResolvedValue(mockHistoricalStats);
+      (performanceArchiveDb.getSlowestQueries as jest.Mock).mockResolvedValue(mockSlowestQueries);
+      (performanceArchiveDb.getArchiveLogs as jest.Mock).mockResolvedValue(mockArchiveLogs);
+
+      await healthService.getPerformanceOverview(7);
+
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith('performance_overview_7', expect.any(Function), 900);
+    });
+
     it('should respect custom days parameter', async () => {
       const mockRealtimeStats: DBQueryStats[] = [];
       const mockHistoricalStats = {
@@ -890,6 +1011,34 @@ describe('HealthService', () => {
 
       expect(result).toEqual(mockSummary);
       expect(performanceArchiveDb.getMonthlyPerformanceSummary).toHaveBeenCalledWith(12, 10);
+    });
+
+    it('should use cache for monthly performance summary', async () => {
+      const mockSummary = [
+        {
+          year: 2024,
+          month: 1,
+          queryHash: 'abc123',
+          queryTemplate: 'SELECT * FROM shows WHERE id = ?',
+          totalExecutions: 1000,
+          avgDurationInMillis: 50.5,
+          minDurationInMillis: 10,
+          maxDurationInMillis: 150,
+          p50DurationInMillis: 45,
+          p95DurationInMillis: 120,
+          p99DurationInMillis: 140,
+        },
+      ];
+
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockResolvedValue(mockSummary);
+
+      await healthService.getMonthlyPerformanceSummary(12, 10);
+
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith(
+        'performance_monthly_summary_12_10',
+        expect.any(Function),
+        3600,
+      );
     });
 
     it('should respect custom months and limit parameters', async () => {

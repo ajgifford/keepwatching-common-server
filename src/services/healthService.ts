@@ -82,6 +82,7 @@ export class HealthService {
 
   /**
    * Gets historical performance trends for a specific query from archived data
+   * Results are cached for 30 minutes to reduce database load
    * @param queryHash - Hash of the query to get trends for
    * @param startDate - Start date for the range
    * @param endDate - End date for the range
@@ -93,7 +94,20 @@ export class HealthService {
     endDate: Date,
   ): Promise<DailySummary[]> {
     try {
-      return await performanceArchiveDb.getPerformanceTrends(queryHash, startDate, endDate);
+      const cacheKey = PERFORMANCE_KEYS.historicalTrends(
+        queryHash,
+        startDate.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0],
+      );
+      const cache = CacheService.getInstance();
+
+      return await cache.getOrSet(
+        cacheKey,
+        async () => {
+          return await performanceArchiveDb.getPerformanceTrends(queryHash, startDate, endDate);
+        },
+        1800, // Cache for 30 minutes (1800 seconds)
+      );
     } catch (error) {
       throw errorService.handleError(error, `getHistoricalPerformanceTrends(${queryHash}, ${startDate}, ${endDate})`);
     }
@@ -101,6 +115,7 @@ export class HealthService {
 
   /**
    * Gets the slowest queries from archived data for a date range
+   * Results are cached for 30 minutes to reduce database load
    * @param startDate - Start date for the range
    * @param endDate - End date for the range
    * @param limit - Maximum number of results to return (default: 10)
@@ -112,7 +127,20 @@ export class HealthService {
     limit: number = 10,
   ): Promise<SlowestQuery[]> {
     try {
-      return await performanceArchiveDb.getSlowestQueries(startDate, endDate, limit);
+      const cacheKey = PERFORMANCE_KEYS.historicalSlowest(
+        startDate.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0],
+        limit,
+      );
+      const cache = CacheService.getInstance();
+
+      return await cache.getOrSet(
+        cacheKey,
+        async () => {
+          return await performanceArchiveDb.getSlowestQueries(startDate, endDate, limit);
+        },
+        1800, // Cache for 30 minutes (1800 seconds)
+      );
     } catch (error) {
       throw errorService.handleError(error, `getHistoricalSlowestQueries(${startDate}, ${endDate}, ${limit})`);
     }
@@ -120,12 +148,22 @@ export class HealthService {
 
   /**
    * Gets the archive execution logs showing history of daily archiving operations
+   * Results are cached for 15 minutes to reduce database load
    * @param limit - Maximum number of log entries to return (default: 10)
    * @returns Array of archive log entries
    */
   public async getArchiveLogs(limit: number = 10): Promise<ArchiveLogEntry[]> {
     try {
-      return await performanceArchiveDb.getArchiveLogs(limit);
+      const cacheKey = PERFORMANCE_KEYS.archiveLogs(limit);
+      const cache = CacheService.getInstance();
+
+      return await cache.getOrSet(
+        cacheKey,
+        async () => {
+          return await performanceArchiveDb.getArchiveLogs(limit);
+        },
+        900, // Cache for 15 minutes (900 seconds)
+      );
     } catch (error) {
       throw errorService.handleError(error, `getArchiveLogs(${limit})`);
     }
@@ -133,6 +171,7 @@ export class HealthService {
 
   /**
    * Gets aggregate statistics from archived performance data
+   * Results are cached for 30 minutes to reduce database load
    * @param days - Number of days to look back (default: 7, max: 90)
    * @returns Aggregate performance statistics
    */
@@ -146,7 +185,16 @@ export class HealthService {
     try {
       // Enforce maximum lookback period
       const effectiveDays = Math.min(days, 90);
-      return await performanceArchiveDb.getArchiveStatistics(effectiveDays);
+      const cacheKey = PERFORMANCE_KEYS.archiveStatistics(effectiveDays);
+      const cache = CacheService.getInstance();
+
+      return await cache.getOrSet(
+        cacheKey,
+        async () => {
+          return await performanceArchiveDb.getArchiveStatistics(effectiveDays);
+        },
+        1800, // Cache for 30 minutes (1800 seconds)
+      );
     } catch (error) {
       throw errorService.handleError(error, `getArchiveStatistics(${days})`);
     }
@@ -154,28 +202,41 @@ export class HealthService {
 
   /**
    * Gets comprehensive performance overview combining real-time and historical data
+   * Results are cached for 15 minutes to reduce database load
    * @param days - Number of days to look back for historical data (default: 7)
    * @returns Combined performance overview
    */
   public async getPerformanceOverview(days: number = 7): Promise<QueryPerformanceOverview> {
     try {
-      const [realtimeStats, historicalStats, slowestQueries, archiveLogs] = await Promise.all([
-        this.getQueryStats(10),
-        performanceArchiveDb.getArchiveStatistics(days),
-        performanceArchiveDb.getSlowestQueries(new Date(Date.now() - days * 24 * 60 * 60 * 1000), new Date(), 10),
-        performanceArchiveDb.getArchiveLogs(5),
-      ]);
+      const cacheKey = PERFORMANCE_KEYS.performanceOverview(days);
+      const cache = CacheService.getInstance();
 
-      return {
-        realtime: {
-          queryStats: realtimeStats,
+      return await cache.getOrSet(
+        cacheKey,
+        async () => {
+          const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+          const endDate = new Date();
+
+          const [realtimeStats, historicalStats, slowestQueries, archiveLogs] = await Promise.all([
+            this.getQueryStats(10),
+            this.getArchiveStatistics(days),
+            this.getHistoricalSlowestQueries(startDate, endDate, 10),
+            this.getArchiveLogs(5),
+          ]);
+
+          return {
+            realtime: {
+              queryStats: realtimeStats,
+            },
+            historical: {
+              statistics: historicalStats,
+              slowestQueries,
+              archiveLogs,
+            },
+          };
         },
-        historical: {
-          statistics: historicalStats,
-          slowestQueries,
-          archiveLogs,
-        },
-      };
+        900, // Cache for 15 minutes (900 seconds)
+      );
     } catch (error) {
       throw errorService.handleError(error, `getPerformanceOverview(${days})`);
     }

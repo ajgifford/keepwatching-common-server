@@ -337,6 +337,23 @@ export const PERFORMANCE_KEYS = {
   /** Gets the cache key for monthly performance summary */
   monthlySummary: (months: number, limit: number) =>
     `${CACHE_KEY_PATTERNS.PERFORMANCE}_monthly_summary_${months}_${limit}`,
+
+  /** Gets the cache key for historical performance trends */
+  historicalTrends: (queryHash: string, startDate: string, endDate: string) =>
+    `${CACHE_KEY_PATTERNS.PERFORMANCE}_trends_${queryHash}_${startDate}_${endDate}`,
+
+  /** Gets the cache key for historical slowest queries */
+  historicalSlowest: (startDate: string, endDate: string, limit: number) =>
+    `${CACHE_KEY_PATTERNS.PERFORMANCE}_slowest_${startDate}_${endDate}_${limit}`,
+
+  /** Gets the cache key for archive logs */
+  archiveLogs: (limit: number) => `${CACHE_KEY_PATTERNS.PERFORMANCE}_archive_logs_${limit}`,
+
+  /** Gets the cache key for archive statistics */
+  archiveStatistics: (days: number) => `${CACHE_KEY_PATTERNS.PERFORMANCE}_archive_stats_${days}`,
+
+  /** Gets the cache key for performance overview */
+  performanceOverview: (days: number) => `${CACHE_KEY_PATTERNS.PERFORMANCE}_overview_${days}`,
 };
 
 // Base patterns for invalidation
