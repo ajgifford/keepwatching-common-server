@@ -1,4 +1,4 @@
-import { ArchiveLogEntry, DailySummary, SlowestQuery } from '@ajgifford/keepwatching-types';
+import { ArchiveLogEntry, DailySummary, MonthlyPerformanceSummary, SlowestQuery } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2/promise';
 
 /**
@@ -64,6 +64,23 @@ export interface SlowestQueryRow extends RowDataPacket {
   max_duration_ms: number;
 }
 
+/**
+ * Interface for monthly performance summary row
+ */
+export interface MonthlyPerformanceSummaryRow extends RowDataPacket {
+  year: number;
+  month: number;
+  query_hash: string;
+  query_template: string;
+  total_executions: number;
+  avg_duration_ms: number;
+  min_duration_ms: number;
+  max_duration_ms: number;
+  p50_duration_ms: number | null;
+  p95_duration_ms: number | null;
+  p99_duration_ms: number | null;
+}
+
 export function translateArchiveLogEntryRow(row: ArchiveLogEntryRow): ArchiveLogEntry {
   return {
     id: row.id,
@@ -95,5 +112,21 @@ export function translateSlowestQueryRow(queryRow: SlowestQueryRow): SlowestQuer
     totalExecutions: queryRow.total_executions,
     avgDurationInMillis: queryRow.avg_duration_ms,
     maxDurationInMillis: queryRow.max_duration_ms,
+  };
+}
+
+export function translateMonthlyPerformanceSummaryRow(row: MonthlyPerformanceSummaryRow): MonthlyPerformanceSummary {
+  return {
+    year: row.year,
+    month: row.month,
+    queryHash: row.query_hash,
+    queryTemplate: row.query_template,
+    totalExecutions: row.total_executions,
+    avgDurationInMillis: row.avg_duration_ms,
+    minDurationInMillis: row.min_duration_ms,
+    maxDurationInMillis: row.max_duration_ms,
+    p50DurationInMillis: row.p50_duration_ms,
+    p95DurationInMillis: row.p95_duration_ms,
+    p99DurationInMillis: row.p99_duration_ms,
   };
 }

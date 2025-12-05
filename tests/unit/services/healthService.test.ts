@@ -5,6 +5,7 @@ import {
   DatabaseHealthResponse,
   SlowestQuery,
 } from '@ajgifford/keepwatching-types';
+import { MonthlyPerformanceSummary } from '../../../src/types/performanceTypes';
 import { errorService } from '@services/errorService';
 import { HealthService, healthService } from '@services/healthService';
 import { getDbPool } from '@utils/db';
@@ -18,6 +19,10 @@ const mockDbMonitorInstance = {
   getQueryHistory: jest.fn().mockResolvedValue([]),
 };
 
+const mockCacheInstance = {
+  getOrSet: jest.fn((key: string, fn: () => any) => fn()),
+};
+
 jest.mock('@utils/db');
 jest.mock('@services/errorService');
 jest.mock('@db/performanceArchiveDb');
@@ -25,6 +30,11 @@ jest.mock('@utils/performanceArchiveUtil');
 jest.mock('@utils/dbMonitoring', () => ({
   DbMonitor: {
     getInstance: () => mockDbMonitorInstance,
+  },
+}));
+jest.mock('@services/cacheService', () => ({
+  CacheService: {
+    getInstance: () => mockCacheInstance,
   },
 }));
 
@@ -58,6 +68,9 @@ describe('HealthService', () => {
     mockDbMonitorInstance.executeWithTiming.mockClear();
     mockDbMonitorInstance.executeWithTiming.mockImplementation((name: string, fn: () => any) => fn());
     mockDbMonitorInstance.getStats.mockResolvedValue([]);
+
+    mockCacheInstance.getOrSet.mockClear();
+    mockCacheInstance.getOrSet.mockImplementation((key: string, fn: () => any) => fn());
   });
 
   describe('getDatabaseHealth', () => {
@@ -837,6 +850,139 @@ describe('HealthService', () => {
       expect(Math.abs(startDate.getTime() - expectedStartTime)).toBeLessThan(1000);
       expect(Math.abs(endDate.getTime() - now)).toBeLessThan(1000);
       expect(callArgs[2]).toBe(10);
+    });
+  });
+
+  describe('getMonthlyPerformanceSummary', () => {
+    it('should return monthly performance summary with default parameters', async () => {
+      const mockSummary = [
+        {
+          year: 2024,
+          month: 1,
+          queryHash: 'abc123',
+          queryTemplate: 'SELECT * FROM shows WHERE id = ?',
+          totalExecutions: 1000,
+          avgDurationInMillis: 50.5,
+          minDurationInMillis: 10,
+          maxDurationInMillis: 150,
+          p50DurationInMillis: 45,
+          p95DurationInMillis: 120,
+          p99DurationInMillis: 140,
+        },
+        {
+          year: 2024,
+          month: 1,
+          queryHash: 'def456',
+          queryTemplate: 'SELECT * FROM movies WHERE id = ?',
+          totalExecutions: 800,
+          avgDurationInMillis: 45.2,
+          minDurationInMillis: 8,
+          maxDurationInMillis: 120,
+          p50DurationInMillis: 40,
+          p95DurationInMillis: 100,
+          p99DurationInMillis: 110,
+        },
+      ];
+
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockResolvedValue(mockSummary);
+
+      const result = await healthService.getMonthlyPerformanceSummary();
+
+      expect(result).toEqual(mockSummary);
+      expect(performanceArchiveDb.getMonthlyPerformanceSummary).toHaveBeenCalledWith(12, 10);
+    });
+
+    it('should respect custom months and limit parameters', async () => {
+      const mockSummary = [
+        {
+          year: 2024,
+          month: 1,
+          queryHash: 'abc123',
+          queryTemplate: 'SELECT * FROM shows WHERE id = ?',
+          totalExecutions: 1000,
+          avgDurationInMillis: 50.5,
+          minDurationInMillis: 10,
+          maxDurationInMillis: 150,
+          p50DurationInMillis: 45,
+          p95DurationInMillis: 120,
+          p99DurationInMillis: 140,
+        },
+      ];
+
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockResolvedValue(mockSummary);
+
+      const result = await healthService.getMonthlyPerformanceSummary(6, 5);
+
+      expect(result).toEqual(mockSummary);
+      expect(performanceArchiveDb.getMonthlyPerformanceSummary).toHaveBeenCalledWith(6, 5);
+    });
+
+    it('should enforce maximum months of 24', async () => {
+      const mockSummary: MonthlyPerformanceSummary[] = [];
+
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockResolvedValue(mockSummary);
+
+      await healthService.getMonthlyPerformanceSummary(100, 10);
+
+      expect(performanceArchiveDb.getMonthlyPerformanceSummary).toHaveBeenCalledWith(24, 10);
+    });
+
+    it('should enforce maximum limit of 50', async () => {
+      const mockSummary: MonthlyPerformanceSummary[] = [];
+
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockResolvedValue(mockSummary);
+
+      await healthService.getMonthlyPerformanceSummary(12, 200);
+
+      expect(performanceArchiveDb.getMonthlyPerformanceSummary).toHaveBeenCalledWith(12, 50);
+    });
+
+    it('should handle empty results', async () => {
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockResolvedValue([]);
+
+      const result = await healthService.getMonthlyPerformanceSummary();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle null percentile values', async () => {
+      const mockSummary = [
+        {
+          year: 2024,
+          month: 1,
+          queryHash: 'abc123',
+          queryTemplate: 'SELECT * FROM shows WHERE id = ?',
+          totalExecutions: 1000,
+          avgDurationInMillis: 50.5,
+          minDurationInMillis: 10,
+          maxDurationInMillis: 150,
+          p50DurationInMillis: null,
+          p95DurationInMillis: null,
+          p99DurationInMillis: null,
+        },
+      ];
+
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockResolvedValue(mockSummary);
+
+      const result = await healthService.getMonthlyPerformanceSummary();
+
+      expect(result).toEqual(mockSummary);
+      expect(result[0].p50DurationInMillis).toBeNull();
+      expect(result[0].p95DurationInMillis).toBeNull();
+      expect(result[0].p99DurationInMillis).toBeNull();
+    });
+
+    it('should handle errors from performanceArchiveDb', async () => {
+      const dbError = new Error('Failed to retrieve monthly summary');
+
+      (performanceArchiveDb.getMonthlyPerformanceSummary as jest.Mock).mockRejectedValue(dbError);
+
+      const handledError = new Error('Handled monthly summary error');
+      (errorService.handleError as jest.Mock).mockReturnValue(handledError);
+
+      await expect(healthService.getMonthlyPerformanceSummary(12, 10)).rejects.toThrow('Handled monthly summary error');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, 'getMonthlyPerformanceSummary(12, 10)');
     });
   });
 

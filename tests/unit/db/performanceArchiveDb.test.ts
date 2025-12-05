@@ -798,4 +798,180 @@ describe('performanceArchiveDb Module', () => {
       expect(mockConnection.execute).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('getMonthlyPerformanceSummary()', () => {
+    it('should return monthly performance summary with default parameters', async () => {
+      const mockRows = [
+        {
+          year: 2024,
+          month: 1,
+          query_hash: 'abc123',
+          query_template: 'SELECT * FROM shows WHERE id = ?',
+          total_executions: 1000,
+          avg_duration_ms: 50.5,
+          min_duration_ms: 10,
+          max_duration_ms: 150,
+          p50_duration_ms: 45,
+          p95_duration_ms: 120,
+          p99_duration_ms: 140,
+        },
+        {
+          year: 2024,
+          month: 1,
+          query_hash: 'def456',
+          query_template: 'SELECT * FROM movies WHERE id = ?',
+          total_executions: 800,
+          avg_duration_ms: 45.2,
+          min_duration_ms: 8,
+          max_duration_ms: 120,
+          p50_duration_ms: 40,
+          p95_duration_ms: 100,
+          p99_duration_ms: 110,
+        },
+      ];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await performanceArchiveDb.getMonthlyPerformanceSummary();
+
+      expect(getDbPool).toHaveBeenCalledTimes(1);
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).toContain('SELECT');
+      expect(sql).toContain('FROM query_performance_monthly_summary');
+      expect(sql).toContain('ROW_NUMBER() OVER');
+      expect(sql).toContain('PARTITION BY year, month');
+      expect(sql).toContain('ORDER BY avg_duration_ms DESC');
+      expect(sql).toContain('WHERE (year > ? OR (year = ? AND month >= ?))');
+      expect(sql).toContain('WHERE rn <= ?');
+      expect(params).toHaveLength(4);
+      expect(params[3]).toBe(10); // Default limit
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        year: 2024,
+        month: 1,
+        queryHash: 'abc123',
+        queryTemplate: 'SELECT * FROM shows WHERE id = ?',
+        totalExecutions: 1000,
+        avgDurationInMillis: 50.5,
+        minDurationInMillis: 10,
+        maxDurationInMillis: 150,
+        p50DurationInMillis: 45,
+        p95DurationInMillis: 120,
+        p99DurationInMillis: 140,
+      });
+      expect(result[1]).toEqual({
+        year: 2024,
+        month: 1,
+        queryHash: 'def456',
+        queryTemplate: 'SELECT * FROM movies WHERE id = ?',
+        totalExecutions: 800,
+        avgDurationInMillis: 45.2,
+        minDurationInMillis: 8,
+        maxDurationInMillis: 120,
+        p50DurationInMillis: 40,
+        p95DurationInMillis: 100,
+        p99DurationInMillis: 110,
+      });
+    });
+
+    it('should return monthly performance summary with custom months and limit', async () => {
+      const months = 6;
+      const limit = 5;
+      const mockRows = [
+        {
+          year: 2024,
+          month: 1,
+          query_hash: 'abc123',
+          query_template: 'SELECT * FROM shows WHERE id = ?',
+          total_executions: 1000,
+          avg_duration_ms: 50.5,
+          min_duration_ms: 10,
+          max_duration_ms: 150,
+          p50_duration_ms: 45,
+          p95_duration_ms: 120,
+          p99_duration_ms: 140,
+        },
+      ];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await performanceArchiveDb.getMonthlyPerformanceSummary(months, limit);
+
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).toContain('FROM query_performance_monthly_summary');
+      expect(params).toHaveLength(4);
+      expect(params[3]).toBe(5); // Custom limit
+      expect(result).toHaveLength(1);
+    });
+
+    it('should handle null percentile values', async () => {
+      const mockRows = [
+        {
+          year: 2024,
+          month: 1,
+          query_hash: 'abc123',
+          query_template: 'SELECT * FROM shows WHERE id = ?',
+          total_executions: 1000,
+          avg_duration_ms: 50.5,
+          min_duration_ms: 10,
+          max_duration_ms: 150,
+          p50_duration_ms: null,
+          p95_duration_ms: null,
+          p99_duration_ms: null,
+        },
+      ];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await performanceArchiveDb.getMonthlyPerformanceSummary();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].p50DurationInMillis).toBeNull();
+      expect(result[0].p95DurationInMillis).toBeNull();
+      expect(result[0].p99DurationInMillis).toBeNull();
+    });
+
+    it('should return empty array when no data exists', async () => {
+      const mockRows: any[] = [];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await performanceArchiveDb.getMonthlyPerformanceSummary();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should throw DatabaseError when months is zero', async () => {
+      await expect(performanceArchiveDb.getMonthlyPerformanceSummary(0, 10)).rejects.toThrow(DatabaseError);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('should throw DatabaseError when months is negative', async () => {
+      await expect(performanceArchiveDb.getMonthlyPerformanceSummary(-5, 10)).rejects.toThrow(DatabaseError);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('should throw DatabaseError when limit is zero', async () => {
+      await expect(performanceArchiveDb.getMonthlyPerformanceSummary(12, 0)).rejects.toThrow(DatabaseError);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('should throw DatabaseError when limit is negative', async () => {
+      await expect(performanceArchiveDb.getMonthlyPerformanceSummary(12, -5)).rejects.toThrow(DatabaseError);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('should throw DatabaseError when the query fails', async () => {
+      const dbError = new Error('Query failed');
+
+      mockExecute.mockRejectedValueOnce(dbError);
+
+      await expect(performanceArchiveDb.getMonthlyPerformanceSummary()).rejects.toThrow(DatabaseError);
+
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+    });
+  });
 });

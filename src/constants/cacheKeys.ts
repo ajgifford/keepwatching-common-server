@@ -20,6 +20,7 @@ export const CACHE_KEY_PATTERNS = {
   SIMILAR: 'similar',
   ADMIN: 'admin',
   NOTIFICATION: 'notification',
+  PERFORMANCE: 'performance',
 };
 
 // Account keys
@@ -329,6 +330,13 @@ export const NOTIFICATION_KEYS = {
   /** Gets the cache key for all notifications (admin) */
   all: (page: number, offset: number, limit: number, options: string) =>
     `${CACHE_KEY_PATTERNS.NOTIFICATION}_all_${page}_${offset}_${limit}_${options}`,
+};
+
+// Performance keys
+export const PERFORMANCE_KEYS = {
+  /** Gets the cache key for monthly performance summary */
+  monthlySummary: (months: number, limit: number) =>
+    `${CACHE_KEY_PATTERNS.PERFORMANCE}_monthly_summary_${months}_${limit}`,
 };
 
 // Base patterns for invalidation

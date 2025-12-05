@@ -2,16 +2,18 @@ import { DatabaseError } from '../middleware/errorMiddleware';
 import {
   ArchiveLogEntryRow,
   DailySummaryRow,
+  MonthlyPerformanceSummaryRow,
   RedisPerformanceData,
   SlowestQueryRow,
   translateArchiveLogEntryRow,
   translateDailySummaryRow,
+  translateMonthlyPerformanceSummaryRow,
   translateSlowestQueryRow,
 } from '../types/performanceTypes';
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { ArchiveLogEntry, ArchiveStatistics, DailySummary, SlowestQuery } from '@ajgifford/keepwatching-types';
+import { ArchiveLogEntry, ArchiveStatistics, DailySummary, MonthlyPerformanceSummary, SlowestQuery } from '@ajgifford/keepwatching-types';
 import { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 /**
@@ -417,5 +419,61 @@ export async function aggregateMonthlyPerformance(connection: PoolConnection): P
     return rows[0]?.month_count || 0;
   } catch (error) {
     handleDatabaseError(error, 'aggregating monthly performance');
+  }
+}
+
+/**
+ * Gets monthly performance summary data for long-term trend analysis
+ * @param months - Number of months to retrieve (default: 12, max: 24)
+ * @param limit - Maximum number of queries to return per month (default: 10)
+ * @returns Array of monthly performance summaries ordered by year/month descending
+ */
+export async function getMonthlyPerformanceSummary(
+  months: number = 12,
+  limit: number = 10,
+): Promise<MonthlyPerformanceSummary[]> {
+  if (months <= 0 || limit <= 0) {
+    throw new DatabaseError('Invalid parameters: months and limit must be positive integers', null);
+  }
+
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getMonthlyPerformanceSummary', async () => {
+      // Calculate the cutoff date (N months ago)
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - months);
+      const cutoffYear = cutoffDate.getFullYear();
+      const cutoffMonth = cutoffDate.getMonth() + 1; // JS months are 0-indexed
+
+      const [rows] = await getDbPool().execute<MonthlyPerformanceSummaryRow[]>(
+        `SELECT
+          year,
+          month,
+          query_hash,
+          query_template,
+          total_executions,
+          avg_duration_ms,
+          min_duration_ms,
+          max_duration_ms,
+          p50_duration_ms,
+          p95_duration_ms,
+          p99_duration_ms
+        FROM (
+          SELECT *,
+            ROW_NUMBER() OVER (
+              PARTITION BY year, month
+              ORDER BY avg_duration_ms DESC
+            ) as rn
+          FROM query_performance_monthly_summary
+          WHERE (year > ? OR (year = ? AND month >= ?))
+        ) ranked
+        WHERE rn <= ?
+        ORDER BY year DESC, month DESC, avg_duration_ms DESC`,
+        [cutoffYear, cutoffYear, cutoffMonth, limit],
+      );
+
+      return rows.map(translateMonthlyPerformanceSummaryRow);
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'getting monthly performance summary');
   }
 }

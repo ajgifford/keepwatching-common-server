@@ -1,13 +1,16 @@
 import * as performanceArchiveDb from '../db/performanceArchiveDb';
+import { PERFORMANCE_KEYS } from '../constants/cacheKeys';
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { errorService } from './errorService';
+import { CacheService } from './cacheService';
 import {
   ArchiveLogEntry,
   DBQueryCallHistory,
   DBQueryStats,
   DailySummary,
   DatabaseHealthResponse,
+  MonthlyPerformanceSummary,
   QueryPerformanceOverview,
   SlowestQuery,
 } from '@ajgifford/keepwatching-types';
@@ -175,6 +178,37 @@ export class HealthService {
       };
     } catch (error) {
       throw errorService.handleError(error, `getPerformanceOverview(${days})`);
+    }
+  }
+
+  /**
+   * Gets monthly performance summary data for long-term trend analysis
+   * Results are cached for 1 hour to reduce database load
+   * @param months - Number of months to retrieve (default: 12, max: 24)
+   * @param limit - Maximum number of queries to return per month (default: 10)
+   * @returns Array of monthly performance summaries
+   */
+  public async getMonthlyPerformanceSummary(
+    months: number = 12,
+    limit: number = 10,
+  ): Promise<MonthlyPerformanceSummary[]> {
+    try {
+      // Enforce maximum lookback period
+      const effectiveMonths = Math.min(months, 24);
+      const effectiveLimit = Math.min(limit, 50);
+
+      const cacheKey = PERFORMANCE_KEYS.monthlySummary(effectiveMonths, effectiveLimit);
+      const cache = CacheService.getInstance();
+
+      return await cache.getOrSet(
+        cacheKey,
+        async () => {
+          return await performanceArchiveDb.getMonthlyPerformanceSummary(effectiveMonths, effectiveLimit);
+        },
+        3600, // Cache for 1 hour (3600 seconds)
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getMonthlyPerformanceSummary(${months}, ${limit})`);
     }
   }
 
