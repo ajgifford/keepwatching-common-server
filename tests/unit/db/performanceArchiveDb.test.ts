@@ -765,6 +765,24 @@ describe('performanceArchiveDb Module', () => {
       expect(result).toBe(3);
     });
 
+    it('should include current month in aggregation (no date restriction)', async () => {
+      const insertResult: [ResultSetHeader, any] = [{ affectedRows: 1 } as ResultSetHeader, undefined];
+      const countRows = [{ month_count: 3 } as RowDataPacket];
+
+      mockConnection.execute.mockResolvedValueOnce(insertResult).mockResolvedValueOnce([countRows]);
+
+      await performanceArchiveDb.aggregateMonthlyPerformance(mockConnection);
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      const insertSql = mockConnection.execute.mock.calls[0][0];
+      
+      // Verify the SQL does NOT contain the old WHERE clause that excluded the current month
+      expect(insertSql).not.toContain("WHERE archive_date < DATE_FORMAT(NOW(), '%Y-%m-01')");
+      
+      // Verify it contains the GROUP BY clause (which aggregates all months)
+      expect(insertSql).toContain('GROUP BY YEAR(archive_date), MONTH(archive_date), query_hash, query_template');
+    });
+
     it('should return zero when no months are aggregated', async () => {
       const insertResult: [ResultSetHeader, any] = [{ affectedRows: 0 } as ResultSetHeader, undefined];
       const countRows: RowDataPacket[] = [];

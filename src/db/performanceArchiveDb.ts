@@ -378,7 +378,7 @@ export async function cleanupOldDailySummaries(retentionDays: number, connection
 export async function aggregateMonthlyPerformance(connection: PoolConnection): Promise<number> {
   try {
     // Aggregate daily summaries into monthly summaries
-    // Only aggregate complete months (not the current month)
+    // Includes the current month for real-time aggregation (updates via ON DUPLICATE KEY)
     await connection.execute(
       `INSERT INTO query_performance_monthly_summary
        (year, month, query_hash, query_template, total_executions,
@@ -397,7 +397,6 @@ export async function aggregateMonthlyPerformance(connection: PoolConnection): P
          AVG(p95_duration_ms) as p95_duration_ms,
          AVG(p99_duration_ms) as p99_duration_ms
        FROM query_performance_daily_summary
-       WHERE archive_date < DATE_FORMAT(NOW(), '%Y-%m-01')
        GROUP BY YEAR(archive_date), MONTH(archive_date), query_hash, query_template
        ON DUPLICATE KEY UPDATE
          total_executions = VALUES(total_executions),
