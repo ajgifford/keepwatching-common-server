@@ -281,6 +281,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
           e.season_id,
           e.still_image,
           e.air_date,
+          e.runtime,
           s.network,
           GROUP_CONCAT(DISTINCT ss.name ORDER BY ss.name SEPARATOR ', ') AS streaming_services
         FROM recent_shows rs
@@ -320,6 +321,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
         season_id: number;
         still_image: string | null;
         air_date: string;
+        runtime: number;
         network: string | null;
         streaming_services: string | null;
       }
@@ -354,6 +356,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
             seasonNumber: row.season_number,
             episodeStillImage: row.still_image || '',
             airDate: row.air_date,
+            runtime: row.runtime,
             showId: row.show_id,
             showName: row.show_title,
             seasonId: row.season_id,

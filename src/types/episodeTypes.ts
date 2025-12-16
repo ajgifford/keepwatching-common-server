@@ -81,6 +81,7 @@ export interface NextUnwatchedEpisodesRow extends RowDataPacket {
   season_number: number;
   episode_still_image: string;
   air_date: string;
+  runtime: number;
   show_id: number;
   show_name: string;
   season_id: number;
@@ -100,6 +101,7 @@ export function transformNextUnwatchedEpisodes(episode: NextUnwatchedEpisodesRow
     seasonNumber: episode.season_number,
     episodeStillImage: episode.episode_still_image,
     airDate: episode.air_date,
+    runtime: episode.runtime,
     showId: episode.show_id,
     showName: episode.show_name,
     seasonId: episode.season_id,
@@ -118,6 +120,7 @@ export interface RecentUpcomingEpisodeRow extends RowDataPacket {
   network: string;
   episode_title: string;
   air_date: string;
+  runtime: number;
   episode_number: number;
   season_number: number;
   episode_still_image: string;
@@ -132,6 +135,7 @@ export function transformRecentUpcomingEpisode(episode: RecentUpcomingEpisodeRow
     network: episode.network,
     episodeTitle: episode.episode_title,
     airDate: episode.air_date,
+    runtime: episode.runtime,
     episodeNumber: episode.episode_number,
     seasonNumber: episode.season_number,
     episodeStillImage: episode.episode_still_image,
