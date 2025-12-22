@@ -328,17 +328,32 @@ export class EmailContentService {
       ]);
 
       const weeklyUpcomingEpisodes = upcomingEpisodes.filter((episode) => {
-        const episodeDate = new Date(episode.airDate);
-        const startDate = new Date(weekRange.start);
-        const endDate = new Date(weekRange.end);
+        // Parse dates as local dates to avoid timezone shifts
+        const [eYear, eMonth, eDay] = episode.airDate.split('-').map(Number);
+        const episodeDate = new Date(eYear, eMonth - 1, eDay);
+        
+        const [sYear, sMonth, sDay] = weekRange.start.split('-').map(Number);
+        const startDate = new Date(sYear, sMonth - 1, sDay);
+        
+        const [endYear, endMonth, endDay] = weekRange.end.split('-').map(Number);
+        const endDate = new Date(endYear, endMonth - 1, endDay);
+        
         return episodeDate >= startDate && episodeDate <= endDate;
       });
 
       const weeklyUpcomingMovies = upcomingMovies.filter((movie) => {
         if (!movie.releaseDate) return false;
-        const movieDate = new Date(movie.releaseDate);
-        const startDate = new Date(weekRange.start);
-        const endDate = new Date(weekRange.end);
+        
+        // Parse dates as local dates to avoid timezone shifts
+        const [mYear, mMonth, mDay] = movie.releaseDate.split('-').map(Number);
+        const movieDate = new Date(mYear, mMonth - 1, mDay);
+        
+        const [sYear, sMonth, sDay] = weekRange.start.split('-').map(Number);
+        const startDate = new Date(sYear, sMonth - 1, sDay);
+        
+        const [endYear, endMonth, endDay] = weekRange.end.split('-').map(Number);
+        const endDate = new Date(endYear, endMonth - 1, endDay);
+        
         return movieDate >= startDate && movieDate <= endDate;
       });
 

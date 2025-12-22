@@ -575,9 +575,15 @@ export function getUpcomingWeekRange(): { start: string; end: string } {
 
 /**
  * Format date for display
+ * Treats the date string as local date (not UTC) to avoid timezone shifts
  */
 export function formatDate(dateString: string): string {
-  const date = new Date(dateString);
+  // Extract just the date part if it includes time (ISO format with T)
+  const datePart = dateString.split('T')[0];
+
+  // Parse as local date by extracting year, month, day components
+  const [year, month, day] = datePart.split('-').map(Number);
+  const date = new Date(year, month - 1, day); // month is 0-indexed
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',

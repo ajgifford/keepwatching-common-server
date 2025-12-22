@@ -164,6 +164,21 @@ function safeParseDate(dateString: string | null | undefined): Date {
     return new Date('9999-12-31');
   }
 
+  // Parse date-only strings (YYYY-MM-DD) as local dates to avoid timezone shifts
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [year, month, day] = dateString.split('-').map(Number);
+    const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+    
+    // Check if the parsed date is valid
+    if (isNaN(parsedDate.getTime())) {
+      // Return a date far in the future for invalid dates
+      return new Date('9999-12-31');
+    }
+    
+    return parsedDate;
+  }
+
+  // For other date formats (with time), use standard parsing
   const parsedDate = new Date(dateString);
 
   // Check if the parsed date is valid
