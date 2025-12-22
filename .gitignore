@@ -134,3 +134,6 @@ dist
 
 .clineignore
 .claude
+
+# Test Output
+test-report.html
