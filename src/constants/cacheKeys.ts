@@ -192,6 +192,9 @@ export const SHOW_KEYS = {
 };
 
 export const ADMIN_KEYS = {
+  /** Gets the cache key for summary counts */
+  summaryCounts: () => `${CACHE_KEY_PATTERNS.ADMIN}_summary_counts`,
+
   /** Gets the cache key for platform overview statistics */
   platformOverview: () => `${CACHE_KEY_PATTERNS.ADMIN}_platform_overview`,
 
