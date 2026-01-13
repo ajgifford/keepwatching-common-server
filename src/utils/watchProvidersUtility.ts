@@ -6,6 +6,30 @@ let cachedStreamingServiceIds: number[] = [];
 let cacheInitialized = false;
 let cacheLoadPromise: Promise<void> | null = null;
 
+// Maps TMDB provider IDs to canonical streaming service IDs in our database
+// This handles cases where TMDB splits a single service into multiple provider variants
+const PROVIDER_ID_MAPPING: Record<number, number> = {
+  // Paramount+ variants -> Paramount+ (531)
+  582: 531, // Paramount+ Amazon Channel
+  633: 531, // Paramount+ Roku Premium Channel
+  1770: 531, // Paramount+ with Showtime
+  1853: 531, // Paramount Plus Apple TV Channel
+  2303: 531, // Paramount Plus Premium
+  2474: 531, // Paramount+ Originals Amazon Channel
+  2475: 531, // Paramount+ MTV Amazon Channel
+  2616: 531, // Paramount Plus Essential
+  // Netflix
+  175: 8, // Netflix Kids
+  1796: 8, // Netflix Standard with Ads
+  // Apple TV
+  350: 2, // Apple TV
+  // HBO Max
+  1825: 1899, // HBO Max Amazon Channel
+  2472: 1899, // HBO Max Amazon Channel
+  // Peacock
+  387: 386, // Peacock Premium Plus
+};
+
 export const getCachedStreamingServiceIds = (): number[] => cachedStreamingServiceIds;
 export const setCachedStreamingServiceIds = (data: number[]): void => {
   cachedStreamingServiceIds = data;
@@ -41,9 +65,15 @@ async function getUSWatchProviders(content: TMDBContent): Promise<number[]> {
   if (usWatchProvider && usWatchProvider.flatrate && usWatchProvider.flatrate.length > 0) {
     const streaming_service_ids: number[] = [];
     usWatchProvider.flatrate.forEach((item) => {
-      const id = item.provider_id;
-      if (cachedStreamingServiceIds.includes(id)) {
-        streaming_service_ids.push(item.provider_id);
+      const tmdbProviderId = item.provider_id;
+      // Map TMDB provider ID to canonical database ID (handles provider variants)
+      const canonicalId = PROVIDER_ID_MAPPING[tmdbProviderId] ?? tmdbProviderId;
+
+      if (cachedStreamingServiceIds.includes(canonicalId)) {
+        // Only add if not already in the list (prevents duplicates from multiple variants)
+        if (!streaming_service_ids.includes(canonicalId)) {
+          streaming_service_ids.push(canonicalId);
+        }
       }
     });
     if (streaming_service_ids.length > 0) {
