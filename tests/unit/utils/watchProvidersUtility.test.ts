@@ -56,6 +56,80 @@ describe('watchProvidersUtility', () => {
       expect(result).toEqual([1, 8]);
     });
 
+    it('should map Paramount+ variant provider IDs to canonical Paramount+ ID (531)', async () => {
+      setCachedStreamingServiceIds([531]); // Only Paramount+ in cache
+
+      const contentDetails = {
+        id: 1,
+        'watch/providers': {
+          results: {
+            US: {
+              link: 'https://example.com',
+              flatrate: [
+                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
+                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
+                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo3.png', display_priority: 3 },
+              ],
+            },
+          },
+        },
+      } as unknown as TMDBMovie;
+
+      const result = await getUSWatchProvidersMovie(contentDetails);
+
+      expect(result).toEqual([531]);
+    });
+
+    it('should deduplicate when multiple variant IDs map to same canonical ID', async () => {
+      setCachedStreamingServiceIds([531]); // Only Paramount+ in cache
+
+      const contentDetails = {
+        id: 1,
+        'watch/providers': {
+          results: {
+            US: {
+              link: 'https://example.com',
+              flatrate: [
+                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
+                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
+                { provider_id: 2303, provider_name: 'Paramount Plus Premium', logo_path: '/logo3.png', display_priority: 3 },
+                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo4.png', display_priority: 4 },
+              ],
+            },
+          },
+        },
+      } as unknown as TMDBMovie;
+
+      const result = await getUSWatchProvidersMovie(contentDetails);
+
+      // Should only contain one instance of 531, not four
+      expect(result).toEqual([531]);
+    });
+
+    it('should handle mix of mapped and unmapped provider IDs', async () => {
+      setCachedStreamingServiceIds([8, 531]); // Netflix and Paramount+
+
+      const contentDetails = {
+        id: 1,
+        'watch/providers': {
+          results: {
+            US: {
+              link: 'https://example.com',
+              flatrate: [
+                { provider_id: 8, provider_name: 'Netflix', logo_path: '/logo1.png', display_priority: 1 },
+                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo2.png', display_priority: 2 },
+                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo3.png', display_priority: 3 },
+              ],
+            },
+          },
+        },
+      } as unknown as TMDBMovie;
+
+      const result = await getUSWatchProvidersMovie(contentDetails);
+
+      expect(result).toEqual([8, 531]);
+    });
+
     it('should return unavailable when US providers exist but none match cached IDs', async () => {
       setCachedStreamingServiceIds([100, 200, 300]);
 
@@ -191,6 +265,80 @@ describe('watchProvidersUtility', () => {
       const result = await getUSWatchProvidersShow(contentDetails);
 
       expect(result).toEqual([1, 8]);
+    });
+
+    it('should map Paramount+ variant provider IDs to canonical Paramount+ ID (531)', async () => {
+      setCachedStreamingServiceIds([531]); // Only Paramount+ in cache
+
+      const contentDetails = {
+        id: 1,
+        'watch/providers': {
+          results: {
+            US: {
+              link: 'https://example.com',
+              flatrate: [
+                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
+                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
+                { provider_id: 2303, provider_name: 'Paramount Plus Premium', logo_path: '/logo3.png', display_priority: 3 },
+              ],
+            },
+          },
+        },
+      } as unknown as TMDBShow;
+
+      const result = await getUSWatchProvidersShow(contentDetails);
+
+      expect(result).toEqual([531]);
+    });
+
+    it('should deduplicate when multiple variant IDs map to same canonical ID', async () => {
+      setCachedStreamingServiceIds([531]); // Only Paramount+ in cache
+
+      const contentDetails = {
+        id: 1,
+        'watch/providers': {
+          results: {
+            US: {
+              link: 'https://example.com',
+              flatrate: [
+                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
+                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
+                { provider_id: 2303, provider_name: 'Paramount Plus Premium', logo_path: '/logo3.png', display_priority: 3 },
+                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo4.png', display_priority: 4 },
+              ],
+            },
+          },
+        },
+      } as unknown as TMDBShow;
+
+      const result = await getUSWatchProvidersShow(contentDetails);
+
+      // Should only contain one instance of 531, not four
+      expect(result).toEqual([531]);
+    });
+
+    it('should handle mix of mapped and unmapped provider IDs', async () => {
+      setCachedStreamingServiceIds([8, 531]); // Netflix and Paramount+
+
+      const contentDetails = {
+        id: 1,
+        'watch/providers': {
+          results: {
+            US: {
+              link: 'https://example.com',
+              flatrate: [
+                { provider_id: 8, provider_name: 'Netflix', logo_path: '/logo1.png', display_priority: 1 },
+                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo2.png', display_priority: 2 },
+                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo3.png', display_priority: 3 },
+              ],
+            },
+          },
+        },
+      } as unknown as TMDBShow;
+
+      const result = await getUSWatchProvidersShow(contentDetails);
+
+      expect(result).toEqual([8, 531]);
     });
 
     it('should return default provider ID when US providers exist but none match cached IDs', async () => {
