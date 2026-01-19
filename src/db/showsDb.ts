@@ -23,10 +23,13 @@ export { saveFavorite, removeFavorite } from './shows/showWatchStatusRepository'
 
 export {
   getAllShows,
+  getAllShowsFiltered,
   getAllShowsByProfile,
   getAllShowReferences,
   getShowsCount,
   getShowsCountByProfile,
+  getShowsCountFiltered,
+  getShowFilterOptions,
   getAdminShowDetails,
   getAdminShowSeasons,
   getAdminShowSeasonsWithEpisodes,
@@ -34,5 +37,7 @@ export {
   getAdminShowProfiles,
   getAdminShowWatchProgress,
 } from './shows/adminShowRepository';
+
+export type { ShowFilterOptions } from './shows/adminShowRepository';
 
 export { getTrendingShows, getNewlyAddedShows, getTopRatedShows } from './shows/digestShowRepository';

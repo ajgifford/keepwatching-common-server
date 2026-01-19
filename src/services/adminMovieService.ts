@@ -1,5 +1,6 @@
 import { ADMIN_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
+import { MovieFilterOptions } from '../db/moviesDb';
 import * as personsDb from '../db/personsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
@@ -47,6 +48,81 @@ export class AdminMovieService {
       });
     } catch (error) {
       throw errorService.handleError(error, `getAllMovies(${page}, ${offset}, ${limit})`);
+    }
+  }
+
+  /**
+   * Get all movies with optional filtering by streaming service or release year
+   *
+   * This method extends getAllMovies by allowing optional filters to narrow down results.
+   *
+   * @param filters - Optional filters (streamingService, year)
+   * @param page - Current page number
+   * @param offset - Number of items to skip
+   * @param limit - Maximum number of items to return
+   * @returns Paginated movies data with pagination metadata and available filter options
+   *
+   * @example
+   * ```typescript
+   * // Get movies from 2023
+   * const result = await adminMovieService.getAllMoviesFiltered(
+   *   { year: '2023' },
+   *   1,
+   *   0,
+   *   50
+   * );
+   * ```
+   */
+  public async getAllMoviesFiltered(
+    filters: {
+      streamingService?: string;
+      year?: string;
+    },
+    page: number,
+    offset: number,
+    limit: number,
+  ): Promise<{
+    movies: Awaited<ReturnType<typeof moviesDb.getAllMoviesFiltered>>;
+    pagination: {
+      totalCount: number;
+      totalPages: number;
+      currentPage: number;
+      limit: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+    filters: MovieFilterOptions;
+  }> {
+    try {
+      return await this.cache.getOrSet(
+        ADMIN_KEYS.allMoviesFiltered(page, offset, limit, filters.streamingService, filters.year),
+        async () => {
+          const hasFilters = filters.streamingService || filters.year;
+          const [totalCount, movies, filterOptions] = await Promise.all([
+            hasFilters ? moviesDb.getMoviesCountFiltered(filters) : moviesDb.getMoviesCount(),
+            moviesDb.getAllMoviesFiltered(filters, limit, offset),
+            moviesDb.getMovieFilterOptions(),
+          ]);
+          const totalPages = Math.ceil(totalCount / limit);
+          return {
+            movies,
+            pagination: {
+              totalCount,
+              totalPages,
+              currentPage: page,
+              limit,
+              hasNextPage: page < totalPages,
+              hasPrevPage: page > 1,
+            },
+            filters: filterOptions,
+          };
+        },
+      );
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `getAllMoviesFiltered(${JSON.stringify(filters)}, ${page}, ${offset}, ${limit})`,
+      );
     }
   }
 

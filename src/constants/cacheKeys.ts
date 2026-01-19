@@ -227,6 +227,27 @@ export const ADMIN_KEYS = {
   /** Gets the cache key for all shows */
   allShows: (page: number, offset: number, limit: number) => `allShows_${page}_${offset}_${limit}`,
 
+  /** Gets the cache key for filtered shows */
+  allShowsFiltered: (
+    page: number,
+    offset: number,
+    limit: number,
+    type?: string,
+    status?: string,
+    network?: string,
+    streamingService?: string,
+  ) => {
+    const filterParts = [
+      type ? `type_${type}` : '',
+      status ? `status_${status}` : '',
+      network ? `network_${network}` : '',
+      streamingService ? `stream_${streamingService}` : '',
+    ]
+      .filter(Boolean)
+      .join('_');
+    return `allShowsFiltered_${page}_${offset}_${limit}_${filterParts}`;
+  },
+
   allShowsByProfile: (profileId: number, page: number, offset: number, limit: number) =>
     `allShowsByProfile_${profileId}_${page}_${offset}_${limit}`,
 
@@ -234,6 +255,14 @@ export const ADMIN_KEYS = {
 
   /** Gets the cache key for all movies */
   allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
+
+  /** Gets the cache key for filtered movies */
+  allMoviesFiltered: (page: number, offset: number, limit: number, streamingService?: string, year?: string) => {
+    const filterParts = [streamingService ? `stream_${streamingService}` : '', year ? `year_${year}` : '']
+      .filter(Boolean)
+      .join('_');
+    return `allMoviesFiltered_${page}_${offset}_${limit}_${filterParts}`;
+  },
 
   allMoviesByProfile: (profileId: number, page: number, offset: number, limit: number) =>
     `allMoviesByProfile_${profileId}_${page}_${offset}_${limit}`,

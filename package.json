@@ -76,7 +76,7 @@
   "author": "Gifford Family Dev",
   "license": "ISC",
   "dependencies": {
-    "@ajgifford/keepwatching-types": "^0.7.11",
+    "@ajgifford/keepwatching-types": "^0.7.12",
     "axios": "1.13.2",
     "axios-retry": "^4.5.0",
     "cron-parser": "5.4.0",

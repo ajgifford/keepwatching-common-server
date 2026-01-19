@@ -1,3 +1,4 @@
+import { RowDataPacket } from 'mysql2';
 import { NotFoundError } from '../../middleware/errorMiddleware';
 import { ContentCountRow } from '../../types/contentTypes';
 import { AdminEpisodeRow, transformAdminEpisode } from '../../types/episodeTypes';
@@ -21,6 +22,7 @@ import {
   AdminShow,
   AdminShowWatchProgressResult,
   ContentProfiles,
+  ShowFilters,
   ShowReference,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
@@ -34,6 +36,55 @@ export async function getShowsCount(): Promise<number> {
     });
   } catch (error) {
     handleDatabaseError(error, 'get a count of all shows');
+  }
+}
+
+export interface ShowFilterOptions {
+  types: string[];
+  statuses: string[];
+  networks: string[];
+  streamingServices: string[];
+}
+
+interface DistinctValueRow extends RowDataPacket {
+  value: string | null;
+}
+
+/**
+ * Get all distinct filter values available for shows
+ * Used to populate filter dropdowns in the admin UI
+ *
+ * @returns Object containing arrays of distinct values for each filter type
+ */
+export async function getShowFilterOptions(): Promise<ShowFilterOptions> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getShowFilterOptions', async () => {
+      const [types] = await getDbPool().execute<DistinctValueRow[]>(
+        'SELECT DISTINCT type as value FROM shows WHERE type IS NOT NULL AND type != "" ORDER BY type',
+      );
+      const [statuses] = await getDbPool().execute<DistinctValueRow[]>(
+        'SELECT DISTINCT status as value FROM shows WHERE status IS NOT NULL AND status != "" ORDER BY status',
+      );
+      const [networks] = await getDbPool().execute<DistinctValueRow[]>(
+        'SELECT DISTINCT network as value FROM shows WHERE network IS NOT NULL AND network != "" ORDER BY network',
+      );
+      const [streamingServices] = await getDbPool().execute<DistinctValueRow[]>(
+        `SELECT DISTINCT ss.name as value
+         FROM show_services shs
+         JOIN streaming_services ss ON shs.streaming_service_id = ss.id
+         WHERE ss.name IS NOT NULL AND ss.name != ""
+         ORDER BY ss.name`,
+      );
+
+      return {
+        types: types.map((r) => r.value).filter((v): v is string => v !== null),
+        statuses: statuses.map((r) => r.value).filter((v): v is string => v !== null),
+        networks: networks.map((r) => r.value).filter((v): v is string => v !== null),
+        streamingServices: streamingServices.map((r) => r.value).filter((v): v is string => v !== null && v !== ''),
+      };
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'get show filter options');
   }
 }
 
@@ -58,6 +109,106 @@ export async function getAllShows(limit: number = 50, offset: number = 0): Promi
     });
   } catch (error) {
     handleDatabaseError(error, 'get all shows');
+  }
+}
+
+/**
+ * Build WHERE clause and params array from filter object
+ * @internal
+ */
+function buildShowFilterClause(filters: ShowFilters): { whereClause: string; params: string[] } {
+  const whereClauses: string[] = [];
+  const params: string[] = [];
+
+  if (filters.type) {
+    whereClauses.push('type = ?');
+    params.push(filters.type);
+  }
+
+  if (filters.status) {
+    whereClauses.push('status = ?');
+    params.push(filters.status);
+  }
+
+  if (filters.network) {
+    whereClauses.push('network = ?');
+    params.push(filters.network);
+  }
+
+  if (filters.streamingService) {
+    whereClauses.push('streaming_services LIKE ?');
+    params.push(`%${filters.streamingService}%`);
+  }
+
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+  return { whereClause, params };
+}
+
+/**
+ * Get count of shows matching the provided filters
+ *
+ * @param filters - Optional filters to apply
+ * @returns Count of shows matching the filter criteria
+ */
+export async function getShowsCountFiltered(filters: ShowFilters): Promise<number> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getShowsCountFiltered', async () => {
+      const { whereClause, params } = buildShowFilterClause(filters);
+      const query = `SELECT COUNT(*) AS total FROM admin_shows ${whereClause}`;
+      const [result] = await getDbPool().execute<ContentCountRow[]>(query, params);
+      return result[0].total;
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'get filtered shows count');
+  }
+}
+
+/**
+ * Get all shows with optional filtering by type, status, network, or streaming service
+ *
+ * This method extends `getAllShows` by allowing optional filters to narrow down results.
+ * Filters are combined with AND logic - shows must match all provided filter criteria.
+ *
+ * @param filters - Optional filters to apply (see ShowFilters interface)
+ * @param limit - Maximum number of shows to return (default: 50)
+ * @param offset - Number of shows to skip for pagination (default: 0)
+ * @returns Array of AdminShow objects matching the filter criteria
+ * @throws {DatabaseError} If a database error occurs
+ *
+ * @example
+ * ```typescript
+ * // Get ended shows
+ * const endedShows = await getAllShowsFiltered({ status: 'Ended' }, 100, 0);
+ *
+ * // Get reality shows on NBC
+ * const realityShows = await getAllShowsFiltered({
+ *   type: 'Reality',
+ *   network: 'NBC'
+ * }, 50, 0);
+ *
+ * // Get all shows available on Netflix (2nd page)
+ * const netflixShows = await getAllShowsFiltered(
+ *   { streamingService: 'Netflix' },
+ *   50,
+ *   50
+ * );
+ * ```
+ */
+export async function getAllShowsFiltered(
+  filters: ShowFilters,
+  limit: number = 50,
+  offset: number = 0,
+): Promise<AdminShow[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getAllShowsFiltered', async () => {
+      const { whereClause, params } = buildShowFilterClause(filters);
+      const query = `SELECT * FROM admin_shows ${whereClause} LIMIT ${limit} OFFSET ${offset}`;
+
+      const [shows] = await getDbPool().execute<AdminShowRow[]>(query, params);
+      return shows.map(transformAdminShow);
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'get filtered shows');
   }
 }
 

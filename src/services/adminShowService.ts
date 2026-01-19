@@ -3,6 +3,7 @@ import * as episodesDb from '../db/episodesDb';
 import * as personsDb from '../db/personsDb';
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
+import { ShowFilterOptions } from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { TMDBGenre, TMDBShow, TMDBShowCastMember, TMDBShowSeason } from '../types/tmdbTypes';
@@ -58,6 +59,94 @@ export class AdminShowService {
       });
     } catch (error) {
       throw errorService.handleError(error, `getAllShows(${page}, ${offset}, ${limit})`);
+    }
+  }
+
+  /**
+   * Get all shows with optional filtering by type, status, network, or streaming service
+   *
+   * This method extends getAllShows by allowing optional filters to narrow down results.
+   * Note: This method does not fetch total count with filters applied, so pagination
+   * metadata reflects the unfiltered total. For accurate counts with filters, consider
+   * adding a separate count method with filter support.
+   *
+   * @param filters - Optional filters (type, status, network, streamingService)
+   * @param page - Current page number
+   * @param offset - Number of items to skip
+   * @param limit - Maximum number of items to return
+   * @returns Paginated shows data with pagination metadata
+   *
+   * @example
+   * ```typescript
+   * // Get ended shows on page 1
+   * const result = await adminShowService.getAllShowsFiltered(
+   *   { status: 'Ended' },
+   *   1,
+   *   0,
+   *   50
+   * );
+   * ```
+   */
+  public async getAllShowsFiltered(
+    filters: {
+      type?: string;
+      status?: string;
+      network?: string;
+      streamingService?: string;
+    },
+    page: number,
+    offset: number,
+    limit: number,
+  ): Promise<{
+    shows: Awaited<ReturnType<typeof showsDb.getAllShowsFiltered>>;
+    pagination: {
+      totalCount: number;
+      totalPages: number;
+      currentPage: number;
+      limit: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+    filters: ShowFilterOptions;
+  }> {
+    try {
+      return await this.cache.getOrSet(
+        ADMIN_KEYS.allShowsFiltered(
+          page,
+          offset,
+          limit,
+          filters.type,
+          filters.status,
+          filters.network,
+          filters.streamingService,
+        ),
+        async () => {
+          const hasFilters = filters.type || filters.status || filters.network || filters.streamingService;
+          const [totalCount, shows, filterOptions] = await Promise.all([
+            hasFilters ? showsDb.getShowsCountFiltered(filters) : showsDb.getShowsCount(),
+            showsDb.getAllShowsFiltered(filters, limit, offset),
+            showsDb.getShowFilterOptions(),
+          ]);
+          const totalPages = Math.ceil(totalCount / limit);
+          return {
+            shows,
+            pagination: {
+              totalCount,
+              totalPages,
+              currentPage: page,
+              limit,
+              hasNextPage: page < totalPages,
+              hasPrevPage: page > 1,
+            },
+            filters: filterOptions,
+          };
+        },
+      );
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `getAllShowsFiltered(${JSON.stringify(filters)}, ${page}, ${offset}, ${limit})`,
+      );
     }
   }
 
