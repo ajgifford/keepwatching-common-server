@@ -12,6 +12,7 @@ import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import {
   KeepWatchingShow,
+  NextEpisode,
   ProfileEpisode,
   ProfileSeason,
   ProfileShow,
@@ -242,7 +243,12 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
     return await DbMonitor.getInstance().executeWithTiming('getNextUnwatchedEpisodesForProfile', async () => {
       const pool = getDbPool();
       
-      // Single optimized query that replaces the view-based N+1 queries
+      // Query with per-season episode limits to properly support active seasons
+      // 1. recent_shows: Get 6 most recently watched shows with unwatched episodes
+      // 2. active_seasons: Identify seasons with watched episodes per show
+      // 3. candidate_episodes: Rank unwatched episodes within each season
+      // 4. shows_with_active_episodes: Shows that have unwatched episodes in active seasons
+      // 5. first_unwatched_season: Fallback season for shows where active seasons are fully watched
       const query = `
         WITH recent_shows AS (
           SELECT DISTINCT
@@ -255,7 +261,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
           INNER JOIN shows s ON e.show_id = s.id
           WHERE ews.status = 'WATCHED'
             AND EXISTS (
-              SELECT 1 
+              SELECT 1
               FROM episodes e2
               LEFT JOIN episode_watch_status ews2 ON e2.id = ews2.episode_id AND ews2.profile_id = ?
               WHERE e2.show_id = s.id
@@ -267,45 +273,84 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
           GROUP BY s.id, s.title, s.poster_image
           ORDER BY last_watched_date DESC
           LIMIT 6
+        ),
+        active_seasons AS (
+          SELECT DISTINCT
+            rs.show_id,
+            e.season_number
+          FROM recent_shows rs
+          INNER JOIN episodes e ON e.show_id = rs.show_id
+          INNER JOIN episode_watch_status ews ON ews.episode_id = e.id AND ews.profile_id = ? AND ews.status = 'WATCHED'
+        ),
+        candidate_episodes AS (
+          SELECT
+            rs.show_id,
+            rs.show_title,
+            rs.poster_image,
+            rs.last_watched_date,
+            e.id AS episode_id,
+            e.title AS episode_title,
+            e.overview,
+            e.episode_number,
+            e.season_number,
+            e.season_id,
+            e.still_image,
+            e.air_date,
+            e.runtime,
+            s.network,
+            CASE WHEN acts.show_id IS NOT NULL THEN 1 ELSE 0 END AS season_has_watched_episodes,
+            ROW_NUMBER() OVER (PARTITION BY rs.show_id, e.season_number ORDER BY e.episode_number) AS episode_rank
+          FROM recent_shows rs
+          INNER JOIN episodes e ON e.show_id = rs.show_id
+          INNER JOIN shows s ON rs.show_id = s.id
+          LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+          LEFT JOIN active_seasons acts ON acts.show_id = rs.show_id AND acts.season_number = e.season_number
+          WHERE (ews.status IS NULL OR ews.status != 'WATCHED')
+            AND e.air_date IS NOT NULL
+            AND e.air_date <= CURDATE()
+        ),
+        shows_with_active_episodes AS (
+          SELECT DISTINCT show_id
+          FROM candidate_episodes
+          WHERE season_has_watched_episodes = 1
+        ),
+        first_unwatched_season AS (
+          SELECT ce.show_id, MIN(ce.season_number) AS fallback_season
+          FROM candidate_episodes ce
+          WHERE NOT EXISTS (SELECT 1 FROM shows_with_active_episodes swae WHERE swae.show_id = ce.show_id)
+          GROUP BY ce.show_id
         )
-        SELECT 
-          rs.show_id,
-          rs.show_title,
-          rs.poster_image,
-          rs.last_watched_date,
-          e.id AS episode_id,
-          e.title AS episode_title,
-          e.overview,
-          e.episode_number,
-          e.season_number,
-          e.season_id,
-          e.still_image,
-          e.air_date,
-          e.runtime,
-          s.network,
-          GROUP_CONCAT(DISTINCT ss.name ORDER BY ss.name SEPARATOR ', ') AS streaming_services
-        FROM recent_shows rs
-        INNER JOIN episodes e ON e.show_id = rs.show_id
-        INNER JOIN shows s ON rs.show_id = s.id
-        LEFT JOIN show_services tss ON s.id = tss.show_id
+        SELECT
+          ce.show_id,
+          ce.show_title,
+          ce.poster_image,
+          ce.last_watched_date,
+          ce.episode_id,
+          ce.episode_title,
+          ce.overview,
+          ce.episode_number,
+          ce.season_number,
+          ce.season_id,
+          ce.still_image,
+          ce.air_date,
+          ce.runtime,
+          ce.network,
+          GROUP_CONCAT(DISTINCT ss.name ORDER BY ss.name SEPARATOR ', ') AS streaming_services,
+          ce.season_has_watched_episodes
+        FROM candidate_episodes ce
+        LEFT JOIN show_services tss ON ce.show_id = tss.show_id
         LEFT JOIN streaming_services ss ON tss.streaming_service_id = ss.id
-        LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
-        WHERE (ews.status IS NULL OR ews.status != 'WATCHED')
-          AND e.air_date IS NOT NULL
-          AND e.air_date <= CURDATE()
+        LEFT JOIN first_unwatched_season fus ON fus.show_id = ce.show_id AND fus.fallback_season = ce.season_number
+        WHERE ce.episode_rank <= 3
           AND (
-            SELECT COUNT(*)
-            FROM episodes e2
-            LEFT JOIN episode_watch_status ews2 ON e2.id = ews2.episode_id AND ews2.profile_id = ?
-            WHERE e2.show_id = rs.show_id
-              AND (ews2.status IS NULL OR ews2.status != 'WATCHED')
-              AND e2.air_date IS NOT NULL
-              AND e2.air_date <= CURDATE()
-              AND (e2.season_number < e.season_number OR (e2.season_number = e.season_number AND e2.episode_number < e.episode_number))
-          ) < 2
-        GROUP BY e.id, rs.show_id, rs.show_title, rs.poster_image, rs.last_watched_date, e.title, e.overview, 
-                 e.episode_number, e.season_number, e.season_id, e.still_image, e.air_date, s.network
-        ORDER BY rs.last_watched_date DESC, rs.show_id, e.season_number ASC, e.episode_number ASC
+            ce.season_has_watched_episodes = 1
+            OR fus.show_id IS NOT NULL
+          )
+        GROUP BY ce.show_id, ce.show_title, ce.poster_image, ce.last_watched_date,
+                 ce.episode_id, ce.episode_title, ce.overview, ce.episode_number,
+                 ce.season_number, ce.season_id, ce.still_image, ce.air_date, ce.runtime, ce.network,
+                 ce.season_has_watched_episodes
+        ORDER BY ce.last_watched_date DESC, ce.show_id, ce.season_number ASC, ce.episode_number ASC
       `;
 
       interface OptimizedResultRow extends RowDataPacket {
@@ -324,51 +369,118 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
         runtime: number;
         network: string | null;
         streaming_services: string | null;
+        season_has_watched_episodes: number; // MySQL returns 0 or 1 for boolean expressions
       }
 
-      const [rows] = await pool.execute<OptimizedResultRow[]>(query, [profileId, profileId, profileId, profileId]);
+      const [rows] = await pool.execute<OptimizedResultRow[]>(query, [
+        profileId,
+        profileId,
+        profileId,
+        profileId,
+      ]);
 
       if (rows.length === 0) {
         return [];
       }
 
-      // Group episodes by show
-      const showMap = new Map<number, KeepWatchingShow>();
-      
+      // Group episodes by show and season for active season logic
+      interface SeasonEpisodes {
+        seasonNumber: number;
+        hasWatchedEpisodes: boolean;
+        episodes: NextEpisode[];
+      }
+
+      const showMap = new Map<
+        number,
+        {
+          show: Omit<KeepWatchingShow, 'episodes'>;
+          seasonMap: Map<number, SeasonEpisodes>;
+        }
+      >();
+
       for (const row of rows) {
         if (!showMap.has(row.show_id)) {
           showMap.set(row.show_id, {
-            showId: row.show_id,
-            showTitle: row.show_title,
-            posterImage: row.poster_image || '',
-            lastWatched: row.last_watched_date.toISOString(),
+            show: {
+              showId: row.show_id,
+              showTitle: row.show_title,
+              posterImage: row.poster_image || '',
+              lastWatched: row.last_watched_date.toISOString(),
+            },
+            seasonMap: new Map(),
+          });
+        }
+
+        const entry = showMap.get(row.show_id)!;
+        if (!entry.seasonMap.has(row.season_number)) {
+          entry.seasonMap.set(row.season_number, {
+            seasonNumber: row.season_number,
+            hasWatchedEpisodes: row.season_has_watched_episodes === 1,
             episodes: [],
           });
         }
 
-        const show = showMap.get(row.show_id)!;
-        if (show.episodes.length < 2) {
-          show.episodes.push({
-            episodeId: row.episode_id,
-            episodeTitle: row.episode_title,
-            overview: row.overview || '',
-            episodeNumber: row.episode_number,
-            seasonNumber: row.season_number,
-            episodeStillImage: row.still_image || '',
-            airDate: row.air_date,
-            runtime: row.runtime,
-            showId: row.show_id,
-            showName: row.show_title,
-            seasonId: row.season_id,
-            posterImage: row.poster_image || '',
-            network: row.network || '',
-            streamingServices: row.streaming_services || '',
-            profileId: profileId
-          });
-        }
+        const season = entry.seasonMap.get(row.season_number)!;
+        season.episodes.push({
+          episodeId: row.episode_id,
+          episodeTitle: row.episode_title,
+          overview: row.overview || '',
+          episodeNumber: row.episode_number,
+          seasonNumber: row.season_number,
+          episodeStillImage: row.still_image || '',
+          airDate: row.air_date,
+          runtime: row.runtime,
+          showId: row.show_id,
+          showName: row.show_title,
+          seasonId: row.season_id,
+          posterImage: row.poster_image || '',
+          network: row.network || '',
+          streamingServices: row.streaming_services || '',
+          profileId: profileId,
+        });
       }
 
-      return Array.from(showMap.values());
+      // Apply active season round-robin logic per show
+      const results: KeepWatchingShow[] = [];
+
+      for (const [, entry] of showMap) {
+        const seasons = Array.from(entry.seasonMap.values());
+
+        // Find active seasons (have watched episodes AND have unwatched episodes)
+        const activeSeasons = seasons.filter((s) => s.hasWatchedEpisodes && s.episodes.length > 0);
+
+        // Use active seasons if any, otherwise all seasons
+        const seasonsToUse = activeSeasons.length > 0 ? activeSeasons : seasons;
+        seasonsToUse.sort((a, b) => a.seasonNumber - b.seasonNumber);
+
+        // Round-robin to pick 2 episodes
+        const selectedEpisodes: NextEpisode[] = [];
+        const indices = new Map(seasonsToUse.map((s) => [s.seasonNumber, 0]));
+        const seasonNumbers = seasonsToUse.map((s) => s.seasonNumber);
+
+        while (selectedEpisodes.length < 2 && seasonNumbers.length > 0) {
+          for (const sn of [...seasonNumbers]) {
+            if (selectedEpisodes.length >= 2) break;
+
+            const season = seasonsToUse.find((s) => s.seasonNumber === sn);
+            const idx = indices.get(sn);
+
+            if (season && idx !== undefined && idx < season.episodes.length) {
+              selectedEpisodes.push(season.episodes[idx]);
+              indices.set(sn, idx + 1);
+            } else {
+              seasonNumbers.splice(seasonNumbers.indexOf(sn), 1);
+            }
+          }
+        }
+
+        results.push({
+          ...entry.show,
+          episodes: selectedEpisodes,
+        });
+      }
+
+      return results;
     });
   } catch (error) {
     handleDatabaseError(error, 'getting the next unwatched episodes for a profile');

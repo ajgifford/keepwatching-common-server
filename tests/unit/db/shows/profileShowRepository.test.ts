@@ -453,6 +453,7 @@ describe('profileShowRepository', () => {
           air_date: '2023-01-15',
           network: 'Network 1',
           streaming_services: 'Netflix, Hulu',
+          season_has_watched_episodes: 1,
         },
         {
           show_id: 1,
@@ -469,6 +470,7 @@ describe('profileShowRepository', () => {
           air_date: '2023-01-22',
           network: 'Network 1',
           streaming_services: 'Netflix, Hulu',
+          season_has_watched_episodes: 1,
         },
         {
           show_id: 2,
@@ -485,6 +487,7 @@ describe('profileShowRepository', () => {
           air_date: '2023-01-08',
           network: 'Network 2',
           streaming_services: 'Prime Video',
+          season_has_watched_episodes: 1,
         },
       ];
 
@@ -553,6 +556,7 @@ describe('profileShowRepository', () => {
           air_date: '2023-01-01',
           network: 'Network 1',
           streaming_services: 'Netflix',
+          season_has_watched_episodes: 1,
         },
         {
           show_id: 1,
@@ -569,6 +573,7 @@ describe('profileShowRepository', () => {
           air_date: '2023-01-08',
           network: 'Network 1',
           streaming_services: 'Netflix',
+          season_has_watched_episodes: 1,
         },
         {
           show_id: 1,
@@ -585,6 +590,7 @@ describe('profileShowRepository', () => {
           air_date: '2023-01-15',
           network: 'Network 1',
           streaming_services: 'Netflix',
+          season_has_watched_episodes: 1,
         },
       ];
 
@@ -616,6 +622,7 @@ describe('profileShowRepository', () => {
           air_date: '2023-01-01',
           network: null,
           streaming_services: null,
+          season_has_watched_episodes: 1,
         },
       ];
 
