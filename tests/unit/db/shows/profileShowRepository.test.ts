@@ -498,7 +498,7 @@ describe('profileShowRepository', () => {
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining('WITH recent_shows AS'),
-        [123, 123, 123, 123],
+        [123, 123, 123, 123, 123, 123],
       );
 
       expect(result).toHaveLength(2);
@@ -658,9 +658,10 @@ describe('profileShowRepository', () => {
 
       const profilesForShows = await showsDb.getProfilesForShow(123);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('profiles p ON sws.profile_id = p.profile_id'), [
-        123,
-      ]);
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('profiles p ON sws.profile_id = p.profile_id'),
+        [123],
+      );
       expect(profilesForShows.profileAccountMappings).toHaveLength(3);
       expect(profilesForShows.profileAccountMappings).toEqual([
         { accountId: 1, profileId: 1 },
@@ -674,9 +675,10 @@ describe('profileShowRepository', () => {
 
       const profilesForShows = await showsDb.getProfilesForShow(999);
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('profiles p ON sws.profile_id = p.profile_id'), [
-        999,
-      ]);
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('profiles p ON sws.profile_id = p.profile_id'),
+        [999],
+      );
       expect(profilesForShows.profileAccountMappings).toHaveLength(0);
     });
   });
