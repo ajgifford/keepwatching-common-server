@@ -31,6 +31,8 @@ export interface ProfileEpisodeRow extends BaseEpisodeRow {
   profile_id: number;
   episode_id: number;
   watch_status: SimpleWatchStatusType;
+  watched_at: Date | null;
+  is_prior_watch: number;
 }
 
 export interface AdminEpisodeRow extends BaseEpisodeRow {
@@ -61,6 +63,8 @@ export function transformProfileEpisode(episode: ProfileEpisodeRow): ProfileEpis
     profileId: episode.profile_id,
     id: episode.episode_id,
     watchStatus: episode.watch_status as SimpleWatchStatus,
+    watchedAt: episode.watched_at ? episode.watched_at.toISOString() : null,
+    isPriorWatch: Boolean(episode.is_prior_watch),
   };
 }
 

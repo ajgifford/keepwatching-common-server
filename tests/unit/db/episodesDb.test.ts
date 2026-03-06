@@ -226,13 +226,13 @@ describe('Episode Module', () => {
   describe('getEpisodesForSeason', () => {
     it('should return episodes for season', async () => {
       const mockEpisodes = [
-        { episode_id: 1, title: 'Episode 1', watch_status: 'WATCHED' },
-        { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED' },
+        { episode_id: 1, title: 'Episode 1', watch_status: 'WATCHED', watched_at: null, is_prior_watch: 0 },
+        { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED', watched_at: null, is_prior_watch: 0 },
       ];
 
       const expectedEpisodes = [
-        { id: 1, title: 'Episode 1', watchStatus: 'WATCHED' },
-        { id: 2, title: 'Episode 2', watchStatus: 'NOT_WATCHED' },
+        { id: 1, title: 'Episode 1', watchStatus: 'WATCHED', watchedAt: null, isPriorWatch: false },
+        { id: 2, title: 'Episode 2', watchStatus: 'NOT_WATCHED', watchedAt: null, isPriorWatch: false },
       ];
 
       mockExecute.mockResolvedValueOnce([mockEpisodes]);

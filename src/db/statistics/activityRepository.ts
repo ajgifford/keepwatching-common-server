@@ -16,14 +16,15 @@ export async function getDailyActivityTimeline(profileId: number, days: number =
     const [rows] = await getDbPool().execute<VelocityDataRow[]>(
       `
       SELECT
-        DATE(ews.updated_at) as watch_date,
+        DATE(COALESCE(ews.watched_at, ews.updated_at)) as watch_date,
         COUNT(*) as episode_count,
         COUNT(DISTINCT e.show_id) as show_count
       FROM episode_watch_status ews
       JOIN episodes e ON e.id = ews.episode_id
       WHERE ews.profile_id = ?
         AND ews.status = 'WATCHED'
-        AND ews.updated_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        AND ews.is_prior_watch = FALSE
+        AND COALESCE(ews.watched_at, ews.updated_at) >= DATE_SUB(NOW(), INTERVAL ? DAY)
       GROUP BY watch_date
       ORDER BY watch_date DESC
       `,
@@ -50,12 +51,13 @@ export async function getWeeklyActivityTimeline(profileId: number, weeks: number
     const [rows] = await getDbPool().execute<RowDataPacket[]>(
       `
       SELECT
-        DATE_SUB(DATE(ews.updated_at), INTERVAL WEEKDAY(ews.updated_at) DAY) as week_start,
+        DATE_SUB(DATE(COALESCE(ews.watched_at, ews.updated_at)), INTERVAL WEEKDAY(COALESCE(ews.watched_at, ews.updated_at)) DAY) as week_start,
         COUNT(*) as episode_count
       FROM episode_watch_status ews
       WHERE ews.profile_id = ?
         AND ews.status = 'WATCHED'
-        AND ews.updated_at >= DATE_SUB(NOW(), INTERVAL ? WEEK)
+        AND ews.is_prior_watch = FALSE
+        AND COALESCE(ews.watched_at, ews.updated_at) >= DATE_SUB(NOW(), INTERVAL ? WEEK)
       GROUP BY week_start
       ORDER BY week_start DESC
       `,
@@ -81,13 +83,14 @@ export async function getMonthlyActivityTimeline(profileId: number, months: numb
     const [rows] = await getDbPool().execute<RowDataPacket[]>(
       `
       SELECT
-        DATE_FORMAT(ews.updated_at, '%Y-%m') as month,
+        DATE_FORMAT(COALESCE(ews.watched_at, ews.updated_at), '%Y-%m') as month,
         COUNT(*) as episode_count,
         0 as movie_count
       FROM episode_watch_status ews
       WHERE ews.profile_id = ?
         AND ews.status = 'WATCHED'
-        AND ews.updated_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)
+        AND ews.is_prior_watch = FALSE
+        AND COALESCE(ews.watched_at, ews.updated_at) >= DATE_SUB(NOW(), INTERVAL ? MONTH)
       GROUP BY month
 
       UNION ALL

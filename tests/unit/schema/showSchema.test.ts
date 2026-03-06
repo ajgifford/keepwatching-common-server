@@ -1,4 +1,10 @@
-import { addShowFavoriteBodySchema, showParamsSchema, showWatchStatusBodySchema } from '@schema/showSchema';
+import {
+  addShowFavoriteBodySchema,
+  showParamsSchema,
+  showPriorWatchBodySchema,
+  showWatchStatusBodySchema,
+  watchHistoryMarkAsPriorBodySchema,
+} from '@schema/showSchema';
 
 describe('showSchema', () => {
   describe('addShowFavoriteSchema', () => {
@@ -204,6 +210,104 @@ describe('showSchema', () => {
         showId: 456,
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('showPriorWatchBodySchema', () => {
+    it('should validate with showId only', () => {
+      const result = showPriorWatchBodySchema.safeParse({ showId: 123 });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.showId).toBe(123);
+        expect(result.data.upToSeasonNumber).toBeUndefined();
+      }
+    });
+
+    it('should validate with showId and upToSeasonNumber', () => {
+      const result = showPriorWatchBodySchema.safeParse({ showId: 123, upToSeasonNumber: 3 });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.showId).toBe(123);
+        expect(result.data.upToSeasonNumber).toBe(3);
+      }
+    });
+
+    it('should reject non-positive showId', () => {
+      const result = showPriorWatchBodySchema.safeParse({ showId: 0 });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const formattedErrors = result.error.format();
+        expect(formattedErrors.showId?._errors).toContain('Show ID must be a positive integer');
+      }
+    });
+
+    it('should reject non-positive upToSeasonNumber', () => {
+      const result = showPriorWatchBodySchema.safeParse({ showId: 123, upToSeasonNumber: 0 });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const formattedErrors = result.error.format();
+        expect(formattedErrors.upToSeasonNumber?._errors).toContain('Season number must be a positive integer');
+      }
+    });
+
+    it('should reject missing showId', () => {
+      const result = showPriorWatchBodySchema.safeParse({});
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].path).toContain('showId');
+      }
+    });
+
+    it('should reject non-integer showId', () => {
+      const result = showPriorWatchBodySchema.safeParse({ showId: 1.5 });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('watchHistoryMarkAsPriorBodySchema', () => {
+    it('should validate with showId only', () => {
+      const result = watchHistoryMarkAsPriorBodySchema.safeParse({ showId: 456 });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.showId).toBe(456);
+        expect(result.data.seasonIds).toBeUndefined();
+      }
+    });
+
+    it('should validate with showId and seasonIds array', () => {
+      const result = watchHistoryMarkAsPriorBodySchema.safeParse({ showId: 456, seasonIds: [1, 2, 3] });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.showId).toBe(456);
+        expect(result.data.seasonIds).toEqual([1, 2, 3]);
+      }
+    });
+
+    it('should validate with empty seasonIds array', () => {
+      const result = watchHistoryMarkAsPriorBodySchema.safeParse({ showId: 456, seasonIds: [] });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject non-positive showId', () => {
+      const result = watchHistoryMarkAsPriorBodySchema.safeParse({ showId: -1 });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const formattedErrors = result.error.format();
+        expect(formattedErrors.showId?._errors).toContain('Show ID must be a positive integer');
+      }
+    });
+
+    it('should reject non-positive values in seasonIds', () => {
+      const result = watchHistoryMarkAsPriorBodySchema.safeParse({ showId: 456, seasonIds: [1, -1, 3] });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing showId', () => {
+      const result = watchHistoryMarkAsPriorBodySchema.safeParse({});
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].path).toContain('showId');
+      }
     });
   });
 });

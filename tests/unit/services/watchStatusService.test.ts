@@ -32,6 +32,9 @@ describe('WatchStatusService', () => {
       updateShowWatchStatus: jest.fn(),
       checkAndUpdateShowWatchStatus: jest.fn(),
       checkAndUpdateMovieWatchStatus: jest.fn(),
+      getEpisodeAirDatesForShow: jest.fn(),
+      markEpisodesAsPriorWatched: jest.fn(),
+      retroactivelyMarkShowAsPrior: jest.fn(),
     } as any;
 
     // Mock checkAchievements
@@ -542,6 +545,163 @@ describe('WatchStatusService', () => {
 
       const result = (service as any).formatChangesMessage(changes);
       expect(result).toBe('Updated status for 1 show, 1 season, 2 episodes');
+    });
+  });
+
+  describe('markSeasonsAsPriorWatched', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const showId = 456;
+
+    const mockEpisodeMap = new Map<number, string>([
+      [101, '2023-01-01'],
+      [102, '2023-01-08'],
+      [103, '2023-01-15'],
+    ]);
+
+    const mockDbResult: StatusUpdateResult = {
+      success: true,
+      changes: [],
+      affectedRows: 3,
+    };
+
+    it('should mark episodes as prior watched and return summary', async () => {
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue(mockDbResult);
+      (showService.invalidateProfileCache as jest.Mock).mockReturnValue(undefined);
+
+      const result = await service.markSeasonsAsPriorWatched(accountId, profileId, showId);
+
+      expect(mockDbService.getEpisodeAirDatesForShow).toHaveBeenCalledWith(profileId, showId, undefined);
+      expect(mockDbService.markEpisodesAsPriorWatched).toHaveBeenCalledWith(profileId, mockEpisodeMap);
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
+      expect(result).toEqual({
+        success: true,
+        changes: [],
+        affectedRows: 3,
+        message: 'Marked 3 episodes as previously watched',
+      });
+    });
+
+    it('should pass upToSeasonNumber to getEpisodeAirDatesForShow', async () => {
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue(mockDbResult);
+
+      await service.markSeasonsAsPriorWatched(accountId, profileId, showId, 2);
+
+      expect(mockDbService.getEpisodeAirDatesForShow).toHaveBeenCalledWith(profileId, showId, 2);
+    });
+
+    it('should return early with no-op message when episode map is empty', async () => {
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(new Map());
+
+      const result = await service.markSeasonsAsPriorWatched(accountId, profileId, showId);
+
+      expect(mockDbService.markEpisodesAsPriorWatched).not.toHaveBeenCalled();
+      expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: true,
+        changes: [],
+        affectedRows: 0,
+        message: 'No episodes to mark',
+      });
+    });
+
+    it('should throw DatabaseError when db service returns unsuccessful result', async () => {
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue({ success: false, changes: [], affectedRows: 0 });
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.markSeasonsAsPriorWatched(accountId, profileId, showId)).rejects.toThrow(
+        'Handled: Failed to mark episodes as prior watched',
+      );
+    });
+
+    it('should handle errors from db service', async () => {
+      const mockError = new Error('Database connection failed');
+      mockDbService.getEpisodeAirDatesForShow.mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.markSeasonsAsPriorWatched(accountId, profileId, showId)).rejects.toThrow(
+        'Handled: Database connection failed',
+      );
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `markSeasonsAsPriorWatched(${profileId}, ${showId}, undefined)`,
+      );
+    });
+  });
+
+  describe('retroactivelyMarkShowAsPrior', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const showId = 456;
+
+    const mockDbResult: StatusUpdateResult = {
+      success: true,
+      changes: [],
+      affectedRows: 5,
+    };
+
+    it('should retroactively mark show episodes as prior watched', async () => {
+      mockDbService.retroactivelyMarkShowAsPrior.mockResolvedValue(mockDbResult);
+      (showService.invalidateProfileCache as jest.Mock).mockReturnValue(undefined);
+
+      const result = await service.retroactivelyMarkShowAsPrior(accountId, profileId, showId);
+
+      expect(mockDbService.retroactivelyMarkShowAsPrior).toHaveBeenCalledWith(profileId, showId, undefined);
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
+      expect(result).toEqual({
+        success: true,
+        changes: [],
+        affectedRows: 5,
+        message: 'Retroactively marked 5 episodes as previously watched',
+      });
+    });
+
+    it('should pass seasonIds to db service when provided', async () => {
+      mockDbService.retroactivelyMarkShowAsPrior.mockResolvedValue(mockDbResult);
+
+      await service.retroactivelyMarkShowAsPrior(accountId, profileId, showId, [1, 2]);
+
+      expect(mockDbService.retroactivelyMarkShowAsPrior).toHaveBeenCalledWith(profileId, showId, [1, 2]);
+    });
+
+    it('should throw DatabaseError when db service returns unsuccessful result', async () => {
+      mockDbService.retroactivelyMarkShowAsPrior.mockResolvedValue({ success: false, changes: [], affectedRows: 0 });
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.retroactivelyMarkShowAsPrior(accountId, profileId, showId)).rejects.toThrow(
+        'Handled: Failed to retroactively mark show as prior watched',
+      );
+    });
+
+    it('should handle errors from db service', async () => {
+      const mockError = new Error('Transaction failed');
+      mockDbService.retroactivelyMarkShowAsPrior.mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.retroactivelyMarkShowAsPrior(accountId, profileId, showId)).rejects.toThrow(
+        'Handled: Transaction failed',
+      );
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `retroactivelyMarkShowAsPrior(${profileId}, ${showId})`,
+      );
     });
   });
 

@@ -629,5 +629,16 @@ describe('bingeRepository', () => {
 
       expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456]);
     });
+
+    it('should exclude prior watch episodes from results', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getBingeWatchingStats(123);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('is_prior_watch = FALSE'),
+        expect.any(Array),
+      );
+    });
   });
 });

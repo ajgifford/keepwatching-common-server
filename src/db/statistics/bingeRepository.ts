@@ -19,13 +19,14 @@ export async function getBingeWatchingStats(profileId: number): Promise<BingeWat
         e.show_id,
         s.title as show_title,
         ews.episode_id,
-        ews.updated_at as watched_at
+        COALESCE(ews.watched_at, ews.updated_at) as watched_at
       FROM episode_watch_status ews
       JOIN episodes e ON e.id = ews.episode_id
       JOIN shows s ON s.id = e.show_id
       WHERE ews.profile_id = ?
         AND ews.status = 'WATCHED'
-      ORDER BY e.show_id, ews.updated_at
+        AND ews.is_prior_watch = FALSE
+      ORDER BY e.show_id, COALESCE(ews.watched_at, ews.updated_at)
       `,
       [profileId],
     );

@@ -234,6 +234,17 @@ describe('watchStreakRepository', () => {
       expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining("status = 'WATCHED'"), expect.any(Array));
     });
 
+    it('should exclude prior watch episodes from results', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getWatchStreakStats(123);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('is_prior_watch = FALSE'),
+        expect.any(Array),
+      );
+    });
+
     it('should round average streak length to 1 decimal place', async () => {
       const dates = [];
       const startDate = new Date();

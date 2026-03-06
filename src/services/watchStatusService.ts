@@ -146,6 +146,97 @@ export class WatchStatusService {
   }
 
   /**
+   * Mark all episodes in the completed seasons of a show as prior-watched.
+   * Uses each episode's air date as watched_at. Season status is recalculated after.
+   *
+   * @param accountId - ID of the account
+   * @param profileId - ID of the profile
+   * @param showId - ID of the show
+   * @param upToSeasonNumber - Optional; if provided, only seasons with seasonNumber <= this value are marked
+   */
+  async markSeasonsAsPriorWatched(
+    accountId: number,
+    profileId: number,
+    showId: number,
+    upToSeasonNumber?: number,
+  ): Promise<StatusUpdateResult> {
+    try {
+      // Fetch the episodes for the show, filtered by season if needed
+      const episodeAirDateMap = await this.dbService.getEpisodeAirDatesForShow(
+        profileId,
+        showId,
+        upToSeasonNumber,
+      );
+
+      if (episodeAirDateMap.size === 0) {
+        return { success: true, changes: [], affectedRows: 0, message: 'No episodes to mark' };
+      }
+
+      const result = await this.dbService.markEpisodesAsPriorWatched(profileId, episodeAirDateMap);
+
+      if (!result.success) {
+        throw new DatabaseError('Failed to mark episodes as prior watched', null);
+      }
+
+      showService.invalidateProfileCache(accountId, profileId);
+
+      this.checkAchievements(profileId, accountId).catch((err) => {
+        console.error('Error checking achievements after prior watch marking:', err);
+      });
+
+      return {
+        success: true,
+        changes: result.changes,
+        affectedRows: result.affectedRows,
+        message: `Marked ${result.affectedRows} episodes as previously watched`,
+      };
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `markSeasonsAsPriorWatched(${profileId}, ${showId}, ${upToSeasonNumber})`,
+      );
+    }
+  }
+
+  /**
+   * Retroactively flag watched episodes for a show as prior-watched.
+   * Used by the Review Watch History feature for existing data cleanup.
+   *
+   * @param accountId - ID of the account
+   * @param profileId - ID of the profile
+   * @param showId - ID of the show
+   * @param seasonIds - Optional list of season IDs to limit the operation
+   */
+  async retroactivelyMarkShowAsPrior(
+    accountId: number,
+    profileId: number,
+    showId: number,
+    seasonIds?: number[],
+  ): Promise<StatusUpdateResult> {
+    try {
+      const result = await this.dbService.retroactivelyMarkShowAsPrior(profileId, showId, seasonIds);
+
+      if (!result.success) {
+        throw new DatabaseError('Failed to retroactively mark show as prior watched', null);
+      }
+
+      showService.invalidateProfileCache(accountId, profileId);
+
+      return {
+        success: true,
+        changes: result.changes,
+        affectedRows: result.affectedRows,
+        message: `Retroactively marked ${result.affectedRows} episodes as previously watched`,
+      };
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `retroactivelyMarkShowAsPrior(${profileId}, ${showId})`,
+      );
+    }
+  }
+
+  /**
    * Checks whether a show's status should be updated to reflect that new content is available
    *
    * @param accountId ID of the account

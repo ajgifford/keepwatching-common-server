@@ -348,7 +348,7 @@ CREATE VIEW profile_episodes AS
 SELECT
 	p.profile_id,
 	e.id as episode_id,
-	e.tmdb_id,	
+	e.tmdb_id,
 	e.season_id,
 	e.show_id,
 	e.episode_number,
@@ -359,15 +359,17 @@ SELECT
 	e.runtime,
 	e.air_date,
 	e.still_image,
-	ws.status as watch_status
+	ws.status as watch_status,
+	ws.watched_at,
+	ws.is_prior_watch
 FROM
 	profiles p
-JOIN 
+JOIN
 	episode_watch_status ws ON p.profile_id = ws.profile_id
 JOIN
 	episodes e ON ws.episode_id = e.id
 GROUP BY
-	p.profile_id, e.id, ws.status;
+	p.profile_id, e.id, ws.status, ws.watched_at, ws.is_prior_watch;
 	
 CREATE VIEW profile_upcoming_episodes AS
 SELECT 

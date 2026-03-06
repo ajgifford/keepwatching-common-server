@@ -22,8 +22,17 @@ import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { WatchStatusManager } from '../utils/watchStatusManager';
 import { UserWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
-import { ResultSetHeader } from 'mysql2';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
+import { getDbPool } from '../utils/db';
+
+export interface BulkMarkedShowRow extends RowDataPacket {
+  showId: number;
+  title: string;
+  posterImage: string;
+  markDate: string;
+  episodeCount: number;
+}
 
 type EntityType = 'episode' | 'season' | 'show';
 
@@ -188,13 +197,23 @@ export class WatchStatusDbService {
 
         const watchStatusExtendedEpisode = transformWatchStatusExtendedEpisode(episodeRows[0]);
 
-        // Update episode status
-        await this.updateEntityStatus(context, {
-          table: 'episode_watch_status',
-          entityColumn: 'episode_id',
-          entityId: episodeId,
+        // Update episode status, setting watched_at to now when marking watched,
+        // clearing it when unmarking, and preserving existing dates (e.g. prior-watch).
+        const episodeStatusQuery = `
+          INSERT INTO episode_watch_status (profile_id, episode_id, status, watched_at)
+          VALUES (?, ?, ?, IF(? = 'WATCHED', CURRENT_TIMESTAMP, NULL))
+          ON DUPLICATE KEY UPDATE
+            status = VALUES(status),
+            watched_at = IF(VALUES(status) = 'WATCHED', COALESCE(watched_at, CURRENT_TIMESTAMP), NULL),
+            updated_at = CURRENT_TIMESTAMP
+        `;
+        const [epResult] = await context.connection.execute<ResultSetHeader>(episodeStatusQuery, [
+          profileId,
+          episodeId,
           status,
-        });
+          status,
+        ]);
+        context.totalAffectedRows += epResult.affectedRows;
 
         this.recordStatusChange(
           context,
@@ -413,23 +432,27 @@ export class WatchStatusDbService {
 
     // Update all episodes in the season
     const episodeUpdateQuery = `
-      INSERT INTO episode_watch_status (profile_id, episode_id, status)
-      SELECT 
-        ?, 
-        e.id, 
-        CASE 
+      INSERT INTO episode_watch_status (profile_id, episode_id, status, watched_at)
+      SELECT
+        ?,
+        e.id,
+        CASE
           WHEN e.air_date IS NULL OR DATE(e.air_date) <= ? THEN ?
           ELSE 'UNAIRED'
-        END
+        END,
+        IF(e.air_date IS NULL OR DATE(e.air_date) <= ? AND ? = 'WATCHED', CURRENT_TIMESTAMP, NULL)
       FROM episodes e
       WHERE e.season_id = ?
-      ON DUPLICATE KEY UPDATE 
+      ON DUPLICATE KEY UPDATE
         status = VALUES(status),
+        watched_at = IF(VALUES(status) = 'WATCHED', COALESCE(watched_at, CURRENT_TIMESTAMP), NULL),
         updated_at = CURRENT_TIMESTAMP
     `;
 
     const [episodeResult] = await context.connection.execute<ResultSetHeader>(episodeUpdateQuery, [
       context.profileId,
+      context.timestamp,
+      targetStatus,
       context.timestamp,
       targetStatus,
       seasonId,
@@ -577,24 +600,28 @@ export class WatchStatusDbService {
   ): Promise<void> {
     // Update all episodes in the show
     const episodeUpdateQuery = `
-      INSERT INTO episode_watch_status (profile_id, episode_id, status)
-      SELECT 
-        ?, 
-        e.id, 
-        CASE 
+      INSERT INTO episode_watch_status (profile_id, episode_id, status, watched_at)
+      SELECT
+        ?,
+        e.id,
+        CASE
           WHEN e.air_date IS NULL OR DATE(e.air_date) <= ? THEN ?
           ELSE 'UNAIRED'
-        END
+        END,
+        IF(e.air_date IS NULL OR DATE(e.air_date) <= ? AND ? = 'WATCHED', CURRENT_TIMESTAMP, NULL)
       FROM episodes e
       JOIN seasons s ON e.season_id = s.id
       WHERE s.show_id = ?
-      ON DUPLICATE KEY UPDATE 
+      ON DUPLICATE KEY UPDATE
         status = VALUES(status),
+        watched_at = IF(VALUES(status) = 'WATCHED', COALESCE(watched_at, CURRENT_TIMESTAMP), NULL),
         updated_at = CURRENT_TIMESTAMP
     `;
 
     const [episodeResult] = await context.connection.execute<ResultSetHeader>(episodeUpdateQuery, [
       context.profileId,
+      context.timestamp,
+      status,
       context.timestamp,
       status,
       showId,
@@ -874,5 +901,220 @@ export class WatchStatusDbService {
       },
       { content: { id: showId, type: 'show' } },
     );
+  }
+
+  /**
+   * Mark a set of episodes as prior-watched using each episode's air date as watched_at.
+   * Sets is_prior_watch = TRUE and watched_at = episode air date for all provided episodes.
+   * Season and show status cascade is NOT performed here — callers must trigger that separately.
+   *
+   * @param profileId - ID of the profile
+   * @param episodeAirDateMap - Map of episode ID → air date string (YYYY-MM-DD)
+   */
+  async markEpisodesAsPriorWatched(
+    profileId: number,
+    episodeAirDateMap: Map<number, string>,
+  ): Promise<StatusUpdateResult> {
+    return this.executeStatusUpdate(
+      'marking episodes as prior watched',
+      async (context) => {
+        context.profileId = profileId;
+
+        for (const [episodeId, airDate] of episodeAirDateMap) {
+          const query = `
+            INSERT INTO episode_watch_status (profile_id, episode_id, status, watched_at, is_prior_watch)
+            VALUES (?, ?, 'WATCHED', ?, TRUE)
+            ON DUPLICATE KEY UPDATE
+              status = 'WATCHED',
+              watched_at = VALUES(watched_at),
+              is_prior_watch = TRUE,
+              updated_at = CURRENT_TIMESTAMP
+          `;
+          const [result] = await context.connection.execute<ResultSetHeader>(query, [
+            profileId,
+            episodeId,
+            airDate,
+          ]);
+          context.totalAffectedRows += result.affectedRows;
+        }
+
+        return this.createSuccessResult(context);
+      },
+      { content: { id: profileId, type: 'episode' } },
+    );
+  }
+
+  /**
+   * Find shows where the profile has 10 or more episodes marked watched on the same date,
+   * none of which are flagged as prior watches. These are candidates for retroactive flagging.
+   *
+   * @param profileId - ID of the profile to check
+   * @returns Array of rows with show info and bulk-mark details
+   */
+  async detectBulkMarkedShows(profileId: number): Promise<BulkMarkedShowRow[]> {
+    return await DbMonitor.getInstance().executeWithTiming('detectBulkMarkedShows', async () => {
+      const [rows] = await getDbPool().execute<BulkMarkedShowRow[]>(
+        `
+        SELECT showId, title, posterImage, markDate, episodeCount
+        FROM (
+          SELECT
+            sh.id AS showId,
+            sh.title,
+            sh.poster_image AS posterImage,
+            DATE(ews.updated_at) AS markDate,
+            COUNT(*) AS episodeCount,
+            ROW_NUMBER() OVER (PARTITION BY sh.id ORDER BY COUNT(*) DESC, DATE(ews.updated_at) DESC) AS rn
+          FROM episode_watch_status ews
+          JOIN episodes e ON e.id = ews.episode_id
+          JOIN seasons se ON se.id = e.season_id
+          JOIN shows sh ON sh.id = se.show_id
+          WHERE ews.profile_id = ?
+            AND ews.status = 'WATCHED'
+            AND ews.is_prior_watch = FALSE
+          GROUP BY sh.id, sh.title, sh.poster_image, DATE(ews.updated_at)
+          HAVING COUNT(*) >= 10
+        ) ranked
+        WHERE rn = 1
+        ORDER BY episodeCount DESC
+        `,
+        [profileId],
+      );
+      return rows;
+    });
+  }
+
+  /**
+   * Retroactively mark all watched episodes for a given show (optionally limited to specific
+   * seasons) as prior-watched, using each episode's air date as watched_at.
+   *
+   * @param profileId - ID of the profile
+   * @param showId - ID of the show
+   * @param seasonIds - Optional list of season IDs to limit the operation
+   */
+  async retroactivelyMarkShowAsPrior(
+    profileId: number,
+    showId: number,
+    seasonIds?: number[],
+  ): Promise<StatusUpdateResult> {
+    return this.executeStatusUpdate(
+      'retroactively marking show as prior watched',
+      async (context) => {
+        context.profileId = profileId;
+
+        const seasonFilter = seasonIds && seasonIds.length > 0
+          ? `AND se.id IN (${seasonIds.map(() => '?').join(',')})`
+          : '';
+
+        const params: (number | string)[] = [profileId, showId];
+        if (seasonIds && seasonIds.length > 0) {
+          params.push(...seasonIds);
+        }
+
+        const query = `
+          UPDATE episode_watch_status ews
+          JOIN episodes e ON e.id = ews.episode_id
+          JOIN seasons se ON se.id = e.season_id
+          SET
+            ews.is_prior_watch = TRUE,
+            ews.watched_at = CASE
+              WHEN e.air_date IS NOT NULL THEN e.air_date
+              ELSE ews.watched_at
+            END,
+            ews.updated_at = CURRENT_TIMESTAMP
+          WHERE ews.profile_id = ?
+            AND se.show_id = ?
+            AND ews.status = 'WATCHED'
+            AND ews.is_prior_watch = FALSE
+            ${seasonFilter}
+        `;
+
+        const [result] = await context.connection.execute<ResultSetHeader>(query, params);
+        context.totalAffectedRows += result.affectedRows;
+
+        return this.createSuccessResult(context);
+      },
+      { content: { id: showId, type: 'show' } },
+    );
+  }
+
+  /**
+   * Dismiss a bulk-marked show from the watch history review by marking all watched episodes
+   * as prior-watched, using each episode's existing updated_at as the watched_at date.
+   * This removes the show from detectBulkMarkedShows without changing the watch dates.
+   *
+   * @param profileId - ID of the profile
+   * @param showId - ID of the show
+   */
+  async dismissBulkMarkedShow(profileId: number, showId: number): Promise<StatusUpdateResult> {
+    return this.executeStatusUpdate(
+      'dismissing bulk marked show from review',
+      async (context) => {
+        context.profileId = profileId;
+
+        const query = `
+          UPDATE episode_watch_status ews
+          JOIN episodes e ON e.id = ews.episode_id
+          JOIN seasons se ON se.id = e.season_id
+          SET
+            ews.is_prior_watch = TRUE,
+            ews.watched_at = ews.updated_at
+          WHERE ews.profile_id = ?
+            AND se.show_id = ?
+            AND ews.status = 'WATCHED'
+            AND ews.is_prior_watch = FALSE
+        `;
+
+        const [result] = await context.connection.execute<ResultSetHeader>(query, [profileId, showId]);
+        context.totalAffectedRows += result.affectedRows;
+
+        return this.createSuccessResult(context);
+      },
+      { content: { id: showId, type: 'show' } },
+    );
+  }
+
+  /**
+   * Fetch a map of episode ID → air date for all aired episodes in a show,
+   * optionally limited to seasons with seasonNumber <= upToSeasonNumber.
+   * Only episodes where air_date is in the past (already aired) are included.
+   *
+   * @param profileId - ID of the profile (used to determine existing records, not filtered)
+   * @param showId - ID of the show
+   * @param upToSeasonNumber - Optional season number ceiling
+   */
+  async getEpisodeAirDatesForShow(
+    profileId: number,
+    showId: number,
+    upToSeasonNumber?: number,
+  ): Promise<Map<number, string>> {
+    const seasonFilter = upToSeasonNumber !== undefined
+      ? `AND se.season_number <= ?`
+      : '';
+
+    const params: (number | string)[] = [showId];
+    if (upToSeasonNumber !== undefined) {
+      params.push(upToSeasonNumber);
+    }
+
+    const query = `
+      SELECT e.id AS episodeId, e.air_date AS airDate
+      FROM episodes e
+      JOIN seasons se ON se.id = e.season_id
+      WHERE se.show_id = ?
+        AND e.air_date IS NOT NULL
+        AND DATE(e.air_date) <= CURDATE()
+        ${seasonFilter}
+    `;
+
+    const [rows] = await getDbPool().execute<Array<{ episodeId: number; airDate: string } & RowDataPacket>>(
+      query,
+      params,
+    );
+
+    const map = new Map<number, string>();
+    rows.forEach((row) => {
+      map.set(row.episodeId, row.airDate);
+    });
+    return map;
   }
 }

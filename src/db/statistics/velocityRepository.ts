@@ -17,16 +17,17 @@ export async function getWatchingVelocityData(profileId: number, days: number = 
     const [dailyRows] = await getDbPool().execute<VelocityDataRow[]>(
       `
       SELECT
-        DATE(ews.updated_at) as watch_date,
+        DATE(COALESCE(ews.watched_at, ews.updated_at)) as watch_date,
         COUNT(*) as episode_count,
         COUNT(DISTINCT e.show_id) as show_count,
-        HOUR(ews.updated_at) as watch_hour,
-        DAYOFWEEK(ews.updated_at) as day_of_week
+        HOUR(COALESCE(ews.watched_at, ews.updated_at)) as watch_hour,
+        DAYOFWEEK(COALESCE(ews.watched_at, ews.updated_at)) as day_of_week
       FROM episode_watch_status ews
       JOIN episodes e ON e.id = ews.episode_id
       WHERE ews.profile_id = ?
         AND ews.status = 'WATCHED'
-        AND ews.updated_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        AND ews.is_prior_watch = FALSE
+        AND COALESCE(ews.watched_at, ews.updated_at) >= DATE_SUB(NOW(), INTERVAL ? DAY)
       GROUP BY watch_date, watch_hour, day_of_week
       ORDER BY watch_date DESC
       `,

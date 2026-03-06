@@ -242,6 +242,17 @@ describe('velocityRepository', () => {
       expect(Number.isInteger(result.episodesPerMonth)).toBe(true);
     });
 
+    it('should exclude prior watch episodes from results', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getWatchingVelocityData(123, 30);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('is_prior_watch = FALSE'),
+        expect.any(Array),
+      );
+    });
+
     it('should handle error', async () => {
       const mockError = new Error('Database error');
       mockPool.execute.mockRejectedValueOnce(mockError);

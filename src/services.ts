@@ -16,6 +16,7 @@ export * from './services/redisPubSubService';
 export * from './services/seasonsService';
 export * from './services/scheduledJobsService';
 export * from './services/showService';
+export * from './services/watchHistoryService';
 export * from './services/socketService';
 export * from './services/summaryService';
 export * from './services/statistics/profileStatisticsService';

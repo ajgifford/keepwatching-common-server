@@ -82,6 +82,17 @@ describe('activityRepository', () => {
       expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 60]);
     });
 
+    it('should exclude prior watch episodes from results', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getDailyActivityTimeline(123, 30);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('is_prior_watch = FALSE'),
+        expect.any(Array),
+      );
+    });
+
     it('should handle error', async () => {
       const mockError = new Error('Database error');
       mockPool.execute.mockRejectedValueOnce(mockError);
@@ -143,6 +154,17 @@ describe('activityRepository', () => {
       await getWeeklyActivityTimeline(123, 24);
 
       expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('SELECT'), [123, 24]);
+    });
+
+    it('should exclude prior watch episodes from results', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getWeeklyActivityTimeline(123, 12);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('is_prior_watch = FALSE'),
+        expect.any(Array),
+      );
     });
 
     it('should handle error', async () => {
@@ -328,6 +350,17 @@ describe('activityRepository', () => {
           moviesWatched: 5,
         },
       ]);
+    });
+
+    it('should exclude prior watch episodes from results', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getMonthlyActivityTimeline(123, 12);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('is_prior_watch = FALSE'),
+        expect.any(Array),
+      );
     });
   });
 });
