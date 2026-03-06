@@ -118,48 +118,54 @@ export class EmailContentService {
 
       const featuredContent = await this.getFeaturedContent();
 
-      for (const account of accounts) {
-        try {
-          if (!account.emailVerified) {
-            throw new NotVerifiedError();
-          }
+      const ACCOUNT_CONCURRENCY = 5;
 
-          if (!accountsWithEmailPref.some((a) => a.id === account.id)) {
-            cliLogger.info(`Account: ${account.email} is configured not to receive the weekly digest`);
-            continue;
-          }
+      for (let i = 0; i < accounts.length; i += ACCOUNT_CONCURRENCY) {
+        await Promise.allSettled(
+          accounts.slice(i, i + ACCOUNT_CONCURRENCY).map(async (account) => {
+            try {
+              if (!account.emailVerified) {
+                throw new NotVerifiedError();
+              }
 
-          const profiles = await profileService.getProfilesByAccountId(account.id);
-          if (profiles.length === 0) {
-            continue;
-          }
+              if (!accountsWithEmailPref.some((a) => a.id === account.id)) {
+                cliLogger.info(`Account: ${account.email} is configured not to receive the weekly digest`);
+                return;
+              }
 
-          const contentAnalysis = await this.analyzeAccountContent(profiles, weekRange);
+              const profiles = await profileService.getProfilesByAccountId(account.id);
+              if (profiles.length === 0) {
+                return;
+              }
 
-          if (contentAnalysis.hasUpcomingContent) {
-            digestEmails.push({
-              accountId: account.id,
-              to: account.email!,
-              accountName: account.name,
-              profiles: contentAnalysis.profileDigests,
-              weekRange,
-            });
-          } else {
-            discoveryEmails.push({
-              accountId: account.id,
-              to: account.email!,
-              accountName: account.name,
-              data: {
-                accountName: account.name,
-                profiles: profiles.map((p) => ({ id: p.id, name: p.name })),
-                featuredContent,
-                weekRange,
-              },
-            });
-          }
-        } catch (error) {
-          cliLogger.error(`Failed to process account: ${account.email} - `, error);
-        }
+              const contentAnalysis = await this.analyzeAccountContent(profiles, weekRange);
+
+              if (contentAnalysis.hasUpcomingContent) {
+                digestEmails.push({
+                  accountId: account.id,
+                  to: account.email!,
+                  accountName: account.name,
+                  profiles: contentAnalysis.profileDigests,
+                  weekRange,
+                });
+              } else {
+                discoveryEmails.push({
+                  accountId: account.id,
+                  to: account.email!,
+                  accountName: account.name,
+                  data: {
+                    accountName: account.name,
+                    profiles: profiles.map((p) => ({ id: p.id, name: p.name })),
+                    featuredContent,
+                    weekRange,
+                  },
+                });
+              }
+            } catch (error) {
+              cliLogger.error(`Failed to process account: ${account.email} - `, error);
+            }
+          }),
+        );
       }
 
       return { digestEmails, discoveryEmails };
@@ -316,81 +322,64 @@ export class EmailContentService {
     profiles: Profile[],
     weekRange: { start: string; end: string },
   ): Promise<AccountContentAnalysis> {
-    const profileAnalyses: ProfileContentAnalysis[] = [];
-    const profileDigests: DigestData[] = [];
-    let hasUpcomingContent = false;
+    const [sYear, sMonth, sDay] = weekRange.start.split('-').map(Number);
+    const startDate = new Date(sYear, sMonth - 1, sDay);
+    const [endYear, endMonth, endDay] = weekRange.end.split('-').map(Number);
+    const endDate = new Date(endYear, endMonth - 1, endDay);
 
-    for (const profile of profiles) {
-      const [upcomingEpisodes, upcomingMovies, continueWatching] = await Promise.all([
-        episodesService.getUpcomingEpisodesForProfile(profile.id),
-        moviesService.getUpcomingMoviesForProfile(profile.id),
-        showService.getNextUnwatchedEpisodesForProfile(profile.id),
-      ]);
+    const profileResults = await Promise.all(
+      profiles.map(async (profile) => {
+        const [upcomingEpisodes, upcomingMovies, continueWatching] = await Promise.all([
+          episodesService.getUpcomingEpisodesForProfile(profile.id),
+          moviesService.getUpcomingMoviesForProfile(profile.id),
+          showService.getNextUnwatchedEpisodesForProfile(profile.id),
+        ]);
 
-      const weeklyUpcomingEpisodes = upcomingEpisodes.filter((episode) => {
         // Parse dates as local dates to avoid timezone shifts
-        const [eYear, eMonth, eDay] = episode.airDate.split('-').map(Number);
-        const episodeDate = new Date(eYear, eMonth - 1, eDay);
-        
-        const [sYear, sMonth, sDay] = weekRange.start.split('-').map(Number);
-        const startDate = new Date(sYear, sMonth - 1, sDay);
-        
-        const [endYear, endMonth, endDay] = weekRange.end.split('-').map(Number);
-        const endDate = new Date(endYear, endMonth - 1, endDay);
-        
-        return episodeDate >= startDate && episodeDate <= endDate;
-      });
-
-      const weeklyUpcomingMovies = upcomingMovies.filter((movie) => {
-        if (!movie.releaseDate) return false;
-        
-        // Parse dates as local dates to avoid timezone shifts
-        const [mYear, mMonth, mDay] = movie.releaseDate.split('-').map(Number);
-        const movieDate = new Date(mYear, mMonth - 1, mDay);
-        
-        const [sYear, sMonth, sDay] = weekRange.start.split('-').map(Number);
-        const startDate = new Date(sYear, sMonth - 1, sDay);
-        
-        const [endYear, endMonth, endDay] = weekRange.end.split('-').map(Number);
-        const endDate = new Date(endYear, endMonth - 1, endDay);
-        
-        return movieDate >= startDate && movieDate <= endDate;
-      });
-
-      const hasContent =
-        weeklyUpcomingEpisodes.length > 0 || weeklyUpcomingMovies.length > 0 || continueWatching.length > 0;
-
-      if (hasContent) {
-        hasUpcomingContent = true;
-      }
-
-      const profileAnalysis: ProfileContentAnalysis = {
-        profile: { id: profile.id, name: profile.name },
-        hasContent,
-        upcomingEpisodes,
-        upcomingMovies,
-        continueWatching,
-        weeklyUpcomingEpisodes,
-        weeklyUpcomingMovies,
-      };
-
-      profileAnalyses.push(profileAnalysis);
-
-      if (hasContent) {
-        profileDigests.push({
-          profile: { id: profile.id, name: profile.name },
-          upcomingEpisodes: weeklyUpcomingEpisodes,
-          upcomingMovies: weeklyUpcomingMovies,
-          continueWatching,
+        const weeklyUpcomingEpisodes = upcomingEpisodes.filter((episode) => {
+          const [eYear, eMonth, eDay] = episode.airDate.split('-').map(Number);
+          const episodeDate = new Date(eYear, eMonth - 1, eDay);
+          return episodeDate >= startDate && episodeDate <= endDate;
         });
-      }
-    }
 
-    return {
-      hasUpcomingContent,
-      profileAnalyses,
-      profileDigests,
-    };
+        const weeklyUpcomingMovies = upcomingMovies.filter((movie) => {
+          if (!movie.releaseDate) return false;
+          const [mYear, mMonth, mDay] = movie.releaseDate.split('-').map(Number);
+          const movieDate = new Date(mYear, mMonth - 1, mDay);
+          return movieDate >= startDate && movieDate <= endDate;
+        });
+
+        const hasContent =
+          weeklyUpcomingEpisodes.length > 0 || weeklyUpcomingMovies.length > 0 || continueWatching.length > 0;
+
+        const profileAnalysis: ProfileContentAnalysis = {
+          profile: { id: profile.id, name: profile.name },
+          hasContent,
+          upcomingEpisodes,
+          upcomingMovies,
+          continueWatching,
+          weeklyUpcomingEpisodes,
+          weeklyUpcomingMovies,
+        };
+
+        const profileDigest: DigestData | null = hasContent
+          ? {
+              profile: { id: profile.id, name: profile.name },
+              upcomingEpisodes: weeklyUpcomingEpisodes,
+              upcomingMovies: weeklyUpcomingMovies,
+              continueWatching,
+            }
+          : null;
+
+        return { profileAnalysis, profileDigest };
+      }),
+    );
+
+    const profileAnalyses = profileResults.map((r) => r.profileAnalysis);
+    const profileDigests = profileResults.filter((r) => r.profileDigest !== null).map((r) => r.profileDigest!);
+    const hasUpcomingContent = profileDigests.length > 0;
+
+    return { hasUpcomingContent, profileAnalyses, profileDigests };
   }
 
   /**

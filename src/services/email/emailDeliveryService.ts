@@ -173,18 +173,24 @@ export class EmailDeliveryService {
     let failed = 0;
     const errors: Array<{ email: string; error: Error }> = [];
 
-    for (const email of emails) {
-      try {
-        await this.sendDigestEmail(email);
-        await updateStatus(email.accountId, true);
-        sent++;
-      } catch (error) {
-        failed++;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        await updateStatus(email.accountId, false, errorMessage);
-        errors.push({ email: email.to, error: error as Error });
-        cliLogger.error(`Failed to send digest email to: ${email.to}`, error);
-      }
+    const EMAIL_CONCURRENCY = 5;
+
+    for (let i = 0; i < emails.length; i += EMAIL_CONCURRENCY) {
+      await Promise.allSettled(
+        emails.slice(i, i + EMAIL_CONCURRENCY).map(async (email) => {
+          try {
+            await this.sendDigestEmail(email);
+            await updateStatus(email.accountId, true);
+            sent++;
+          } catch (error) {
+            failed++;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            await updateStatus(email.accountId, false, errorMessage);
+            errors.push({ email: email.to, error: error as Error });
+            cliLogger.error(`Failed to send digest email to: ${email.to}`, error);
+          }
+        }),
+      );
     }
 
     return { sent, failed, errors };
@@ -206,18 +212,24 @@ export class EmailDeliveryService {
     let failed = 0;
     const errors: Array<{ email: string; error: Error }> = [];
 
-    for (const email of emails) {
-      try {
-        await this.sendDiscoveryEmail(email);
-        await updateStatus(email.accountId, true);
-        sent++;
-      } catch (error) {
-        failed++;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        await updateStatus(email.accountId, false, errorMessage);
-        errors.push({ email: email.to, error: error as Error });
-        cliLogger.error(`Failed to send discovery email to: ${email.to}`, error);
-      }
+    const EMAIL_CONCURRENCY = 5;
+
+    for (let i = 0; i < emails.length; i += EMAIL_CONCURRENCY) {
+      await Promise.allSettled(
+        emails.slice(i, i + EMAIL_CONCURRENCY).map(async (email) => {
+          try {
+            await this.sendDiscoveryEmail(email);
+            await updateStatus(email.accountId, true);
+            sent++;
+          } catch (error) {
+            failed++;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            await updateStatus(email.accountId, false, errorMessage);
+            errors.push({ email: email.to, error: error as Error });
+            cliLogger.error(`Failed to send discovery email to: ${email.to}`, error);
+          }
+        }),
+      );
     }
 
     return { sent, failed, errors };
