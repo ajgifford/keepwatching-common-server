@@ -2,6 +2,7 @@ import { AdminProfileRow, ProfileRow, transformAdminProfile, transformProfile } 
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
+import { RowDataPacket } from 'mysql2';
 import {
   AdminProfile,
   CreateProfileRequest,
@@ -104,5 +105,16 @@ export async function getAdminProfilesByAccountId(accountId: number): Promise<Ad
     });
   } catch (error) {
     handleDatabaseError(error, 'getting profiles with show and movie counts by account id');
+  }
+}
+
+export async function getAllProfileIds(): Promise<number[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getAllProfileIds', async () => {
+      const [rows] = await getDbPool().execute<RowDataPacket[]>('SELECT profile_id FROM profiles');
+      return rows.map((r) => r.profile_id as number);
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'getting all profile ids');
   }
 }

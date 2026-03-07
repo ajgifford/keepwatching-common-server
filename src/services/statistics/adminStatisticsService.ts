@@ -3,11 +3,13 @@ import { ADMIN_KEYS } from '../../constants/cacheKeys';
 import * as accountComparisonRepository from '../../db/statistics/accountComparisonRepository';
 import * as adminStatsRepository from '../../db/statistics/adminStatsRepository';
 import * as contentPerformanceRepository from '../../db/statistics/contentPerformanceRepository';
+import { getAllProfileIds } from '../../db/profilesDb';
 import { cliLogger } from '../../logger/logger';
 import { BadRequestError, FirebaseError } from '../../middleware/errorMiddleware';
 import { getFirebaseAdmin } from '../../utils/firebaseUtil';
 import { CacheService } from '../cacheService';
 import { errorService } from '../errorService';
+import { batchCheckAchievements } from '../achievementDetectionService';
 import {
   AccountHealthMetrics,
   AccountHealthStats,
@@ -665,6 +667,26 @@ export class AdminStatisticsService {
     if (daysSinceActivity <= 30) return 'low';
     if (daysSinceActivity <= 90) return 'medium';
     return 'high';
+  }
+
+  /**
+   * Backfill achievements for all profiles.
+   * Detects and records any milestone achievements that existing profiles have
+   * already passed but don't yet have records for (e.g. after adding new thresholds).
+   *
+   * @returns Summary of profiles processed and new achievements recorded
+   */
+  async backfillAchievements(): Promise<{ profilesProcessed: number; totalNewAchievements: number; breakdown: Record<number, number> }> {
+    const profileIds = await getAllProfileIds();
+    const breakdown = Object.fromEntries(
+      [...(await batchCheckAchievements(profileIds)).entries()]
+    );
+    const totalNewAchievements = Object.values(breakdown).reduce((sum, count) => sum + count, 0);
+    return {
+      profilesProcessed: profileIds.length,
+      totalNewAchievements,
+      breakdown,
+    };
   }
 }
 
