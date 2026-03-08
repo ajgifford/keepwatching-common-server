@@ -134,6 +134,38 @@ describe('preferencesSchema', () => {
       });
     });
 
+    it('should validate all relativeDate options', () => {
+      const relativeDateOptions = ['relative-recent', 'always-relative', 'always-absolute'] as const;
+
+      relativeDateOptions.forEach((relativeDate) => {
+        const input = { relativeDate };
+        const result = displayPreferencesSchema.parse(input);
+        expect(result.relativeDate).toBe(relativeDate);
+      });
+    });
+
+    it('should validate all timeFormat options', () => {
+      const timeFormatOptions = ['12h', '24h'] as const;
+
+      timeFormatOptions.forEach((timeFormat) => {
+        const input = { timeFormat };
+        const result = displayPreferencesSchema.parse(input);
+        expect(result.timeFormat).toBe(timeFormat);
+      });
+    });
+
+    it('should validate all display fields together', () => {
+      const validInput = {
+        theme: 'dark' as const,
+        dateFormat: 'DD/MM/YYYY' as const,
+        relativeDate: 'always-absolute' as const,
+        timeFormat: '24h' as const,
+      };
+
+      const result = displayPreferencesSchema.parse(validInput);
+      expect(result).toEqual(validInput);
+    });
+
     it('should reject invalid theme values', () => {
       const invalidInput = {
         theme: 'invalid-theme',
@@ -145,6 +177,22 @@ describe('preferencesSchema', () => {
     it('should reject invalid date format values', () => {
       const invalidInput = {
         dateFormat: 'invalid-format',
+      };
+
+      expect(() => displayPreferencesSchema.parse(invalidInput)).toThrow(ZodError);
+    });
+
+    it('should reject invalid relativeDate values', () => {
+      const invalidInput = {
+        relativeDate: 'sometimes-relative',
+      };
+
+      expect(() => displayPreferencesSchema.parse(invalidInput)).toThrow(ZodError);
+    });
+
+    it('should reject invalid timeFormat values', () => {
+      const invalidInput = {
+        timeFormat: '24-hour',
       };
 
       expect(() => displayPreferencesSchema.parse(invalidInput)).toThrow(ZodError);
@@ -521,6 +569,20 @@ describe('preferencesSchema', () => {
       const validFormats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'] as const;
       validFormats.forEach((dateFormat) => {
         const input = { dateFormat };
+        expect(() => displayPreferencesSchema.parse(input)).not.toThrow();
+      });
+
+      // Test all valid relativeDate values
+      const validRelativeDates = ['relative-recent', 'always-relative', 'always-absolute'] as const;
+      validRelativeDates.forEach((relativeDate) => {
+        const input = { relativeDate };
+        expect(() => displayPreferencesSchema.parse(input)).not.toThrow();
+      });
+
+      // Test all valid timeFormat values
+      const validTimeFormats = ['12h', '24h'] as const;
+      validTimeFormats.forEach((timeFormat) => {
+        const input = { timeFormat };
         expect(() => displayPreferencesSchema.parse(input)).not.toThrow();
       });
 

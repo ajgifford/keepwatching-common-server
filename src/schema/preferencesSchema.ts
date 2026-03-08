@@ -16,6 +16,8 @@ export const notificationPreferencesSchema = z.object({
 export const displayPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']).optional(),
   dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']).optional(),
+  relativeDate: z.enum(['relative-recent', 'always-relative', 'always-absolute']).optional(),
+  timeFormat: z.enum(['12h', '24h']).optional(),
 });
 
 export const privacyPreferencesSchema = z.object({

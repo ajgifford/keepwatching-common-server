@@ -31,7 +31,7 @@ export async function getContentDiscoveryStats(profileId: number): Promise<Conte
       const additionData = additionRows[0];
       const lastContentAdded = additionData.last_content_added;
       const daysSinceLastContentAdded = lastContentAdded
-        ? Math.floor((new Date().getTime() - new Date(lastContentAdded).getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.round((new Date().getTime() - new Date(lastContentAdded).getTime()) / (1000 * 60 * 60 * 24))
         : 0;
 
       // Calculate monthly addition rate
