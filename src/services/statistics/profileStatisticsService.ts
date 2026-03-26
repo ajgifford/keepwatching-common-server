@@ -1,5 +1,6 @@
 import { PROFILE_KEYS } from '../../constants/cacheKeys';
 import * as statisticsDb from '../../db/statisticsDb';
+import { getProfileRewatchStats } from '../../db/statistics/rewatchRepository';
 import { CacheService } from '../cacheService';
 import { errorService } from '../errorService';
 import { moviesService } from '../moviesService';
@@ -12,6 +13,7 @@ import {
   DailyActivity,
   MilestoneStats,
   MonthlyActivity,
+  ProfileRewatchStats,
   ProfileStatisticsResponse,
   SeasonalViewingStats,
   TimeToWatchStats,
@@ -355,6 +357,27 @@ export class ProfileStatisticsService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getUnairedContentStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get rewatch statistics for a profile
+   * Returns totals and most-rewatched shows/movies
+   *
+   * @param profileId - ID of the profile
+   * @returns Rewatch statistics
+   */
+  public async getRewatchStats(profileId: number): Promise<ProfileRewatchStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.rewatchStats(profileId),
+        async () => {
+          return await getProfileRewatchStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getRewatchStats(${profileId})`);
     }
   }
 }

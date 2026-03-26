@@ -15,10 +15,9 @@ export async function getWatchStreakStats(profileId: number): Promise<WatchStrea
     // Get distinct dates where episodes were watched
     const [rows] = await getDbPool().execute<RowDataPacket[]>(
       `
-      SELECT DISTINCT DATE(COALESCE(watched_at, updated_at)) as watch_date
-      FROM episode_watch_status
+      SELECT DISTINCT DATE(watched_at) as watch_date
+      FROM episode_watch_history
       WHERE profile_id = ?
-        AND status = 'WATCHED'
         AND is_prior_watch = FALSE
       ORDER BY watch_date
       `,

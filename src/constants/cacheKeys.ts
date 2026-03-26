@@ -73,6 +73,9 @@ export const ACCOUNT_KEYS = {
 
   /** Gets the cache key for profile comparison within account */
   profileComparison: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_profile_comparison`,
+
+  /** Gets the cache key for account rewatch statistics */
+  rewatchStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_rewatch_stats`,
 };
 
 // Profile keys
@@ -166,6 +169,10 @@ export const PROFILE_KEYS = {
   /** Gets the cache key for profile unaired content statistics */
   unairedContentStats: (profileId: number | string) =>
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_unaired_content_stats`,
+
+  /** Gets the cache key for profile rewatch statistics */
+  rewatchStats: (profileId: number | string) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_rewatch_stats`,
 };
 
 // Show keys

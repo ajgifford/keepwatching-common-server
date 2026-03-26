@@ -1,6 +1,7 @@
 import { ACCOUNT_KEYS } from '../../constants/cacheKeys';
 import * as accountsDb from '../../db/accountsDb';
 import * as statisticsDb from '../../db/statisticsDb';
+import { getAccountRewatchStats } from '../../db/statistics/rewatchRepository';
 import { BadRequestError } from '../../middleware/errorMiddleware';
 import { calculateMilestones } from '../../utils/statisticsUtil';
 import { CacheService } from '../cacheService';
@@ -18,6 +19,7 @@ import {
   AccountSeasonalViewingStats,
   AccountStatisticsResponse,
   AccountTimeToWatchStats,
+  AccountRewatchStats,
   AccountUnairedContentStats,
   AccountWatchStreakStats,
   AccountWatchingVelocityStats,
@@ -981,6 +983,26 @@ export class AccountStatisticsService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getAccountUnairedContentStats(${accountId})`);
+    }
+  }
+
+  /**
+   * Get rewatch statistics aggregated across all profiles in an account
+   *
+   * @param accountId - ID of the account
+   * @returns Account-wide rewatch statistics
+   */
+  public async getAccountRewatchStats(accountId: number): Promise<AccountRewatchStats> {
+    try {
+      return await this.cache.getOrSet(
+        ACCOUNT_KEYS.rewatchStats(accountId),
+        async () => {
+          return await getAccountRewatchStats(accountId);
+        },
+        3600, // 1 hour TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getAccountRewatchStats(${accountId})`);
     }
   }
 
