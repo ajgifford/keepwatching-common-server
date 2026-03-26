@@ -244,7 +244,35 @@ export async function getEpisodesForSeason(profileId: number, seasonId: number):
     return await DbMonitor.getInstance().executeWithTiming(
       'getEpisodesForSeason',
       async () => {
-        const query = 'SELECT * FROM profile_episodes where profile_id = ? and season_id = ? ORDER BY episode_number';
+        const query = `
+          SELECT
+            ws.profile_id,
+            e.id AS episode_id,
+            e.tmdb_id,
+            e.season_id,
+            e.show_id,
+            e.episode_number,
+            e.episode_type,
+            e.season_number,
+            e.title,
+            e.overview,
+            e.runtime,
+            e.air_date,
+            e.still_image,
+            ws.status AS watch_status,
+            ws.watched_at,
+            ws.is_prior_watch,
+            COALESCE(wh.watch_count, 0) AS watch_count
+          FROM episode_watch_status ws
+          JOIN episodes e ON ws.episode_id = e.id
+          LEFT JOIN (
+            SELECT profile_id, episode_id, COUNT(*) AS watch_count
+            FROM episode_watch_history
+            GROUP BY profile_id, episode_id
+          ) wh ON wh.profile_id = ws.profile_id AND wh.episode_id = ws.episode_id
+          WHERE ws.profile_id = ? AND e.season_id = ?
+          ORDER BY e.episode_number
+        `;
         const [episodeRows] = await getDbPool().execute<ProfileEpisodeRow[]>(query, [Number(profileId), seasonId]);
         const result = episodeRows.map(transformProfileEpisode);
         return result;
