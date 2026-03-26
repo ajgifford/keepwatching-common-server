@@ -143,6 +143,7 @@ CREATE TABLE show_watch_status (
     profile_id INT NOT NULL,
     show_id BIGINT NOT NULL,
 	status ENUM('NOT_WATCHED', 'WATCHING', 'WATCHED', 'UP_TO_DATE', 'UNAIRED') NOT NULL DEFAULT 'NOT_WATCHED',
+    rewatch_count INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
@@ -167,6 +168,8 @@ CREATE TABLE episode_watch_status (
     profile_id INT NOT NULL,
     episode_id BIGINT NOT NULL,
 	status ENUM('NOT_WATCHED', 'WATCHED', 'UNAIRED') NOT NULL DEFAULT 'NOT_WATCHED',
+    watched_at TIMESTAMP NULL,
+    is_prior_watch BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
@@ -179,10 +182,60 @@ CREATE TABLE movie_watch_status (
     profile_id INT NOT NULL,
     movie_id BIGINT NOT NULL,
 	status ENUM('NOT_WATCHED', 'WATCHED', 'UNAIRED') NOT NULL DEFAULT 'NOT_WATCHED',
+    rewatch_count INT NOT NULL DEFAULT 0,
+    watched_at TIMESTAMP NULL,
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
-	FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE
+	FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+	UNIQUE (profile_id, movie_id)
+);
+
+CREATE TABLE episode_watch_history (
+    id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    profile_id INT NOT NULL,
+    episode_id BIGINT NOT NULL,
+    watch_number INT NOT NULL DEFAULT 1,
+    watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_prior_watch BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
+    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE,
+    INDEX idx_ewh_profile_episode (profile_id, episode_id),
+    INDEX idx_ewh_profile_watched_at (profile_id, watched_at)
+);
+
+CREATE TABLE movie_watch_history (
+    id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    profile_id INT NOT NULL,
+    movie_id BIGINT NOT NULL,
+    watch_number INT NOT NULL DEFAULT 1,
+    watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
+    FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+    INDEX idx_mwh_profile_movie (profile_id, movie_id),
+    INDEX idx_mwh_profile_watched_at (profile_id, watched_at)
+);
+
+CREATE TABLE season_watch_history (
+    id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    profile_id INT NOT NULL,
+    season_id BIGINT NOT NULL,
+    watch_number INT NOT NULL DEFAULT 1,
+    watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
+    FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
+    INDEX idx_swh_profile_season (profile_id, season_id)
+);
+
+CREATE TABLE show_watch_history (
+    id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    profile_id INT NOT NULL,
+    show_id BIGINT NOT NULL,
+    watch_number INT NOT NULL DEFAULT 1,
+    watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
+    FOREIGN KEY (show_id) REFERENCES shows(id) ON DELETE CASCADE,
+    INDEX idx_showwh_profile_show (profile_id, show_id)
 );
 
 CREATE TABLE notifications (
@@ -361,13 +414,16 @@ SELECT
 	e.still_image,
 	ws.status as watch_status,
 	ws.watched_at,
-	ws.is_prior_watch
+	ws.is_prior_watch,
+	COUNT(ewh.id) AS watch_count
 FROM
 	profiles p
 JOIN
 	episode_watch_status ws ON p.profile_id = ws.profile_id
 JOIN
 	episodes e ON ws.episode_id = e.id
+LEFT JOIN
+	episode_watch_history ewh ON ewh.episode_id = e.id AND ewh.profile_id = p.profile_id
 GROUP BY
 	p.profile_id, e.id, ws.status, ws.watched_at, ws.is_prior_watch;
 	
