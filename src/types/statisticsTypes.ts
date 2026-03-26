@@ -1,3 +1,4 @@
+import { RewatchedMovie, RewatchedShow } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2/promise';
 
 export interface VelocityDataRow extends RowDataPacket {
@@ -244,4 +245,58 @@ export interface WatchCountRow extends RowDataPacket {
 
 export interface LatestWatchRow extends RowDataPacket {
   latest_watch_date: Date;
+}
+
+export interface ShowRewatchRow extends RowDataPacket {
+  show_id: number;
+  show_title: string;
+  rewatch_count: number;
+}
+
+export interface MovieRewatchRow extends RowDataPacket {
+  movie_id: number;
+  movie_title: string;
+  rewatch_count: number;
+}
+
+export interface ShowRewatchWithProfileRow extends ShowRewatchRow {
+  profile_name: string;
+}
+
+export interface MovieRewatchWithProfileRow extends MovieRewatchRow {
+  profile_name: string;
+}
+
+export interface RewatchTotalRow extends RowDataPacket {
+  total: number;
+}
+
+export function mapRowToRewatchedShow(row: ShowRewatchRow): RewatchedShow {
+  return {
+    showId: row.show_id,
+    showTitle: row.show_title,
+    rewatchCount: row.rewatch_count,
+  };
+}
+
+export function mapRowToRewatchedMovie(row: MovieRewatchRow): RewatchedMovie {
+  return {
+    movieId: row.movie_id,
+    movieTitle: row.movie_title,
+    rewatchCount: row.rewatch_count,
+  };
+}
+
+export function mapRowToRewatchedShowWithProfile(row: ShowRewatchWithProfileRow): RewatchedShow & { profileName: string } {
+  return {
+    ...mapRowToRewatchedShow(row),
+    profileName: row.profile_name,
+  };
+}
+
+export function mapRowToRewatchedMovieWithProfile(row: MovieRewatchWithProfileRow): RewatchedMovie & { profileName: string } {
+  return {
+    ...mapRowToRewatchedMovie(row),
+    profileName: row.profile_name,
+  };
 }
