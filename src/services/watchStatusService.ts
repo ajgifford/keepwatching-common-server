@@ -178,6 +178,8 @@ export class WatchStatusService {
         throw new DatabaseError('Failed to mark episodes as prior watched', null);
       }
 
+      await this.dbService.checkAndUpdateShowWatchStatus(profileId, showId);
+
       showService.invalidateProfileCache(accountId, profileId);
 
       this.checkAchievements(profileId, accountId).catch((err) => {

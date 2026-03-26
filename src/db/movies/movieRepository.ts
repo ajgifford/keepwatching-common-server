@@ -17,6 +17,7 @@ import { getDbPool } from '../../utils/db';
 import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
+import { logMovieWatched } from '../watchHistoryDb';
 import {
   ContentReference,
   CreateMovieRequest,
@@ -308,15 +309,25 @@ export async function removeFavorite(profileId: number, movieId: number): Promis
  * @throws {DatabaseError} If a database error occurs during the operation
  */
 export async function updateWatchStatus(profileId: number, movieId: number, status: string): Promise<boolean> {
+  const transactionHelper = new TransactionHelper();
   try {
     return await DbMonitor.getInstance().executeWithTiming(
       'updateWatchStatus',
       async () => {
-        const query = 'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?';
-        const [result] = await getDbPool().execute<ResultSetHeader>(query, [status, profileId, movieId]);
+        return await transactionHelper.executeInTransaction(async (connection) => {
+          const isWatched = status === WatchStatus.WATCHED;
+          const query = isWatched
+            ? 'UPDATE movie_watch_status SET status = ?, watched_at = CURRENT_TIMESTAMP WHERE profile_id = ? AND movie_id = ?'
+            : 'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?';
+          const [result] = await connection.execute<ResultSetHeader>(query, [status, profileId, movieId]);
 
-        // Return true if at least one row was affected (watch status was updated)
-        return result.affectedRows > 0;
+          if (isWatched && result.affectedRows > 0) {
+            await logMovieWatched(connection, profileId, movieId);
+          }
+
+          // Return true if at least one row was affected (watch status was updated)
+          return result.affectedRows > 0;
+        });
       },
       1000,
       { content: { id: movieId, type: 'movie' } },

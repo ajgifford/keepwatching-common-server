@@ -253,7 +253,8 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
             s.id AS show_id,
             s.title AS show_title,
             s.poster_image,
-            MAX(ews.updated_at) AS last_watched_date
+            MAX(ews.updated_at) AS last_watched_date,
+            0 AS is_rewatch
           FROM episode_watch_status ews
           INNER JOIN episodes e ON ews.episode_id = e.id
           INNER JOIN shows s ON e.show_id = s.id
@@ -272,6 +273,34 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
               LIMIT 1
             )
           GROUP BY s.id, s.title, s.poster_image
+
+          UNION
+
+          -- Rewatch branch: shows fully reset (rewatch_count > 0) with no WATCHED episodes
+          SELECT DISTINCT
+            s.id AS show_id,
+            s.title AS show_title,
+            s.poster_image,
+            sws.updated_at AS last_watched_date,
+            1 AS is_rewatch
+          FROM show_watch_status sws
+          INNER JOIN shows s ON s.id = sws.show_id
+          WHERE sws.profile_id = ?
+            AND sws.rewatch_count > 0
+            AND sws.status = 'NOT_WATCHED'
+            AND EXISTS (
+              SELECT 1
+              FROM episodes e2
+              LEFT JOIN episode_watch_status ews2
+                ON e2.id = ews2.episode_id
+                AND ews2.profile_id = ?
+              WHERE e2.show_id = s.id
+                AND (ews2.status IS NULL OR ews2.status != 'WATCHED')
+                AND e2.air_date IS NOT NULL
+                AND e2.air_date <= CURDATE()
+              LIMIT 1
+            )
+
           ORDER BY last_watched_date DESC
           LIMIT 6
         ),
@@ -392,6 +421,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
           rs.show_title,
           rs.poster_image,
           rs.last_watched_date,
+          rs.is_rewatch,
           ace.episode_id,
           ace.episode_title,
           ace.overview,
@@ -409,7 +439,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
         INNER JOIN shows s ON s.id = rs.show_id
         LEFT JOIN show_services tss ON rs.show_id = tss.show_id
         LEFT JOIN streaming_services ss ON tss.streaming_service_id = ss.id
-        GROUP BY rs.show_id, rs.show_title, rs.poster_image, rs.last_watched_date,
+        GROUP BY rs.show_id, rs.show_title, rs.poster_image, rs.last_watched_date, rs.is_rewatch,
                  ace.episode_id, ace.episode_title, ace.overview, ace.episode_number,
                  ace.season_number, ace.season_id, ace.still_image, ace.air_date, ace.runtime,
                  ace.is_active_season, s.network
@@ -421,6 +451,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
         show_title: string;
         poster_image: string | null;
         last_watched_date: Date;
+        is_rewatch: number; // 1 = rewatch, 0 = normal
         episode_id: number;
         episode_title: string;
         overview: string | null;
@@ -436,12 +467,14 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
       }
 
       const [rows] = await pool.execute<OptimizedResultRow[]>(query, [
-        profileId,
-        profileId,
-        profileId,
-        profileId,
-        profileId,
-        profileId,
+        profileId, // recent_shows: original branch profile filter
+        profileId, // recent_shows: original branch EXISTS subquery
+        profileId, // recent_shows: rewatch branch profile filter
+        profileId, // recent_shows: rewatch branch EXISTS subquery
+        profileId, // active_seasons
+        profileId, // next_episodes_per_active_season
+        profileId, // fallback_episodes inner
+        profileId, // fallback_episodes MIN subquery
       ]);
 
       if (rows.length === 0) {
@@ -471,6 +504,7 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
               showTitle: row.show_title,
               posterImage: row.poster_image || '',
               lastWatched: row.last_watched_date.toISOString(),
+              isRewatch: row.is_rewatch === 1,
             },
             seasonMap: new Map(),
           });

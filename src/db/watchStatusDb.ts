@@ -1,3 +1,4 @@
+import { logEpisodeWatched, logEpisodesWatched, logSeasonWatched, logShowWatched } from './watchHistoryDb';
 import { NotFoundError } from '../middleware/errorMiddleware';
 import { QueryExecutionMetadata } from '../types/statsStore';
 import {
@@ -223,6 +224,11 @@ export class WatchStatusDbService {
           status,
           `Episode manually set to ${status}`,
         );
+
+        // Log to watch history when marking as watched
+        if (status === 'WATCHED') {
+          await logEpisodeWatched(context.connection, profileId, episodeId);
+        }
 
         // Propagate to season and show
         await this.updateSeasonEpisodes(context, watchStatusExtendedEpisode);
@@ -477,6 +483,17 @@ export class WatchStatusDbService {
       );
     });
 
+    // Log newly-WATCHED episodes to history (diff pre/post snapshots)
+    const newlyWatchedIds = updatedEpisodeRows
+      .filter((ep) => {
+        const original = originalEpisodeRows.find((oe) => oe.id === ep.id);
+        return ep.status === 'WATCHED' && original?.status !== 'WATCHED';
+      })
+      .map((ep) => ep.id);
+    if (newlyWatchedIds.length > 0) {
+      await logEpisodesWatched(context.connection, context.profileId, newlyWatchedIds);
+    }
+
     // Calculate and update season status
     const updatedEpisodes = updatedEpisodeRows.map(transformWatchStatusEpisode);
     const watchStatusSeason = transformWatchStatusExtendedSeason(seasonRow, updatedEpisodes);
@@ -497,6 +514,11 @@ export class WatchStatusDbService {
       newSeasonStatus,
       `Season manually set to ${targetStatus}`,
     );
+
+    // Log season completion to history
+    if (newSeasonStatus === 'WATCHED' && watchStatusSeason.watchStatus !== 'WATCHED') {
+      await logSeasonWatched(context.connection, context.profileId, seasonId);
+    }
   }
 
   /**
@@ -598,6 +620,17 @@ export class WatchStatusDbService {
     showId: number,
     status: UserWatchStatus,
   ): Promise<void> {
+    // Snapshot which episodes are already WATCHED before the bulk update
+    const [preUpdateRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(
+      `SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
+       FROM episodes e
+       JOIN seasons s ON e.season_id = s.id
+       LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+       WHERE s.show_id = ?`,
+      [context.profileId, showId],
+    );
+    const preWatchedIds = new Set(preUpdateRows.filter((r) => r.status === 'WATCHED').map((r) => r.id));
+
     // Update all episodes in the show
     const episodeUpdateQuery = `
       INSERT INTO episode_watch_status (profile_id, episode_id, status, watched_at)
@@ -699,6 +732,30 @@ export class WatchStatusDbService {
 
     const calculatedShowStatus = this.statusManager.calculateShowStatus(showWithUpdatedSeasons);
 
+    // Log newly-WATCHED episodes to history (diff pre-snapshot vs current state)
+    const [postUpdateEpisodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(
+      `SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
+       FROM episodes e
+       JOIN seasons s ON e.season_id = s.id
+       LEFT JOIN episode_watch_status ews ON e.id = ews.episode_id AND ews.profile_id = ?
+       WHERE s.show_id = ?`,
+      [context.profileId, showId],
+    );
+    const newlyWatchedIds = postUpdateEpisodeRows
+      .filter((ep) => ep.status === 'WATCHED' && !preWatchedIds.has(ep.id))
+      .map((ep) => ep.id);
+    if (newlyWatchedIds.length > 0) {
+      await logEpisodesWatched(context.connection, context.profileId, newlyWatchedIds);
+    }
+
+    // Log season completions to history
+    for (const updatedSeason of updatedSeasonRows) {
+      const originalSeason = seasonRows.find((s) => s.id === updatedSeason.id);
+      if (updatedSeason.status === 'WATCHED' && originalSeason?.status !== 'WATCHED') {
+        await logSeasonWatched(context.connection, context.profileId, updatedSeason.id);
+      }
+    }
+
     // Only update the show status if it has changed
     if (showRow.status !== calculatedShowStatus) {
       await this.updateEntityStatus(context, {
@@ -716,6 +773,11 @@ export class WatchStatusDbService {
         calculatedShowStatus,
         `Show manually set to ${status}`,
       );
+
+      // Log show completion to history
+      if (calculatedShowStatus === 'WATCHED' || calculatedShowStatus === 'UP_TO_DATE') {
+        await logShowWatched(context.connection, context.profileId, showId);
+      }
     }
   }
 
@@ -936,6 +998,9 @@ export class WatchStatusDbService {
             airDate,
           ]);
           context.totalAffectedRows += result.affectedRows;
+
+          // Log to history with the air date as the watch timestamp
+          await logEpisodeWatched(context.connection, profileId, episodeId, true, airDate);
         }
 
         return this.createSuccessResult(context);
