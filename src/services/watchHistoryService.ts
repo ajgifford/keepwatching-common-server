@@ -1,9 +1,21 @@
+import {
+  getEpisodeWatchCount,
+  getShowIdForSeason,
+  getWatchHistoryForProfile,
+  recalculateShowStatusAfterSeasonReset,
+  recordEpisodeRewatch as recordEpisodeRewatchDb,
+  resetMovieForRewatch,
+  resetSeasonForRewatch,
+  resetShowForRewatch,
+} from '../db/watchHistoryDb';
 import { BulkMarkedShowRow, WatchStatusDbService } from '../db/watchStatusDb';
-import { BulkMarkedShow } from '@ajgifford/keepwatching-types';
+import { transformWatchHistoryRow } from '../types/watchHistoryTypes';
+import { TransactionHelper } from '../utils/transactionHelper';
+import { BulkMarkedShow, ProfileMovie, UpdateWatchStatusData, WatchHistoryItem } from '@ajgifford/keepwatching-types';
 import { errorService } from './errorService';
+import { moviesService } from './moviesService';
 import { showService } from './showService';
 import { watchStatusService } from './watchStatusService';
-import { UpdateWatchStatusData } from '@ajgifford/keepwatching-types';
 
 /**
  * Service for managing prior watch history and watch history cleanup
@@ -105,6 +117,159 @@ export class WatchHistoryService {
         error,
         `retroactivelyMarkShowAsPrior(${accountId}, ${profileId}, ${showId})`,
       );
+    }
+  }
+
+  /**
+   * Reset all episodes and seasons for a show to NOT_WATCHED so the user can
+   * rewatch it from the beginning. Increments show_watch_status.rewatch_count
+   * so the show continues to appear in Keep Watching with zero WATCHED episodes.
+   *
+   * @param accountId - ID of the account
+   * @param profileId - ID of the profile
+   * @param showId - ID of the show to rewatch
+   * @returns Updated show with seasons and next unwatched episodes
+   */
+  async startShowRewatch(accountId: number, profileId: number, showId: number): Promise<UpdateWatchStatusData> {
+    const transactionHelper = new TransactionHelper();
+    try {
+      await transactionHelper.executeInTransaction(async (conn) => {
+        await resetShowForRewatch(conn, profileId, showId);
+      });
+
+      await showService.invalidateAccountCache(accountId);
+
+      const showWithSeasons = await showService.getShowDetailsForProfile(accountId, profileId, showId);
+      const nextUnwatchedEpisodes = await showService.getNextUnwatchedEpisodesForProfile(profileId);
+      return { showWithSeasons, nextUnwatchedEpisodes };
+    } catch (error) {
+      throw errorService.handleError(error, `startShowRewatch(${accountId}, ${profileId}, ${showId})`);
+    }
+  }
+
+  /**
+   * Reset all episodes in a single season to NOT_WATCHED so the user can
+   * rewatch that season. The show status is recalculated based on remaining
+   * season statuses (WATCHING if any season is still non-NOT_WATCHED, else NOT_WATCHED).
+   *
+   * @param accountId - ID of the account
+   * @param profileId - ID of the profile
+   * @param seasonId - ID of the season to rewatch
+   * @returns Updated show with seasons and next unwatched episodes
+   */
+  async startSeasonRewatch(accountId: number, profileId: number, seasonId: number): Promise<UpdateWatchStatusData> {
+    const transactionHelper = new TransactionHelper();
+    try {
+      let showId: number | null = null;
+
+      await transactionHelper.executeInTransaction(async (conn) => {
+        showId = await getShowIdForSeason(conn, seasonId);
+        if (!showId) throw new Error(`Season ${seasonId} not found`);
+
+        await resetSeasonForRewatch(conn, profileId, seasonId);
+        await recalculateShowStatusAfterSeasonReset(conn, profileId, showId);
+      });
+
+      await showService.invalidateAccountCache(accountId);
+
+      const showWithSeasons = await showService.getShowDetailsForProfile(accountId, profileId, showId!);
+      const nextUnwatchedEpisodes = await showService.getNextUnwatchedEpisodesForProfile(profileId);
+      return { showWithSeasons, nextUnwatchedEpisodes };
+    } catch (error) {
+      throw errorService.handleError(error, `startSeasonRewatch(${accountId}, ${profileId}, ${seasonId})`);
+    }
+  }
+
+  /**
+   * Reset a movie to NOT_WATCHED so the user can rewatch it.
+   * Increments movie_watch_status.rewatch_count.
+   *
+   * @param accountId - ID of the account (unused but kept for consistency and future cache use)
+   * @param profileId - ID of the profile
+   * @param movieId - ID of the movie to rewatch
+   * @returns Updated ProfileMovie reflecting the NOT_WATCHED state
+   */
+  async startMovieRewatch(accountId: number, profileId: number, movieId: number): Promise<ProfileMovie> {
+    const transactionHelper = new TransactionHelper();
+    try {
+      await transactionHelper.executeInTransaction(async (conn) => {
+        await resetMovieForRewatch(conn, profileId, movieId);
+      });
+
+      return await moviesService.getMovieDetailsForProfile(profileId, movieId);
+    } catch (error) {
+      throw errorService.handleError(error, `startMovieRewatch(${accountId}, ${profileId}, ${movieId})`);
+    }
+  }
+
+  /**
+   * Log a casual single-episode rewatch without changing its WATCHED status.
+   * Inserts a new episode_watch_history row and returns the updated watch count.
+   *
+   * @param accountId - ID of the account
+   * @param profileId - ID of the profile
+   * @param episodeId - ID of the episode being rewatched
+   * @returns Updated episodeId, watchCount, and watchedAt timestamp
+   */
+  async recordEpisodeRewatch(
+    accountId: number,
+    profileId: number,
+    episodeId: number,
+  ): Promise<{ episodeId: number; watchCount: number; watchedAt: string }> {
+    const transactionHelper = new TransactionHelper();
+    try {
+      await transactionHelper.executeInTransaction(async (conn) => {
+        await recordEpisodeRewatchDb(conn, profileId, episodeId);
+      });
+
+      const watchCount = await getEpisodeWatchCount(profileId, episodeId);
+      const watchedAt = new Date().toISOString();
+      return { episodeId, watchCount, watchedAt };
+    } catch (error) {
+      throw errorService.handleError(error, `recordEpisodeRewatch(${accountId}, ${profileId}, ${episodeId})`);
+    }
+  }
+
+  /**
+   * Retrieve paginated watch history for a profile.
+   *
+   * @param profileId - ID of the profile
+   * @param page - 1-based page number (default: 1)
+   * @param pageSize - Items per page (default: 20)
+   * @param contentType - Filter by 'episode', 'movie', or 'all' (default)
+   * @param sortOrder - Sort direction on watchedAt: 'asc' or 'desc' (default)
+   * @param dateFrom - ISO date string 'YYYY-MM-DD' — inclusive lower bound on watchedAt
+   * @param dateTo - ISO date string 'YYYY-MM-DD' — inclusive upper bound on watchedAt (full day)
+   * @param isPriorWatchOnly - When true, only return prior-watch episode entries
+   * @param searchQuery - Filter episodes by show name, movies by title (partial match)
+   * @returns Paginated history items with total count
+   */
+  async getHistoryForProfile(
+    profileId: number,
+    page: number = 1,
+    pageSize: number = 20,
+    contentType: 'episode' | 'movie' | 'all' = 'all',
+    sortOrder: 'asc' | 'desc' = 'desc',
+    dateFrom?: string,
+    dateTo?: string,
+    isPriorWatchOnly: boolean = false,
+    searchQuery?: string,
+  ): Promise<{ items: WatchHistoryItem[]; totalCount: number; page: number; pageSize: number }> {
+    try {
+      const { items, totalCount } = await getWatchHistoryForProfile(
+        profileId,
+        page,
+        pageSize,
+        contentType,
+        sortOrder,
+        dateFrom,
+        dateTo,
+        isPriorWatchOnly,
+        searchQuery,
+      );
+      return { items: items.map(transformWatchHistoryRow), totalCount, page, pageSize };
+    } catch (error) {
+      throw errorService.handleError(error, `getHistoryForProfile(${profileId}, ${page}, ${pageSize})`);
     }
   }
 }
