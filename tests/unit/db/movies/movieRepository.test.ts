@@ -270,29 +270,46 @@ describe('movieRepository', () => {
   });
 
   describe('updateWatchStatus', () => {
-    it('should update watch status successfully', async () => {
-      mockExecute.mockResolvedValue([{ affectedRows: 1 }]);
+    it('should update watch status with watched_at when status is WATCHED', async () => {
+      // First call: UPDATE (affectedRows: 1), second call: INSERT into history
+      mockConnection.execute
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([{ insertId: 1 }]);
 
       const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED');
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?',
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalled();
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('watched_at = CURRENT_TIMESTAMP'),
         ['WATCHED', 123, 456],
       );
       expect(result).toBe(true);
     });
 
-    it('should return false if no rows were affected', async () => {
-      mockExecute.mockResolvedValue([{ affectedRows: 0 }]);
+    it('should update watch status without watched_at when status is NOT_WATCHED', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-      const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED');
+      const result = await moviesDb.updateWatchStatus(123, 456, 'NOT_WATCHED');
+
+      expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalled();
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?',
+        ['NOT_WATCHED', 123, 456],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false if no rows were affected', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+      const result = await moviesDb.updateWatchStatus(123, 456, 'NOT_WATCHED');
 
       expect(result).toBe(false);
     });
 
     it('should throw DatabaseError when update fails', async () => {
       const dbError = new Error('Database connection failed');
-      mockExecute.mockRejectedValue(dbError);
+      mockConnection.execute.mockRejectedValue(dbError);
 
       await expect(moviesDb.updateWatchStatus(123, 456, 'WATCHED')).rejects.toThrow(
         'Database error updating a movie watch status',

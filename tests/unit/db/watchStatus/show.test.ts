@@ -10,6 +10,7 @@ import { PoolConnection, ResultSetHeader } from 'mysql2/promise';
 // Mock dependencies specific to this test
 jest.mock('@utils/watchStatusManager');
 jest.mock('@utils/errorHandlingUtility');
+jest.mock('@db/watchHistoryDb');
 
 describe('WatchStatusDbService - Show Operations', () => {
   let watchStatusDbService: WatchStatusDbService;
@@ -129,9 +130,10 @@ describe('WatchStatusDbService - Show Operations', () => {
         fieldCount: 0,
       } as ResultSetHeader;
 
-      // Mock database calls in order: show query, episode bulk update, season bulk update, show update
+      // Mock database calls in order: show query, preUpdateRows, episode bulk update, season bulk update, postUpdateEpisodeRows, show update
       mockConnection.execute
         .mockResolvedValueOnce([[showRow], []])
+        .mockResolvedValueOnce([[], []])
         .mockResolvedValueOnce([episodeUpdateResult, []])
         .mockResolvedValueOnce([originalShowSeasons, []])
         .mockResolvedValueOnce([season1EpisodeRows, []])
@@ -140,6 +142,7 @@ describe('WatchStatusDbService - Show Operations', () => {
         .mockResolvedValueOnce([season3EpisodeRows, []])
         .mockResolvedValueOnce([seasonUpdateResult, []])
         .mockResolvedValueOnce([updatedShowSeasons, []])
+        .mockResolvedValueOnce([[], []])
         .mockResolvedValueOnce([updateResult, []]);
 
       mockWatchStatusManager.calculateSeasonStatus.mockReturnValueOnce(WatchStatus.WATCHED);
@@ -261,6 +264,7 @@ describe('WatchStatusDbService - Show Operations', () => {
 
       mockConnection.execute
         .mockResolvedValueOnce([[showRow], []])
+        .mockResolvedValueOnce([[], []])
         .mockResolvedValueOnce([episodeUpdateResult, []])
         .mockResolvedValueOnce([originalShowSeasons, []])
         .mockResolvedValueOnce([season1EpisodeRows, []])
@@ -268,6 +272,7 @@ describe('WatchStatusDbService - Show Operations', () => {
         .mockResolvedValueOnce([season2EpisodeRows, []])
         .mockResolvedValueOnce([seasonUpdateResult, []])
         .mockResolvedValueOnce([updatedShowSeasons, []])
+        .mockResolvedValueOnce([[], []])
         .mockResolvedValueOnce([updateResult, []]);
 
       mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.NOT_WATCHED);
@@ -327,11 +332,13 @@ describe('WatchStatusDbService - Show Operations', () => {
 
       mockConnection.execute
         .mockResolvedValueOnce([[showRow], []])
+        .mockResolvedValueOnce([[], []])
         .mockResolvedValueOnce([episodeUpdateResult, []])
         .mockResolvedValueOnce([originalShowSeasons, []])
         .mockResolvedValueOnce([season1EpisodeRows, []])
         .mockResolvedValueOnce([season2EpisodeRows, []])
-        .mockResolvedValueOnce([updatedShowSeasons, []]);
+        .mockResolvedValueOnce([updatedShowSeasons, []])
+        .mockResolvedValueOnce([[], []]);
 
       mockWatchStatusManager.calculateSeasonStatus.mockReturnValueOnce(WatchStatus.WATCHED);
       mockWatchStatusManager.calculateSeasonStatus.mockReturnValueOnce(WatchStatus.UP_TO_DATE);
@@ -343,8 +350,8 @@ describe('WatchStatusDbService - Show Operations', () => {
       expect(result.affectedRows).toBe(1); // 1 episode,  no seasons or show update
       expect(result.changes).toHaveLength(0); // No status changes recorded since show status didn't change
 
-      // Verify no show status update query was made (only 6 queries total)
-      expect(mockConnection.execute).toHaveBeenCalledTimes(6);
+      // Verify no show status update query was made (only 8 queries total)
+      expect(mockConnection.execute).toHaveBeenCalledTimes(8);
     });
 
     it('should handle show not found error', async () => {

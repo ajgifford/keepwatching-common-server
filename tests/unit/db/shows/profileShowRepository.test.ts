@@ -498,7 +498,7 @@ describe('profileShowRepository', () => {
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining('WITH recent_shows AS'),
-        [123, 123, 123, 123, 123, 123],
+        [123, 123, 123, 123, 123, 123, 123, 123],
       );
 
       expect(result).toHaveLength(2);
@@ -636,6 +636,77 @@ describe('profileShowRepository', () => {
       expect(result[0].episodes[0].episodeStillImage).toBe('');
       expect(result[0].episodes[0].network).toBe('');
       expect(result[0].episodes[0].streamingServices).toBe('');
+    });
+
+    it('should mark rewatch shows with isRewatch flag', async () => {
+      const mockRows = [
+        {
+          show_id: 1,
+          show_title: 'Rewatching Show',
+          poster_image: '/path/to/poster.jpg',
+          last_watched_date: new Date('2023-01-10'),
+          episode_id: 101,
+          episode_title: 'Episode 1',
+          overview: 'Overview',
+          episode_number: 1,
+          season_number: 1,
+          season_id: 1001,
+          still_image: '/still1.jpg',
+          air_date: '2023-01-01',
+          network: 'Network 1',
+          streaming_services: 'Netflix',
+          season_has_watched_episodes: 0,
+          is_rewatch: 1,
+        },
+      ];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await showsDb.getNextUnwatchedEpisodesForProfile(123);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].isRewatch).toBe(true);
+    });
+
+    it('should set isRewatch to false for normal watching shows', async () => {
+      const mockRows = [
+        {
+          show_id: 1,
+          show_title: 'Normal Show',
+          poster_image: '/path/to/poster.jpg',
+          last_watched_date: new Date('2023-01-10'),
+          episode_id: 101,
+          episode_title: 'Episode 1',
+          overview: 'Overview',
+          episode_number: 1,
+          season_number: 1,
+          season_id: 1001,
+          still_image: '/still1.jpg',
+          air_date: '2023-01-01',
+          network: 'Network 1',
+          streaming_services: 'Netflix',
+          season_has_watched_episodes: 1,
+          is_rewatch: 0,
+        },
+      ];
+
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await showsDb.getNextUnwatchedEpisodesForProfile(123);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].isRewatch).toBe(false);
+    });
+
+    it('should include UNION branch for rewatch shows in query', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      await showsDb.getNextUnwatchedEpisodesForProfile(123);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('rewatch_count > 0'),
+        expect.any(Array),
+      );
     });
 
     it('should handle database error properly', async () => {

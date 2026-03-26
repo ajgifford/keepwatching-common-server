@@ -226,12 +226,15 @@ describe('watchStreakRepository', () => {
       expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('WHERE profile_id = ?'), [456]);
     });
 
-    it('should only query WATCHED episodes', async () => {
+    it('should query episode_watch_history (only watched episodes)', async () => {
       mockPool.execute.mockResolvedValueOnce([[]]);
 
       await getWatchStreakStats(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining("status = 'WATCHED'"), expect.any(Array));
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('episode_watch_history'),
+        expect.any(Array),
+      );
     });
 
     it('should exclude prior watch episodes from results', async () => {

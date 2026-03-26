@@ -14,6 +14,7 @@ import { PoolConnection, ResultSetHeader } from 'mysql2/promise';
 // Mock dependencies specific to this test
 jest.mock('@utils/watchStatusManager');
 jest.mock('@utils/errorHandlingUtility');
+jest.mock('@db/watchHistoryDb');
 
 describe('WatchStatusDbService - Episode Operations', () => {
   let watchStatusDbService: WatchStatusDbService;

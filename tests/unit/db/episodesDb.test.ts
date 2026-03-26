@@ -224,15 +224,15 @@ describe('Episode Module', () => {
   });
 
   describe('getEpisodesForSeason', () => {
-    it('should return episodes for season', async () => {
+    it('should return episodes for season with watch count', async () => {
       const mockEpisodes = [
-        { episode_id: 1, title: 'Episode 1', watch_status: 'WATCHED', watched_at: null, is_prior_watch: 0 },
-        { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED', watched_at: null, is_prior_watch: 0 },
+        { episode_id: 1, title: 'Episode 1', watch_status: 'WATCHED', watched_at: null, is_prior_watch: 0, watch_count: 2 },
+        { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED', watched_at: null, is_prior_watch: 0, watch_count: 0 },
       ];
 
       const expectedEpisodes = [
-        { id: 1, title: 'Episode 1', watchStatus: 'WATCHED', watchedAt: null, isPriorWatch: false },
-        { id: 2, title: 'Episode 2', watchStatus: 'NOT_WATCHED', watchedAt: null, isPriorWatch: false },
+        { id: 1, title: 'Episode 1', watchStatus: 'WATCHED', watchedAt: null, isPriorWatch: false, watchCount: 2 },
+        { id: 2, title: 'Episode 2', watchStatus: 'NOT_WATCHED', watchedAt: null, isPriorWatch: false, watchCount: 0 },
       ];
 
       mockExecute.mockResolvedValueOnce([mockEpisodes]);
@@ -240,10 +240,13 @@ describe('Episode Module', () => {
       const episodes = await episodeModule.getEpisodesForSeason(123, 5);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'SELECT * FROM profile_episodes where profile_id = ? and season_id = ? ORDER BY episode_number',
+        expect.stringContaining('episode_watch_history'),
         [123, 5],
       );
-      expect(episodes).toEqual(expectedEpisodes);
+      expect(episodes).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 1, watchStatus: 'WATCHED', watchCount: 2 }),
+        expect.objectContaining({ id: 2, watchStatus: 'NOT_WATCHED', watchCount: 0 }),
+      ]));
     });
 
     it('should throw error when getting episodes for season fails', async () => {

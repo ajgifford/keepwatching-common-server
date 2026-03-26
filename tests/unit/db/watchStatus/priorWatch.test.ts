@@ -7,6 +7,7 @@ import { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 jest.mock('@utils/watchStatusManager');
 jest.mock('@utils/errorHandlingUtility');
+jest.mock('@db/watchHistoryDb');
 
 describe('WatchStatusDbService - Prior Watch Operations', () => {
   let watchStatusDbService: WatchStatusDbService;
