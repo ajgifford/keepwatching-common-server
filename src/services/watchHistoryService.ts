@@ -242,6 +242,7 @@ export class WatchHistoryService {
    * @param dateTo - ISO date string 'YYYY-MM-DD' — inclusive upper bound on watchedAt (full day)
    * @param isPriorWatchOnly - When true, only return prior-watch episode entries
    * @param searchQuery - Filter episodes by show name, movies by title (partial match)
+   * @param excludePriorWatch - When true, exclude prior-watch episode entries
    * @returns Paginated history items with total count
    */
   async getHistoryForProfile(
@@ -254,6 +255,7 @@ export class WatchHistoryService {
     dateTo?: string,
     isPriorWatchOnly: boolean = false,
     searchQuery?: string,
+    excludePriorWatch: boolean = false,
   ): Promise<{ items: WatchHistoryItem[]; totalCount: number; page: number; pageSize: number }> {
     try {
       const { items, totalCount } = await getWatchHistoryForProfile(
@@ -266,6 +268,7 @@ export class WatchHistoryService {
         dateTo,
         isPriorWatchOnly,
         searchQuery,
+        excludePriorWatch,
       );
       return { items: items.map(transformWatchHistoryRow), totalCount, page, pageSize };
     } catch (error) {

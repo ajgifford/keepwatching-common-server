@@ -296,6 +296,7 @@ export async function recalculateShowStatusAfterSeasonReset(
  * @param dateTo            ISO date string 'YYYY-MM-DD' — inclusive upper bound on watchedAt (full day)
  * @param isPriorWatchOnly  When true, only return prior-watch episode entries (movies are always excluded)
  * @param searchQuery       Filter episodes by show name, movies by title (partial match)
+ * @param excludePriorWatch When true, exclude prior-watch episode entries
  */
 export async function getWatchHistoryForProfile(
   profileId: number,
@@ -307,6 +308,7 @@ export async function getWatchHistoryForProfile(
   dateTo?: string,
   isPriorWatchOnly: boolean = false,
   searchQuery?: string,
+  excludePriorWatch: boolean = false,
 ): Promise<{ items: WatchHistoryRow[]; totalCount: number }> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('getWatchHistoryForProfile', async () => {
@@ -341,6 +343,8 @@ export async function getWatchHistoryForProfile(
         episodeFilters.push('AND ewh.is_prior_watch = TRUE');
         // Movies are never prior-watches; exclude them entirely when this filter is active
         movieFilters.push('AND 1 = 0');
+      } else if (excludePriorWatch) {
+        episodeFilters.push('AND ewh.is_prior_watch = FALSE');
       }
       if (searchQuery) {
         episodeFilters.push('AND sh.title LIKE ?');

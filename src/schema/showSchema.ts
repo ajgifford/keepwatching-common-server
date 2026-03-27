@@ -39,6 +39,7 @@ export const watchHistoryQuerySchema = z.object({
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   isPriorWatchOnly: z.coerce.boolean().optional().default(false),
+  excludePriorWatch: z.coerce.boolean().optional().default(false),
   searchQuery: z.string().max(200).optional(),
 });
 
