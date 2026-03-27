@@ -1090,6 +1090,7 @@ export class WatchStatusDbService {
             AND se.show_id = ?
             AND ews.status = 'WATCHED'
             AND ews.is_prior_watch = FALSE
+            AND (e.air_date IS NULL OR e.air_date < DATE(ews.created_at))
             ${seasonFilter}
         `;
 
