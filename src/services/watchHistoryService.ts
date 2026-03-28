@@ -58,6 +58,35 @@ export class WatchHistoryService {
   }
 
   /**
+   * Mark a specific set of seasons as previously watched using each episode's air date.
+   *
+   * @param accountId - ID of the account
+   * @param profileId - ID of the profile
+   * @param showId - ID of the show
+   * @param seasonIds - Array of season IDs to mark as prior watched
+   * @returns Updated show with seasons and next unwatched episodes
+   */
+  async markSeasonIdsAsPriorWatched(
+    accountId: number,
+    profileId: number,
+    showId: number,
+    seasonIds: number[],
+  ): Promise<UpdateWatchStatusData> {
+    try {
+      await watchStatusService.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds);
+
+      const showWithSeasons = await showService.getShowDetailsForProfile(accountId, profileId, showId);
+      const nextUnwatchedEpisodes = await showService.getNextUnwatchedEpisodesForProfile(profileId);
+      return { showWithSeasons, nextUnwatchedEpisodes };
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `markSeasonIdsAsPriorWatched(${accountId}, ${profileId}, ${showId}, [${seasonIds.join(', ')}])`,
+      );
+    }
+  }
+
+  /**
    * Find shows where the profile has bulk-marked many episodes on the same day,
    * none of which are flagged as prior watches. Used by Review Watch History UI.
    *

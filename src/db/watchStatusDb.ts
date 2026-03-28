@@ -1148,6 +1148,42 @@ export class WatchStatusDbService {
    * @param showId - ID of the show
    * @param upToSeasonNumber - Optional season number ceiling
    */
+  /**
+   * Fetch a map of episode ID → air date for all aired episodes in the specified seasons.
+   * Only episodes where air_date is in the past (already aired) are included.
+   *
+   * @param profileId - ID of the profile
+   * @param seasonIds - Array of season IDs to fetch episodes for
+   */
+  async getEpisodeAirDatesForSeasons(
+    profileId: number,
+    seasonIds: number[],
+  ): Promise<Map<number, string>> {
+    if (seasonIds.length === 0) {
+      return new Map();
+    }
+
+    const placeholders = seasonIds.map(() => '?').join(', ');
+    const query = `
+      SELECT e.id AS episodeId, e.air_date AS airDate
+      FROM episodes e
+      WHERE e.season_id IN (${placeholders})
+        AND e.air_date IS NOT NULL
+        AND DATE(e.air_date) <= CURDATE()
+    `;
+
+    const [rows] = await getDbPool().execute<Array<{ episodeId: number; airDate: string } & RowDataPacket>>(
+      query,
+      seasonIds,
+    );
+
+    const map = new Map<number, string>();
+    rows.forEach((row) => {
+      map.set(row.episodeId, row.airDate);
+    });
+    return map;
+  }
+
   async getEpisodeAirDatesForShow(
     profileId: number,
     showId: number,

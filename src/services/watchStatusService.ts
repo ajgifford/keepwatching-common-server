@@ -201,6 +201,55 @@ export class WatchStatusService {
   }
 
   /**
+   * Mark a specific set of seasons as previously watched using each episode's air date.
+   *
+   * @param accountId - ID of the account
+   * @param profileId - ID of the profile
+   * @param showId - ID of the show
+   * @param seasonIds - Array of season IDs to mark as prior watched
+   */
+  async markSeasonIdsAsPriorWatched(
+    accountId: number,
+    profileId: number,
+    showId: number,
+    seasonIds: number[],
+  ): Promise<StatusUpdateResult> {
+    try {
+      const episodeAirDateMap = await this.dbService.getEpisodeAirDatesForSeasons(profileId, seasonIds);
+
+      if (episodeAirDateMap.size === 0) {
+        return { success: true, changes: [], affectedRows: 0, message: 'No episodes to mark' };
+      }
+
+      const result = await this.dbService.markEpisodesAsPriorWatched(profileId, episodeAirDateMap);
+
+      if (!result.success) {
+        throw new DatabaseError('Failed to mark episodes as prior watched', null);
+      }
+
+      await this.dbService.checkAndUpdateShowWatchStatus(profileId, showId);
+
+      showService.invalidateProfileCache(accountId, profileId);
+
+      this.checkAchievements(profileId, accountId).catch((err) => {
+        console.error('Error checking achievements after prior watch marking:', err);
+      });
+
+      return {
+        success: true,
+        changes: result.changes,
+        affectedRows: result.affectedRows,
+        message: `Marked ${result.affectedRows} episodes as previously watched`,
+      };
+    } catch (error) {
+      throw errorService.handleError(
+        error,
+        `markSeasonIdsAsPriorWatched(${profileId}, ${showId}, [${seasonIds.join(', ')}])`,
+      );
+    }
+  }
+
+  /**
    * Retroactively flag watched episodes for a show as prior-watched.
    * Used by the Review Watch History feature for existing data cleanup.
    *
