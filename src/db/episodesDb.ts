@@ -303,7 +303,7 @@ export async function getEpisodesForSeason(profileId: number, seasonId: number):
 export async function getUpcomingEpisodesForProfile(profileId: number): Promise<RecentUpcomingEpisode[]> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('getUpcomingEpisodesForProfile', async () => {
-      const query = 'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6';
+      const query = 'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 10';
       const [episodeRows] = await getDbPool().execute<RecentUpcomingEpisodeRow[]>(query, [Number(profileId)]);
       const result = episodeRows.map(transformRecentUpcomingEpisode);
       return result;
@@ -331,12 +331,67 @@ export async function getUpcomingEpisodesForProfile(profileId: number): Promise<
 export async function getRecentEpisodesForProfile(profileId: number): Promise<RecentUpcomingEpisode[]> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('getRecentEpisodesForProfile', async () => {
-      const query = 'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6';
+      const query = 'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 10';
       const [episodeRows] = await getDbPool().execute<RecentUpcomingEpisodeRow[]>(query, [Number(profileId)]);
       const result = episodeRows.map(transformRecentUpcomingEpisode);
       return result;
     });
   } catch (error) {
     handleDatabaseError(error, 'getting recent episodes for a profile');
+  }
+}
+
+/**
+ * Gets episodes for a profile within a specific date range (for calendar view)
+ *
+ * Unlike getRecentEpisodesForProfile/getUpcomingEpisodesForProfile which use fixed
+ * 7-day DB views with a LIMIT 6, this function accepts arbitrary date bounds and
+ * returns all matching episodes — suitable for powering a calendar feature.
+ *
+ * @param profileId - ID of the profile
+ * @param startDate - Start of date range in ISO format (YYYY-MM-DD)
+ * @param endDate - End of date range in ISO format (YYYY-MM-DD)
+ * @returns Array of episodes with air dates in the given range
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getCalendarEpisodesForProfile(
+  profileId: number,
+  startDate: string,
+  endDate: string,
+): Promise<RecentUpcomingEpisode[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getCalendarEpisodesForProfile', async () => {
+      const query = `
+        SELECT
+          p.profile_id,
+          s.id AS show_id,
+          s.title AS show_name,
+          GROUP_CONCAT(ss.name ORDER BY ss.name SEPARATOR ', ') AS streaming_services,
+          s.network,
+          e.title AS episode_title,
+          e.air_date,
+          e.runtime,
+          e.episode_number,
+          e.season_number,
+          e.still_image AS episode_still_image
+        FROM profiles p
+        JOIN show_watch_status ws ON p.profile_id = ws.profile_id
+        JOIN shows s ON ws.show_id = s.id
+        JOIN episodes e ON s.id = e.show_id
+        JOIN show_services tss ON s.id = tss.show_id
+        JOIN streaming_services ss ON tss.streaming_service_id = ss.id
+        WHERE p.profile_id = ? AND e.air_date BETWEEN ? AND ?
+        GROUP BY p.profile_id, s.id, e.id
+        ORDER BY e.air_date, s.title, e.season_number, e.episode_number
+      `;
+      const [episodeRows] = await getDbPool().execute<RecentUpcomingEpisodeRow[]>(query, [
+        Number(profileId),
+        startDate,
+        endDate,
+      ]);
+      return episodeRows.map(transformRecentUpcomingEpisode);
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'getting calendar episodes for a profile');
   }
 }

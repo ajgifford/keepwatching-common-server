@@ -485,7 +485,7 @@ export async function getRecentMovieReleasesForProfile(profileId: number): Promi
   try {
     return await DbMonitor.getInstance().executeWithTiming('getRecentMovieReleasesForProfile', async () => {
       const query =
-        'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY) AND CURRENT_DATE() ORDER BY release_date DESC LIMIT 6';
+        'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY) AND CURRENT_DATE() ORDER BY release_date DESC LIMIT 10';
       const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
       return movies.map((movie) => transformContentReferenceRow(movie));
     });
@@ -508,12 +508,42 @@ export async function getUpcomingMovieReleasesForProfile(profileId: number): Pro
   try {
     return await DbMonitor.getInstance().executeWithTiming('getUpcomingMovieReleasesForProfile', async () => {
       const query =
-        'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AND DATE_ADD(CURRENT_DATE(), INTERVAL 60 DAY) ORDER BY release_date LIMIT 6';
+        'SELECT movie_id as id, title, tmdb_id, release_date from profile_movies WHERE profile_id = ? AND release_date BETWEEN DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY) AND DATE_ADD(CURRENT_DATE(), INTERVAL 60 DAY) ORDER BY release_date LIMIT 10';
       const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId]);
       return movies.map((movie) => transformContentReferenceRow(movie));
     });
   } catch (error) {
     handleDatabaseError(error, 'getting upcoming movie releases for a profile');
+  }
+}
+
+/**
+ * Gets movies for a profile within a specific date range (for calendar view)
+ *
+ * Unlike getRecentMovieReleasesForProfile/getUpcomingMovieReleasesForProfile which use
+ * fixed date windows with LIMIT 6, this function accepts arbitrary date bounds and
+ * returns all matching movies — suitable for powering a calendar feature.
+ *
+ * @param profileId - ID of the profile
+ * @param startDate - Start of date range in ISO format (YYYY-MM-DD)
+ * @param endDate - End of date range in ISO format (YYYY-MM-DD)
+ * @returns Array of movie references with release dates in the given range
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function getCalendarMoviesForProfile(
+  profileId: number,
+  startDate: string,
+  endDate: string,
+): Promise<ContentReference[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getCalendarMoviesForProfile', async () => {
+      const query =
+        'SELECT movie_id as id, title, tmdb_id, release_date FROM profile_movies WHERE profile_id = ? AND release_date BETWEEN ? AND ? ORDER BY release_date';
+      const [movies] = await getDbPool().execute<ContentReferenceRow[]>(query, [profileId, startDate, endDate]);
+      return movies.map((movie) => transformContentReferenceRow(movie));
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'getting calendar movies for a profile');
   }
 }
 

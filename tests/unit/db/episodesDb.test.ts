@@ -1,5 +1,5 @@
-import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { RecentUpcomingEpisodeRow } from '../../../src/types/episodeTypes';
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { CreateEpisodeRequest, UpdateEpisodeRequest, WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodeModule from '@db/episodesDb';
 import { ResultSetHeader } from 'mysql2';
@@ -226,27 +226,35 @@ describe('Episode Module', () => {
   describe('getEpisodesForSeason', () => {
     it('should return episodes for season with watch count', async () => {
       const mockEpisodes = [
-        { episode_id: 1, title: 'Episode 1', watch_status: 'WATCHED', watched_at: null, is_prior_watch: 0, watch_count: 2 },
-        { episode_id: 2, title: 'Episode 2', watch_status: 'NOT_WATCHED', watched_at: null, is_prior_watch: 0, watch_count: 0 },
-      ];
-
-      const expectedEpisodes = [
-        { id: 1, title: 'Episode 1', watchStatus: 'WATCHED', watchedAt: null, isPriorWatch: false, watchCount: 2 },
-        { id: 2, title: 'Episode 2', watchStatus: 'NOT_WATCHED', watchedAt: null, isPriorWatch: false, watchCount: 0 },
+        {
+          episode_id: 1,
+          title: 'Episode 1',
+          watch_status: 'WATCHED',
+          watched_at: null,
+          is_prior_watch: 0,
+          watch_count: 2,
+        },
+        {
+          episode_id: 2,
+          title: 'Episode 2',
+          watch_status: 'NOT_WATCHED',
+          watched_at: null,
+          is_prior_watch: 0,
+          watch_count: 0,
+        },
       ];
 
       mockExecute.mockResolvedValueOnce([mockEpisodes]);
 
       const episodes = await episodeModule.getEpisodesForSeason(123, 5);
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('episode_watch_history'),
-        [123, 5],
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('episode_watch_history'), [123, 5]);
+      expect(episodes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 1, watchStatus: 'WATCHED', watchCount: 2 }),
+          expect.objectContaining({ id: 2, watchStatus: 'NOT_WATCHED', watchCount: 0 }),
+        ]),
       );
-      expect(episodes).toEqual(expect.arrayContaining([
-        expect.objectContaining({ id: 1, watchStatus: 'WATCHED', watchCount: 2 }),
-        expect.objectContaining({ id: 2, watchStatus: 'NOT_WATCHED', watchCount: 0 }),
-      ]));
     });
 
     it('should throw error when getting episodes for season fails', async () => {
@@ -326,7 +334,7 @@ describe('Episode Module', () => {
       const result = await episodeModule.getUpcomingEpisodesForProfile(123);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6',
+        'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 10',
         [123],
       );
       expect(result).toEqual(expectedEpisodes);
@@ -338,7 +346,7 @@ describe('Episode Module', () => {
       const result = await episodeModule.getUpcomingEpisodesForProfile(123);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 6',
+        'SELECT * from profile_upcoming_episodes where profile_id = ? LIMIT 10',
         [123],
       );
       expect(result).toEqual([]);
@@ -421,7 +429,7 @@ describe('Episode Module', () => {
       const result = await episodeModule.getRecentEpisodesForProfile(123);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6',
+        'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 10',
         [123],
       );
       expect(result).toEqual(expectedEpisodes);
@@ -433,7 +441,7 @@ describe('Episode Module', () => {
       const result = await episodeModule.getRecentEpisodesForProfile(123);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 6',
+        'SELECT * from profile_recent_episodes where profile_id = ? ORDER BY air_date DESC LIMIT 10',
         [123],
       );
       expect(result).toEqual([]);
