@@ -254,6 +254,48 @@ export class AdminShowService {
   }
 
   /**
+   * Get all shows that have potential duplicate episodes across the entire catalog
+   *
+   * @returns Array of shows with duplicate group and extra episode counts
+   */
+  public async getShowsWithDuplicates() {
+    try {
+      return await showsDb.getShowsWithDuplicateEpisodes();
+    } catch (error) {
+      throw errorService.handleError(error, 'getShowsWithDuplicates()');
+    }
+  }
+
+  /**
+   * Get all episodes that are potential duplicates (same episode_number within the same season) for a show
+   *
+   * @param showId - ID of the show to check for duplicate episodes
+   * @returns Array of episodes that have duplicates within their season
+   */
+  public async getDuplicateEpisodes(showId: number) {
+    try {
+      return await showsDb.getDuplicateEpisodesForShow(showId);
+    } catch (error) {
+      throw errorService.handleError(error, `getDuplicateEpisodes(${showId})`);
+    }
+  }
+
+  /**
+   * Delete an episode and all its associated watch data, then invalidate show cache
+   *
+   * @param episodeId - ID of the episode to delete
+   * @param showId - ID of the parent show (used for cache invalidation)
+   */
+  public async deleteEpisode(episodeId: number, showId: number) {
+    try {
+      await episodesDb.deleteEpisodeById(episodeId);
+      this.invalidateShowCache(showId);
+    } catch (error) {
+      throw errorService.handleError(error, `deleteEpisode(${episodeId})`);
+    }
+  }
+
+  /**
    * Get all episodes for a specific season
    *
    * @param seasonId - ID of the season to get episodes for

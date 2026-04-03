@@ -462,4 +462,41 @@ describe('Episode Module', () => {
       );
     });
   });
+
+  describe('deleteEpisodeById', () => {
+    const episodeId = 789;
+
+    it('should delete watch history, watch status, and episode in order', async () => {
+      mockExecute
+        .mockResolvedValueOnce([{}])
+        .mockResolvedValueOnce([{}])
+        .mockResolvedValueOnce([{}]);
+
+      await episodeModule.deleteEpisodeById(episodeId);
+
+      expect(mockExecute).toHaveBeenCalledTimes(3);
+      expect(mockExecute).toHaveBeenNthCalledWith(1, 'DELETE FROM episode_watch_history WHERE episode_id = ?', [
+        episodeId,
+      ]);
+      expect(mockExecute).toHaveBeenNthCalledWith(2, 'DELETE FROM episode_watch_status WHERE episode_id = ?', [
+        episodeId,
+      ]);
+      expect(mockExecute).toHaveBeenNthCalledWith(3, 'DELETE FROM episodes WHERE id = ?', [episodeId]);
+    });
+
+    it('should throw error when deletion fails', async () => {
+      const mockError = new Error('DB connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await expect(episodeModule.deleteEpisodeById(episodeId)).rejects.toThrow('DB connection failed');
+    });
+
+    it('should throw error with default message when deletion fails without error message', async () => {
+      mockExecute.mockRejectedValue({});
+
+      await expect(episodeModule.deleteEpisodeById(episodeId)).rejects.toThrow(
+        `Unknown database error deleteEpisodeById(${episodeId})`,
+      );
+    });
+  });
 });

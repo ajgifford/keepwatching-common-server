@@ -36,8 +36,10 @@ export {
   getAdminSeasonEpisodes,
   getAdminShowProfiles,
   getAdminShowWatchProgress,
+  getDuplicateEpisodesForShow,
+  getShowsWithDuplicateEpisodes,
 } from './shows/adminShowRepository';
 
-export type { ShowFilterOptions } from './shows/adminShowRepository';
+export type { ShowFilterOptions, ShowWithDuplicates } from './shows/adminShowRepository';
 
 export { getTrendingShows, getNewlyAddedShows, getTopRatedShows } from './shows/digestShowRepository';

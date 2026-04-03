@@ -824,6 +824,133 @@ describe('adminShowRepository', () => {
     });
   });
 
+  describe('getDuplicateEpisodesForShow', () => {
+    const mockShowId = 10;
+    const mockEpisodeRows = [
+      {
+        id: 101,
+        tmdb_id: 200001,
+        season_id: 1,
+        show_id: mockShowId,
+        episode_number: 1,
+        episode_type: 'standard',
+        season_number: 1,
+        title: 'Pilot',
+        overview: 'First episode',
+        air_date: '2023-01-01',
+        runtime: 45,
+        still_image: '/ep1.jpg',
+        created_at: new Date('2023-01-01T00:00:00Z'),
+        updated_at: new Date('2023-01-01T00:00:00Z'),
+      },
+      {
+        id: 105,
+        tmdb_id: 200005,
+        season_id: 1,
+        show_id: mockShowId,
+        episode_number: 1,
+        episode_type: 'standard',
+        season_number: 1,
+        title: 'Pilot (Duplicate)',
+        overview: 'Duplicate first episode',
+        air_date: '2023-01-01',
+        runtime: 45,
+        still_image: '/ep1dup.jpg',
+        created_at: new Date('2023-01-02T00:00:00Z'),
+        updated_at: new Date('2023-01-02T00:00:00Z'),
+      },
+    ];
+
+    it('should return all duplicate episodes for a show', async () => {
+      mockExecute.mockResolvedValue([mockEpisodeRows]);
+
+      const result = await adminShowRepository.getDuplicateEpisodesForShow(mockShowId);
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('HAVING COUNT(*) > 1'), [
+        mockShowId,
+        mockShowId,
+      ]);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(101);
+      expect(result[0].episodeNumber).toBe(1);
+      expect(result[0].seasonNumber).toBe(1);
+      expect(result[1].id).toBe(105);
+      expect(result[1].episodeNumber).toBe(1);
+    });
+
+    it('should return empty array when no duplicates exist', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await adminShowRepository.getDuplicateEpisodesForShow(mockShowId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query failed');
+      mockExecute.mockRejectedValue(dbError);
+
+      await expect(adminShowRepository.getDuplicateEpisodesForShow(mockShowId)).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('getShowsWithDuplicateEpisodes', () => {
+    const mockRows = [
+      {
+        id: 1,
+        title: 'Show A',
+        poster_image: '/poster_a.jpg',
+        duplicate_group_count: 3,
+        extra_episode_count: 3,
+      },
+      {
+        id: 2,
+        title: 'Show B',
+        poster_image: '/poster_b.jpg',
+        duplicate_group_count: 1,
+        extra_episode_count: 1,
+      },
+    ];
+
+    it('should return shows with duplicate episodes ordered by group count', async () => {
+      mockExecute.mockResolvedValue([mockRows]);
+
+      const result = await adminShowRepository.getShowsWithDuplicateEpisodes();
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('HAVING COUNT(*) > 1'));
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        id: 1,
+        title: 'Show A',
+        posterImage: '/poster_a.jpg',
+        duplicateGroupCount: 3,
+        extraEpisodeCount: 3,
+      });
+      expect(result[1]).toEqual({
+        id: 2,
+        title: 'Show B',
+        posterImage: '/poster_b.jpg',
+        duplicateGroupCount: 1,
+        extraEpisodeCount: 1,
+      });
+    });
+
+    it('should return empty array when no shows have duplicates', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await adminShowRepository.getShowsWithDuplicateEpisodes();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query failed');
+      mockExecute.mockRejectedValue(dbError);
+
+      await expect(adminShowRepository.getShowsWithDuplicateEpisodes()).rejects.toThrow('Query failed');
+    });
+  });
+
   describe('getAdminShowWatchProgress', () => {
     const mockShowId = 123;
     const mockProfilesRows = [

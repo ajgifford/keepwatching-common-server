@@ -216,6 +216,33 @@ export async function removeFavorite(profileId: number, episodeId: number): Prom
 }
 
 /**
+ * Deletes an episode and all associated watch status and history records
+ *
+ * @param episodeId - ID of the episode to delete
+ * @returns A promise that resolves when the episode has been deleted
+ * @throws {DatabaseError} If a database error occurs during the operation
+ *
+ * @example
+ * await deleteEpisodeById(789);
+ */
+export async function deleteEpisodeById(episodeId: number): Promise<void> {
+  try {
+    await DbMonitor.getInstance().executeWithTiming(
+      'deleteEpisodeById',
+      async () => {
+        await getDbPool().execute('DELETE FROM episode_watch_history WHERE episode_id = ?', [episodeId]);
+        await getDbPool().execute('DELETE FROM episode_watch_status WHERE episode_id = ?', [episodeId]);
+        await getDbPool().execute('DELETE FROM episodes WHERE id = ?', [episodeId]);
+      },
+      1000,
+      { content: { id: episodeId, type: 'episode' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, `deleteEpisodeById(${episodeId})`);
+  }
+}
+
+/**
  * Gets all episodes for a specific season and profile with watch status
  *
  * This method retrieves all episodes belonging to a season along with their

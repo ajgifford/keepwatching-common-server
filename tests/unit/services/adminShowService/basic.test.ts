@@ -8,6 +8,7 @@ import {
   mockWatchProgress,
 } from './helpers/fixtures';
 import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
+import * as episodesDb from '@db/episodesDb';
 import * as showsDb from '@db/showsDb';
 import {
   AdminShowService,
@@ -61,6 +62,9 @@ describe('AdminShowService - Basic Operations', () => {
     (showsDb.getAdminShowSeasonsWithEpisodes as jest.Mock).mockResolvedValue([
       { ...mockSeasons[0], episodes: mockEpisodes },
     ]);
+    (showsDb.getDuplicateEpisodesForShow as jest.Mock).mockResolvedValue(mockEpisodes);
+    (showsDb.getShowsWithDuplicateEpisodes as jest.Mock).mockResolvedValue([]);
+    (episodesDb.deleteEpisodeById as jest.Mock).mockResolvedValue(undefined);
 
     (errorService.handleError as jest.Mock).mockImplementation((err) => {
       throw err;
@@ -201,6 +205,91 @@ describe('AdminShowService - Basic Operations', () => {
       expect(mockCacheService.getOrSet).toHaveBeenCalled();
       expect(showsDb.getAdminShowWatchProgress).toHaveBeenCalledWith(mockShowId);
       expect(result).toEqual(mockWatchProgress);
+    });
+  });
+
+  describe('getDuplicateEpisodes', () => {
+    it('should return duplicate episodes for a show', async () => {
+      (showsDb.getDuplicateEpisodesForShow as jest.Mock).mockResolvedValue(mockEpisodes);
+
+      const result = await adminShowService.getDuplicateEpisodes(mockShowId);
+
+      expect(showsDb.getDuplicateEpisodesForShow).toHaveBeenCalledWith(mockShowId);
+      expect(result).toEqual(mockEpisodes);
+    });
+
+    it('should return empty array when no duplicates exist', async () => {
+      (showsDb.getDuplicateEpisodesForShow as jest.Mock).mockResolvedValue([]);
+
+      const result = await adminShowService.getDuplicateEpisodes(mockShowId);
+
+      expect(showsDb.getDuplicateEpisodesForShow).toHaveBeenCalledWith(mockShowId);
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Query failed');
+      (showsDb.getDuplicateEpisodesForShow as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.getDuplicateEpisodes(mockShowId)).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('getShowsWithDuplicates', () => {
+    const mockShowsWithDuplicates = [
+      { id: 1, title: 'Show A', posterImage: '/a.jpg', duplicateGroupCount: 2, extraEpisodeCount: 2 },
+      { id: 2, title: 'Show B', posterImage: '/b.jpg', duplicateGroupCount: 1, extraEpisodeCount: 1 },
+    ];
+
+    it('should return all shows that have duplicate episodes', async () => {
+      (showsDb.getShowsWithDuplicateEpisodes as jest.Mock).mockResolvedValue(mockShowsWithDuplicates);
+
+      const result = await adminShowService.getShowsWithDuplicates();
+
+      expect(showsDb.getShowsWithDuplicateEpisodes).toHaveBeenCalled();
+      expect(result).toEqual(mockShowsWithDuplicates);
+    });
+
+    it('should return empty array when no shows have duplicates', async () => {
+      (showsDb.getShowsWithDuplicateEpisodes as jest.Mock).mockResolvedValue([]);
+
+      const result = await adminShowService.getShowsWithDuplicates();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Query failed');
+      (showsDb.getShowsWithDuplicateEpisodes as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.getShowsWithDuplicates()).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('deleteEpisode', () => {
+    const episodeId = 789;
+
+    it('should delete the episode and invalidate the show cache', async () => {
+      await adminShowService.deleteEpisode(episodeId, mockShowId);
+
+      expect(episodesDb.deleteEpisodeById).toHaveBeenCalledWith(episodeId);
+      expect(mockCacheService.invalidate).toHaveBeenCalled();
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalled();
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Delete failed');
+      (episodesDb.deleteEpisodeById as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.deleteEpisode(episodeId, mockShowId)).rejects.toThrow('Delete failed');
+    });
+
+    it('should not invalidate cache when deletion fails', async () => {
+      const dbError = new Error('Delete failed');
+      (episodesDb.deleteEpisodeById as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.deleteEpisode(episodeId, mockShowId)).rejects.toThrow();
+      expect(mockCacheService.invalidate).not.toHaveBeenCalled();
     });
   });
 });

@@ -340,6 +340,102 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<A
   }
 }
 
+export interface ShowWithDuplicates {
+  id: number;
+  title: string;
+  posterImage: string;
+  duplicateGroupCount: number;
+  extraEpisodeCount: number;
+}
+
+interface ShowWithDuplicatesRow extends RowDataPacket {
+  id: number;
+  title: string;
+  poster_image: string;
+  duplicate_group_count: number;
+  extra_episode_count: number;
+}
+
+/**
+ * Get all shows that have potential duplicate episodes (same episode_number within the same season)
+ *
+ * @returns Array of shows with duplicate episode counts, ordered by most duplicates first
+ * @throws {DatabaseError} If a database error occurs
+ */
+export async function getShowsWithDuplicateEpisodes(): Promise<ShowWithDuplicates[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getShowsWithDuplicateEpisodes',
+      async () => {
+        const query = `
+          SELECT
+            s.id,
+            s.title,
+            s.poster_image,
+            COUNT(*) AS duplicate_group_count,
+            SUM(dupes.ep_count - 1) AS extra_episode_count
+          FROM shows s
+          JOIN (
+            SELECT show_id, season_id, episode_number, COUNT(*) AS ep_count
+            FROM episodes
+            GROUP BY show_id, season_id, episode_number
+            HAVING COUNT(*) > 1
+          ) dupes ON s.id = dupes.show_id
+          GROUP BY s.id, s.title, s.poster_image
+          ORDER BY duplicate_group_count DESC, s.title
+        `;
+        const [rows] = await getDbPool().execute<ShowWithDuplicatesRow[]>(query);
+        return rows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          posterImage: row.poster_image,
+          duplicateGroupCount: row.duplicate_group_count,
+          extraEpisodeCount: row.extra_episode_count,
+        }));
+      },
+      2000,
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'getShowsWithDuplicateEpisodes()');
+  }
+}
+
+/**
+ * Get all episodes that are potential duplicates (same episode_number within the same season) for a show
+ *
+ * @param showId - ID of the show to check for duplicate episodes
+ * @returns Array of episodes that have at least one other episode with the same episode_number in the same season
+ * @throws {DatabaseError} If a database error occurs
+ */
+export async function getDuplicateEpisodesForShow(showId: number): Promise<AdminEpisode[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getDuplicateEpisodesForShow',
+      async () => {
+        const query = `
+          SELECT e.*
+          FROM episodes e
+          WHERE e.show_id = ?
+          AND (e.season_id, e.episode_number) IN (
+            SELECT season_id, episode_number
+            FROM episodes
+            WHERE show_id = ?
+            GROUP BY season_id, episode_number
+            HAVING COUNT(*) > 1
+          )
+          ORDER BY e.season_number, e.episode_number, e.id
+        `;
+        const [episodeRows] = await getDbPool().execute<AdminEpisodeRow[]>(query, [showId, showId]);
+        return episodeRows.map(transformAdminEpisode);
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, `getDuplicateEpisodesForShow(${showId})`);
+  }
+}
+
 /**
  * Get all episodes for a specific season
  *
