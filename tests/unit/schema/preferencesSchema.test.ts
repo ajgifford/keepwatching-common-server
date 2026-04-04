@@ -442,7 +442,7 @@ describe('preferencesSchema', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(ZodError);
         const zodError = error as ZodError;
-        expect(zodError.errors[0].message).toBe('At least one preference type must be provided');
+        expect(zodError.issues[0].message).toBe('At least one preference type must be provided');
       }
     });
 
@@ -461,7 +461,7 @@ describe('preferencesSchema', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(ZodError);
         const zodError = error as ZodError;
-        expect(zodError.errors[0].message).toBe('At least one preference type must be provided');
+        expect(zodError.issues[0].message).toBe('At least one preference type must be provided');
       }
     });
 

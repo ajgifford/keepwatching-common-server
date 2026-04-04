@@ -50,7 +50,7 @@ describe('searchSchema', () => {
         expect(formattedErrors.searchString?._errors).toBeTruthy();
         // Check that the error message is specifically about the minimum length
         const errorMessages = formattedErrors.searchString?._errors || [];
-        expect(errorMessages.some((msg) => msg.includes('at least'))).toBe(true);
+        expect(errorMessages.some((msg) => msg.includes('Too small') || msg.includes('at least'))).toBe(true);
       }
     });
 

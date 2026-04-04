@@ -71,8 +71,8 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors[0].message).toBe('Account ID must be a number');
-          expect(zodError.errors[0].path).toEqual(['accountId']);
+          expect(zodError.issues[0].message).toBe('Account ID must be a number');
+          expect(zodError.issues[0].path).toEqual(['accountId']);
         }
       });
 
@@ -90,8 +90,8 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors[0].message).toBe('Profile ID must be a number');
-          expect(zodError.errors[0].path).toEqual(['profileId']);
+          expect(zodError.issues[0].message).toBe('Profile ID must be a number');
+          expect(zodError.issues[0].path).toEqual(['profileId']);
         }
       });
 
@@ -109,8 +109,8 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors[0].message).toBe('Person ID must be a number');
-          expect(zodError.errors[0].path).toEqual(['personId']);
+          expect(zodError.issues[0].message).toBe('Person ID must be a number');
+          expect(zodError.issues[0].path).toEqual(['personId']);
         }
       });
 
@@ -128,7 +128,7 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors[0].message).toBe('Account ID must be a positive integer');
+          expect(zodError.issues[0].message).toBe('Account ID must be a positive integer');
         }
       });
 
@@ -146,7 +146,7 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors[0].message).toBe('Account ID must be a positive integer');
+          expect(zodError.issues[0].message).toBe('Account ID must be a positive integer');
         }
       });
 
@@ -164,7 +164,7 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors[0].message).toBe('Account ID must be an integer');
+          expect(zodError.issues[0].message).toBe('Account ID must be an integer');
         }
       });
 
@@ -181,9 +181,9 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors).toHaveLength(2);
-          expect(zodError.errors.map((e) => e.path[0])).toContain('profileId');
-          expect(zodError.errors.map((e) => e.path[0])).toContain('personId');
+          expect(zodError.issues).toHaveLength(2);
+          expect(zodError.issues.map((e) => e.path[0])).toContain('profileId');
+          expect(zodError.issues.map((e) => e.path[0])).toContain('personId');
         }
       });
 
@@ -201,7 +201,7 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors[0].message).toBe('Account ID must be a positive integer');
+          expect(zodError.issues[0].message).toBe('Account ID must be a positive integer');
         }
       });
 
@@ -219,9 +219,9 @@ describe('personSchema', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(ZodError);
           const zodError = error as ZodError;
-          expect(zodError.errors).toHaveLength(3);
+          expect(zodError.issues).toHaveLength(3);
 
-          const errorMessages = zodError.errors.map((e) => e.message);
+          const errorMessages = zodError.issues.map((e) => e.message);
           expect(errorMessages).toContain('Account ID must be a number');
           expect(errorMessages).toContain('Profile ID must be a positive integer');
           expect(errorMessages).toContain('Person ID must be a positive integer');
@@ -282,7 +282,7 @@ describe('personSchema', () => {
         expect(result.success).toBe(false);
         if (!result.success) {
           expect(result.error).toBeInstanceOf(ZodError);
-          expect(result.error.errors[0].message).toBe('Account ID must be a number');
+          expect(result.error.issues[0].message).toBe('Account ID must be a number');
         }
       });
     });

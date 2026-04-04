@@ -2,30 +2,28 @@ import { z } from 'zod';
 
 export const discoverTopQuerySchema = z.object({
   showType: z.enum(['movie', 'series'], {
-    errorMap: (_issue, ctx) => ({ message: `Show type must be either "movie" or "series", received "${ctx.data}"` }),
+    error: (issue) => `Show type must be either "movie" or "series", received "${issue.input}"`,
   }),
   service: z.enum(['netflix', 'disney', 'hbo', 'apple', 'prime'], {
-    errorMap: (_issue, ctx) => ({ message: `Invalid streaming service provided: "${ctx.data}"` }),
+    error: (issue) => `Invalid streaming service provided: "${issue.input}"`,
   }),
 });
 
 export const discoverChangesQuerySchema = z.object({
   showType: z.enum(['movie', 'series'], {
-    errorMap: (_issue, ctx) => ({ message: `Show type must be either "movie" or "series", received "${ctx.data}"` }),
+    error: (issue) => `Show type must be either "movie" or "series", received "${issue.input}"`,
   }),
   service: z.enum(['netflix', 'disney', 'hbo', 'apple', 'prime'], {
-    errorMap: (_issue, ctx) => ({ message: `Invalid streaming service provided: "${ctx.data}"` }),
+    error: (issue) => `Invalid streaming service provided: "${issue.input}"`,
   }),
   changeType: z.enum(['new', 'upcoming', 'expiring'], {
-    errorMap: (_issue, ctx) => ({
-      message: `Change type must be either "new", "upcoming" or "expiring", received "${ctx.data}"`,
-    }),
+    error: (issue) => `Change type must be either "new", "upcoming" or "expiring", received "${issue.input}"`,
   }),
 });
 
 export const discoverTrendingQuerySchema = z.object({
   showType: z.enum(['movie', 'series'], {
-    errorMap: (_issue, ctx) => ({ message: `Show type must be either "movie" or "series", received "${ctx.data}"` }),
+    error: (issue) => `Show type must be either "movie" or "series", received "${issue.input}"`,
   }),
   page: z.coerce.number().int().positive().default(1),
 });

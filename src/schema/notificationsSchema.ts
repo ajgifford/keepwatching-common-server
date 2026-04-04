@@ -42,7 +42,7 @@ const baseNotificationBodySchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters long'),
   message: z.string().min(5, 'Message must be at least 5 characters long'),
   type: z.enum(['tv', 'movie', 'issue', 'general', 'feature'], {
-    errorMap: () => ({ message: 'Type must be one of: tv, movie, issue, general, feature' }),
+    message: 'Type must be one of: tv, movie, issue, general, feature',
   }),
   startDate: z.string().datetime({ message: 'Start date must be ISO format' }),
   endDate: z.string().datetime({ message: 'End date must be ISO format' }),

@@ -41,7 +41,7 @@ describe('movieSchema', () => {
       const result = addMovieFavoriteBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Expected integer, received float');
+        expect(result.error.issues[0].message).toContain('Invalid input: expected int, received number');
       }
     });
 
@@ -201,7 +201,7 @@ describe('movieSchema', () => {
       const result = movieWatchStatusBodySchema.safeParse(invalidInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Expected integer, received float');
+        expect(result.error.issues[0].message).toContain('Invalid input: expected int, received number');
       }
     });
 

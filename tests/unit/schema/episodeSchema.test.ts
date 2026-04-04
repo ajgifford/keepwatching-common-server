@@ -64,7 +64,7 @@ describe('episodeSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.episodeId?._errors).toContain('Expected integer, received float');
+        expect(formattedErrors.episodeId?._errors).toContain('Invalid input: expected int, received number');
       }
     });
 

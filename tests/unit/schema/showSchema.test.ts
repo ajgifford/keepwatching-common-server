@@ -45,7 +45,7 @@ describe('showSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.showTMDBId?._errors).toContain('Expected integer, received float');
+        expect(formattedErrors.showTMDBId?._errors).toContain('Invalid input: expected int, received number');
       }
     });
 
@@ -196,7 +196,7 @@ describe('showSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.showId?._errors).toContain('Expected integer, received float');
+        expect(formattedErrors.showId?._errors).toContain('Invalid input: expected int, received number');
       }
     });
 

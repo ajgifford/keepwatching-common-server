@@ -1,13 +1,13 @@
 import { BadRequestError } from './errorMiddleware';
 import { NextFunction, Request, Response } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { ZodError, ZodObject, ZodRawShape } from 'zod';
 
 /**
  * Middleware factory for validating request data using Zod schemas
  * @param schema The Zod schema to validate against
  * @param source Where to find the data to validate ('query', 'body', 'params')
  */
-export const validateSchema = <T extends AnyZodObject>(schema: T, source: 'query' | 'body' | 'params' = 'body') => {
+export const validateSchema = <T extends ZodObject<ZodRawShape>>(schema: T, source: 'query' | 'body' | 'params' = 'body') => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       let data: unknown;
@@ -47,7 +47,7 @@ export const validateSchema = <T extends AnyZodObject>(schema: T, source: 'query
     } catch (error) {
       if (error instanceof ZodError) {
         // Format Zod errors in a user-friendly way
-        const formattedErrors = error.errors.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+        const formattedErrors = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
         next(new BadRequestError(formattedErrors.join(', ')));
       } else {
         next(new BadRequestError('Invalid request data'));
@@ -63,9 +63,9 @@ export const validateSchema = <T extends AnyZodObject>(schema: T, source: 'query
  * @param querySchema Schema for query parameters
  */
 export const validateRequest = <TBody, TParams, TQuery>(
-  bodySchema?: AnyZodObject,
-  paramsSchema?: AnyZodObject,
-  querySchema?: AnyZodObject,
+  bodySchema?: ZodObject<ZodRawShape>,
+  paramsSchema?: ZodObject<ZodRawShape>,
+  querySchema?: ZodObject<ZodRawShape>,
 ) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -75,7 +75,7 @@ export const validateRequest = <TBody, TParams, TQuery>(
       // Add schemas to validate if provided
       if (bodySchema) {
         promises.push(
-          bodySchema.parseAsync(req.body).then((data) => {
+          bodySchema.parseAsync(req.body).then((data: unknown) => {
             results.body = data;
           }),
         );
@@ -83,7 +83,7 @@ export const validateRequest = <TBody, TParams, TQuery>(
 
       if (paramsSchema) {
         promises.push(
-          paramsSchema.parseAsync(req.params).then((data) => {
+          paramsSchema.parseAsync(req.params).then((data: unknown) => {
             results.params = data;
           }),
         );
@@ -91,7 +91,7 @@ export const validateRequest = <TBody, TParams, TQuery>(
 
       if (querySchema) {
         promises.push(
-          querySchema.parseAsync(req.query).then((data) => {
+          querySchema.parseAsync(req.query).then((data: unknown) => {
             results.query = data;
           }),
         );
@@ -111,7 +111,7 @@ export const validateRequest = <TBody, TParams, TQuery>(
     } catch (error) {
       if (error instanceof ZodError) {
         // Format Zod errors for better readability
-        const formattedErrors = error.errors.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+        const formattedErrors = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
         next(new BadRequestError(formattedErrors.join(', ')));
       } else {
         next(new BadRequestError('Invalid request data'));

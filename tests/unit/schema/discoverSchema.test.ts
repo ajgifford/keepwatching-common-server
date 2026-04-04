@@ -98,7 +98,7 @@ describe('discoverSchema', () => {
         expect(formattedErrors.showType?._errors).toContain(
           'Show type must be either "movie" or "series", received "episode"',
         );
-        expect(formattedErrors.page?._errors).toContain('Expected number, received nan');
+        expect(formattedErrors.page?._errors).toContain('Invalid input: expected number, received NaN');
       }
     });
   });
