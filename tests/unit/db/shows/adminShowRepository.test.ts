@@ -168,6 +168,269 @@ describe('adminShowRepository', () => {
     });
   });
 
+  describe('getShowFilterOptions', () => {
+    it('should return all filter options', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[{ value: 'Reality' }, { value: 'Scripted' }]])
+        .mockResolvedValueOnce([[{ value: 'Ended' }, { value: 'Running' }]])
+        .mockResolvedValueOnce([[{ value: 'HBO' }, { value: 'Netflix' }]])
+        .mockResolvedValueOnce([[{ value: 'HBO Max' }, { value: 'Netflix' }]]);
+
+      const options = await adminShowRepository.getShowFilterOptions();
+
+      expect(mockExecute).toHaveBeenCalledTimes(4);
+      expect(options.types).toEqual(['Reality', 'Scripted']);
+      expect(options.statuses).toEqual(['Ended', 'Running']);
+      expect(options.networks).toEqual(['HBO', 'Netflix']);
+      expect(options.streamingServices).toEqual(['HBO Max', 'Netflix']);
+    });
+
+    it('should filter out null type, status, and network values', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[{ value: 'Scripted' }, { value: null }]])
+        .mockResolvedValueOnce([[{ value: 'Running' }, { value: null }]])
+        .mockResolvedValueOnce([[{ value: 'HBO' }, { value: null }]])
+        .mockResolvedValueOnce([[{ value: 'Netflix' }]]);
+
+      const options = await adminShowRepository.getShowFilterOptions();
+
+      expect(options.types).toEqual(['Scripted']);
+      expect(options.statuses).toEqual(['Running']);
+      expect(options.networks).toEqual(['HBO']);
+    });
+
+    it('should filter out null and empty streaming service values', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[{ value: 'Scripted' }]])
+        .mockResolvedValueOnce([[{ value: 'Running' }]])
+        .mockResolvedValueOnce([[{ value: 'HBO' }]])
+        .mockResolvedValueOnce([[{ value: 'Netflix' }, { value: null }, { value: '' }]]);
+
+      const options = await adminShowRepository.getShowFilterOptions();
+
+      expect(options.streamingServices).toEqual(['Netflix']);
+    });
+
+    it('should return empty arrays when no data exists', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[]]);
+
+      const options = await adminShowRepository.getShowFilterOptions();
+
+      expect(options.types).toEqual([]);
+      expect(options.statuses).toEqual([]);
+      expect(options.networks).toEqual([]);
+      expect(options.streamingServices).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Connection failed'));
+
+      await expect(adminShowRepository.getShowFilterOptions()).rejects.toThrow(
+        'Database error get show filter options: Connection failed',
+      );
+    });
+  });
+
+  describe('getShowsCountFiltered', () => {
+    it('should return count with no filters', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 200 }]]);
+
+      const count = await adminShowRepository.getShowsCountFiltered({});
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('FROM admin_shows'), []);
+      expect(count).toBe(200);
+    });
+
+    it('should apply type filter', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 50 }]]);
+
+      const count = await adminShowRepository.getShowsCountFiltered({ type: 'Scripted' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE type = ?'), ['Scripted']);
+      expect(count).toBe(50);
+    });
+
+    it('should apply status filter', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 75 }]]);
+
+      const count = await adminShowRepository.getShowsCountFiltered({ status: 'Running' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE status = ?'), ['Running']);
+      expect(count).toBe(75);
+    });
+
+    it('should apply network filter', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 30 }]]);
+
+      const count = await adminShowRepository.getShowsCountFiltered({ network: 'HBO' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE network = ?'), ['HBO']);
+      expect(count).toBe(30);
+    });
+
+    it('should apply streaming service filter with LIKE param', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 40 }]]);
+
+      const count = await adminShowRepository.getShowsCountFiltered({ streamingService: 'Netflix' });
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE streaming_services LIKE ?'),
+        ['%Netflix%'],
+      );
+      expect(count).toBe(40);
+    });
+
+    it('should combine all four filters with AND', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 3 }]]);
+
+      const count = await adminShowRepository.getShowsCountFiltered({
+        type: 'Scripted',
+        status: 'Running',
+        network: 'HBO',
+        streamingService: 'HBO Max',
+      });
+
+      const callArgs = mockExecute.mock.calls[0];
+      expect(callArgs[0]).toContain('AND');
+      expect(callArgs[1]).toEqual(['Scripted', 'Running', 'HBO', '%HBO Max%']);
+      expect(count).toBe(3);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(adminShowRepository.getShowsCountFiltered({})).rejects.toThrow(
+        'Database error get filtered shows count: Query failed',
+      );
+    });
+  });
+
+  describe('getAllShowsFiltered', () => {
+    const mockShowRow = {
+      id: 1,
+      tmdb_id: 12345,
+      title: 'Filtered Show',
+      description: 'A filtered show',
+      release_date: '2023-01-01',
+      poster_image: '/poster.jpg',
+      backdrop_image: '/backdrop.jpg',
+      network: 'Netflix',
+      season_count: 2,
+      episode_count: 16,
+      user_rating: 8.5,
+      content_rating: 'TV-MA',
+      status: 'Running',
+      type: 'Scripted',
+      in_production: 1,
+      last_air_date: '2023-12-01',
+      created_at: new Date('2023-01-01'),
+      updated_at: new Date('2023-06-01'),
+      genres: 'Drama',
+      streaming_services: 'Netflix',
+    };
+
+    it('should return all shows with no filters and default pagination', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      const shows = await adminShowRepository.getAllShowsFiltered({});
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('FROM admin_shows'), []);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'), []);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 0'), []);
+      expect(shows).toHaveLength(1);
+      expect(shows[0].id).toBe(1);
+    });
+
+    it('should apply type filter', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      await adminShowRepository.getAllShowsFiltered({ type: 'Scripted' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE type = ?'), ['Scripted']);
+    });
+
+    it('should apply status filter', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      await adminShowRepository.getAllShowsFiltered({ status: 'Ended' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE status = ?'), ['Ended']);
+    });
+
+    it('should apply network filter', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      await adminShowRepository.getAllShowsFiltered({ network: 'HBO' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE network = ?'), ['HBO']);
+    });
+
+    it('should apply streaming service filter with custom pagination', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      await adminShowRepository.getAllShowsFiltered({ streamingService: 'Netflix' }, 10, 20);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('streaming_services LIKE ?'),
+        ['%Netflix%'],
+      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 10'), expect.any(Array));
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 20'), expect.any(Array));
+    });
+
+    it('should combine all four filters with AND', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      await adminShowRepository.getAllShowsFiltered({
+        type: 'Scripted',
+        status: 'Running',
+        network: 'HBO',
+        streamingService: 'HBO Max',
+      });
+
+      const callArgs = mockExecute.mock.calls[0];
+      expect(callArgs[0]).toContain('AND');
+      expect(callArgs[1]).toEqual(['Scripted', 'Running', 'HBO', '%HBO Max%']);
+    });
+
+    it('should return empty array when no shows match filters', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      const shows = await adminShowRepository.getAllShowsFiltered({ network: 'Unknown Network' });
+
+      expect(shows).toEqual([]);
+    });
+
+    it('should correctly transform show rows', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      const shows = await adminShowRepository.getAllShowsFiltered({});
+
+      expect(shows[0]).toMatchObject({
+        id: 1,
+        tmdbId: 12345,
+        title: 'Filtered Show',
+        network: 'Netflix',
+        status: 'Running',
+        type: 'Scripted',
+        inProduction: true,
+        lastUpdated: mockShowRow.updated_at.toISOString(),
+      });
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(adminShowRepository.getAllShowsFiltered({})).rejects.toThrow(
+        'Database error get filtered shows: Query failed',
+      );
+    });
+  });
+
   describe('getAllShowsByProfile', () => {
     const profileId = 7;
 
@@ -1075,6 +1338,20 @@ describe('adminShowRepository', () => {
           },
         ],
       });
+    });
+
+    it('should calculate percentComplete as 0 when a profile has no episode data', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[{ profile_id: 1001, name: 'User 1', show_status: 'NOT_STARTED' }], []])
+        .mockResolvedValueOnce([[], []]);
+
+      const result = await adminShowRepository.getAdminShowWatchProgress(mockShowId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].totalEpisodes).toBe(0);
+      expect(result[0].watchedEpisodes).toBe(0);
+      expect(result[0].percentComplete).toBe(0);
+      expect(result[0].seasons).toEqual([]);
     });
 
     it('should return empty array when no profiles are watching the show', async () => {

@@ -1,6 +1,18 @@
 import { StatusUpdateResult } from '../../../src/types/watchStatusTypes';
+import { WatchHistoryRow } from '../../../src/types/watchHistoryTypes';
 import { BulkMarkedShowRow, WatchStatusDbService } from '@db/watchStatusDb';
+import {
+  getEpisodeWatchCount,
+  getShowIdForSeason,
+  getWatchHistoryForProfile,
+  recalculateShowStatusAfterSeasonReset,
+  recordEpisodeRewatch as recordEpisodeRewatchDb,
+  resetMovieForRewatch,
+  resetSeasonForRewatch,
+  resetShowForRewatch,
+} from '@db/watchHistoryDb';
 import { errorService } from '@services/errorService';
+import { moviesService } from '@services/moviesService';
 import { showService } from '@services/showService';
 import {
   WatchHistoryService,
@@ -9,12 +21,16 @@ import {
   watchHistoryService,
 } from '@services/watchHistoryService';
 import { watchStatusService } from '@services/watchStatusService';
-import { BulkMarkedShow, ProfileShow } from '@ajgifford/keepwatching-types';
+import { TransactionHelper } from '@utils/transactionHelper';
+import { BulkMarkedShow, ProfileMovie, ProfileShow, WatchHistoryItem } from '@ajgifford/keepwatching-types';
 
 jest.mock('@db/watchStatusDb');
+jest.mock('@db/watchHistoryDb');
 jest.mock('@services/errorService');
+jest.mock('@services/moviesService');
 jest.mock('@services/showService');
 jest.mock('@services/watchStatusService');
+jest.mock('@utils/transactionHelper');
 
 describe('WatchHistoryService', () => {
   let service: WatchHistoryService;
@@ -24,8 +40,17 @@ describe('WatchHistoryService', () => {
     jest.clearAllMocks();
     resetWatchHistoryService();
 
+    // resetMocks: true clears implementations set in jest.mock() factories,
+    // so re-establish the TransactionHelper mock here after each reset.
+    (TransactionHelper as jest.Mock).mockImplementation(() => ({
+      executeInTransaction: jest.fn().mockImplementation(async (callback: (conn: any) => Promise<any>) => {
+        return callback({});
+      }),
+    }));
+
     mockDbService = {
       detectBulkMarkedShows: jest.fn(),
+      dismissBulkMarkedShow: jest.fn(),
     } as any;
 
     service = new WatchHistoryService({ dbService: mockDbService });
@@ -102,6 +127,67 @@ describe('WatchHistoryService', () => {
     });
   });
 
+  describe('markSeasonIdsAsPriorWatched', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const showId = 456;
+    const seasonIds = [10, 11, 12];
+
+    const mockShowWithSeasons = { id: showId, title: 'The Wire', seasons: [] } as unknown as ProfileShow;
+
+    it('should mark specific seasons as prior watched and return updated show data', async () => {
+      (watchStatusService.markSeasonIdsAsPriorWatched as jest.Mock).mockResolvedValue({
+        success: true, changes: [], affectedRows: 30,
+      });
+      (showService.getShowDetailsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds);
+
+      expect(watchStatusService.markSeasonIdsAsPriorWatched).toHaveBeenCalledWith(
+        accountId, profileId, showId, seasonIds,
+      );
+      expect(showService.getShowDetailsForProfile).toHaveBeenCalledWith(accountId, profileId, showId);
+      expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
+      expect(result).toEqual({
+        showWithSeasons: mockShowWithSeasons,
+        nextUnwatchedEpisodes: [],
+      });
+    });
+
+    it('should work with a single season ID', async () => {
+      (watchStatusService.markSeasonIdsAsPriorWatched as jest.Mock).mockResolvedValue({
+        success: true, changes: [], affectedRows: 10,
+      });
+      (showService.getShowDetailsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+
+      await service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, [10]);
+
+      expect(watchStatusService.markSeasonIdsAsPriorWatched).toHaveBeenCalledWith(
+        accountId, profileId, showId, [10],
+      );
+    });
+
+    it('should handle errors and delegate to errorService', async () => {
+      const mockError = new Error('Mark season IDs failed');
+      (watchStatusService.markSeasonIdsAsPriorWatched as jest.Mock).mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(
+        service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds),
+      ).rejects.toThrow('Handled: Mark season IDs failed');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `markSeasonIdsAsPriorWatched(${accountId}, ${profileId}, ${showId}, [${seasonIds.join(', ')}])`,
+      );
+    });
+  });
+
   describe('getBulkMarkedShows', () => {
     const profileId = 123;
 
@@ -170,6 +256,43 @@ describe('WatchHistoryService', () => {
     });
   });
 
+  describe('dismissBulkMarkedShow', () => {
+    const profileId = 123;
+    const showId = 456;
+
+    it('should call dbService.dismissBulkMarkedShow with correct arguments', async () => {
+      mockDbService.dismissBulkMarkedShow.mockResolvedValue(undefined as any);
+
+      await service.dismissBulkMarkedShow(profileId, showId);
+
+      expect(mockDbService.dismissBulkMarkedShow).toHaveBeenCalledWith(profileId, showId);
+    });
+
+    it('should resolve without returning a value', async () => {
+      mockDbService.dismissBulkMarkedShow.mockResolvedValue(undefined as any);
+
+      const result = await service.dismissBulkMarkedShow(profileId, showId);
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should handle errors and delegate to errorService', async () => {
+      const mockError = new Error('Dismiss failed');
+      mockDbService.dismissBulkMarkedShow.mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.dismissBulkMarkedShow(profileId, showId)).rejects.toThrow('Handled: Dismiss failed');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `dismissBulkMarkedShow(${profileId}, ${showId})`,
+      );
+    });
+  });
+
   describe('retroactivelyMarkShowAsPrior', () => {
     const accountId = 1;
     const profileId = 123;
@@ -215,6 +338,287 @@ describe('WatchHistoryService', () => {
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
         `retroactivelyMarkShowAsPrior(${accountId}, ${profileId}, ${showId})`,
+      );
+    });
+  });
+
+  describe('startShowRewatch', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const showId = 456;
+
+    const mockShowWithSeasons = { id: showId, title: 'Sopranos', seasons: [] } as unknown as ProfileShow;
+
+    it('should reset show, invalidate cache, and return updated show data', async () => {
+      (resetShowForRewatch as jest.Mock).mockResolvedValue(undefined);
+      (showService.invalidateAccountCache as jest.Mock).mockResolvedValue(undefined);
+      (showService.getShowDetailsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.startShowRewatch(accountId, profileId, showId);
+
+      expect(resetShowForRewatch).toHaveBeenCalledWith({}, profileId, showId);
+      expect(showService.invalidateAccountCache).toHaveBeenCalledWith(accountId);
+      expect(showService.getShowDetailsForProfile).toHaveBeenCalledWith(accountId, profileId, showId);
+      expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
+      expect(result).toEqual({
+        showWithSeasons: mockShowWithSeasons,
+        nextUnwatchedEpisodes: [],
+      });
+    });
+
+    it('should handle errors and delegate to errorService', async () => {
+      const mockError = new Error('Reset failed');
+      (resetShowForRewatch as jest.Mock).mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.startShowRewatch(accountId, profileId, showId)).rejects.toThrow('Handled: Reset failed');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `startShowRewatch(${accountId}, ${profileId}, ${showId})`,
+      );
+    });
+  });
+
+  describe('startSeasonRewatch', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const seasonId = 789;
+    const showId = 456;
+
+    const mockShowWithSeasons = { id: showId, title: 'Lost', seasons: [] } as unknown as ProfileShow;
+
+    it('should look up show ID, reset season, recalculate status, and return updated data', async () => {
+      (getShowIdForSeason as jest.Mock).mockResolvedValue(showId);
+      (resetSeasonForRewatch as jest.Mock).mockResolvedValue(undefined);
+      (recalculateShowStatusAfterSeasonReset as jest.Mock).mockResolvedValue(undefined);
+      (showService.invalidateAccountCache as jest.Mock).mockResolvedValue(undefined);
+      (showService.getShowDetailsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
+      (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.startSeasonRewatch(accountId, profileId, seasonId);
+
+      expect(getShowIdForSeason).toHaveBeenCalledWith({}, seasonId);
+      expect(resetSeasonForRewatch).toHaveBeenCalledWith({}, profileId, seasonId);
+      expect(recalculateShowStatusAfterSeasonReset).toHaveBeenCalledWith({}, profileId, showId);
+      expect(showService.invalidateAccountCache).toHaveBeenCalledWith(accountId);
+      expect(showService.getShowDetailsForProfile).toHaveBeenCalledWith(accountId, profileId, showId);
+      expect(result).toEqual({
+        showWithSeasons: mockShowWithSeasons,
+        nextUnwatchedEpisodes: [],
+      });
+    });
+
+    it('should throw when season is not found', async () => {
+      (getShowIdForSeason as jest.Mock).mockResolvedValue(null);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.startSeasonRewatch(accountId, profileId, seasonId)).rejects.toThrow(
+        `Handled: Season ${seasonId} not found`,
+      );
+    });
+
+    it('should handle errors and delegate to errorService', async () => {
+      const mockError = new Error('Season reset failed');
+      (getShowIdForSeason as jest.Mock).mockResolvedValue(showId);
+      (resetSeasonForRewatch as jest.Mock).mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.startSeasonRewatch(accountId, profileId, seasonId)).rejects.toThrow(
+        'Handled: Season reset failed',
+      );
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `startSeasonRewatch(${accountId}, ${profileId}, ${seasonId})`,
+      );
+    });
+  });
+
+  describe('startMovieRewatch', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const movieId = 999;
+
+    const mockMovie = { id: movieId, title: 'Inception', watchStatus: 'NOT_WATCHED' } as unknown as ProfileMovie;
+
+    it('should reset movie and return updated movie details', async () => {
+      (resetMovieForRewatch as jest.Mock).mockResolvedValue(undefined);
+      (moviesService.getMovieDetailsForProfile as jest.Mock).mockResolvedValue(mockMovie);
+
+      const result = await service.startMovieRewatch(accountId, profileId, movieId);
+
+      expect(resetMovieForRewatch).toHaveBeenCalledWith({}, profileId, movieId);
+      expect(moviesService.getMovieDetailsForProfile).toHaveBeenCalledWith(profileId, movieId);
+      expect(result).toEqual(mockMovie);
+    });
+
+    it('should handle errors and delegate to errorService', async () => {
+      const mockError = new Error('Movie reset failed');
+      (resetMovieForRewatch as jest.Mock).mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.startMovieRewatch(accountId, profileId, movieId)).rejects.toThrow(
+        'Handled: Movie reset failed',
+      );
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `startMovieRewatch(${accountId}, ${profileId}, ${movieId})`,
+      );
+    });
+  });
+
+  describe('recordEpisodeRewatch', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const episodeId = 555;
+
+    it('should record rewatch and return episodeId, watchCount, and watchedAt', async () => {
+      (recordEpisodeRewatchDb as jest.Mock).mockResolvedValue(undefined);
+      (getEpisodeWatchCount as jest.Mock).mockResolvedValue(3);
+
+      const before = new Date();
+      const result = await service.recordEpisodeRewatch(accountId, profileId, episodeId);
+      const after = new Date();
+
+      expect(recordEpisodeRewatchDb).toHaveBeenCalledWith({}, profileId, episodeId);
+      expect(getEpisodeWatchCount).toHaveBeenCalledWith(profileId, episodeId);
+      expect(result.episodeId).toBe(episodeId);
+      expect(result.watchCount).toBe(3);
+      expect(new Date(result.watchedAt).getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(new Date(result.watchedAt).getTime()).toBeLessThanOrEqual(after.getTime());
+    });
+
+    it('should return watchedAt as a valid ISO string', async () => {
+      (recordEpisodeRewatchDb as jest.Mock).mockResolvedValue(undefined);
+      (getEpisodeWatchCount as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.recordEpisodeRewatch(accountId, profileId, episodeId);
+
+      expect(result.watchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    });
+
+    it('should handle errors and delegate to errorService', async () => {
+      const mockError = new Error('Rewatch insert failed');
+      (recordEpisodeRewatchDb as jest.Mock).mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.recordEpisodeRewatch(accountId, profileId, episodeId)).rejects.toThrow(
+        'Handled: Rewatch insert failed',
+      );
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `recordEpisodeRewatch(${accountId}, ${profileId}, ${episodeId})`,
+      );
+    });
+  });
+
+  describe('getHistoryForProfile', () => {
+    const profileId = 123;
+
+    const makeRow = (overrides: Record<string, any> = {}): WatchHistoryRow => ({
+      historyId: 1,
+      contentType: 'episode',
+      contentId: 10,
+      title: 'Pilot',
+      parentTitle: 'Breaking Bad',
+      seasonNumber: 1,
+      episodeNumber: 1,
+      posterImage: '/poster.jpg',
+      watchedAt: '2026-03-01T10:00:00.000Z',
+      watchNumber: 1,
+      isPriorWatch: 0,
+      runtime: 45,
+      ...overrides,
+    } as WatchHistoryRow);
+
+    it('should return transformed history items with pagination metadata', async () => {
+      const mockRows = [makeRow(), makeRow({ historyId: 2, title: 'Episode 2', episodeNumber: 2 })];
+      (getWatchHistoryForProfile as jest.Mock).mockResolvedValue({ items: mockRows, totalCount: 2 });
+
+      const result = await service.getHistoryForProfile(profileId);
+
+      expect(getWatchHistoryForProfile).toHaveBeenCalledWith(
+        profileId, 1, 20, 'all', 'desc', undefined, undefined, false, undefined, false,
+      );
+      expect(result.totalCount).toBe(2);
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(20);
+      expect(result.items).toHaveLength(2);
+    });
+
+    it('should transform WatchHistoryRow to WatchHistoryItem (isPriorWatch as boolean)', async () => {
+      const rowWithNumericFlag = makeRow({ isPriorWatch: 1 });
+      (getWatchHistoryForProfile as jest.Mock).mockResolvedValue({ items: [rowWithNumericFlag], totalCount: 1 });
+
+      const result = await service.getHistoryForProfile(profileId);
+
+      const item: WatchHistoryItem = result.items[0];
+      expect(item.isPriorWatch).toBe(true);
+    });
+
+    it('should pass all optional filter parameters to the db layer', async () => {
+      (getWatchHistoryForProfile as jest.Mock).mockResolvedValue({ items: [], totalCount: 0 });
+
+      await service.getHistoryForProfile(
+        profileId, 2, 10, 'episode', 'asc', '2026-01-01', '2026-03-31', true, 'Breaking', true,
+      );
+
+      expect(getWatchHistoryForProfile).toHaveBeenCalledWith(
+        profileId, 2, 10, 'episode', 'asc', '2026-01-01', '2026-03-31', true, 'Breaking', true,
+      );
+    });
+
+    it('should return correct page and pageSize in result', async () => {
+      (getWatchHistoryForProfile as jest.Mock).mockResolvedValue({ items: [], totalCount: 100 });
+
+      const result = await service.getHistoryForProfile(profileId, 3, 15);
+
+      expect(result.page).toBe(3);
+      expect(result.pageSize).toBe(15);
+      expect(result.totalCount).toBe(100);
+    });
+
+    it('should handle empty history results', async () => {
+      (getWatchHistoryForProfile as jest.Mock).mockResolvedValue({ items: [], totalCount: 0 });
+
+      const result = await service.getHistoryForProfile(profileId);
+
+      expect(result.items).toEqual([]);
+      expect(result.totalCount).toBe(0);
+    });
+
+    it('should handle errors and delegate to errorService', async () => {
+      const mockError = new Error('History query failed');
+      (getWatchHistoryForProfile as jest.Mock).mockRejectedValue(mockError);
+
+      (errorService.handleError as jest.Mock).mockImplementation((error) => {
+        throw new Error(`Handled: ${error.message}`);
+      });
+
+      await expect(service.getHistoryForProfile(profileId)).rejects.toThrow('Handled: History query failed');
+
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        mockError,
+        `getHistoryForProfile(${profileId}, 1, 20)`,
       );
     });
   });

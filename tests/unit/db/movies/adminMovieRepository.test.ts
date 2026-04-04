@@ -328,6 +328,24 @@ describe('adminMovieRepository', () => {
       });
     });
 
+    it('should return full AdminMovieDetails including director and financial fields', async () => {
+      const detailsRow = {
+        ...mockMovieRow,
+        director: 'Christopher Nolan',
+        production_companies: 'Warner Bros, Syncopy',
+        budget: 185000000,
+        revenue: 836836967,
+      };
+      mockExecute.mockResolvedValueOnce([[detailsRow]]);
+
+      const movie = await moviesDb.getMovieDetails(movieId);
+
+      expect(movie.director).toBe('Christopher Nolan');
+      expect(movie.productionCompanies).toBe('Warner Bros, Syncopy');
+      expect(movie.budget).toBe(185000000);
+      expect(movie.revenue).toBe(836836967);
+    });
+
     it('should throw NotFoundError when movie is not found', async () => {
       mockExecute.mockResolvedValueOnce([[]]);
 
@@ -341,6 +359,202 @@ describe('adminMovieRepository', () => {
 
       await expect(moviesDb.getMovieDetails(movieId)).rejects.toThrow(
         'Database error getMovieDetails(123): Query execution failed',
+      );
+    });
+  });
+
+  describe('getMovieFilterOptions', () => {
+    it('should return streaming services and years', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[{ value: 'Netflix' }, { value: 'HBO Max' }, { value: 'Disney+' }]])
+        .mockResolvedValueOnce([[{ value: 2024 }, { value: 2023 }, { value: 2022 }]]);
+
+      const options = await moviesDb.getMovieFilterOptions();
+
+      expect(mockExecute).toHaveBeenCalledTimes(2);
+      expect(options.streamingServices).toEqual(['Netflix', 'HBO Max', 'Disney+']);
+      expect(options.years).toEqual(['2024', '2023', '2022']);
+    });
+
+    it('should filter out null streaming service values', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[{ value: 'Netflix' }, { value: null }, { value: '' }]])
+        .mockResolvedValueOnce([[{ value: 2023 }]]);
+
+      const options = await moviesDb.getMovieFilterOptions();
+
+      expect(options.streamingServices).toEqual(['Netflix']);
+    });
+
+    it('should filter out null year values', async () => {
+      mockExecute
+        .mockResolvedValueOnce([[{ value: 'Netflix' }]])
+        .mockResolvedValueOnce([[{ value: 2023 }, { value: null }]]);
+
+      const options = await moviesDb.getMovieFilterOptions();
+
+      expect(options.years).toEqual(['2023']);
+    });
+
+    it('should return empty arrays when no data exists', async () => {
+      mockExecute.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
+
+      const options = await moviesDb.getMovieFilterOptions();
+
+      expect(options.streamingServices).toEqual([]);
+      expect(options.years).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Connection failed'));
+
+      await expect(moviesDb.getMovieFilterOptions()).rejects.toThrow(
+        'Database error get movie filter options: Connection failed',
+      );
+    });
+  });
+
+  describe('getMoviesCountFiltered', () => {
+    it('should return count with no filters applied', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 100 }]]);
+
+      const count = await moviesDb.getMoviesCountFiltered({});
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('FROM admin_movies'), []);
+      expect(count).toBe(100);
+    });
+
+    it('should apply streaming service filter with LIKE param', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 25 }]]);
+
+      const count = await moviesDb.getMoviesCountFiltered({ streamingService: 'Netflix' });
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE streaming_services LIKE ?'),
+        ['%Netflix%'],
+      );
+      expect(count).toBe(25);
+    });
+
+    it('should apply year filter', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 15 }]]);
+
+      const count = await moviesDb.getMoviesCountFiltered({ year: '2023' });
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE YEAR(STR_TO_DATE(release_date'),
+        ['2023'],
+      );
+      expect(count).toBe(15);
+    });
+
+    it('should apply both filters combined with AND', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 5 }]]);
+
+      const count = await moviesDb.getMoviesCountFiltered({ streamingService: 'Netflix', year: '2023' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('AND'), ['%Netflix%', '2023']);
+      expect(count).toBe(5);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(moviesDb.getMoviesCountFiltered({})).rejects.toThrow(
+        'Database error get filtered movies count: Query failed',
+      );
+    });
+  });
+
+  describe('getAllMoviesFiltered', () => {
+    const mockMovieRow = {
+      id: 1,
+      tmdb_id: 12345,
+      title: 'Filtered Movie',
+      description: 'A filtered test movie',
+      release_date: '2023-01-15',
+      runtime: 120,
+      poster_image: '/poster.jpg',
+      backdrop_image: '/backdrop.jpg',
+      user_rating: 8.0,
+      mpa_rating: 'PG-13',
+      created_at: new Date('2023-01-01'),
+      updated_at: new Date('2023-01-10'),
+      genres: 'Action',
+      streaming_services: 'Netflix',
+    };
+
+    it('should return all movies with no filters and default pagination', async () => {
+      mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
+
+      const movies = await moviesDb.getAllMoviesFiltered({});
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('FROM admin_movies'), []);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 50'), []);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 0'), []);
+      expect(movies).toHaveLength(1);
+      expect(movies[0].id).toBe(1);
+      expect(movies[0].title).toBe('Filtered Movie');
+    });
+
+    it('should apply streaming service filter', async () => {
+      mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
+
+      const movies = await moviesDb.getAllMoviesFiltered({ streamingService: 'Netflix' });
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE streaming_services LIKE ?'),
+        ['%Netflix%'],
+      );
+      expect(movies).toHaveLength(1);
+    });
+
+    it('should apply year filter', async () => {
+      mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
+
+      await moviesDb.getAllMoviesFiltered({ year: '2023' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE YEAR(STR_TO_DATE'), ['2023']);
+    });
+
+    it('should apply both filters with custom pagination', async () => {
+      mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
+
+      await moviesDb.getAllMoviesFiltered({ streamingService: 'Netflix', year: '2023' }, 10, 20);
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 10'), expect.any(Array));
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 20'), expect.any(Array));
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('AND'), ['%Netflix%', '2023']);
+    });
+
+    it('should return empty array when no movies match filters', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      const movies = await moviesDb.getAllMoviesFiltered({ streamingService: 'Unknown Service' });
+
+      expect(movies).toEqual([]);
+    });
+
+    it('should correctly transform movie rows', async () => {
+      mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
+
+      const movies = await moviesDb.getAllMoviesFiltered({});
+
+      expect(movies[0]).toMatchObject({
+        id: 1,
+        tmdbId: 12345,
+        title: 'Filtered Movie',
+        streamingServices: 'Netflix',
+        genres: 'Action',
+        lastUpdated: mockMovieRow.updated_at.toISOString(),
+      });
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(moviesDb.getAllMoviesFiltered({})).rejects.toThrow(
+        'Database error getting filtered movies: Query failed',
       );
     });
   });

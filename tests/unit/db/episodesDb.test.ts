@@ -463,6 +463,133 @@ describe('Episode Module', () => {
     });
   });
 
+  describe('getCalendarEpisodesForProfile', () => {
+    const profileId = 123;
+    const startDate = '2025-04-01';
+    const endDate = '2025-04-30';
+
+    const mockCalendarRows = [
+      {
+        profile_id: 123,
+        show_id: 42,
+        show_name: 'Test Show',
+        streaming_services: 'Netflix, Hulu',
+        network: 'Netflix',
+        episode_title: 'April Episode',
+        air_date: '2025-04-10',
+        runtime: 45,
+        episode_number: 3,
+        season_number: 2,
+        episode_still_image: '/still/ep3.jpg',
+      },
+      {
+        profile_id: 123,
+        show_id: 55,
+        show_name: 'Another Show',
+        streaming_services: 'HBO Max',
+        network: 'HBO',
+        episode_title: 'Another April Episode',
+        air_date: '2025-04-15',
+        runtime: 60,
+        episode_number: 1,
+        season_number: 3,
+        episode_still_image: '/still/ep1.jpg',
+      },
+    ] as RecentUpcomingEpisodeRow[];
+
+    const expectedCalendarEpisodes = [
+      {
+        profileId: 123,
+        showId: 42,
+        showName: 'Test Show',
+        streamingServices: 'Netflix, Hulu',
+        network: 'Netflix',
+        episodeTitle: 'April Episode',
+        airDate: '2025-04-10',
+        runtime: 45,
+        episodeNumber: 3,
+        seasonNumber: 2,
+        episodeStillImage: '/still/ep3.jpg',
+      },
+      {
+        profileId: 123,
+        showId: 55,
+        showName: 'Another Show',
+        streamingServices: 'HBO Max',
+        network: 'HBO',
+        episodeTitle: 'Another April Episode',
+        airDate: '2025-04-15',
+        runtime: 60,
+        episodeNumber: 1,
+        seasonNumber: 3,
+        episodeStillImage: '/still/ep1.jpg',
+      },
+    ];
+
+    it('should return calendar episodes for the given date range', async () => {
+      mockExecute.mockResolvedValueOnce([mockCalendarRows]);
+
+      const result = await episodeModule.getCalendarEpisodesForProfile(profileId, startDate, endDate);
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('BETWEEN ? AND ?'), [
+        profileId,
+        startDate,
+        endDate,
+      ]);
+      expect(result).toEqual(expectedCalendarEpisodes);
+    });
+
+    it('should query using the correct joins and ordering', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      await episodeModule.getCalendarEpisodesForProfile(profileId, startDate, endDate);
+
+      const [calledQuery, calledParams] = mockExecute.mock.calls[0];
+      expect(calledQuery).toContain('JOIN show_watch_status');
+      expect(calledQuery).toContain('JOIN shows');
+      expect(calledQuery).toContain('JOIN episodes');
+      expect(calledQuery).toContain('JOIN show_services');
+      expect(calledQuery).toContain('JOIN streaming_services');
+      expect(calledQuery).toContain('GROUP BY');
+      expect(calledQuery).toContain('ORDER BY e.air_date, s.title, e.season_number, e.episode_number');
+      expect(calledParams).toEqual([profileId, startDate, endDate]);
+    });
+
+    it('should return an empty array when no episodes fall in the date range', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      const result = await episodeModule.getCalendarEpisodesForProfile(profileId, startDate, endDate);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should correctly transform all fields from the DB row', async () => {
+      mockExecute.mockResolvedValueOnce([[mockCalendarRows[0]]]);
+
+      const result = await episodeModule.getCalendarEpisodesForProfile(profileId, startDate, endDate);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(expectedCalendarEpisodes[0]);
+    });
+
+    it('should throw a DatabaseError when the query fails', async () => {
+      const mockError = new Error('DB connection failed');
+      mockExecute.mockRejectedValue(mockError);
+
+      await expect(episodeModule.getCalendarEpisodesForProfile(profileId, startDate, endDate)).rejects.toThrow(
+        'DB connection failed',
+      );
+    });
+
+    it('should throw with default message when query fails without an error message', async () => {
+      mockExecute.mockRejectedValue({});
+
+      await expect(episodeModule.getCalendarEpisodesForProfile(profileId, startDate, endDate)).rejects.toThrow(
+        'Unknown database error getting calendar episodes for a profile',
+      );
+    });
+  });
+
   describe('deleteEpisodeById', () => {
     const episodeId = 789;
 

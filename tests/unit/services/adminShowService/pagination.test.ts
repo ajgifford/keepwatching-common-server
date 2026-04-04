@@ -168,6 +168,158 @@ describe('AdminShowService - Pagination', () => {
     });
   });
 
+  describe('getAllShowsFiltered', () => {
+    const mockFilterOptions = {
+      types: ['Scripted', 'Documentary'],
+      statuses: ['Returning Series', 'Ended'],
+      networks: ['Netflix', 'HBO'],
+      streamingServices: ['Netflix', 'Hulu'],
+    };
+
+    const mockFilteredPaginationResult = {
+      shows: mockShows,
+      pagination: {
+        totalCount: 6,
+        totalPages: 3,
+        currentPage: 1,
+        limit: 2,
+        hasNextPage: true,
+        hasPrevPage: false,
+      },
+      filters: mockFilterOptions,
+    };
+
+    beforeEach(() => {
+      (showsDb.getAllShowsFiltered as jest.Mock).mockResolvedValue(mockShows);
+      (showsDb.getShowFilterOptions as jest.Mock).mockResolvedValue(mockFilterOptions);
+      (showsDb.getShowsCountFiltered as jest.Mock).mockResolvedValue(6);
+    });
+
+    it('should return filtered shows from cache when available', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockFilteredPaginationResult);
+
+      const result = await adminShowService.getAllShowsFiltered({ status: 'Ended' }, 1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
+        'allShowsFiltered_1_0_2_status_Ended',
+        expect.any(Function),
+      );
+      expect(result).toEqual(mockFilteredPaginationResult);
+      expect(showsDb.getAllShowsFiltered).not.toHaveBeenCalled();
+    });
+
+    it('should use getShowsCount (not filtered) when no filters are provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+
+      await adminShowService.getAllShowsFiltered({}, 1, 0, 2);
+
+      expect(showsDb.getShowsCount).toHaveBeenCalled();
+      expect(showsDb.getShowsCountFiltered).not.toHaveBeenCalled();
+      expect(showsDb.getAllShowsFiltered).toHaveBeenCalledWith({}, 2, 0);
+      expect(showsDb.getShowFilterOptions).toHaveBeenCalled();
+    });
+
+    it('should use getShowsCountFiltered when type filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { type: 'Scripted' };
+
+      await adminShowService.getAllShowsFiltered(filters, 1, 0, 2);
+
+      expect(showsDb.getShowsCountFiltered).toHaveBeenCalledWith(filters);
+      expect(showsDb.getShowsCount).not.toHaveBeenCalled();
+    });
+
+    it('should use getShowsCountFiltered when status filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { status: 'Ended' };
+
+      await adminShowService.getAllShowsFiltered(filters, 1, 0, 2);
+
+      expect(showsDb.getShowsCountFiltered).toHaveBeenCalledWith(filters);
+      expect(showsDb.getShowsCount).not.toHaveBeenCalled();
+    });
+
+    it('should use getShowsCountFiltered when network filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { network: 'HBO' };
+
+      await adminShowService.getAllShowsFiltered(filters, 1, 0, 2);
+
+      expect(showsDb.getShowsCountFiltered).toHaveBeenCalledWith(filters);
+      expect(showsDb.getShowsCount).not.toHaveBeenCalled();
+    });
+
+    it('should use getShowsCountFiltered when streamingService filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { streamingService: 'Netflix' };
+
+      await adminShowService.getAllShowsFiltered(filters, 1, 0, 2);
+
+      expect(showsDb.getShowsCountFiltered).toHaveBeenCalledWith(filters);
+      expect(showsDb.getShowsCount).not.toHaveBeenCalled();
+    });
+
+    it('should use correct cache key when all filters are provided', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockFilteredPaginationResult);
+      const filters = { type: 'Scripted', status: 'Ended', network: 'HBO', streamingService: 'Netflix' };
+
+      await adminShowService.getAllShowsFiltered(filters, 1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
+        'allShowsFiltered_1_0_2_type_Scripted_status_Ended_network_HBO_stream_Netflix',
+        expect.any(Function),
+      );
+    });
+
+    it('should return shows, pagination, and filter options', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+
+      const result = await adminShowService.getAllShowsFiltered({ status: 'Ended' }, 1, 0, 2);
+
+      expect(result).toEqual({
+        shows: mockShows,
+        pagination: {
+          totalCount: 6,
+          totalPages: 3,
+          currentPage: 1,
+          limit: 2,
+          hasNextPage: true,
+          hasPrevPage: false,
+        },
+        filters: mockFilterOptions,
+      });
+    });
+
+    it('should calculate pagination correctly', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      (showsDb.getShowsCountFiltered as jest.Mock).mockResolvedValue(21);
+
+      const result = await adminShowService.getAllShowsFiltered({ type: 'Scripted' }, 3, 10, 5);
+
+      expect(result.pagination).toEqual({
+        totalCount: 21,
+        totalPages: 5, // ceil(21/5)
+        currentPage: 3,
+        limit: 5,
+        hasNextPage: true, // 3 < 5
+        hasPrevPage: true, // 3 > 1
+      });
+    });
+
+    it('should handle errors properly', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const error = new Error('Database error');
+      (showsDb.getAllShowsFiltered as jest.Mock).mockRejectedValue(error);
+
+      const filters = { status: 'Ended' };
+      await expect(adminShowService.getAllShowsFiltered(filters, 1, 0, 2)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        error,
+        `getAllShowsFiltered(${JSON.stringify(filters)}, 1, 0, 2)`,
+      );
+    });
+  });
+
   describe('getAllShowsByProfile', () => {
     const mockProfileId = 101;
 

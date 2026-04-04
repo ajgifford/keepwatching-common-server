@@ -299,6 +299,136 @@ describe('AdminMovieService', () => {
     });
   });
 
+  describe('getAllMoviesFiltered', () => {
+    const mockFilterOptions = {
+      streamingServices: ['Netflix', 'Hulu'],
+      years: ['2023', '2024'],
+    };
+
+    const mockFilteredPaginationResult = {
+      movies: mockMovies,
+      pagination: {
+        totalCount: 8,
+        totalPages: 4,
+        currentPage: 1,
+        limit: 2,
+        hasNextPage: true,
+        hasPrevPage: false,
+      },
+      filters: mockFilterOptions,
+    };
+
+    beforeEach(() => {
+      (moviesDb.getAllMoviesFiltered as jest.Mock).mockResolvedValue(mockMovies);
+      (moviesDb.getMovieFilterOptions as jest.Mock).mockResolvedValue(mockFilterOptions);
+      (moviesDb.getMoviesCountFiltered as jest.Mock).mockResolvedValue(8);
+    });
+
+    it('should return filtered movies from cache when available', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockFilteredPaginationResult);
+
+      const result = await adminMovieService.getAllMoviesFiltered({ streamingService: 'Netflix' }, 1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
+        'allMoviesFiltered_1_0_2_stream_Netflix',
+        expect.any(Function),
+      );
+      expect(result).toEqual(mockFilteredPaginationResult);
+      expect(moviesDb.getAllMoviesFiltered).not.toHaveBeenCalled();
+    });
+
+    it('should use getMoviesCount (not filtered) when no filters are provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+
+      await adminMovieService.getAllMoviesFiltered({}, 1, 0, 2);
+
+      expect(moviesDb.getMoviesCount).toHaveBeenCalled();
+      expect(moviesDb.getMoviesCountFiltered).not.toHaveBeenCalled();
+      expect(moviesDb.getAllMoviesFiltered).toHaveBeenCalledWith({}, 2, 0);
+      expect(moviesDb.getMovieFilterOptions).toHaveBeenCalled();
+    });
+
+    it('should use getMoviesCountFiltered when streamingService filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { streamingService: 'Netflix' };
+
+      await adminMovieService.getAllMoviesFiltered(filters, 1, 0, 2);
+
+      expect(moviesDb.getMoviesCountFiltered).toHaveBeenCalledWith(filters);
+      expect(moviesDb.getMoviesCount).not.toHaveBeenCalled();
+      expect(moviesDb.getAllMoviesFiltered).toHaveBeenCalledWith(filters, 2, 0);
+    });
+
+    it('should use getMoviesCountFiltered when year filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { year: '2023' };
+
+      await adminMovieService.getAllMoviesFiltered(filters, 1, 0, 2);
+
+      expect(moviesDb.getMoviesCountFiltered).toHaveBeenCalledWith(filters);
+      expect(moviesDb.getMoviesCount).not.toHaveBeenCalled();
+    });
+
+    it('should use correct cache key when both filters are provided', async () => {
+      mockCacheService.getOrSet.mockResolvedValue(mockFilteredPaginationResult);
+
+      await adminMovieService.getAllMoviesFiltered({ streamingService: 'Netflix', year: '2023' }, 1, 0, 2);
+
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
+        'allMoviesFiltered_1_0_2_stream_Netflix_year_2023',
+        expect.any(Function),
+      );
+    });
+
+    it('should return movies, pagination, and filter options', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+
+      const result = await adminMovieService.getAllMoviesFiltered({ streamingService: 'Netflix' }, 1, 0, 2);
+
+      expect(result).toEqual({
+        movies: mockMovies,
+        pagination: {
+          totalCount: 8,
+          totalPages: 4,
+          currentPage: 1,
+          limit: 2,
+          hasNextPage: true,
+          hasPrevPage: false,
+        },
+        filters: mockFilterOptions,
+      });
+    });
+
+    it('should calculate pagination correctly', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      (moviesDb.getMoviesCountFiltered as jest.Mock).mockResolvedValue(21);
+
+      const result = await adminMovieService.getAllMoviesFiltered({ year: '2023' }, 3, 10, 5);
+
+      expect(result.pagination).toEqual({
+        totalCount: 21,
+        totalPages: 5, // ceil(21/5)
+        currentPage: 3,
+        limit: 5,
+        hasNextPage: true, // 3 < 5
+        hasPrevPage: true, // 3 > 1
+      });
+    });
+
+    it('should handle errors properly', async () => {
+      const error = new Error('Database error');
+      (moviesDb.getAllMoviesFiltered as jest.Mock).mockRejectedValue(error);
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+
+      const filters = { streamingService: 'Netflix' };
+      await expect(adminMovieService.getAllMoviesFiltered(filters, 1, 0, 2)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(
+        error,
+        `getAllMoviesFiltered(${JSON.stringify(filters)}, 1, 0, 2)`,
+      );
+    });
+  });
+
   describe('getAllMoviesByProfile', () => {
     const mockProfileId = 5;
 

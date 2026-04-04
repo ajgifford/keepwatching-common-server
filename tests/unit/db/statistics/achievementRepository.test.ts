@@ -5,9 +5,11 @@ import {
   checkAchievementExists,
   getAchievementsByProfile,
   getAchievementsByType,
+  getLatestWatchDate,
   getLatestWatchedEpisode,
   getLatestWatchedMovie,
   getRecentAchievements,
+  getWatchCounts,
   recordAchievement,
 } from '@db/statistics/achievementRepository';
 
@@ -704,6 +706,98 @@ describe('achievementRepository', () => {
       mockPool.execute.mockRejectedValueOnce(new Error('Database error'));
 
       await expect(getLatestWatchedMovie(123)).rejects.toThrow('Database error');
+    });
+  });
+
+  describe('getWatchCounts', () => {
+    it('should return episode, movie, and hours counts', async () => {
+      mockPool.execute.mockResolvedValueOnce([
+        [{ total_episodes_watched: 200, total_movies_watched: 50, total_runtime_minutes: 12000 }],
+      ]);
+
+      const result = await getWatchCounts(123);
+
+      expect(result).toEqual({ episodes: 200, movies: 50, hours: 200 });
+    });
+
+    it('should round hours from total runtime minutes', async () => {
+      mockPool.execute.mockResolvedValueOnce([
+        [{ total_episodes_watched: 10, total_movies_watched: 2, total_runtime_minutes: 125 }],
+      ]);
+
+      const result = await getWatchCounts(123);
+
+      expect(result.hours).toBe(2); // Math.round(125 / 60) = 2
+    });
+
+    it('should pass profileId four times for the four subqueries', async () => {
+      mockPool.execute.mockResolvedValueOnce([
+        [{ total_episodes_watched: 0, total_movies_watched: 0, total_runtime_minutes: 0 }],
+      ]);
+
+      await getWatchCounts(456);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456, 456, 456, 456]);
+    });
+
+    it('should return zeros when nothing has been watched', async () => {
+      mockPool.execute.mockResolvedValueOnce([
+        [{ total_episodes_watched: 0, total_movies_watched: 0, total_runtime_minutes: 0 }],
+      ]);
+
+      const result = await getWatchCounts(123);
+
+      expect(result).toEqual({ episodes: 0, movies: 0, hours: 0 });
+    });
+  });
+
+  describe('getLatestWatchDate', () => {
+    it('should return the latest watch date when records exist', async () => {
+      const latestDate = new Date('2025-10-30T20:00:00Z');
+      mockPool.execute.mockResolvedValueOnce([[{ latest_watch_date: latestDate }]]);
+
+      const result = await getLatestWatchDate(123);
+
+      expect(result).toEqual(latestDate);
+    });
+
+    it('should return current date when no watch records exist', async () => {
+      mockPool.execute.mockResolvedValueOnce([[{ latest_watch_date: null }]]);
+
+      const result = await getLatestWatchDate(123);
+
+      expect(result).toBeInstanceOf(Date);
+    });
+
+    it('should return current date when result set is empty', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      const result = await getLatestWatchDate(123);
+
+      expect(result).toBeInstanceOf(Date);
+    });
+
+    it('should pass profileId twice for episode and movie subqueries', async () => {
+      mockPool.execute.mockResolvedValueOnce([[{ latest_watch_date: new Date() }]]);
+
+      await getLatestWatchDate(789);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [789, 789]);
+    });
+
+    it('should query both episode_watch_status and movie_watch_status', async () => {
+      mockPool.execute.mockResolvedValueOnce([[{ latest_watch_date: new Date() }]]);
+
+      await getLatestWatchDate(123);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('episode_watch_status'),
+        expect.any(Array),
+      );
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('movie_watch_status'),
+        expect.any(Array),
+      );
     });
   });
 });
