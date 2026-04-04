@@ -797,7 +797,7 @@ describe('personsDb', () => {
 
       // Mock Date to have consistent test results
       jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-01-01'));
+      jest.setSystemTime(new Date('2024-01-01').getTime());
 
       mockQuery.mockResolvedValue([mockPersonRows]);
 

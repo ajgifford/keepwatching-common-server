@@ -13,7 +13,7 @@ describe('emailUtility', () => {
 
   beforeAll(() => {
     jest.useFakeTimers();
-    jest.setSystemTime(mockDate);
+    jest.setSystemTime(mockDate.getTime());
   });
 
   afterAll(() => {

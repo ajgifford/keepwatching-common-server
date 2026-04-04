@@ -12,17 +12,16 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "moduleResolution": "bundler",
-    "baseUrl": ".",
     "paths": {
-      "@config/*": ["src/config/*"],
-      "@constants/*": ["src/constants/*"],
-      "@context/*": ["src/context/*"],
-      "@db/*": ["src/db/*"],
-      "@logger/*": ["src/logger/*"],
-      "@middleware/*": ["src/middleware/*"],
-      "@schema/*": ["src/schema/*"],
-      "@services/*": ["src/services/*"],
-      "@utils/*": ["src/utils/*"]
+      "@config/*": ["./src/config/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@context/*": ["./src/context/*"],
+      "@db/*": ["./src/db/*"],
+      "@logger/*": ["./src/logger/*"],
+      "@middleware/*": ["./src/middleware/*"],
+      "@schema/*": ["./src/schema/*"],
+      "@services/*": ["./src/services/*"],
+      "@utils/*": ["./src/utils/*"]
     }
   },
   "include": ["src/**/*", "src/services.ts", "src/utils.ts", "src/logger.ts", "src/schema.ts", "src/context.ts"],

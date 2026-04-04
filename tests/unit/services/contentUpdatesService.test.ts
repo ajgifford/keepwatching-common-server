@@ -179,7 +179,7 @@ describe('contentUpdatesService', () => {
   describe('updatePeople', () => {
     beforeEach(() => {
       jest.useFakeTimers();
-      jest.setSystemTime(new Date('2025-01-15T10:00:00Z'));
+      jest.setSystemTime(new Date('2025-01-15T10:00:00Z').getTime());
     });
 
     afterEach(() => {

@@ -51,7 +51,7 @@ describe('CalendarService', () => {
 
     it('should use default date range when no dates are provided', async () => {
       const fakeNow = new Date('2026-04-04T12:00:00.000Z');
-      jest.useFakeTimers().setSystemTime(fakeNow);
+      jest.useFakeTimers().setSystemTime(fakeNow.getTime());
 
       (episodesDb.getCalendarEpisodesForProfile as jest.Mock).mockResolvedValue([]);
       (moviesDb.getCalendarMoviesForProfile as jest.Mock).mockResolvedValue([]);
@@ -71,7 +71,7 @@ describe('CalendarService', () => {
 
     it('should use default start date of 30 days ago', async () => {
       const fakeNow = new Date('2026-04-04T00:00:00.000Z');
-      jest.useFakeTimers().setSystemTime(fakeNow);
+      jest.useFakeTimers().setSystemTime(fakeNow.getTime());
 
       (episodesDb.getCalendarEpisodesForProfile as jest.Mock).mockResolvedValue([]);
       (moviesDb.getCalendarMoviesForProfile as jest.Mock).mockResolvedValue([]);
@@ -84,7 +84,7 @@ describe('CalendarService', () => {
 
     it('should use default end date of 60 days from now', async () => {
       const fakeNow = new Date('2026-04-04T00:00:00.000Z');
-      jest.useFakeTimers().setSystemTime(fakeNow);
+      jest.useFakeTimers().setSystemTime(fakeNow.getTime());
 
       (episodesDb.getCalendarEpisodesForProfile as jest.Mock).mockResolvedValue([]);
       (moviesDb.getCalendarMoviesForProfile as jest.Mock).mockResolvedValue([]);

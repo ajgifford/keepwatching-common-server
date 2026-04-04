@@ -4,7 +4,7 @@ import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader } from 'mysql2';
-import { EpisodeReferenceRow } from 'src/types/episodeTypes';
+import { EpisodeReferenceRow } from '../../types/episodeTypes';
 
 /**
  * Adds a show to a user's favorites/watchlist

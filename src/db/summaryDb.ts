@@ -2,7 +2,7 @@ import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { SummaryCounts } from '@ajgifford/keepwatching-types';
-import { CountRow, SummaryCountRow } from 'src/types/summaryTypes';
+import { CountRow, SummaryCountRow } from '../types/summaryTypes';
 
 export async function getSummaryCounts(): Promise<SummaryCounts> {
   try {

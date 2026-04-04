@@ -6,7 +6,7 @@ describe('statisticsDb', () => {
   const fixedDate = new Date('2025-11-01T12:00:00Z');
 
   beforeEach(() => {
-    jest.useFakeTimers({ now: fixedDate });
+    jest.useFakeTimers({ now: fixedDate.getTime() });
     jest.clearAllMocks();
 
     // Setup all database mocks using the helper

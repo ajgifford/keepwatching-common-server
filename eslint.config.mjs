@@ -1,5 +1,3 @@
-import react from 'eslint-plugin-react';
-
 import pluginJs from '@eslint/js';
 import pluginJest from 'eslint-plugin-jest';
 import tseslint from 'typescript-eslint';
@@ -19,30 +17,23 @@ const ignores = [
 export default [
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
-  react.configs.flat.recommended,
-  react.configs.flat['jsx-runtime'],
 
-  { files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'] },
+  { files: ['**/*.{js,mjs,cjs,ts}'] },
   {
     languageOptions: {
-      ...react.configs.flat.recommended.languageOptions,
       parser: tseslint.parser,
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
-    },
-    rules: {
-      'react/no-unknown-property': 'off',
-      'react/jsx-no-target-blank': 'off',
     },
   },
   { ignores },
   {
-    files: ['**/*.spec.ts', '**/*.spec.tsx'],
+    files: ['**/*.spec.ts'],
     plugins: { jest: pluginJest },
     languageOptions: { globals: pluginJest.environments.globals.globals },
     ...pluginJest.configs['flat/recommended'],
   },
   {
-    files: ['**/*.spec.ts', '**/*.spec.tsx'],
+    files: ['**/*.spec.ts'],
     rules: { '@typescript-eslint/no-floating-promises': 'error' },
   },
   {
@@ -51,9 +42,7 @@ export default [
       'tests/**/*',
       '*/testing/**',
       '**/*.test.ts',
-      '**/*.test.tsx',
       '**/*.spec.ts',
-      '**/*.spec.tsx',
     ],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

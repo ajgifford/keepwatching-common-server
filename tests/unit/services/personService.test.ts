@@ -683,7 +683,7 @@ describe('PersonService', () => {
 
     it('should return today block information', async () => {
       const mockDate = new Date('2023-06-15T10:00:00Z');
-      jest.setSystemTime(mockDate);
+      jest.setSystemTime(mockDate.getTime());
 
       const mockPeople = [{ id: 1 }, { id: 2 }];
       jest.spyOn(service, 'calculateBlockNumber').mockReturnValue(5);

@@ -7,7 +7,7 @@ import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
 import { Person, PersonDetails, SearchPerson, SearchPersonCredits } from '@ajgifford/keepwatching-types';
-import { UpdatePersonResult } from 'src/types/personTypes';
+import { UpdatePersonResult } from '../types/personTypes';
 
 export class PersonService {
   private cache: CacheService;

@@ -21,7 +21,7 @@ describe('achievementRepository', () => {
 
   beforeAll(() => {
     jest.useFakeTimers();
-    jest.setSystemTime(fixedDate);
+    jest.setSystemTime(fixedDate.getTime());
   });
 
   afterAll(() => {

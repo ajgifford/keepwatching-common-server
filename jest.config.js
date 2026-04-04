@@ -33,6 +33,7 @@ export default {
           moduleResolution: 'bundler',
           esModuleInterop: true,
           allowSyntheticDefaultImports: true,
+          types: ['jest', 'node'],
         },
       },
     ],

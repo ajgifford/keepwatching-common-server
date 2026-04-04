@@ -76,7 +76,7 @@ export async function updateAccountImage(accountData: UpdateAccountRequest): Pro
   try {
     return await DbMonitor.getInstance().executeWithTiming('updateAccountImage', async () => {
       const query = 'UPDATE accounts SET image = ? WHERE account_id = ?';
-      const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountData.image, accountData.id]);
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [accountData.image ?? null, accountData.id]);
 
       if (result.affectedRows === 0) return null;
 
@@ -99,8 +99,8 @@ export async function editAccount(accountData: UpdateAccountRequest): Promise<Ac
     return await DbMonitor.getInstance().executeWithTiming('editAccount', async () => {
       const query = 'UPDATE accounts SET account_name = ?, default_profile_id = ? WHERE account_id = ?';
       const [result] = await getDbPool().execute<ResultSetHeader>(query, [
-        accountData.name,
-        accountData.defaultProfileId,
+        accountData.name ?? null,
+        accountData.defaultProfileId ?? null,
         accountData.id,
       ]);
 

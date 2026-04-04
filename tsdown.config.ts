@@ -1,0 +1,42 @@
+import { defineConfig } from 'tsdown';
+
+export default defineConfig({
+  entry: {
+    index: 'src/index.ts',
+    schema: 'src/schema.ts',
+    config: 'src/config.ts',
+    context: 'src/context.ts',
+    services: 'src/services.ts',
+    utils: 'src/utils.ts',
+    logger: 'src/logger.ts',
+    middleware: 'src/middleware.ts',
+  },
+  format: ['esm'],
+  target: 'node18',
+  outDir: 'dist',
+  clean: true,
+  dts: true,
+  deps: {
+    neverBundle: [
+      '@ajgifford/keepwatching-types',
+      'axios',
+      'axios-retry',
+      'cron-parser',
+      'dotenv',
+      'express',
+      'firebase-admin',
+      'ioredis',
+      'mysql2',
+      'node-cache',
+      'node-cron',
+      'nodemailer',
+      'socket.io',
+      'streaming-availability',
+      'uuid',
+      'winston',
+      'winston-daily-rotate-file',
+      'zod',
+      'knex',
+    ],
+  },
+});
