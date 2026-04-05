@@ -96,7 +96,7 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
 
     // Format achievements for the response
     const recentAchievements: Achievement[] = achievementRecords.map((record) => {
-      let description = '';
+      let description: string;
 
       switch (record.achievementType) {
         case AchievementType.EPISODES_WATCHED:

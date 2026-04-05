@@ -17,7 +17,7 @@ import {
  * Service class for handling episode-related business logic
  */
 export class EpisodesService {
-  constructor(dependencies?: {}) {
+  constructor() {
     // No dependencies currently, but constructor added for consistency with factory pattern
   }
 
@@ -140,8 +140,8 @@ export class EpisodesService {
  * Factory function for creating new instances
  * Use this in tests to create isolated instances with mocked dependencies
  */
-export function createEpisodesService(dependencies?: {}): EpisodesService {
-  return new EpisodesService(dependencies);
+export function createEpisodesService(): EpisodesService {
+  return new EpisodesService();
 }
 
 /**

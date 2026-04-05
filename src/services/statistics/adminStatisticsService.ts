@@ -642,7 +642,7 @@ export class AdminStatisticsService {
    */
   private calculateEngagementScore(daysSinceActivity: number, totalEpisodesWatched: number): number {
     // Base score on recency
-    let score = 0;
+    let score: number;
     if (daysSinceActivity <= 7) score = 100;
     else if (daysSinceActivity <= 30) score = 75;
     else if (daysSinceActivity <= 90) score = 50;

@@ -62,15 +62,15 @@ export const validateSchema = <T extends ZodObject<ZodRawShape>>(schema: T, sour
  * @param paramsSchema Schema for the route parameters
  * @param querySchema Schema for query parameters
  */
-export const validateRequest = <TBody, TParams, TQuery>(
+export const validateRequest = (
   bodySchema?: ZodObject<ZodRawShape>,
   paramsSchema?: ZodObject<ZodRawShape>,
   querySchema?: ZodObject<ZodRawShape>,
 ) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const promises: Promise<any>[] = [];
-      const results: any = {};
+      const promises: Promise<void>[] = [];
+      const results: { body?: unknown; params?: unknown; query?: unknown } = {};
 
       // Add schemas to validate if provided
       if (bodySchema) {

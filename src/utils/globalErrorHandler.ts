@@ -26,8 +26,8 @@ export class GlobalErrorHandler {
           message: error.message,
           stack: error.stack,
         },
-        errorInfo: (error as any).errorInfo || undefined,
-        codePrefix: (error as any).codePrefix || undefined,
+        errorInfo: (error as Error & { errorInfo?: unknown }).errorInfo || undefined,
+        codePrefix: (error as Error & { codePrefix?: unknown }).codePrefix || undefined,
       });
 
       // Give winston a chance to write the log before exiting
@@ -37,7 +37,7 @@ export class GlobalErrorHandler {
     });
 
     // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+    process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
       cliLogger.error(`Unhandled Promise Rejection: ${reason}`);
       appLogger.error('Unhandled Promise Rejection', {
         reason:
@@ -46,8 +46,8 @@ export class GlobalErrorHandler {
                 name: reason.name,
                 message: reason.message,
                 stack: reason.stack,
-                errorInfo: (reason as any).errorInfo || undefined,
-                codePrefix: (reason as any).codePrefix || undefined,
+                errorInfo: (reason as Error & { errorInfo?: unknown }).errorInfo || undefined,
+                codePrefix: (reason as Error & { codePrefix?: unknown }).codePrefix || undefined,
               }
             : reason,
         promise: promise.toString(),
@@ -82,8 +82,8 @@ export class GlobalErrorHandler {
         message: error.message,
         stack: error.stack,
       },
-      errorInfo: (error as any).errorInfo || undefined,
-      codePrefix: (error as any).codePrefix || undefined,
+      errorInfo: (error as Error & { errorInfo?: unknown }).errorInfo || undefined,
+      codePrefix: (error as Error & { codePrefix?: unknown }).codePrefix || undefined,
     });
   }
 
@@ -93,19 +93,19 @@ export class GlobalErrorHandler {
    */
   public static overrideConsoleError(): void {
     const originalConsoleError = console.error;
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       const timestamp = TimestampUtil.forConsoleLogging();
       originalConsoleError(`[${timestamp}] ERROR:`, ...args);
     };
 
     const originalConsoleWarn = console.warn;
-    console.warn = (...args: any[]) => {
+    console.warn = (...args: unknown[]) => {
       const timestamp = TimestampUtil.forConsoleLogging();
       originalConsoleWarn(`[${timestamp}] WARN:`, ...args);
     };
 
     const originalConsoleLog = console.log;
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
       const timestamp = TimestampUtil.forConsoleLogging();
       originalConsoleLog(`[${timestamp}] INFO:`, ...args);
     };

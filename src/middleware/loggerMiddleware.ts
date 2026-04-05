@@ -9,13 +9,14 @@ export const responseInterceptor = (req: Request, res: Response, next: NextFunct
   const originalSend = res.send;
 
   let responseSent = false;
-  res.send = function (body: any): Response {
+  res.send = function (body: unknown): Response {
     if (!responseSent) {
       if (res.statusCode < 400) {
         appLogger.info(getResponseMessage(req.method), formatAppLoggerResponse(req, res, body, requestStartTime));
       } else {
         appLogger.error(
-          body.message || 'Error processing request',
+          (typeof body === 'object' && body !== null && 'message' in body ? String(body.message) : null) ||
+            'Error processing request',
           formatAppLoggerResponse(req, res, body, requestStartTime),
         );
       }

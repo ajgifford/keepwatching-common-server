@@ -10,7 +10,7 @@ import { AxiosError } from 'axios';
 type ErrorContextString = string;
 type ErrorContextObject = {
   method: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 };
 type ErrorContext = ErrorContextString | ErrorContextObject;
 

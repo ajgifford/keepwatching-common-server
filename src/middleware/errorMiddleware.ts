@@ -2,7 +2,7 @@ import { isAxiosError } from 'axios';
 import { NextFunction, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
-export const errorHandler = (error: Error, req: Request, res: Response, next: NextFunction): void => {
+export const errorHandler = (error: Error, req: Request, res: Response, _next: NextFunction): void => {
   const requestId = uuidv4();
 
   if (error instanceof CustomError) {
@@ -135,7 +135,7 @@ export class NoAffectedRowsError extends CustomError {
 }
 
 export class DatabaseError extends CustomError {
-  constructor(message: string, originalError: any) {
+  constructor(message: string, _originalError: unknown) {
     super(message, 500, 'DATABASE_ERROR');
     Object.setPrototypeOf(this, DatabaseError.prototype);
   }

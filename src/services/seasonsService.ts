@@ -16,7 +16,7 @@ import {
  * Service class for handling season-related business logic
  */
 export class SeasonsService {
-  constructor(dependencies?: {}) {
+  constructor() {
     // No dependencies currently, but constructor added for consistency with factory pattern
   }
 
@@ -111,8 +111,8 @@ export class SeasonsService {
  * Factory function for creating new instances
  * Use this in tests to create isolated instances with mocked dependencies
  */
-export function createSeasonsService(dependencies?: {}): SeasonsService {
-  return new SeasonsService(dependencies);
+export function createSeasonsService(): SeasonsService {
+  return new SeasonsService();
 }
 
 /**

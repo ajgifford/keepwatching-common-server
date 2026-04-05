@@ -54,10 +54,11 @@ export function isRetriableStatus(
  * @param options - Retry options
  * @returns Delay in milliseconds before next retry
  */
-export function calculateRetryDelay(error: any, retry: number, options: Required<RetryOptions>): number {
+export function calculateRetryDelay(error: unknown, retry: number, options: Required<RetryOptions>): number {
   // First check if the server specified a Retry-After header
-  const retryAfter = error.response?.headers?.['retry-after']
-    ? parseInt(error.response.headers['retry-after']) * 1000
+  const axiosError = error instanceof AxiosError ? error : null;
+  const retryAfter = axiosError?.response?.headers?.['retry-after']
+    ? parseInt(axiosError.response.headers['retry-after'] as string) * 1000
     : null;
 
   if (retryAfter) return retryAfter;
@@ -77,7 +78,7 @@ export function calculateRetryDelay(error: any, retry: number, options: Required
  * @returns True if the error should trigger a retry
  */
 export function isRetriableError(
-  error: any,
+  error: unknown,
   retryableStatusCodes = DEFAULT_RETRY_OPTIONS.retryableStatusCodes,
 ): boolean {
   // TransientApiError is explicitly designed to be retriable

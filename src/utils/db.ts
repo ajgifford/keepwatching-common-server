@@ -1,9 +1,9 @@
 import { getDBConfig } from '../config/config';
-import mysql, { Pool } from 'mysql2/promise';
+import mysql, { Pool, PoolOptions } from 'mysql2/promise';
 
 let poolInstance: Pool | null = null;
 
-export const createDbPool = (config?: any): Pool => {
+export const createDbPool = (config?: PoolOptions): Pool => {
   const poolConfig = config || getDBConfig();
   return mysql.createPool(poolConfig);
 };

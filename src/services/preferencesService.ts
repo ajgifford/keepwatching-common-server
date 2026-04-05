@@ -40,7 +40,7 @@ export class PreferencesService {
   /**
    * Constructor accepts optional dependencies for testing
    */
-  constructor(dependencies?: {}) {
+  constructor() {
     // No dependencies for PreferencesService
   }
 
@@ -299,8 +299,8 @@ export class PreferencesService {
  * Factory function for creating new instances
  * Use this in tests to create isolated instances with mocked dependencies
  */
-export function createPreferencesService(dependencies?: {}): PreferencesService {
-  return new PreferencesService(dependencies);
+export function createPreferencesService(): PreferencesService {
+  return new PreferencesService();
 }
 
 /**

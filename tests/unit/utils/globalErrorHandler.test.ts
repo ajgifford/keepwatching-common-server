@@ -51,7 +51,7 @@ describe('GlobalErrorHandler', () => {
       // Don't actually exit in tests
       return undefined as never;
     });
-    mockSetTimeout = jest.fn((callback: Function, delay: number) => {
+    mockSetTimeout = jest.fn((callback: Function, _delay: number) => {
       // Immediately execute the callback for testing purposes
       callback();
       return { unref: jest.fn() } as unknown as NodeJS.Timeout;

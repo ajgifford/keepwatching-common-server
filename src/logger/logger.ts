@@ -13,6 +13,7 @@ import util from 'util';
 import winston from 'winston';
 import { format, transports } from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
+import { NextFunction, Request, Response } from 'express';
 
 const { combine, timestamp, json, printf, label } = format;
 const serviceName = getServiceName();
@@ -88,27 +89,27 @@ cliLogger.transports.forEach((transport) => {
 });
 
 export class Logger {
-  static error(message: string, meta?: any) {
+  static error(message: string, meta?: unknown) {
     appLogger.error(message, { error: meta });
     cliLogger.error(message);
   }
 
-  static warn(message: string, meta?: any) {
+  static warn(message: string, meta?: unknown) {
     appLogger.warn(message, { meta });
     cliLogger.warn(message);
   }
 
-  static info(message: string, meta?: any) {
+  static info(message: string, meta?: unknown) {
     appLogger.info(message, { meta });
     cliLogger.info(message);
   }
 
-  static debug(message: string, meta?: any) {
+  static debug(message: string, meta?: unknown) {
     appLogger.debug(message, { meta });
     cliLogger.debug(message);
   }
 
-  static logRequest(req: any, res: any, next: any) {
+  static logRequest(req: Request, res: Response, next: NextFunction) {
     const requestStartTime = Date.now();
 
     appLogger.info(`Incoming ${req.method} request to ${req.originalUrl}`, {
@@ -124,25 +125,29 @@ export class Logger {
     const originalSend = res.send;
     let responseSent = false;
 
-    res.send = function (body: any): any {
+    res.send = function (body: unknown): Response {
       if (!responseSent) {
         const logData = formatAppLoggerResponse(req, res, body, requestStartTime);
 
         if (res.statusCode < 400) {
           appLogger.info(getResponseMessage(req.method), logData);
         } else {
-          appLogger.error(body.message || 'Error processing request', logData);
+          appLogger.error(
+            (typeof body === 'object' && body !== null && 'message' in body ? String(body.message) : null) ||
+              'Error processing request',
+            logData,
+          );
         }
 
         responseSent = true;
       }
-      return originalSend.apply(res, arguments);
+      return originalSend.call(res, body);
     };
 
     next();
   }
 
-  static logError(error: Error, request?: any) {
+  static logError(error: Error, request?: Request) {
     const errorLog: {
       message: string;
       stack?: string;
@@ -150,10 +155,10 @@ export class Logger {
       request?: {
         method: string;
         url: string;
-        headers: any;
-        body: any;
-        query: any;
-        params: any;
+        headers: unknown;
+        body: unknown;
+        query: unknown;
+        params: unknown;
       };
     } = {
       message: error.message,
@@ -193,7 +198,7 @@ export function getResponseMessage(method: string): string {
   }
 }
 
-export function formatAppLoggerResponse(req: any, res: any, responseBody: any, requestStartTime?: number) {
+export function formatAppLoggerResponse(req: Request, res: Response, responseBody: unknown, requestStartTime?: number) {
   let requestDuration = '.';
   if (requestStartTime) {
     const endTime = Date.now() - requestStartTime;
@@ -203,7 +208,7 @@ export function formatAppLoggerResponse(req: any, res: any, responseBody: any, r
   const essentialRequestHeaders = ['content-type', 'user-agent', 'accept', 'accept-language'];
   const filteredReqHeaders = Object.keys(req.headers)
     .filter((key) => essentialRequestHeaders.includes(key.toLowerCase()))
-    .reduce((obj: Record<string, any>, key) => {
+    .reduce((obj: Record<string, unknown>, key) => {
       obj[key] = req.headers[key];
       return obj;
     }, {});
@@ -212,7 +217,7 @@ export function formatAppLoggerResponse(req: any, res: any, responseBody: any, r
   const resHeaders = res.getHeaders();
   const filteredResHeaders = Object.keys(resHeaders)
     .filter((key) => essentialResponseHeaders.includes(key.toLowerCase()))
-    .reduce((obj: Record<string, any>, key) => {
+    .reduce((obj: Record<string, unknown>, key) => {
       obj[key] = resHeaders[key];
       return obj;
     }, {});
@@ -236,7 +241,7 @@ export function formatAppLoggerResponse(req: any, res: any, responseBody: any, r
   };
 }
 
-function truncateBody(body: any) {
+function truncateBody(body: unknown): unknown {
   if (!body) return body;
 
   // If it's a string and too long, truncate it
@@ -264,19 +269,20 @@ function truncateBody(body: any) {
 }
 
 const sensitiveKeysList = Object.values(SensitiveKeys) as string[];
-function redactLogData(data: any): any {
+function redactLogData(data: unknown): unknown {
   if (typeof data === 'object' && data !== null) {
     if (Array.isArray(data)) {
       return data.map((item) => redactLogData(item));
     }
 
-    const redactedData: any = {};
-    for (const key in data) {
+    const redactedData: Record<string, unknown> = {};
+    const typedData = data as Record<string, unknown>;
+    for (const key in typedData) {
       if (sensitiveKeysList.includes(key)) {
         redactedData[key] = SpecialMessages.Redacted;
       } else {
         // Recursively redact sensitive keys within nested objects
-        redactedData[key] = redactLogData(data[key]);
+        redactedData[key] = redactLogData(typedData[key]);
       }
     }
 
