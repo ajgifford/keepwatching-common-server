@@ -11,7 +11,7 @@ export default defineConfig({
     logger: 'src/logger.ts',
     middleware: 'src/middleware.ts',
   },
-  format: ['esm'],
+  format: ['esm', 'cjs'],
   target: 'node18',
   outDir: 'dist',
   clean: true,
