@@ -17,6 +17,7 @@ export default defineConfig({
   clean: true,
   dts: true,
   deps: {
+    alwaysBundle: ['uuid'],
     neverBundle: [
       '@ajgifford/keepwatching-types',
       'axios',
@@ -32,7 +33,6 @@ export default defineConfig({
       'nodemailer',
       'socket.io',
       'streaming-availability',
-      'uuid',
       'winston',
       'winston-daily-rotate-file',
       'zod',
