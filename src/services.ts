@@ -23,3 +23,7 @@ export * from './services/summaryService';
 export * from './services/statistics/profileStatisticsService';
 export * from './services/statistics/accountStatisticsService';
 export * from './services/statistics/adminStatisticsService';
+export * from './services/ratingsService';
+export * from './services/communityRecommendationsService';
+export * from './services/adminRatingsService';
+export * from './services/adminCommunityRecommendationsService';

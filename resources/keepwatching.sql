@@ -254,6 +254,33 @@ CREATE TABLE account_notifications (
 	FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
 );
 
+CREATE TABLE profile_content_ratings (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	profile_id INT NOT NULL,
+	content_type ENUM('show', 'movie') NOT NULL,
+	content_id INT NOT NULL,
+	content_title VARCHAR(500) NOT NULL DEFAULT '',
+	poster_image VARCHAR(500) NOT NULL DEFAULT '',
+	rating TINYINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+	note TEXT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	UNIQUE KEY uq_profile_content (profile_id, content_type, content_id),
+	FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE
+);
+
+CREATE TABLE profile_recommendations (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	profile_id INT NOT NULL,
+	content_type ENUM('show', 'movie') NOT NULL,
+	content_id INT NOT NULL,
+	rating TINYINT NULL CHECK (rating BETWEEN 1 AND 5),
+	message TEXT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE KEY uq_profile_recommend (profile_id, content_type, content_id),
+	FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE
+);
+
 -- Views
 
 CREATE VIEW profile_movies AS

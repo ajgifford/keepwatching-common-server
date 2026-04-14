@@ -1,6 +1,6 @@
 import { getDBConfig } from '@config/config';
 import { createDbPool, getDbPool, resetDbPool } from '@utils/db';
-import mysql from 'mysql2/promise';
+import mysql, { PoolOptions } from 'mysql2/promise';
 
 // Mock mysql2/promise with a mock that will be accessible
 jest.mock('mysql2/promise', () => ({
@@ -64,8 +64,8 @@ describe('db utility', () => {
         user: 'custom-user',
         password: 'custom-password',
         database: 'custom-db',
-        ssl: true,
-      };
+        ssl: 'required',
+      } as PoolOptions;
 
       const pool = createDbPool(customConfig);
 

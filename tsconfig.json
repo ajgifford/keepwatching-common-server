@@ -22,8 +22,9 @@
       "@schema/*": ["./src/schema/*"],
       "@services/*": ["./src/services/*"],
       "@utils/*": ["./src/utils/*"]
-    }
+    },
+    "types": ["jest"]
   },
   "include": ["src/**/*", "src/services.ts", "src/utils.ts", "src/logger.ts", "src/schema.ts", "src/context.ts"],
-  "exclude": ["node_modules", "tests", "dist"]
+  "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,6 @@
 import { Logger, appLogger, cliLogger, formatAppLoggerResponse, getResponseMessage } from '@logger/logger';
 import { HTTPHeaders, HTTPMethods, SensitiveKeys, SpecialMessages, SuccessMessages } from '@logger/loggerModel';
+import { Request } from 'express';
 
 // Unmock the logger module for this specific test file since we're testing the logger itself
 jest.unmock('@logger/logger');
@@ -121,7 +122,7 @@ describe('Logger Module', () => {
         params: { id: '123' },
       };
 
-      Logger.logError(error, mockRequest);
+      Logger.logError(error, mockRequest as unknown as Request);
 
       expect(appLogger.error).toHaveBeenCalledWith(
         'Application error occurred',
@@ -157,7 +158,7 @@ describe('Logger Module', () => {
 
       const mockNext = jest.fn();
 
-      Logger.logRequest(mockReq, mockRes, mockNext);
+      Logger.logRequest(mockReq as unknown as Request, mockRes as any, mockNext);
 
       expect(appLogger.info).toHaveBeenCalledWith(
         `Incoming ${mockReq.method} request to ${mockReq.originalUrl}`,
@@ -310,7 +311,7 @@ describe('Logger Module', () => {
       };
 
       const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
-      expect(result.request.body.length).toBeLessThan(1000);
+      expect((result.request.body as any).length).toBeLessThan(1000);
       expect(result.request.body).toMatch(/\.\.\. \[truncated\]$/);
     });
 
@@ -338,10 +339,10 @@ describe('Logger Module', () => {
       const result = formatAppLoggerResponse(mockReq as any, mockRes as any, { items: longArray });
 
       // Should truncate the array to 5 items plus a message
-      expect(Array.isArray(result.response.body.items)).toBe(true);
-      expect(result.response.body.items.length).toBe(6);
-      expect(typeof result.response.body.items[5]).toBe('string');
-      expect(result.response.body.items[5]).toMatch(/and \d+ more items/);
+      expect(Array.isArray((result.response.body as any).items)).toBe(true);
+      expect((result.response.body as any).items.length).toBe(6);
+      expect(typeof (result.response.body as any).items[5]).toBe('string');
+      expect((result.response.body as any).items[5]).toMatch(/and \d+ more items/);
     });
 
     it('should redact all sensitive keys in objects', () => {
@@ -376,13 +377,13 @@ describe('Logger Module', () => {
       // Check all sensitive fields are redacted
       Object.values(SensitiveKeys).forEach((key) => {
         if (mockReq.body[key]) {
-          expect(result.request.body[key]).toBe(SpecialMessages.Redacted);
+          expect((result.request.body as any)[key]).toBe(SpecialMessages.Redacted);
         }
       });
 
       // Normal field should remain untouched
-      expect(result.request.body.normalField).toBe('notRedacted');
-      expect(result.request.body.username).toBe('testuser');
+      expect((result.request.body as any).normalField).toBe('notRedacted');
+      expect((result.request.body as any).username).toBe('testuser');
     });
 
     it('should redact sensitive information recursively in nested objects', () => {
@@ -416,11 +417,11 @@ describe('Logger Module', () => {
       const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
 
       // Should redact password fields in nested objects
-      expect(result.request.body.user.credentials.password).toBe(SpecialMessages.Redacted);
-      expect(result.request.body.user.credentials.new_password).toBe(SpecialMessages.Redacted);
+      expect((result.request.body as any).user.credentials.password).toBe(SpecialMessages.Redacted);
+      expect((result.request.body as any).user.credentials.new_password).toBe(SpecialMessages.Redacted);
       // But should keep other fields intact
-      expect(result.request.body.user.profile.name).toBe('Test User');
-      expect(result.request.body.user.profile.email).toBe('test@example.com');
+      expect((result.request.body as any).user.profile.name).toBe('Test User');
+      expect((result.request.body as any).user.profile.email).toBe('test@example.com');
     });
 
     it('should redact sensitive information in arrays', () => {
@@ -448,11 +449,11 @@ describe('Logger Module', () => {
       const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
 
       // Should redact password fields in array items
-      expect(result.request.body.users[0].password).toBe(SpecialMessages.Redacted);
-      expect(result.request.body.users[1].password).toBe(SpecialMessages.Redacted);
+      expect((result.request.body as any).users[0].password).toBe(SpecialMessages.Redacted);
+      expect((result.request.body as any).users[1].password).toBe(SpecialMessages.Redacted);
       // But should keep other fields intact
-      expect(result.request.body.users[0].username).toBe('user1');
-      expect(result.request.body.users[1].username).toBe('user2');
+      expect((result.request.body as any).users[0].username).toBe('user1');
+      expect((result.request.body as any).users[1].username).toBe('user2');
     });
 
     it('should handle when no request start time is provided', () => {
@@ -560,10 +561,10 @@ describe('Logger Module', () => {
       const result = formatAppLoggerResponse(mockReq as any, mockRes as any, {});
 
       // Should redact deeply nested sensitive fields
-      expect(result.request.body.level1.level2.level3.level4.password).toBe(SpecialMessages.Redacted);
-      expect(result.request.body.level1.level2.level3.level4.deep.api_key).toBe(SpecialMessages.Redacted);
+      expect((result.request.body as any).level1.level2.level3.level4.password).toBe(SpecialMessages.Redacted);
+      expect((result.request.body as any).level1.level2.level3.level4.deep.api_key).toBe(SpecialMessages.Redacted);
       // But preserve structure and non-sensitive data
-      expect(result.request.body.level1.level2.level3.level4.data).toEqual([1, 2, 3]);
+      expect((result.request.body as any).level1.level2.level3.level4.data).toEqual([1, 2, 3]);
     });
   });
 });

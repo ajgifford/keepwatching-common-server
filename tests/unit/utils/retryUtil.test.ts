@@ -59,13 +59,13 @@ describe('retryUtil', () => {
     };
 
     it('should use retry-after header when present', () => {
-      const error = {
-        response: {
-          headers: {
-            'retry-after': '5',
-          },
-        },
-      };
+      const error = new AxiosError('Too Many Requests', 'ERR_BAD_RESPONSE', undefined, undefined, {
+        headers: { 'retry-after': '5' },
+        data: {},
+        status: 429,
+        statusText: 'Too Many Requests',
+        config: {} as any,
+      });
       const delay = calculateRetryDelay(error, 0, defaultOptions);
       expect(delay).toBe(5000); // 5 seconds in ms
     });

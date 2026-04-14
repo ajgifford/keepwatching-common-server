@@ -14,7 +14,7 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   target: 'node18',
   outDir: 'dist',
-  clean: true,
+  clean: false,
   dts: true,
   deps: {
     alwaysBundle: ['uuid'],
