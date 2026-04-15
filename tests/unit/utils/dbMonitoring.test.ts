@@ -121,36 +121,43 @@ describe('DbMonitor', () => {
     });
 
     it('should return stats sorted by total time descending', async () => {
-      // Execute queries with varying counts to create different total times
-      // Add small delays to ensure measurable execution times
-      const query = jest.fn(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 2));
-        return 'success';
-      });
+      // Mock performance.now() to return controlled values so timing is deterministic.
+      // performance.now() is called twice per executeWithTiming (start + end), so
+      // pre-define alternating [start, end] pairs for each execution:
+      //   query1: 1 execution × 5ms  = 5ms total
+      //   query2: 3 executions × 30ms = 90ms total
+      //   query3: 2 executions × 20ms = 40ms total
+      const times = [0, 5, 5, 35, 35, 65, 65, 95, 95, 115, 115, 135];
+      let callIndex = 0;
+      const perfNowSpy = jest.spyOn(performance, 'now').mockImplementation(() => times[callIndex++]);
 
-      // Execute query1 once
+      const query = jest.fn().mockResolvedValue('success');
+
+      // Execute query1 once (5ms)
       await monitor.executeWithTiming('query1', query);
 
-      // Execute query2 three times (more total time)
+      // Execute query2 three times (30ms each = 90ms total)
       await monitor.executeWithTiming('query2', query);
       await monitor.executeWithTiming('query2', query);
       await monitor.executeWithTiming('query2', query);
 
-      // Execute query3 twice
+      // Execute query3 twice (20ms each = 40ms total)
       await monitor.executeWithTiming('query3', query);
       await monitor.executeWithTiming('query3', query);
+
+      perfNowSpy.mockRestore();
 
       const stats = await monitor.getStats();
 
-      // Verify sorting: query2 (3 executions) should have highest total time
+      // Verify sorting: query2 (90ms total) should have highest total time
       expect(stats[0].query).toBe('query2');
       expect(stats[0].count).toBe(3);
 
-      // query3 (2 executions) should have second highest total time
+      // query3 (40ms total) should have second highest total time
       expect(stats[1].query).toBe('query3');
       expect(stats[1].count).toBe(2);
 
-      // query1 (1 execution) should have lowest total time
+      // query1 (5ms total) should have lowest total time
       expect(stats[2].query).toBe('query1');
       expect(stats[2].count).toBe(1);
     });
