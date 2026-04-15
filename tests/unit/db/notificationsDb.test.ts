@@ -22,18 +22,69 @@ describe('notificationDb', () => {
 
   describe('getNotificationsForAccount()', () => {
     it('should get three notifications for account 1', async () => {
-      const date = new Date();
+      const start = '2024-04-27T10:30:00.000Z';
+      const end = '2024-05-27T10:30:00.000Z';
+      const startDate = new Date(start);
+      const endDate = new Date(end);
       const dbNotifications = [
-        { notification_id: 1, message: 'Test 1', start_date: date, end_date: date, dismissed: false, read: false },
-        { notification_id: 2, message: 'Test 2', start_date: date, end_date: date, dismissed: false, read: false },
-        { notification_id: 3, message: 'Test 3', start_date: date, end_date: date, dismissed: false, read: false },
+        {
+          notification_id: 1,
+          message: 'Test 1',
+          start_date: startDate,
+          end_date: endDate,
+          dismissed: false,
+          read: false,
+        },
+        {
+          notification_id: 2,
+          message: 'Test 2',
+          start_date: startDate,
+          end_date: endDate,
+          dismissed: false,
+          read: false,
+        },
+        {
+          notification_id: 3,
+          message: 'Test 3',
+          start_date: startDate,
+          end_date: endDate,
+          dismissed: false,
+          read: false,
+        },
       ];
       mockExecute.mockResolvedValue([dbNotifications]);
 
       const expectedNotifications = [
-        { id: 1, message: 'Test 1', startDate: date, endDate: date, dismissed: false, read: false },
-        { id: 2, message: 'Test 2', startDate: date, endDate: date, dismissed: false, read: false },
-        { id: 3, message: 'Test 3', startDate: date, endDate: date, dismissed: false, read: false },
+        {
+          id: 1,
+          message: 'Test 1',
+          startDate: start,
+          endDate: end,
+          dismissed: false,
+          read: false,
+          title: undefined,
+          type: undefined,
+        },
+        {
+          id: 2,
+          message: 'Test 2',
+          startDate: start,
+          endDate: end,
+          dismissed: false,
+          read: false,
+          title: undefined,
+          type: undefined,
+        },
+        {
+          id: 3,
+          message: 'Test 3',
+          startDate: start,
+          endDate: end,
+          dismissed: false,
+          read: false,
+          title: undefined,
+          type: undefined,
+        },
       ];
 
       const notifications = await notificationsDb.getNotificationsForAccount(1);
@@ -47,18 +98,42 @@ describe('notificationDb', () => {
     });
 
     it('should get dismissed notifications for account 1', async () => {
-      const date = new Date();
+      const start = '2024-04-27T10:30:00.000Z';
+      const end = '2024-05-27T10:30:00.000Z';
+      const startDate = new Date(start);
+      const endDate = new Date(end);
       const dbNotifications = [
-        { notification_id: 1, message: 'Test 1', start_date: date, end_date: date, dismissed: false, read: false },
-        { notification_id: 2, message: 'Test 2', start_date: date, end_date: date, dismissed: false, read: false },
-        { notification_id: 3, message: 'Test 3', start_date: date, end_date: date, dismissed: true, read: false },
+        {
+          notification_id: 1,
+          message: 'Test 1',
+          start_date: startDate,
+          end_date: endDate,
+          dismissed: false,
+          read: false,
+        },
+        {
+          notification_id: 2,
+          message: 'Test 2',
+          start_date: startDate,
+          end_date: endDate,
+          dismissed: false,
+          read: false,
+        },
+        {
+          notification_id: 3,
+          message: 'Test 3',
+          start_date: startDate,
+          end_date: endDate,
+          dismissed: true,
+          read: false,
+        },
       ];
       mockExecute.mockResolvedValue([dbNotifications]);
 
       const expectedNotifications = [
-        { id: 1, message: 'Test 1', startDate: date, endDate: date, dismissed: false, read: false },
-        { id: 2, message: 'Test 2', startDate: date, endDate: date, dismissed: false, read: false },
-        { id: 3, message: 'Test 3', startDate: date, endDate: date, dismissed: true, read: false },
+        { id: 1, message: 'Test 1', startDate: start, endDate: end, dismissed: false, read: false },
+        { id: 2, message: 'Test 2', startDate: start, endDate: end, dismissed: false, read: false },
+        { id: 3, message: 'Test 3', startDate: start, endDate: end, dismissed: true, read: false },
       ];
 
       const notifications = await notificationsDb.getNotificationsForAccount(1, true);
@@ -256,9 +331,10 @@ describe('notificationDb', () => {
       const updated = await notificationsDb.dismissAllNotifications(1);
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith('UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;', [
-        1,
-      ]);
+      expect(mockExecute).toHaveBeenCalledWith(
+        'UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;',
+        [1],
+      );
       expect(updated).toBe(true);
     });
 
@@ -267,9 +343,10 @@ describe('notificationDb', () => {
 
       const updated = await notificationsDb.dismissAllNotifications(2);
       expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith('UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;', [
-        2,
-      ]);
+      expect(mockExecute).toHaveBeenCalledWith(
+        'UPDATE account_notifications SET dismissed = 1 WHERE account_id = ?;',
+        [2],
+      );
       expect(updated).toBe(false);
     });
 
@@ -496,8 +573,8 @@ describe('notificationDb', () => {
           id: 1,
           title: 'Test',
           message: 'Active notification',
-          startDate: new Date('2025-04-01'),
-          endDate: new Date('2025-04-30'),
+          startDate: '2025-04-01T00:00:00.000Z',
+          endDate: '2025-04-30T00:00:00.000Z',
           sendToAll: true,
           accountId: null,
           type: 'general',
@@ -543,8 +620,8 @@ describe('notificationDb', () => {
           id: 1,
           title: 'Test 1',
           message: 'Active notification',
-          startDate: new Date('2025-04-01'),
-          endDate: new Date('2025-04-30'),
+          startDate: '2025-04-01T00:00:00.000Z',
+          endDate: '2025-04-30T00:00:00.000Z',
           sendToAll: true,
           accountId: null,
           type: 'general',
@@ -553,8 +630,8 @@ describe('notificationDb', () => {
           id: 2,
           title: 'Test 2',
           message: 'Expired notification',
-          startDate: new Date('2025-03-01'),
-          endDate: new Date('2025-03-31'),
+          startDate: '2025-03-01T00:00:00.000Z',
+          endDate: '2025-03-31T00:00:00.000Z',
           sendToAll: false,
           accountId: 5,
           type: 'general',
