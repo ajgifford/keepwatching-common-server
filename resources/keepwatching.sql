@@ -281,6 +281,27 @@ CREATE TABLE profile_recommendations (
 	FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS person_update_failures (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    person_id     BIGINT       NULL,
+    tmdb_id       BIGINT       NOT NULL,
+    person_name   VARCHAR(255) NOT NULL,
+    error_code    VARCHAR(50)  NOT NULL,
+    error_message TEXT         NOT NULL,
+    block_number  TINYINT      NOT NULL,
+    failure_count INT          NOT NULL DEFAULT 1,
+    first_failure_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_failure_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    status        ENUM('pending','resolved','removed') NOT NULL DEFAULT 'pending',
+    resolution_notes TEXT      NULL,
+    resolved_at   TIMESTAMP    NULL,
+    UNIQUE KEY uk_puf_person (person_id),
+    CONSTRAINT fk_puf_person FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE SET NULL,
+    INDEX idx_puf_status (status),
+    INDEX idx_puf_last_failure (last_failure_at),
+    INDEX idx_puf_error_code (error_code)
+);
+
 -- Views
 
 CREATE VIEW profile_movies AS

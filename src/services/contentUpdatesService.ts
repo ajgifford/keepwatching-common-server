@@ -2,6 +2,7 @@ import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { UpdatePersonResult } from '../types/personTypes';
 import { generateDateRange, sleep } from '../utils/changesUtility';
+import { upsertPersonFailure } from '../db/personFailuresDb';
 import { errorService } from './errorService';
 import { moviesService } from './moviesService';
 import { personService } from './personService';
@@ -82,7 +83,19 @@ export async function updatePeople() {
         results.push(result);
       } catch (error) {
         // Log error but continue with next person
-        cliLogger.error(`Failed to check for changes in person ID ${person.id}`, error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        cliLogger.error(`Failed to check for changes in person ID ${person.id}: ${errorMsg}`);
+        const errorCode = error instanceof Error && 'errorCode' in error ? (error as Error & { errorCode: string }).errorCode : 'UNKNOWN';
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await upsertPersonFailure({
+          personId: person.id,
+          tmdbId: person.tmdbId,
+          personName: person.name,
+          errorCode,
+          errorMessage,
+          blockNumber,
+        });
+        results.push({ personId: person.id, success: false, hadUpdates: false, error: errorMessage });
       }
     }
     await showService.invalidateAllShowsCache();

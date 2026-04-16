@@ -296,6 +296,81 @@ export async function getPersonsCount(): Promise<number> {
   }
 }
 
+export async function mergePersonCredits(fromPersonId: number, toPersonId: number): Promise<{ showsMerged: number; moviesMerged: number }> {
+  const transactionHelper = new TransactionHelper();
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'mergePersonCredits',
+      async () => {
+        return await transactionHelper.executeInTransaction(async (connection) => {
+          // Reassign show credits that don't already exist for the target person.
+          // LEFT JOIN against the same table to find conflicts; IS NULL means no conflict.
+          const [showResult] = await connection.execute<ResultSetHeader>(
+            `UPDATE show_cast sc
+             LEFT JOIN show_cast sc_existing
+               ON sc_existing.show_id = sc.show_id AND sc_existing.person_id = ?
+             SET sc.person_id = ?
+             WHERE sc.person_id = ?
+               AND sc_existing.show_id IS NULL`,
+            [toPersonId, toPersonId, fromPersonId],
+          );
+
+          // Reassign movie credits that don't already exist for the target person.
+          const [movieResult] = await connection.execute<ResultSetHeader>(
+            `UPDATE movie_cast mc
+             LEFT JOIN movie_cast mc_existing
+               ON mc_existing.movie_id = mc.movie_id AND mc_existing.person_id = ?
+             SET mc.person_id = ?
+             WHERE mc.person_id = ?
+               AND mc_existing.movie_id IS NULL`,
+            [toPersonId, toPersonId, fromPersonId],
+          );
+
+          return { showsMerged: showResult.affectedRows, moviesMerged: movieResult.affectedRows };
+        });
+      },
+      2000,
+      { content: { id: fromPersonId, type: 'person' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'merging person credits');
+  }
+}
+
+export async function deletePerson(personId: number): Promise<boolean> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'deletePerson',
+      async () => {
+        const query = 'DELETE FROM people WHERE id = ?';
+        const [result] = await getDbPool().execute<ResultSetHeader>(query, [personId]);
+        return result.affectedRows > 0;
+      },
+      1000,
+      { content: { id: personId, type: 'person' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'deleting a person');
+  }
+}
+
+export async function updatePersonTmdbId(personId: number, tmdbId: number): Promise<boolean> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'updatePersonTmdbId',
+      async () => {
+        const query = 'UPDATE people SET tmdb_id = ? WHERE id = ?';
+        const [result] = await getDbPool().execute<ResultSetHeader>(query, [tmdbId, personId]);
+        return result.affectedRows > 0;
+      },
+      1000,
+      { content: { id: personId, type: 'person' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'updating person TMDB ID');
+  }
+}
+
 export async function getPeopleForUpdates(blockNumber: number): Promise<Person[]> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('getPeopleForUpdates', async () => {

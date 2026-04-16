@@ -1,12 +1,21 @@
 import { CACHE_KEY_PATTERNS, PERSON_KEYS } from '../constants/cacheKeys';
 import * as personsDb from '../db/personsDb';
+import * as personFailuresDb from '../db/personFailuresDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { TMDBCredit, TMDBPerson } from '../types/tmdbTypes';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
-import { Person, PersonDetails, SearchPerson, SearchPersonCredits } from '@ajgifford/keepwatching-types';
+import {
+  FailureStatus,
+  Person,
+  PersonDetails,
+  PersonReference,
+  PersonUpdateFailure,
+  SearchPerson,
+  SearchPersonCredits,
+} from '@ajgifford/keepwatching-types';
 import { UpdatePersonResult } from '../types/personTypes';
 
 export class PersonService {
@@ -128,11 +137,99 @@ export class PersonService {
     }
   }
 
+  public async getPersonByTmdbId(tmdbId: number): Promise<PersonReference | null> {
+    try {
+      return await personsDb.findPersonByTMDBId(tmdbId);
+    } catch (error) {
+      throw errorService.handleError(error, `getPersonByTmdbId(${tmdbId})`);
+    }
+  }
+
   public async getPeopleForUpdates(blockNumber: number): Promise<Person[]> {
     try {
       return await personsDb.getPeopleForUpdates(blockNumber);
     } catch (error) {
       throw errorService.handleError(error, `getPeopleForUpdates()`);
+    }
+  }
+
+  public async getPersonFailures(
+    status?: FailureStatus,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<PersonUpdateFailure[]> {
+    try {
+      return await personFailuresDb.getPersonFailures(status, limit, offset);
+    } catch (error) {
+      throw errorService.handleError(error, `getPersonFailures()`);
+    }
+  }
+
+  public async getPersonFailureCount(status?: FailureStatus): Promise<number> {
+    try {
+      return await personFailuresDb.getPersonFailureCount(status);
+    } catch (error) {
+      throw errorService.handleError(error, `getPersonFailureCount()`);
+    }
+  }
+
+  public async getPersonFailureById(id: number): Promise<PersonUpdateFailure | null> {
+    try {
+      return await personFailuresDb.getPersonFailureById(id);
+    } catch (error) {
+      throw errorService.handleError(error, `getPersonFailureById(${id})`);
+    }
+  }
+
+  public async resolvePersonFailure(personId: number, notes?: string): Promise<void> {
+    try {
+      await personFailuresDb.updatePersonFailureStatus(personId, 'resolved', notes);
+    } catch (error) {
+      throw errorService.handleError(error, `resolvePersonFailure(${personId})`);
+    }
+  }
+
+  public async mergeAndDeletePerson(invalidPersonId: number, validPersonId: number): Promise<{ showsMerged: number; moviesMerged: number }> {
+    try {
+      const mergeResult = await personsDb.mergePersonCredits(invalidPersonId, validPersonId);
+      await personFailuresDb.updatePersonFailureStatus(
+        invalidPersonId,
+        'removed',
+        `Person merged into person_id ${validPersonId} and deleted`,
+      );
+      await personsDb.deletePerson(invalidPersonId);
+      this.cache.invalidatePerson(invalidPersonId);
+      this.cache.invalidatePerson(validPersonId);
+      return mergeResult;
+    } catch (error) {
+      throw errorService.handleError(error, `mergeAndDeletePerson(${invalidPersonId} -> ${validPersonId})`);
+    }
+  }
+
+  public async deletePersonAndReferences(personId: number): Promise<void> {
+    try {
+      // Mark the failure record as removed BEFORE deleting the person.
+      // The FK is ON DELETE SET NULL, so person_id becomes null after deletion —
+      // we must resolve by person_id while it is still valid.
+      await personFailuresDb.updatePersonFailureStatus(personId, 'removed', `Person deleted (person_id: ${personId})`);
+      await personsDb.deletePerson(personId);
+      this.cache.invalidatePerson(personId);
+    } catch (error) {
+      throw errorService.handleError(error, `deletePersonAndReferences(${personId})`);
+    }
+  }
+
+  public async updatePersonTmdbId(personId: number, newTmdbId: number): Promise<UpdatePersonResult> {
+    try {
+      await personsDb.updatePersonTmdbId(personId, newTmdbId);
+      this.cache.invalidatePerson(personId);
+      const person = await personsDb.getPerson(personId);
+      const result = await this.checkAndUpdatePerson(person);
+      await personFailuresDb.updatePersonFailureStatus(personId, 'resolved', `TMDB ID updated to ${newTmdbId}`);
+      return result;
+    } catch (error) {
+      appLogger.error(ErrorMessages.PersonChangeFail, { error, personId });
+      throw errorService.handleError(error, `updatePersonTmdbId(${personId})`);
     }
   }
 

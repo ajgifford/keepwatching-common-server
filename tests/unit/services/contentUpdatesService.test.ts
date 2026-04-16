@@ -15,12 +15,16 @@ jest.mock('@logger/logger', () => ({
     error: jest.fn(),
   },
   appLogger: {
+    info: jest.fn(),
     error: jest.fn(),
   },
 }));
 jest.mock('@utils/changesUtility', () => ({
   generateDateRange: jest.fn(),
   sleep: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('@db/personFailuresDb', () => ({
+  upsertPersonFailure: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe('contentUpdatesService', () => {
@@ -277,7 +281,7 @@ describe('contentUpdatesService', () => {
 
       expect(personService.getPeopleForUpdates).toHaveBeenCalledTimes(1);
       expect(personService.checkAndUpdatePerson).toHaveBeenCalledTimes(3);
-      expect(cliLogger.error).toHaveBeenCalledWith('Failed to check for changes in person ID 2', error);
+      expect(cliLogger.error).toHaveBeenCalledWith('Failed to check for changes in person ID 2: API error');
       expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[0]);
       expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[1]);
       expect(personService.checkAndUpdatePerson).toHaveBeenCalledWith(mockPeople[2]);

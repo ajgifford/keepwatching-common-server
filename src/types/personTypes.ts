@@ -1,9 +1,11 @@
 import {
   AdminPerson,
   CastMember,
+  FailureStatus,
   Person,
   PersonDetails,
   PersonReference,
+  PersonUpdateFailure,
   ShowCastMember,
 } from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2';
@@ -158,5 +160,39 @@ export function transformShowCastMemberRow(row: ShowCastMemberRow): ShowCastMemb
     active: row.active === 1 ? true : false,
     name: row.name,
     profileImage: row.profile_image,
+  };
+}
+
+export interface PersonUpdateFailureRow extends RowDataPacket {
+  id: number;
+  person_id: number | null;
+  tmdb_id: number;
+  person_name: string;
+  error_code: string;
+  error_message: string;
+  block_number: number;
+  failure_count: number;
+  first_failure_at: string;
+  last_failure_at: string;
+  status: FailureStatus;
+  resolution_notes: string | null;
+  resolved_at: string | null;
+}
+
+export function transformPersonFailureRow(row: PersonUpdateFailureRow): PersonUpdateFailure {
+  return {
+    id: row.id,
+    personId: row.person_id,
+    tmdbId: row.tmdb_id,
+    personName: row.person_name,
+    errorCode: row.error_code,
+    errorMessage: row.error_message,
+    blockNumber: row.block_number,
+    failureCount: row.failure_count,
+    firstFailureAt: row.first_failure_at,
+    lastFailureAt: row.last_failure_at,
+    status: row.status,
+    resolutionNotes: row.resolution_notes ?? undefined,
+    resolvedAt: row.resolved_at ?? undefined,
   };
 }
