@@ -67,6 +67,14 @@ export function getServiceAccountPath() {
   return process.env.SERVICE_ACCOUNT_PATH || '/certs/keepwatching-service-account-dev.json';
 }
 
+export function getAdminServiceName() {
+  return process.env.ADMIN_SERVICE_NAME || null;
+}
+
+export function getAdminServiceAccountPath() {
+  return process.env.ADMIN_SERVICE_ACCOUNT_PATH || null;
+}
+
 export function getNotificationPollingInterval() {
   // Default: Every 5 minutes
   return process.env.NOTIFICATION_POLLING_INTERVAL || '*/5 * * * *';
