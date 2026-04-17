@@ -266,28 +266,6 @@ export class PersonService {
     }
   }
 
-  public async getTodayBlockInfo(): Promise<{
-    blockNumber: number;
-    date: string;
-    totalPeople: number;
-    nextBlockDate: string;
-  }> {
-    const today = new Date();
-    const blockNumber = this.calculateBlockNumber(today);
-    const people = await this.getPeopleForUpdates(blockNumber);
-
-    // Calculate next time this block will run (12 days from now)
-    const nextRun = new Date(today);
-    nextRun.setDate(nextRun.getDate() + 12);
-
-    return {
-      blockNumber,
-      date: today.toISOString().split('T')[0],
-      totalPeople: people.length,
-      nextBlockDate: nextRun.toISOString().split('T')[0],
-    };
-  }
-
   public calculateBlockNumber(date: Date): number {
     const start = new Date(date.getFullYear(), 0, 0);
     const diff = date.getTime() - start.getTime();

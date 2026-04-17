@@ -195,18 +195,12 @@ describe('contentUpdatesService', () => {
         { id: 1, tmdb_id: 301, name: 'Person 1' },
         { id: 2, tmdb_id: 302, name: 'Person 2' },
       ];
-      const mockBlockInfo = {
-        date: '2025-01-15',
-        blockNumber: 15,
-        totalPeople: 100,
-      };
       const mockResults = [
         { personId: 1, success: true, hadUpdates: true },
         { personId: 2, success: true, hadUpdates: false },
       ];
 
       (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
       (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
       (personService.checkAndUpdatePerson as jest.Mock)
         .mockResolvedValueOnce(mockResults[0])
@@ -216,9 +210,8 @@ describe('contentUpdatesService', () => {
       await updatePeople();
 
       expect(personService.calculateBlockNumber).toHaveBeenCalledWith(new Date('2025-01-15T10:00:00Z'));
-      expect(personService.getTodayBlockInfo).toHaveBeenCalledTimes(1);
       expect(cliLogger.info).toHaveBeenCalledWith('Starting daily person update for block 15', {
-        totalPeople: 100,
+        totalPeople: 2,
         date: '2025-01-15',
       });
       expect(personService.getPeopleForUpdates).toHaveBeenCalledWith(15);
@@ -239,14 +232,8 @@ describe('contentUpdatesService', () => {
 
     it('should handle error when fetching people', async () => {
       const error = new Error('Database error');
-      const mockBlockInfo = {
-        date: '2025-01-15',
-        blockNumber: 15,
-        totalPeople: 100,
-      };
 
       (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
       (personService.getPeopleForUpdates as jest.Mock).mockRejectedValue(error);
 
       await expect(updatePeople()).rejects.toThrow('Database error');
@@ -261,15 +248,9 @@ describe('contentUpdatesService', () => {
         { id: 2, tmdb_id: 302, name: 'Person 2' },
         { id: 3, tmdb_id: 303, name: 'Person 3' },
       ];
-      const mockBlockInfo = {
-        date: '2025-01-15',
-        blockNumber: 15,
-        totalPeople: 100,
-      };
       const error = new Error('API error');
 
       (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
       (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
       (personService.checkAndUpdatePerson as jest.Mock)
         .mockResolvedValueOnce({ personId: 1, success: true, hadUpdates: true })
@@ -289,14 +270,7 @@ describe('contentUpdatesService', () => {
     });
 
     it('should handle empty people list', async () => {
-      const mockBlockInfo = {
-        date: '2025-01-15',
-        blockNumber: 15,
-        totalPeople: 100,
-      };
-
       (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
       (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue([]);
       (showService.invalidateAllShowsCache as jest.Mock).mockResolvedValue(undefined);
 
@@ -321,11 +295,6 @@ describe('contentUpdatesService', () => {
         { id: 3, tmdb_id: 303, name: 'Person 3' },
         { id: 4, tmdb_id: 304, name: 'Person 4' },
       ];
-      const mockBlockInfo = {
-        date: '2025-01-15',
-        blockNumber: 15,
-        totalPeople: 100,
-      };
       const mockResults = [
         { personId: 1, success: true, hadUpdates: true },
         { personId: 2, success: true, hadUpdates: true },
@@ -334,7 +303,6 @@ describe('contentUpdatesService', () => {
       ];
 
       (personService.calculateBlockNumber as jest.Mock).mockReturnValue(15);
-      (personService.getTodayBlockInfo as jest.Mock).mockResolvedValue(mockBlockInfo);
       (personService.getPeopleForUpdates as jest.Mock).mockResolvedValue(mockPeople);
       (personService.checkAndUpdatePerson as jest.Mock)
         .mockResolvedValueOnce(mockResults[0])

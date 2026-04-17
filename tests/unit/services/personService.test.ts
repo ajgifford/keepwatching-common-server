@@ -672,34 +672,6 @@ describe('PersonService', () => {
     });
   });
 
-  describe('getTodayBlockInfo', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('should return today block information', async () => {
-      const mockDate = new Date('2023-06-15T10:00:00Z');
-      jest.setSystemTime(mockDate.getTime());
-
-      const mockPeople = [{ id: 1 }, { id: 2 }];
-      jest.spyOn(service, 'calculateBlockNumber').mockReturnValue(5);
-      jest.spyOn(service, 'getPeopleForUpdates').mockResolvedValue(mockPeople as any);
-
-      const result = await service.getTodayBlockInfo();
-
-      expect(result).toEqual({
-        blockNumber: 5,
-        date: '2023-06-15',
-        totalPeople: 2,
-        nextBlockDate: '2023-06-27',
-      });
-    });
-  });
-
   describe('calculateBlockNumber', () => {
     it('should calculate correct block number for different dates', () => {
       const testCases = [
