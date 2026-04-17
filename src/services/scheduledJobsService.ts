@@ -25,6 +25,22 @@ interface ScheduledJob {
   isRunning: boolean;
 }
 
+function calculateTodayBatchNumber(): number {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return dayOfYear % 12;
+}
+
+let nextManualBatchForPeople: number | null = null;
+
+function getNextManualBatch(): number {
+  if (nextManualBatchForPeople === null) {
+    nextManualBatchForPeople = (calculateTodayBatchNumber() + 1) % 12;
+  }
+  return nextManualBatchForPeople;
+}
+
 const jobs: Record<string, ScheduledJob> = {
   showsUpdate: {
     job: null,
@@ -150,8 +166,9 @@ export async function runMoviesUpdateJob(): Promise<boolean> {
 /**
  * Run the people update job
  * Extracted into a separate function to allow manual triggering
+ * @param batchOverride Optional batch index (0-11) to process instead of today's calculated batch
  */
-export async function runPeopleUpdateJob(): Promise<boolean> {
+export async function runPeopleUpdateJob(batchOverride?: number): Promise<boolean> {
   if (jobs.peopleUpdate.isRunning) {
     cliLogger.warn('People update job already running, skipping this execution');
     return false;
@@ -164,7 +181,7 @@ export async function runPeopleUpdateJob(): Promise<boolean> {
   appLogger.info('People update job started');
 
   try {
-    await updatePeople();
+    await updatePeople(batchOverride);
 
     // Publish Redis event instead of calling callback
     await redisPubSubService.publishPeopleUpdate('People update job completed successfully');
@@ -418,6 +435,7 @@ export function getJobsStatus(): JobStatusResponse {
       isRunning: jobs.peopleUpdate.isRunning,
       nextRunTime: getNextScheduledRun(jobs.peopleUpdate.cronExpression),
       cronExpression: jobs.peopleUpdate.cronExpression,
+      currentBatch: getNextManualBatch(),
     },
     emailDigest: {
       lastRunTime: toDateResponse(jobs.emailDigest.lastRunTime),
@@ -508,12 +526,51 @@ export async function shutdownJobs(): Promise<void> {
 }
 
 /**
+ * Run all 12 people update batches sequentially
+ * Extracted to avoid repeated isRunning guard checks between batches
+ */
+export async function runAllPeopleBatchesJob(): Promise<boolean> {
+  if (jobs.peopleUpdate.isRunning) {
+    cliLogger.warn('People update job already running, skipping this execution');
+    return false;
+  }
+
+  jobs.peopleUpdate.isRunning = true;
+  jobs.peopleUpdate.lastRunTime = new Date();
+
+  cliLogger.info('Starting full people update (all 12 batches)');
+  appLogger.info('People update job started (all batches)');
+
+  try {
+    for (let batch = 0; batch < 12; batch++) {
+      cliLogger.info(`Running people update batch ${batch} of 11`);
+      await updatePeople(batch);
+    }
+
+    await redisPubSubService.publishPeopleUpdate('Full people update (all batches) completed successfully');
+    jobs.peopleUpdate.lastRunStatus = 'success';
+    cliLogger.info('Full people update completed successfully');
+    appLogger.info('Full people update completed successfully');
+    return true;
+  } catch (error) {
+    jobs.peopleUpdate.lastRunStatus = 'failed';
+    cliLogger.error('Failed to complete full people update', error);
+    appLogger.error(ErrorMessages.PeopleChangeFail, { error });
+    return false;
+  } finally {
+    jobs.peopleUpdate.isRunning = false;
+    cliLogger.info('Ending full people update job');
+  }
+}
+
+/**
  * Manually execute a scheduled job by name
  * This allows administrators to trigger jobs on-demand
  * @param jobName The name of the job to execute
+ * @param options Optional parameters; for peopleUpdate, `batch` overrides the auto-calculated batch (0-11), or `runAll` runs all 12 batches sequentially
  * @returns Promise<boolean> - true if job executed successfully, false otherwise
  */
-export async function manuallyExecuteJob(jobName: JobName): Promise<boolean> {
+export async function manuallyExecuteJob(jobName: JobName, options?: { batch?: number; runAll?: boolean }): Promise<boolean> {
   if (!jobs[jobName]) {
     cliLogger.error(`Invalid job name: ${jobName}`);
     throw new Error(`Invalid job name: ${jobName}`);
@@ -527,8 +584,17 @@ export async function manuallyExecuteJob(jobName: JobName): Promise<boolean> {
       return await runShowsUpdateJob();
     case 'moviesUpdate':
       return await runMoviesUpdateJob();
-    case 'peopleUpdate':
-      return await runPeopleUpdateJob();
+    case 'peopleUpdate': {
+      if (options?.runAll) {
+        cliLogger.info('People update manual run: all batches');
+        return await runAllPeopleBatchesJob();
+      }
+      const batch = options?.batch !== undefined ? options.batch : getNextManualBatch();
+      cliLogger.info(`People update manual run using batch ${batch}`);
+      const result = await runPeopleUpdateJob(batch);
+      nextManualBatchForPeople = (batch + 1) % 12;
+      return result;
+    }
     case 'emailDigest':
       return await runEmailDigestJob();
     case 'performanceArchive':

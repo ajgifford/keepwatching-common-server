@@ -62,20 +62,25 @@ export async function updateShows() {
 
 /**
  * Updates people that might have changes
+ * @param batchOverride Optional batch index (0-11) to process instead of today's calculated batch
  */
-export async function updatePeople() {
+export async function updatePeople(batchOverride?: number) {
   try {
     const results: UpdatePersonResult[] = [];
     const startTime = new Date();
 
-    const blockNumber = personService.calculateBlockNumber(startTime);
-    const blockInfo = await personService.getTodayBlockInfo();
-    cliLogger.info(`Starting daily person update for block ${blockInfo.blockNumber}`, {
+    const blockNumber = batchOverride !== undefined ? batchOverride : personService.calculateBlockNumber(startTime);
+    const people = await personService.getPeopleForUpdates(blockNumber);
+    const blockInfo = {
+      blockNumber,
+      date: startTime.toISOString().split('T')[0],
+      totalPeople: people.length,
+    };
+    cliLogger.info(`Starting daily person update for block ${blockNumber}${batchOverride !== undefined ? ' (manual override)' : ''}`, {
       totalPeople: blockInfo.totalPeople,
       date: blockInfo.date,
     });
 
-    const people = await personService.getPeopleForUpdates(blockNumber);
     for (const person of people) {
       try {
         await sleep(500);
