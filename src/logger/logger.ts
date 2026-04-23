@@ -1,4 +1,5 @@
 import {
+  getAdminServerName,
   getAppVersion,
   getEnvironment,
   getLogDirectory,
@@ -16,7 +17,7 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 import { NextFunction, Request, Response } from 'express';
 
 const { combine, timestamp, json, printf, label } = format;
-const serviceName = getServiceName();
+const serviceName = getAdminServerName() ?? getServiceName();
 const appVersion = getAppVersion();
 const timestampFormat = getLogTimestampFormat();
 const environment = getEnvironment();

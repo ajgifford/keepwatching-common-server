@@ -71,6 +71,10 @@ export function getAdminServiceName() {
   return process.env.ADMIN_SERVICE_NAME || null;
 }
 
+export function getAdminServerName() {
+  return process.env.ADMIN_SERVER_NAME || null;
+}
+
 export function getAdminServiceAccountPath() {
   return process.env.ADMIN_SERVICE_ACCOUNT_PATH || null;
 }
