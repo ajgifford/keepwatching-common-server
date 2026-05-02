@@ -126,7 +126,7 @@ describe('watchHistoryDb Module', () => {
   // ---------------------------------------------------------------------------
 
   describe('logMovieWatched()', () => {
-    it('should insert a movie watch history row', async () => {
+    it('should insert a movie watch history row with defaults (isPriorWatch=false, no watchedAt)', async () => {
       mockConn.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
       await logMovieWatched(mockConn, 3, 50);
@@ -134,7 +134,29 @@ describe('watchHistoryDb Module', () => {
       expect(mockConn.execute).toHaveBeenCalledTimes(1);
       expect(mockConn.execute).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO movie_watch_history'),
-        [3, 50, 3, 50],
+        [3, 50, false, 3, 50],
+      );
+    });
+
+    it('should use the provided watchedAt date and isPriorWatch when given', async () => {
+      mockConn.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await logMovieWatched(mockConn, 3, 50, true, '2024-01-15');
+
+      expect(mockConn.execute).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO movie_watch_history'),
+        [3, 50, '2024-01-15', true, 3, 50],
+      );
+    });
+
+    it('should use CURRENT_TIMESTAMP when isPriorWatch=true but watchedAt is omitted', async () => {
+      mockConn.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await logMovieWatched(mockConn, 3, 50, true);
+
+      expect(mockConn.execute).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO movie_watch_history'),
+        [3, 50, true, 3, 50],
       );
     });
   });
@@ -521,6 +543,28 @@ describe('watchHistoryDb Module', () => {
         .mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'episode', 'desc', undefined, undefined, false, undefined, true);
+
+      const dataCall = mockPool.execute.mock.calls[1];
+      expect(dataCall[0]).toContain('is_prior_watch = FALSE');
+    });
+
+    it('should apply isPriorWatchOnly filter to movie query when contentType=movie', async () => {
+      mockPool.execute
+        .mockResolvedValueOnce([[{ total: 0 }], []])
+        .mockResolvedValueOnce([[], []]);
+
+      await getWatchHistoryForProfile(1, 1, 10, 'movie', 'desc', undefined, undefined, true);
+
+      const dataCall = mockPool.execute.mock.calls[1];
+      expect(dataCall[0]).toContain('is_prior_watch = TRUE');
+    });
+
+    it('should apply excludePriorWatch filter to movie query when contentType=movie', async () => {
+      mockPool.execute
+        .mockResolvedValueOnce([[{ total: 0 }], []])
+        .mockResolvedValueOnce([[], []]);
+
+      await getWatchHistoryForProfile(1, 1, 10, 'movie', 'desc', undefined, undefined, false, undefined, true);
 
       const dataCall = mockPool.execute.mock.calls[1];
       expect(dataCall[0]).toContain('is_prior_watch = FALSE');

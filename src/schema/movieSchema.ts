@@ -21,6 +21,8 @@ export const movieParamsSchema = z.object({
 export const movieWatchStatusBodySchema = z.object({
   movieId: z.number().int().positive('Movie ID must be a positive integer'),
   status: userWatchStatusSchema,
+  isPriorWatch: z.boolean().optional(),
+  watchedAt: z.string().date().optional(),
 });
 
 export type MovieWatchStatusBody = z.infer<typeof movieWatchStatusBodySchema>;

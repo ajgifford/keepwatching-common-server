@@ -409,9 +409,11 @@ export class MoviesService {
     profileId: number,
     movieId: number,
     status: SimpleWatchStatus,
+    isPriorWatch: boolean = false,
+    watchedAt?: string,
   ): Promise<boolean> {
     try {
-      const success = await moviesDb.updateWatchStatus(profileId, movieId, status);
+      const success = await moviesDb.updateWatchStatus(profileId, movieId, status, isPriorWatch, watchedAt);
 
       if (!success) {
         throw new BadRequestError(

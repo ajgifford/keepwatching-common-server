@@ -270,7 +270,7 @@ describe('movieRepository', () => {
   });
 
   describe('updateWatchStatus', () => {
-    it('should update watch status with watched_at when status is WATCHED', async () => {
+    it('should update watch status with CURRENT_TIMESTAMP and is_prior_watch when status is WATCHED', async () => {
       // First call: UPDATE (affectedRows: 1), second call: INSERT into history
       mockConnection.execute
         .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -280,20 +280,39 @@ describe('movieRepository', () => {
 
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('watched_at = CURRENT_TIMESTAMP'),
-        ['WATCHED', 123, 456],
+        expect.stringContaining('watched_at = CURRENT_TIMESTAMP, is_prior_watch = ?'),
+        ['WATCHED', false, 123, 456],
       );
       expect(result).toBe(true);
     });
 
-    it('should update watch status without watched_at when status is NOT_WATCHED', async () => {
+    it('should use provided watchedAt date and isPriorWatch when WATCHED with both args', async () => {
+      // First call: UPDATE (affectedRows: 1), second call: INSERT into history
+      mockConnection.execute
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([{ insertId: 1 }]);
+
+      const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED', true, '2001-07-27');
+
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('watched_at = ?, is_prior_watch = ?'),
+        ['WATCHED', '2001-07-27', true, 123, 456],
+      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO movie_watch_history'),
+        [123, 456, '2001-07-27', true, 123, 456],
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should reset is_prior_watch to FALSE when status is NOT_WATCHED', async () => {
       mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]);
 
       const result = await moviesDb.updateWatchStatus(123, 456, 'NOT_WATCHED');
 
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalled();
       expect(mockConnection.execute).toHaveBeenCalledWith(
-        'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?',
+        expect.stringContaining('is_prior_watch = FALSE'),
         ['NOT_WATCHED', 123, 456],
       );
       expect(result).toBe(true);

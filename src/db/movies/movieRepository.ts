@@ -308,7 +308,13 @@ export async function removeFavorite(profileId: number, movieId: number): Promis
  * @returns `True` if the status was updated, `false` if no rows were affected
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function updateWatchStatus(profileId: number, movieId: number, status: string): Promise<boolean> {
+export async function updateWatchStatus(
+  profileId: number,
+  movieId: number,
+  status: string,
+  isPriorWatch: boolean = false,
+  watchedAt?: string,
+): Promise<boolean> {
   const transactionHelper = new TransactionHelper();
   try {
     return await DbMonitor.getInstance().executeWithTiming(
@@ -316,13 +322,26 @@ export async function updateWatchStatus(profileId: number, movieId: number, stat
       async () => {
         return await transactionHelper.executeInTransaction(async (connection) => {
           const isWatched = status === WatchStatus.WATCHED;
-          const query = isWatched
-            ? 'UPDATE movie_watch_status SET status = ?, watched_at = CURRENT_TIMESTAMP WHERE profile_id = ? AND movie_id = ?'
-            : 'UPDATE movie_watch_status SET status = ? WHERE profile_id = ? AND movie_id = ?';
-          const [result] = await connection.execute<ResultSetHeader>(query, [status, profileId, movieId]);
+          let query: string;
+          let params: (string | number | boolean)[];
+          if (isWatched) {
+            if (watchedAt) {
+              query =
+                'UPDATE movie_watch_status SET status = ?, watched_at = ?, is_prior_watch = ? WHERE profile_id = ? AND movie_id = ?';
+              params = [status, watchedAt, isPriorWatch, profileId, movieId];
+            } else {
+              query =
+                'UPDATE movie_watch_status SET status = ?, watched_at = CURRENT_TIMESTAMP, is_prior_watch = ? WHERE profile_id = ? AND movie_id = ?';
+              params = [status, isPriorWatch, profileId, movieId];
+            }
+          } else {
+            query = 'UPDATE movie_watch_status SET status = ?, is_prior_watch = FALSE WHERE profile_id = ? AND movie_id = ?';
+            params = [status, profileId, movieId];
+          }
+          const [result] = await connection.execute<ResultSetHeader>(query, params);
 
           if (isWatched && result.affectedRows > 0) {
-            await logMovieWatched(connection, profileId, movieId);
+            await logMovieWatched(connection, profileId, movieId, isPriorWatch, watchedAt);
           }
 
           // Return true if at least one row was affected (watch status was updated)

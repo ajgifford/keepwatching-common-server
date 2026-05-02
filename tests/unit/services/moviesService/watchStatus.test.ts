@@ -19,7 +19,17 @@ describe('MoviesService - Watch Status', () => {
 
       const result = await service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED);
 
-      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED);
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED, false, undefined);
+      expect(mockCache.invalidateProfileMovies).toHaveBeenCalledTimes(1);
+      expect(result).toBe(true);
+    });
+
+    it('should forward isPriorWatch and watchedAt to the DB layer', async () => {
+      (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED, true, '2001-07-27');
+
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED, true, '2001-07-27');
       expect(mockCache.invalidateProfileMovies).toHaveBeenCalledTimes(1);
       expect(result).toBe(true);
     });
@@ -33,7 +43,7 @@ describe('MoviesService - Watch Status', () => {
       await expect(service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED)).rejects.toThrow(
         'Failed to update watch status. Ensure the movie (ID: 5) exists in your favorites.',
       );
-      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED);
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED, false, undefined);
     });
 
     it('should handle database errors', async () => {

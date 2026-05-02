@@ -80,14 +80,30 @@ export async function logEpisodesWatched(
 /**
  * Log a single movie watch event to movie_watch_history.
  */
-export async function logMovieWatched(conn: PoolConnection, profileId: number, movieId: number): Promise<void> {
-  const query = `
-    INSERT INTO movie_watch_history (profile_id, movie_id, watch_number, watched_at)
-    SELECT ?, ?, COALESCE(MAX(watch_number), 0) + 1, CURRENT_TIMESTAMP
+export async function logMovieWatched(
+  conn: PoolConnection,
+  profileId: number,
+  movieId: number,
+  isPriorWatch: boolean = false,
+  watchedAt?: string,
+): Promise<void> {
+  const query = watchedAt
+    ? `
+    INSERT INTO movie_watch_history (profile_id, movie_id, watch_number, watched_at, is_prior_watch)
+    SELECT ?, ?, COALESCE(MAX(watch_number), 0) + 1, ?, ?
+    FROM movie_watch_history
+    WHERE profile_id = ? AND movie_id = ?
+  `
+    : `
+    INSERT INTO movie_watch_history (profile_id, movie_id, watch_number, watched_at, is_prior_watch)
+    SELECT ?, ?, COALESCE(MAX(watch_number), 0) + 1, CURRENT_TIMESTAMP, ?
     FROM movie_watch_history
     WHERE profile_id = ? AND movie_id = ?
   `;
-  await conn.execute<ResultSetHeader>(query, [profileId, movieId, profileId, movieId]);
+  const params = watchedAt
+    ? [profileId, movieId, watchedAt, isPriorWatch, profileId, movieId]
+    : [profileId, movieId, isPriorWatch, profileId, movieId];
+  await conn.execute<ResultSetHeader>(query, params);
 }
 
 /**
@@ -341,10 +357,10 @@ export async function getWatchHistoryForProfile(
       }
       if (isPriorWatchOnly) {
         episodeFilters.push('AND ewh.is_prior_watch = TRUE');
-        // Movies are never prior-watches; exclude them entirely when this filter is active
-        movieFilters.push('AND 1 = 0');
+        movieFilters.push('AND mwh.is_prior_watch = TRUE');
       } else if (excludePriorWatch) {
         episodeFilters.push('AND ewh.is_prior_watch = FALSE');
+        movieFilters.push('AND mwh.is_prior_watch = FALSE');
       }
       if (searchQuery) {
         episodeFilters.push('AND sh.title LIKE ?');
@@ -390,7 +406,7 @@ export async function getWatchHistoryForProfile(
           m.poster_image  AS posterImage,
           mwh.watched_at  AS watchedAt,
           mwh.watch_number AS watchNumber,
-          FALSE           AS isPriorWatch,
+          mwh.is_prior_watch AS isPriorWatch,
           m.runtime       AS runtime
         FROM movie_watch_history mwh
         JOIN movies m ON mwh.movie_id = m.id

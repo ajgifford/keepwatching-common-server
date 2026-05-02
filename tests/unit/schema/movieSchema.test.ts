@@ -205,6 +205,59 @@ describe('movieSchema', () => {
       }
     });
 
+    it('should accept isPriorWatch as optional boolean', () => {
+      const validInput = {
+        movieId: 123,
+        status: 'WATCHED',
+        isPriorWatch: true,
+      };
+
+      const result = movieWatchStatusBodySchema.safeParse(validInput);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.isPriorWatch).toBe(true);
+      }
+    });
+
+    it('should accept watchedAt as optional ISO date string', () => {
+      const validInput = {
+        movieId: 123,
+        status: 'WATCHED',
+        watchedAt: '2001-07-27',
+      };
+
+      const result = movieWatchStatusBodySchema.safeParse(validInput);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.watchedAt).toBe('2001-07-27');
+      }
+    });
+
+    it('should reject watchedAt that is not a valid date string', () => {
+      const invalidInput = {
+        movieId: 123,
+        status: 'WATCHED',
+        watchedAt: 'not-a-date',
+      };
+
+      const result = movieWatchStatusBodySchema.safeParse(invalidInput);
+      expect(result.success).toBe(false);
+    });
+
+    it('should succeed without isPriorWatch and watchedAt since both are optional', () => {
+      const minimalInput = {
+        movieId: 123,
+        status: 'WATCHED',
+      };
+
+      const result = movieWatchStatusBodySchema.safeParse(minimalInput);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.isPriorWatch).toBeUndefined();
+        expect(result.data.watchedAt).toBeUndefined();
+      }
+    });
+
     it('should reject missing fields', () => {
       const testCases = [{ movieId: 123 }, { status: 'WATCHED' }, {}];
 
