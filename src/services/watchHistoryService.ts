@@ -4,7 +4,7 @@ import {
   getWatchHistoryForProfile,
   recalculateShowStatusAfterSeasonReset,
   recordEpisodeRewatch as recordEpisodeRewatchDb,
-  resetMovieForRewatch,
+  recordMovieRewatch,
   resetSeasonForRewatch,
   resetShowForRewatch,
 } from '../db/watchHistoryDb';
@@ -210,19 +210,20 @@ export class WatchHistoryService {
   }
 
   /**
-   * Reset a movie to NOT_WATCHED so the user can rewatch it.
-   * Increments movie_watch_status.rewatch_count.
+   * Record an instant movie rewatch at the current time.
+   * Keeps status as WATCHED, updates watched_at to now, increments rewatch_count,
+   * and appends a new row to movie_watch_history.
    *
    * @param accountId - ID of the account (unused but kept for consistency and future cache use)
    * @param profileId - ID of the profile
    * @param movieId - ID of the movie to rewatch
-   * @returns Updated ProfileMovie reflecting the NOT_WATCHED state
+   * @returns Updated ProfileMovie reflecting the new WATCHED state
    */
   async startMovieRewatch(accountId: number, profileId: number, movieId: number): Promise<ProfileMovie> {
     const transactionHelper = new TransactionHelper();
     try {
       await transactionHelper.executeInTransaction(async (conn) => {
-        await resetMovieForRewatch(conn, profileId, movieId);
+        await recordMovieRewatch(conn, profileId, movieId);
       });
 
       return await moviesService.getMovieDetailsForProfile(profileId, movieId);

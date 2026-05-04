@@ -232,22 +232,23 @@ export async function resetSeasonForRewatch(conn: PoolConnection, profileId: num
 }
 
 /**
- * Reset a single movie back to NOT_WATCHED for a rewatch and increment rewatch_count.
- * watched_at is nulled out so the next mark sets a fresh timestamp.
+ * Record an instant movie rewatch: keep status WATCHED with the current timestamp,
+ * increment rewatch_count, and append a new row to movie_watch_history.
  */
-export async function resetMovieForRewatch(conn: PoolConnection, profileId: number, movieId: number): Promise<void> {
+export async function recordMovieRewatch(conn: PoolConnection, profileId: number, movieId: number): Promise<void> {
   await conn.execute<ResultSetHeader>(
     `
     UPDATE movie_watch_status
     SET
-      status = 'NOT_WATCHED',
-      watched_at = NULL,
+      status = 'WATCHED',
+      watched_at = CURRENT_TIMESTAMP,
       rewatch_count = rewatch_count + 1,
       updated_at = CURRENT_TIMESTAMP
     WHERE profile_id = ? AND movie_id = ?
   `,
     [profileId, movieId],
   );
+  await logMovieWatched(conn, profileId, movieId);
 }
 
 /**
