@@ -1,16 +1,17 @@
-import { StatusUpdateResult } from '../../../src/types/watchStatusTypes';
 import { WatchHistoryRow } from '../../../src/types/watchHistoryTypes';
-import { BulkMarkedShowRow, WatchStatusDbService } from '@db/watchStatusDb';
+import { StatusUpdateResult } from '../../../src/types/watchStatusTypes';
+import { BulkMarkedShow, ProfileMovie, ProfileShow, WatchHistoryItem } from '@ajgifford/keepwatching-types';
 import {
   getEpisodeWatchCount,
   getShowIdForSeason,
   getWatchHistoryForProfile,
   recalculateShowStatusAfterSeasonReset,
   recordEpisodeRewatch as recordEpisodeRewatchDb,
-  resetMovieForRewatch,
+  recordMovieRewatch,
   resetSeasonForRewatch,
   resetShowForRewatch,
 } from '@db/watchHistoryDb';
+import { BulkMarkedShowRow, WatchStatusDbService } from '@db/watchStatusDb';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { showService } from '@services/showService';
@@ -22,7 +23,6 @@ import {
 } from '@services/watchHistoryService';
 import { watchStatusService } from '@services/watchStatusService';
 import { TransactionHelper } from '@utils/transactionHelper';
-import { BulkMarkedShow, ProfileMovie, ProfileShow, WatchHistoryItem } from '@ajgifford/keepwatching-types';
 
 jest.mock('@db/watchStatusDb');
 jest.mock('@db/watchHistoryDb');
@@ -84,7 +84,10 @@ describe('WatchHistoryService', () => {
       const result = await service.markShowAsPriorWatched(accountId, profileId, showId);
 
       expect(watchStatusService.markSeasonsAsPriorWatched).toHaveBeenCalledWith(
-        accountId, profileId, showId, undefined,
+        accountId,
+        profileId,
+        showId,
+        undefined,
       );
       expect(showService.getShowDetailsForProfile).toHaveBeenCalledWith(accountId, profileId, showId);
       expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
@@ -96,16 +99,16 @@ describe('WatchHistoryService', () => {
 
     it('should pass upToSeasonNumber when provided', async () => {
       (watchStatusService.markSeasonsAsPriorWatched as jest.Mock).mockResolvedValue({
-        success: true, changes: [], affectedRows: 10,
+        success: true,
+        changes: [],
+        affectedRows: 10,
       });
       (showService.getShowDetailsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
       (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
 
       await service.markShowAsPriorWatched(accountId, profileId, showId, 2);
 
-      expect(watchStatusService.markSeasonsAsPriorWatched).toHaveBeenCalledWith(
-        accountId, profileId, showId, 2,
-      );
+      expect(watchStatusService.markSeasonsAsPriorWatched).toHaveBeenCalledWith(accountId, profileId, showId, 2);
     });
 
     it('should handle errors and delegate to errorService', async () => {
@@ -116,9 +119,9 @@ describe('WatchHistoryService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(
-        service.markShowAsPriorWatched(accountId, profileId, showId),
-      ).rejects.toThrow('Handled: Service failed');
+      await expect(service.markShowAsPriorWatched(accountId, profileId, showId)).rejects.toThrow(
+        'Handled: Service failed',
+      );
 
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
@@ -137,7 +140,9 @@ describe('WatchHistoryService', () => {
 
     it('should mark specific seasons as prior watched and return updated show data', async () => {
       (watchStatusService.markSeasonIdsAsPriorWatched as jest.Mock).mockResolvedValue({
-        success: true, changes: [], affectedRows: 30,
+        success: true,
+        changes: [],
+        affectedRows: 30,
       });
       (showService.getShowDetailsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
       (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
@@ -145,7 +150,10 @@ describe('WatchHistoryService', () => {
       const result = await service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds);
 
       expect(watchStatusService.markSeasonIdsAsPriorWatched).toHaveBeenCalledWith(
-        accountId, profileId, showId, seasonIds,
+        accountId,
+        profileId,
+        showId,
+        seasonIds,
       );
       expect(showService.getShowDetailsForProfile).toHaveBeenCalledWith(accountId, profileId, showId);
       expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(profileId);
@@ -157,16 +165,16 @@ describe('WatchHistoryService', () => {
 
     it('should work with a single season ID', async () => {
       (watchStatusService.markSeasonIdsAsPriorWatched as jest.Mock).mockResolvedValue({
-        success: true, changes: [], affectedRows: 10,
+        success: true,
+        changes: [],
+        affectedRows: 10,
       });
       (showService.getShowDetailsForProfile as jest.Mock).mockResolvedValue(mockShowWithSeasons);
       (showService.getNextUnwatchedEpisodesForProfile as jest.Mock).mockResolvedValue([]);
 
       await service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, [10]);
 
-      expect(watchStatusService.markSeasonIdsAsPriorWatched).toHaveBeenCalledWith(
-        accountId, profileId, showId, [10],
-      );
+      expect(watchStatusService.markSeasonIdsAsPriorWatched).toHaveBeenCalledWith(accountId, profileId, showId, [10]);
     });
 
     it('should handle errors and delegate to errorService', async () => {
@@ -177,9 +185,9 @@ describe('WatchHistoryService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(
-        service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds),
-      ).rejects.toThrow('Handled: Mark season IDs failed');
+      await expect(service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds)).rejects.toThrow(
+        'Handled: Mark season IDs failed',
+      );
 
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
@@ -249,10 +257,7 @@ describe('WatchHistoryService', () => {
 
       await expect(service.getBulkMarkedShows(profileId)).rejects.toThrow('Handled: Detection failed');
 
-      expect(errorService.handleError).toHaveBeenCalledWith(
-        mockError,
-        `getBulkMarkedShows(${profileId})`,
-      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `getBulkMarkedShows(${profileId})`);
     });
   });
 
@@ -300,26 +305,36 @@ describe('WatchHistoryService', () => {
 
     it('should delegate to watchStatusService and resolve', async () => {
       (watchStatusService.retroactivelyMarkShowAsPrior as jest.Mock).mockResolvedValue({
-        success: true, changes: [], affectedRows: 8,
+        success: true,
+        changes: [],
+        affectedRows: 8,
         message: 'Retroactively marked 8 episodes as previously watched',
       });
 
       await service.retroactivelyMarkShowAsPrior(accountId, profileId, showId);
 
       expect(watchStatusService.retroactivelyMarkShowAsPrior).toHaveBeenCalledWith(
-        accountId, profileId, showId, undefined,
+        accountId,
+        profileId,
+        showId,
+        undefined,
       );
     });
 
     it('should pass seasonIds to watchStatusService when provided', async () => {
       (watchStatusService.retroactivelyMarkShowAsPrior as jest.Mock).mockResolvedValue({
-        success: true, changes: [], affectedRows: 4,
+        success: true,
+        changes: [],
+        affectedRows: 4,
       });
 
       await service.retroactivelyMarkShowAsPrior(accountId, profileId, showId, [1, 2]);
 
       expect(watchStatusService.retroactivelyMarkShowAsPrior).toHaveBeenCalledWith(
-        accountId, profileId, showId, [1, 2],
+        accountId,
+        profileId,
+        showId,
+        [1, 2],
       );
     });
 
@@ -331,9 +346,9 @@ describe('WatchHistoryService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(
-        service.retroactivelyMarkShowAsPrior(accountId, profileId, showId),
-      ).rejects.toThrow('Handled: Mark prior failed');
+      await expect(service.retroactivelyMarkShowAsPrior(accountId, profileId, showId)).rejects.toThrow(
+        'Handled: Mark prior failed',
+      );
 
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
@@ -452,20 +467,20 @@ describe('WatchHistoryService', () => {
 
     const mockMovie = { id: movieId, title: 'Inception', watchStatus: 'NOT_WATCHED' } as unknown as ProfileMovie;
 
-    it('should reset movie and return updated movie details', async () => {
-      (resetMovieForRewatch as jest.Mock).mockResolvedValue(undefined);
+    it('should record movie rewatch and return updated movie details', async () => {
+      (recordMovieRewatch as jest.Mock).mockResolvedValue(undefined);
       (moviesService.getMovieDetailsForProfile as jest.Mock).mockResolvedValue(mockMovie);
 
       const result = await service.startMovieRewatch(accountId, profileId, movieId);
 
-      expect(resetMovieForRewatch).toHaveBeenCalledWith({}, profileId, movieId);
+      expect(recordMovieRewatch).toHaveBeenCalledWith({}, profileId, movieId);
       expect(moviesService.getMovieDetailsForProfile).toHaveBeenCalledWith(profileId, movieId);
       expect(result).toEqual(mockMovie);
     });
 
     it('should handle errors and delegate to errorService', async () => {
       const mockError = new Error('Movie reset failed');
-      (resetMovieForRewatch as jest.Mock).mockRejectedValue(mockError);
+      (recordMovieRewatch as jest.Mock).mockRejectedValue(mockError);
 
       (errorService.handleError as jest.Mock).mockImplementation((error) => {
         throw new Error(`Handled: ${error.message}`);
@@ -534,21 +549,22 @@ describe('WatchHistoryService', () => {
   describe('getHistoryForProfile', () => {
     const profileId = 123;
 
-    const makeRow = (overrides: Record<string, any> = {}): WatchHistoryRow => ({
-      historyId: 1,
-      contentType: 'episode',
-      contentId: 10,
-      title: 'Pilot',
-      parentTitle: 'Breaking Bad',
-      seasonNumber: 1,
-      episodeNumber: 1,
-      posterImage: '/poster.jpg',
-      watchedAt: '2026-03-01T10:00:00.000Z',
-      watchNumber: 1,
-      isPriorWatch: 0,
-      runtime: 45,
-      ...overrides,
-    } as WatchHistoryRow);
+    const makeRow = (overrides: Record<string, any> = {}): WatchHistoryRow =>
+      ({
+        historyId: 1,
+        contentType: 'episode',
+        contentId: 10,
+        title: 'Pilot',
+        parentTitle: 'Breaking Bad',
+        seasonNumber: 1,
+        episodeNumber: 1,
+        posterImage: '/poster.jpg',
+        watchedAt: '2026-03-01T10:00:00.000Z',
+        watchNumber: 1,
+        isPriorWatch: 0,
+        runtime: 45,
+        ...overrides,
+      }) as WatchHistoryRow;
 
     it('should return transformed history items with pagination metadata', async () => {
       const mockRows = [makeRow(), makeRow({ historyId: 2, title: 'Episode 2', episodeNumber: 2 })];
@@ -557,7 +573,16 @@ describe('WatchHistoryService', () => {
       const result = await service.getHistoryForProfile(profileId);
 
       expect(getWatchHistoryForProfile).toHaveBeenCalledWith(
-        profileId, 1, 20, 'all', 'desc', undefined, undefined, false, undefined, false,
+        profileId,
+        1,
+        20,
+        'all',
+        'desc',
+        undefined,
+        undefined,
+        false,
+        undefined,
+        false,
       );
       expect(result.totalCount).toBe(2);
       expect(result.page).toBe(1);
@@ -579,11 +604,29 @@ describe('WatchHistoryService', () => {
       (getWatchHistoryForProfile as jest.Mock).mockResolvedValue({ items: [], totalCount: 0 });
 
       await service.getHistoryForProfile(
-        profileId, 2, 10, 'episode', 'asc', '2026-01-01', '2026-03-31', true, 'Breaking', true,
+        profileId,
+        2,
+        10,
+        'episode',
+        'asc',
+        '2026-01-01',
+        '2026-03-31',
+        true,
+        'Breaking',
+        true,
       );
 
       expect(getWatchHistoryForProfile).toHaveBeenCalledWith(
-        profileId, 2, 10, 'episode', 'asc', '2026-01-01', '2026-03-31', true, 'Breaking', true,
+        profileId,
+        2,
+        10,
+        'episode',
+        'asc',
+        '2026-01-01',
+        '2026-03-31',
+        true,
+        'Breaking',
+        true,
       );
     });
 
@@ -616,10 +659,7 @@ describe('WatchHistoryService', () => {
 
       await expect(service.getHistoryForProfile(profileId)).rejects.toThrow('Handled: History query failed');
 
-      expect(errorService.handleError).toHaveBeenCalledWith(
-        mockError,
-        `getHistoryForProfile(${profileId}, 1, 20)`,
-      );
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `getHistoryForProfile(${profileId}, 1, 20)`);
     });
   });
 

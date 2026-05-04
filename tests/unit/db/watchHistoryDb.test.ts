@@ -1,18 +1,18 @@
 import { setupDatabaseTest } from './helpers/dbTestSetup';
 import {
+  getEpisodeWatchCount,
+  getShowIdForSeason,
+  getWatchHistoryForProfile,
   logEpisodeWatched,
   logEpisodesWatched,
   logMovieWatched,
   logSeasonWatched,
   logShowWatched,
-  resetShowForRewatch,
-  resetSeasonForRewatch,
-  resetMovieForRewatch,
-  recordEpisodeRewatch,
-  getShowIdForSeason,
   recalculateShowStatusAfterSeasonReset,
-  getWatchHistoryForProfile,
-  getEpisodeWatchCount,
+  recordEpisodeRewatch,
+  recordMovieRewatch,
+  resetSeasonForRewatch,
+  resetShowForRewatch,
 } from '@db/watchHistoryDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { ResultSetHeader } from 'mysql2';
@@ -52,10 +52,14 @@ describe('watchHistoryDb Module', () => {
       await logEpisodeWatched(mockConn, 1, 100);
 
       expect(mockConn.execute).toHaveBeenCalledTimes(1);
-      expect(mockConn.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO episode_watch_history'),
-        [1, 100, null, false, 1, 100],
-      );
+      expect(mockConn.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO episode_watch_history'), [
+        1,
+        100,
+        null,
+        false,
+        1,
+        100,
+      ]);
     });
 
     it('should pass watchedAt and isPriorWatch when provided', async () => {
@@ -63,10 +67,14 @@ describe('watchHistoryDb Module', () => {
 
       await logEpisodeWatched(mockConn, 2, 200, true, '2024-01-15');
 
-      expect(mockConn.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO episode_watch_history'),
-        [2, 200, '2024-01-15', true, 2, 200],
-      );
+      expect(mockConn.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO episode_watch_history'), [
+        2,
+        200,
+        '2024-01-15',
+        true,
+        2,
+        200,
+      ]);
     });
 
     it('should use null for watchedAt when not provided even with isPriorWatch=true', async () => {
@@ -132,10 +140,13 @@ describe('watchHistoryDb Module', () => {
       await logMovieWatched(mockConn, 3, 50);
 
       expect(mockConn.execute).toHaveBeenCalledTimes(1);
-      expect(mockConn.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO movie_watch_history'),
-        [3, 50, false, 3, 50],
-      );
+      expect(mockConn.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO movie_watch_history'), [
+        3,
+        50,
+        false,
+        3,
+        50,
+      ]);
     });
 
     it('should use the provided watchedAt date and isPriorWatch when given', async () => {
@@ -143,10 +154,14 @@ describe('watchHistoryDb Module', () => {
 
       await logMovieWatched(mockConn, 3, 50, true, '2024-01-15');
 
-      expect(mockConn.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO movie_watch_history'),
-        [3, 50, '2024-01-15', true, 3, 50],
-      );
+      expect(mockConn.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO movie_watch_history'), [
+        3,
+        50,
+        '2024-01-15',
+        true,
+        3,
+        50,
+      ]);
     });
 
     it('should use CURRENT_TIMESTAMP when isPriorWatch=true but watchedAt is omitted', async () => {
@@ -154,10 +169,13 @@ describe('watchHistoryDb Module', () => {
 
       await logMovieWatched(mockConn, 3, 50, true);
 
-      expect(mockConn.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO movie_watch_history'),
-        [3, 50, true, 3, 50],
-      );
+      expect(mockConn.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO movie_watch_history'), [
+        3,
+        50,
+        true,
+        3,
+        50,
+      ]);
     });
   });
 
@@ -281,16 +299,16 @@ describe('watchHistoryDb Module', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // resetMovieForRewatch
+  // recordMovieRewatch
   // ---------------------------------------------------------------------------
 
-  describe('resetMovieForRewatch()', () => {
+  describe('recordMovieRewatch()', () => {
     it('should reset movie status and increment rewatch_count', async () => {
       mockConn.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
 
-      await resetMovieForRewatch(mockConn, 4, 77);
+      await recordMovieRewatch(mockConn, 4, 77);
 
-      expect(mockConn.execute).toHaveBeenCalledTimes(1);
+      expect(mockConn.execute).toHaveBeenCalledTimes(2);
       const [sql, params] = mockConn.execute.mock.calls[0];
       expect(sql).toContain('movie_watch_status');
       expect(sql).toContain('rewatch_count = rewatch_count + 1');
@@ -309,10 +327,14 @@ describe('watchHistoryDb Module', () => {
       await recordEpisodeRewatch(mockConn, 6, 55);
 
       expect(mockConn.execute).toHaveBeenCalledTimes(1);
-      expect(mockConn.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO episode_watch_history'),
-        [6, 55, null, false, 6, 55],
-      );
+      expect(mockConn.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO episode_watch_history'), [
+        6,
+        55,
+        null,
+        false,
+        6,
+        55,
+      ]);
     });
   });
 
@@ -369,10 +391,7 @@ describe('watchHistoryDb Module', () => {
       const result = await getEpisodeWatchCount(1, 100);
 
       expect(result).toBe(3);
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.stringContaining('episode_watch_history'),
-        [1, 100],
-      );
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('episode_watch_history'), [1, 100]);
     });
 
     it('should return 0 when no history rows exist', async () => {
@@ -416,9 +435,7 @@ describe('watchHistoryDb Module', () => {
     it('should return items and totalCount for contentType=all (default)', async () => {
       const mockItems = [makeEpisodeRow()];
 
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 1 }], []])
-        .mockResolvedValueOnce([mockItems, []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 1 }], []]).mockResolvedValueOnce([mockItems, []]);
 
       const result = await getWatchHistoryForProfile(1, 1, 10);
 
@@ -430,9 +447,7 @@ describe('watchHistoryDb Module', () => {
     it('should return items for contentType=episode', async () => {
       const mockItems = [makeEpisodeRow()];
 
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 1 }], []])
-        .mockResolvedValueOnce([mockItems, []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 1 }], []]).mockResolvedValueOnce([mockItems, []]);
 
       const result = await getWatchHistoryForProfile(1, 1, 10, 'episode');
 
@@ -448,9 +463,7 @@ describe('watchHistoryDb Module', () => {
         episodeNumber: null,
       });
 
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 1 }], []])
-        .mockResolvedValueOnce([[mockMovieRow], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 1 }], []]).mockResolvedValueOnce([[mockMovieRow], []]);
 
       const result = await getWatchHistoryForProfile(1, 1, 10, 'movie');
 
@@ -459,9 +472,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should return totalCount=0 and empty items when no results', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       const result = await getWatchHistoryForProfile(1, 1, 10);
 
@@ -470,9 +481,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should default totalCount to 0 when count row is missing', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[], []]).mockResolvedValueOnce([[], []]);
 
       const result = await getWatchHistoryForProfile(1, 1, 10);
 
@@ -480,9 +489,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should use ASC sort order when sortOrder=asc', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'all', 'asc');
 
@@ -492,9 +499,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should clamp page to 1 when page <= 0', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 0, 10);
 
@@ -504,9 +509,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should clamp pageSize to 100 when pageSize > 100', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 500);
 
@@ -515,9 +518,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should include date range params when dateFrom and dateTo are provided', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'all', 'desc', '2024-01-01', '2024-01-31');
 
@@ -527,9 +528,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should include isPriorWatch filter params when isPriorWatchOnly=true', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'episode', 'desc', undefined, undefined, true);
 
@@ -538,9 +537,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should include excludePriorWatch filter when excludePriorWatch=true', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'episode', 'desc', undefined, undefined, false, undefined, true);
 
@@ -549,9 +546,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should apply isPriorWatchOnly filter to movie query when contentType=movie', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'movie', 'desc', undefined, undefined, true);
 
@@ -560,9 +555,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should apply excludePriorWatch filter to movie query when contentType=movie', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'movie', 'desc', undefined, undefined, false, undefined, true);
 
@@ -571,9 +564,7 @@ describe('watchHistoryDb Module', () => {
     });
 
     it('should include search query LIKE param when searchQuery is provided', async () => {
-      mockPool.execute
-        .mockResolvedValueOnce([[{ total: 0 }], []])
-        .mockResolvedValueOnce([[], []]);
+      mockPool.execute.mockResolvedValueOnce([[{ total: 0 }], []]).mockResolvedValueOnce([[], []]);
 
       await getWatchHistoryForProfile(1, 1, 10, 'all', 'desc', undefined, undefined, false, 'Breaking');
 
