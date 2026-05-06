@@ -395,7 +395,7 @@ describe('notificationDb', () => {
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'INSERT INTO notifications (title, message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?,?)',
-        ['Test title', 'Test message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 1, null, 'general'],
+        ['Test title', 'Test message', '2025-05-01 00:00:00', '2025-05-31 00:00:00', 1, null, 'general'],
       );
 
       expect(mockConnection.execute).toHaveBeenNthCalledWith(2, 'SELECT account_id, account_name, email FROM accounts');
@@ -431,7 +431,7 @@ describe('notificationDb', () => {
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         1,
         'INSERT INTO notifications (title, message, start_date, end_date, send_to_all, account_id, type) VALUES (?,?,?,?,?,?,?)',
-        ['Test title', 'Test message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 0, 5, 'general'],
+        ['Test title', 'Test message', '2025-05-01 00:00:00', '2025-05-31 00:00:00', 0, 5, 'general'],
       );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(
         2,
@@ -500,7 +500,7 @@ describe('notificationDb', () => {
 
       expect(mockExecute).toHaveBeenCalledWith(
         'UPDATE notifications SET title = ?, message = ?, start_date = ?, end_date = ?, type = ?, send_to_all = ?, account_id = ? WHERE notification_id = ?',
-        ['Updated title', 'Updated message', '2025-04-30 19:00:00', '2025-05-30 19:00:00', 'general', 1, null, 123],
+        ['Updated title', 'Updated message', '2025-05-01 00:00:00', '2025-05-31 00:00:00', 'general', 1, null, 123],
       );
     });
 
@@ -663,7 +663,7 @@ describe('notificationDb', () => {
 
       expect(mockExecute).toHaveBeenCalledWith(
         'SELECT * FROM notifications WHERE end_date > NOW() AND start_date >= ? AND end_date <= ? ORDER BY start_date DESC LIMIT 50 OFFSET 0',
-        ['2024-12-31 18:00:00', '2025-12-30 18:00:00'],
+        ['2025-01-01 00:00:00', '2025-12-31 00:00:00'],
       );
     });
 
@@ -701,7 +701,7 @@ describe('notificationDb', () => {
 
       expect(mockExecute).toHaveBeenCalledWith(
         'SELECT COUNT(*) AS total FROM notifications WHERE end_date > NOW() AND type = ? AND start_date >= ?',
-        ['maintenance', '2024-12-31 18:00:00'],
+        ['maintenance', '2025-01-01 00:00:00'],
       );
       expect(result).toBe(2);
     });
