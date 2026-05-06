@@ -3,6 +3,7 @@ export default {
   proseWrap: 'always',
   printWidth: 120,
   tabWidth: 2,
+  endOfLine: 'lf',
   plugins: ['@trivago/prettier-plugin-sort-imports'],
   importOrder: ['module-alias/register', 'dotenv', 'react', '<THIRD_PARTY_MODULES>'],
   importOrderSeparation: true,
