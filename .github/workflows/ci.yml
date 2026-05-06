@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  ci:
+    name: Lint, Type-Check & Test
+    runs-on: ubuntu-latest
+    env:
+      GIT_NPM_TOKEN: ${{ secrets.GIT_NPM_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check formatting
+        run: yarn format:check
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Type check
+        run: yarn type-check
+
+      - name: Run tests with coverage
+        run: yarn test:coverage
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
+          cat coverage/coverage-summary.json \
+            | node -e "
+              const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
+              const t = data.total;
+              const fmt = (x) => x.pct.toFixed(1) + '%';
+              console.log('| Category   | Coverage |');
+              console.log('|---|---|');
+              console.log('| Statements | ' + fmt(t.statements) + ' |');
+              console.log('| Branches   | ' + fmt(t.branches)   + ' |');
+              console.log('| Functions  | ' + fmt(t.functions)  + ' |');
+              console.log('| Lines      | ' + fmt(t.lines)      + ' |');
+            " >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Audit dependencies
+        run: yarn audit --level high || true
