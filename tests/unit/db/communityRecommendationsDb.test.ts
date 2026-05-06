@@ -65,9 +65,9 @@ describe('communityRecommendationsDb Module', () => {
   describe('addRecommendation()', () => {
     it('should insert and return a ProfileRecommendation when no duplicate exists', async () => {
       mockExecute
-        .mockResolvedValueOnce([[]])                                          // SELECT existing: empty
+        .mockResolvedValueOnce([[]]) // SELECT existing: empty
         .mockResolvedValueOnce([{ insertId: 1, affectedRows: 1 } as ResultSetHeader]) // INSERT
-        .mockResolvedValueOnce([[mockProfileRecommendationRow]]);             // SELECT by insertId
+        .mockResolvedValueOnce([[mockProfileRecommendationRow]]); // SELECT by insertId
 
       const result = await communityRecommendationsDb.addRecommendation(10, 'show', 42, 5, 'You must watch this!');
 
@@ -78,9 +78,9 @@ describe('communityRecommendationsDb Module', () => {
     it('should throw ConflictError when profile has already recommended this content', async () => {
       mockExecute.mockResolvedValueOnce([[{ id: 1 }]]); // SELECT finds existing record
 
-      await expect(
-        communityRecommendationsDb.addRecommendation(10, 'show', 42, 5, 'msg'),
-      ).rejects.toThrow(ConflictError);
+      await expect(communityRecommendationsDb.addRecommendation(10, 'show', 42, 5, 'msg')).rejects.toThrow(
+        ConflictError,
+      );
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
     });
@@ -102,9 +102,9 @@ describe('communityRecommendationsDb Module', () => {
     it('should throw DatabaseError on unexpected database failure', async () => {
       mockExecute.mockRejectedValue(new Error('Connection lost'));
 
-      await expect(
-        communityRecommendationsDb.addRecommendation(10, 'show', 42, 5, 'msg'),
-      ).rejects.toThrow(DatabaseError);
+      await expect(communityRecommendationsDb.addRecommendation(10, 'show', 42, 5, 'msg')).rejects.toThrow(
+        DatabaseError,
+      );
     });
   });
 
@@ -115,26 +115,25 @@ describe('communityRecommendationsDb Module', () => {
       await communityRecommendationsDb.removeRecommendation(10, 'show', 42);
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM profile_recommendations'),
-        [10, 'show', 42],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM profile_recommendations'), [
+        10,
+        'show',
+        42,
+      ]);
     });
 
     it('should throw NoAffectedRowsError when recommendation does not exist', async () => {
       mockExecute.mockResolvedValue([{ affectedRows: 0 } as ResultSetHeader]);
 
-      await expect(
-        communityRecommendationsDb.removeRecommendation(10, 'show', 999),
-      ).rejects.toThrow(NoAffectedRowsError);
+      await expect(communityRecommendationsDb.removeRecommendation(10, 'show', 999)).rejects.toThrow(
+        NoAffectedRowsError,
+      );
     });
 
     it('should throw DatabaseError on unexpected database failure', async () => {
       mockExecute.mockRejectedValue(new Error('Connection lost'));
 
-      await expect(
-        communityRecommendationsDb.removeRecommendation(10, 'show', 42),
-      ).rejects.toThrow(DatabaseError);
+      await expect(communityRecommendationsDb.removeRecommendation(10, 'show', 42)).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -145,10 +144,7 @@ describe('communityRecommendationsDb Module', () => {
       const result = await communityRecommendationsDb.getRecommendationsForProfile(10);
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('profile_id = ?'),
-        [10],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('profile_id = ?'), [10]);
       expect(result).toEqual([expectedProfileRecommendation]);
     });
 
@@ -163,9 +159,7 @@ describe('communityRecommendationsDb Module', () => {
     it('should throw DatabaseError on unexpected database failure', async () => {
       mockExecute.mockRejectedValue(new Error('Connection lost'));
 
-      await expect(
-        communityRecommendationsDb.getRecommendationsForProfile(10),
-      ).rejects.toThrow(DatabaseError);
+      await expect(communityRecommendationsDb.getRecommendationsForProfile(10)).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -190,10 +184,7 @@ describe('communityRecommendationsDb Module', () => {
       const result = await communityRecommendationsDb.getRecommendationDetails('show', 42);
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('content_type = ?'),
-        ['show', 42],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('content_type = ?'), ['show', 42]);
       expect(result).toEqual([expectedDetail]);
     });
 
@@ -219,9 +210,7 @@ describe('communityRecommendationsDb Module', () => {
     it('should throw DatabaseError on unexpected database failure', async () => {
       mockExecute.mockRejectedValue(new Error('Connection lost'));
 
-      await expect(
-        communityRecommendationsDb.getRecommendationDetails('show', 42),
-      ).rejects.toThrow(DatabaseError);
+      await expect(communityRecommendationsDb.getRecommendationDetails('show', 42)).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -276,9 +265,7 @@ describe('communityRecommendationsDb Module', () => {
     it('should throw DatabaseError on unexpected database failure', async () => {
       mockExecute.mockRejectedValue(new Error('Connection lost'));
 
-      await expect(
-        communityRecommendationsDb.getCommunityRecommendations(),
-      ).rejects.toThrow(DatabaseError);
+      await expect(communityRecommendationsDb.getCommunityRecommendations()).rejects.toThrow(DatabaseError);
     });
   });
 
@@ -298,17 +285,13 @@ describe('communityRecommendationsDb Module', () => {
     it('should throw NoAffectedRowsError when recommendation is not found', async () => {
       mockExecute.mockResolvedValue([{ affectedRows: 0 } as ResultSetHeader]);
 
-      await expect(
-        communityRecommendationsDb.adminDeleteRecommendation(999),
-      ).rejects.toThrow(NoAffectedRowsError);
+      await expect(communityRecommendationsDb.adminDeleteRecommendation(999)).rejects.toThrow(NoAffectedRowsError);
     });
 
     it('should throw DatabaseError on unexpected database failure', async () => {
       mockExecute.mockRejectedValue(new Error('Connection lost'));
 
-      await expect(
-        communityRecommendationsDb.adminDeleteRecommendation(1),
-      ).rejects.toThrow(DatabaseError);
+      await expect(communityRecommendationsDb.adminDeleteRecommendation(1)).rejects.toThrow(DatabaseError);
     });
   });
 });

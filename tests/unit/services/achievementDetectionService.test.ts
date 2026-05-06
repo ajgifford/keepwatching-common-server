@@ -436,11 +436,13 @@ describe('AchievementDetectionService', () => {
     it('should continue processing even if one profile fails', async () => {
       const profileIds = [1, 2, 3];
 
-      (statisticsDb.getWatchCounts as jest.Mock).mockRejectedValueOnce(new Error('Profile 1 failed')).mockResolvedValue({
-        episodes: 100,
-        movies: 25,
-        hours: 100,
-      });
+      (statisticsDb.getWatchCounts as jest.Mock)
+        .mockRejectedValueOnce(new Error('Profile 1 failed'))
+        .mockResolvedValue({
+          episodes: 100,
+          movies: 25,
+          hours: 100,
+        });
 
       (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
       (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);

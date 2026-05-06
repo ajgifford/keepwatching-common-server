@@ -2,7 +2,6 @@ import { AdminProfileRow, ProfileRow, transformAdminProfile, transformProfile } 
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { RowDataPacket } from 'mysql2';
 import {
   AdminProfile,
   CreateProfileRequest,
@@ -10,6 +9,7 @@ import {
   UpdateProfileImageRequest,
   UpdateProfileNameRequest,
 } from '@ajgifford/keepwatching-types';
+import { RowDataPacket } from 'mysql2';
 import { ResultSetHeader } from 'mysql2';
 
 export async function saveProfile(profileRequest: CreateProfileRequest): Promise<number> {

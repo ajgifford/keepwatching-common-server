@@ -88,14 +88,16 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
       });
 
       // Verify first episode call params
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('is_prior_watch'),
-        [profileId, 101, '2023-01-01'],
-      );
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('is_prior_watch'),
-        [profileId, 102, '2023-01-08'],
-      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch'), [
+        profileId,
+        101,
+        '2023-01-01',
+      ]);
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch'), [
+        profileId,
+        102,
+        '2023-01-08',
+      ]);
     });
 
     it('should return zero affectedRows for empty map', async () => {
@@ -111,9 +113,7 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
       const dbError = new Error('Database connection failed');
       mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
 
-      await expect(
-        watchStatusDbService.markEpisodesAsPriorWatched(profileId, episodeAirDateMap),
-      ).rejects.toThrow();
+      await expect(watchStatusDbService.markEpisodesAsPriorWatched(profileId, episodeAirDateMap)).rejects.toThrow();
 
       expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'marking episodes as prior watched');
     });
@@ -144,10 +144,7 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
 
       const result = await watchStatusDbService.detectBulkMarkedShows(profileId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.stringContaining('is_prior_watch = FALSE'),
-        [profileId],
-      );
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch = FALSE'), [profileId]);
       expect(mockPool.execute).toHaveBeenCalledWith(
         expect.stringContaining('HAVING COUNT(*) >= 10'),
         expect.any(Array),
@@ -208,10 +205,10 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
 
       expect(result.success).toBe(true);
       expect(result.affectedRows).toBe(10);
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('is_prior_watch = TRUE'),
-        [profileId, showId],
-      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch = TRUE'), [
+        profileId,
+        showId,
+      ]);
     });
 
     it('should filter by seasonIds when provided', async () => {
@@ -233,31 +230,35 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
       expect(result.success).toBe(true);
       expect(result.affectedRows).toBe(5);
       // Should include season filter in query
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('se.id IN'),
-        [profileId, showId, ...seasonIds],
-      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('se.id IN'), [
+        profileId,
+        showId,
+        ...seasonIds,
+      ]);
     });
 
     it('should not add season filter for empty seasonIds array', async () => {
-      const updateResult = { affectedRows: 3, insertId: 0, info: '', serverStatus: 0, warningStatus: 0, changedRows: 0, fieldCount: 0 } as ResultSetHeader;
+      const updateResult = {
+        affectedRows: 3,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
       mockConnection.execute.mockResolvedValueOnce([updateResult, []]);
 
       await watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId, []);
 
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.not.stringContaining('se.id IN'),
-        [profileId, showId],
-      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.not.stringContaining('se.id IN'), [profileId, showId]);
     });
 
     it('should handle database errors', async () => {
       const dbError = new Error('Update failed');
       mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
 
-      await expect(
-        watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId),
-      ).rejects.toThrow();
+      await expect(watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId)).rejects.toThrow();
 
       expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'retroactively marking show as prior watched');
     });
@@ -290,10 +291,7 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
 
       await watchStatusDbService.getEpisodeAirDatesForShow(profileId, showId, 2);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.stringContaining('season_number <='),
-        [showId, 2],
-      );
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('season_number <='), [showId, 2]);
     });
 
     it('should not add season filter when upToSeasonNumber is not provided', async () => {
@@ -301,10 +299,7 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
 
       await watchStatusDbService.getEpisodeAirDatesForShow(profileId, showId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.not.stringContaining('season_number <='),
-        [showId],
-      );
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.not.stringContaining('season_number <='), [showId]);
     });
 
     it('should only include episodes with air dates on or before today', async () => {
@@ -312,10 +307,7 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
 
       await watchStatusDbService.getEpisodeAirDatesForShow(profileId, showId);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.stringContaining('CURDATE()'),
-        expect.any(Array),
-      );
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('CURDATE()'), expect.any(Array));
     });
 
     it('should return empty map when no episodes exist', async () => {
@@ -330,9 +322,7 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
     it('should handle database errors', async () => {
       mockPool.execute.mockRejectedValueOnce(new Error('Query failed'));
 
-      await expect(
-        watchStatusDbService.getEpisodeAirDatesForShow(profileId, showId),
-      ).rejects.toThrow('Query failed');
+      await expect(watchStatusDbService.getEpisodeAirDatesForShow(profileId, showId)).rejects.toThrow('Query failed');
     });
   });
 });

@@ -130,7 +130,7 @@ export function transformProfileShowWatchProgress(row: ProfileShowWatchProgressR
   const totalEpisodes = Number(row.total_episodes) || 0;
   const watchedEpisodes = Number(row.watched_episodes) || 0;
   const unairedEpisodes = Number(row.unaired_episodes) || 0;
-  
+
   return {
     showId: row.show_id,
     title: row.title,
@@ -138,9 +138,6 @@ export function transformProfileShowWatchProgress(row: ProfileShowWatchProgressR
     totalEpisodes,
     watchedEpisodes,
     unairedEpisodes,
-    percentComplete:
-      totalEpisodes > 0
-        ? Math.round((watchedEpisodes / (totalEpisodes - unairedEpisodes)) * 100)
-        : 0,
+    percentComplete: totalEpisodes > 0 ? Math.round((watchedEpisodes / (totalEpisodes - unairedEpisodes)) * 100) : 0,
   };
 }

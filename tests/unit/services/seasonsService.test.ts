@@ -2,11 +2,7 @@ import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as seasonsDb from '@db/seasonsDb';
 import { appLogger } from '@logger/logger';
 import { errorService } from '@services/errorService';
-import {
-  SeasonsService,
-  createSeasonsService,
-  resetSeasonsService,
-} from '@services/seasonsService';
+import { SeasonsService, createSeasonsService, resetSeasonsService } from '@services/seasonsService';
 import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
 

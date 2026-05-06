@@ -1,5 +1,5 @@
-import { logRequestContext } from '@middleware/contextMiddleware';
 import { requestContext } from '../../../src/context/requestContext';
+import { logRequestContext } from '@middleware/contextMiddleware';
 import { NextFunction, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
 
@@ -189,10 +189,7 @@ describe('Context Middleware', () => {
       logRequestContext(mockRequest as Request, mockResponse as Response, mockNext);
 
       // Verify error was logged
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in logRequestContext:',
-        expect.any(Error)
-      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error in logRequestContext:', expect.any(Error));
 
       // Verify next was still called
       expect(mockNext).toHaveBeenCalledTimes(1);
@@ -209,7 +206,7 @@ describe('Context Middleware', () => {
       // Verify error was logged
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error in logRequestContext:',
-        expect.objectContaining({ message: 'AsyncLocalStorage error' })
+        expect.objectContaining({ message: 'AsyncLocalStorage error' }),
       );
 
       // Verify next was still called
@@ -276,9 +273,7 @@ describe('Context Middleware', () => {
         url: '/request2',
       };
 
-      (uuid as jest.Mock)
-        .mockReturnValueOnce('uuid-1')
-        .mockReturnValueOnce('uuid-2');
+      (uuid as jest.Mock).mockReturnValueOnce('uuid-1').mockReturnValueOnce('uuid-2');
 
       let completedRequests = 0;
 

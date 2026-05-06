@@ -3,11 +3,7 @@ import { createMockCache, setupMocks } from './helpers/mocks';
 import * as showsDb from '@db/showsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import {
-  ShowService,
-  createShowService,
-  resetShowService,
-} from '@services/showService';
+import { ShowService, createShowService, resetShowService } from '@services/showService';
 
 describe('ShowService - Statistics', () => {
   let service: ShowService;

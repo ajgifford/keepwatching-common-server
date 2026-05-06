@@ -1,4 +1,3 @@
-import { RowDataPacket } from 'mysql2';
 import { NotFoundError } from '../../middleware/errorMiddleware';
 import { ContentCountRow } from '../../types/contentTypes';
 import {
@@ -20,6 +19,7 @@ import {
   MovieFilters,
   MovieReference,
 } from '@ajgifford/keepwatching-types';
+import { RowDataPacket } from 'mysql2';
 
 export async function getMoviesCount(): Promise<number> {
   try {

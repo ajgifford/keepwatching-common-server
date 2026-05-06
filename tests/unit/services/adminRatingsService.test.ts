@@ -71,9 +71,9 @@ describe('AdminRatingsService', () => {
       const dbError = new Error('DB connection failed');
       (ratingsDb.getAggregateRatingsForContent as jest.Mock).mockRejectedValue(dbError);
 
-      await expect(
-        adminRatingsService.getAggregateRatingsForContent(mockContentType, mockContentId),
-      ).rejects.toThrow(dbError);
+      await expect(adminRatingsService.getAggregateRatingsForContent(mockContentType, mockContentId)).rejects.toThrow(
+        dbError,
+      );
 
       expect(errorService.handleError).toHaveBeenCalledWith(
         dbError,
@@ -139,10 +139,7 @@ describe('AdminRatingsService', () => {
       const filters = { contentType: 'show' as RatingContentType };
       await expect(adminRatingsService.getAllRatings(filters)).rejects.toThrow(dbError);
 
-      expect(errorService.handleError).toHaveBeenCalledWith(
-        dbError,
-        `getAllRatings(${JSON.stringify(filters)})`,
-      );
+      expect(errorService.handleError).toHaveBeenCalledWith(dbError, `getAllRatings(${JSON.stringify(filters)})`);
     });
   });
 

@@ -11,11 +11,11 @@ import {
 import { BulkMarkedShowRow, WatchStatusDbService } from '../db/watchStatusDb';
 import { transformWatchHistoryRow } from '../types/watchHistoryTypes';
 import { TransactionHelper } from '../utils/transactionHelper';
-import { BulkMarkedShow, ProfileMovie, UpdateWatchStatusData, WatchHistoryItem } from '@ajgifford/keepwatching-types';
 import { errorService } from './errorService';
 import { moviesService } from './moviesService';
 import { showService } from './showService';
 import { watchStatusService } from './watchStatusService';
+import { BulkMarkedShow, ProfileMovie, UpdateWatchStatusData, WatchHistoryItem } from '@ajgifford/keepwatching-types';
 
 /**
  * Service for managing prior watch history and watch history cleanup
@@ -142,10 +142,7 @@ export class WatchHistoryService {
     try {
       await watchStatusService.retroactivelyMarkShowAsPrior(accountId, profileId, showId, seasonIds);
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `retroactivelyMarkShowAsPrior(${accountId}, ${profileId}, ${showId})`,
-      );
+      throw errorService.handleError(error, `retroactivelyMarkShowAsPrior(${accountId}, ${profileId}, ${showId})`);
     }
   }
 

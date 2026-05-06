@@ -288,7 +288,10 @@ describe('EmailContentService', () => {
       const profileWithContent = { id: 1, name: 'Profile 1' };
       const profileWithoutContent = { id: 2, name: 'Profile 2' };
 
-      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([profileWithContent, profileWithoutContent]);
+      (profileService.getProfilesByAccountId as jest.Mock).mockResolvedValue([
+        profileWithContent,
+        profileWithoutContent,
+      ]);
 
       (episodesService.getUpcomingEpisodesForProfile as jest.Mock).mockImplementation((profileId) => {
         if (profileId === 1) return Promise.resolve([mockUpcomingEpisode]);

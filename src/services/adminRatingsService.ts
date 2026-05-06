@@ -1,6 +1,6 @@
-import { AdminContentRatingSummary, AdminRatingWithProfile, RatingContentType } from '@ajgifford/keepwatching-types';
 import * as ratingsDb from '../db/ratingsDb';
 import { errorService } from './errorService';
+import { AdminContentRatingSummary, AdminRatingWithProfile, RatingContentType } from '@ajgifford/keepwatching-types';
 
 export class AdminRatingsService {
   async getAggregateRatingsForContent(

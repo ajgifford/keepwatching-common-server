@@ -1,6 +1,6 @@
 import { PROFILE_KEYS } from '../../constants/cacheKeys';
-import * as statisticsDb from '../../db/statisticsDb';
 import { getProfileRewatchStats } from '../../db/statistics/rewatchRepository';
+import * as statisticsDb from '../../db/statisticsDb';
 import { CacheService } from '../cacheService';
 import { errorService } from '../errorService';
 import { moviesService } from '../moviesService';

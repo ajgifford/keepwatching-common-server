@@ -6,10 +6,10 @@ import {
   MonthlyPerformanceSummary,
   SlowestQuery,
 } from '@ajgifford/keepwatching-types';
+import * as performanceArchiveDb from '@db/performanceArchiveDb';
 import { errorService } from '@services/errorService';
 import { HealthService, healthService } from '@services/healthService';
 import { getDbPool } from '@utils/db';
-import * as performanceArchiveDb from '@db/performanceArchiveDb';
 import * as performanceArchiveUtil from '@utils/performanceArchiveUtil';
 
 // Mock must be defined before it's used
@@ -428,9 +428,7 @@ describe('HealthService', () => {
       const queryHash = 'abc123';
       const startDate = new Date('2025-01-01');
       const endDate = new Date('2025-01-07');
-      const mockTrends = [
-        { date: '2025-01-01', avgDuration: 100, maxDuration: 200, callCount: 50 },
-      ];
+      const mockTrends = [{ date: '2025-01-01', avgDuration: 100, maxDuration: 200, callCount: 50 }];
 
       (performanceArchiveDb.getPerformanceTrends as jest.Mock).mockResolvedValue(mockTrends);
 
@@ -613,11 +611,7 @@ describe('HealthService', () => {
 
       await healthService.getArchiveLogs(10);
 
-      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith(
-        'performance_archive_logs_10',
-        expect.any(Function),
-        900,
-      );
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith('performance_archive_logs_10', expect.any(Function), 900);
     });
 
     it('should respect custom limit parameter', async () => {
@@ -732,7 +726,11 @@ describe('HealthService', () => {
 
       await healthService.getArchiveStatistics(7);
 
-      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith('performance_archive_stats_7', expect.any(Function), 1800);
+      expect(mockCacheInstance.getOrSet).toHaveBeenCalledWith(
+        'performance_archive_stats_7',
+        expect.any(Function),
+        1800,
+      );
     });
 
     it('should respect custom days parameter', async () => {

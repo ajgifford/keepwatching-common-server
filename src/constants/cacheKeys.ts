@@ -171,8 +171,7 @@ export const PROFILE_KEYS = {
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_unaired_content_stats`,
 
   /** Gets the cache key for profile rewatch statistics */
-  rewatchStats: (profileId: number | string) =>
-    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_rewatch_stats`,
+  rewatchStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_rewatch_stats`,
 };
 
 // Show keys

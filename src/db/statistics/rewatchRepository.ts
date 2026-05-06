@@ -1,17 +1,17 @@
-import { AccountRewatchStats, ProfileRewatchStats } from '@ajgifford/keepwatching-types';
 import {
-  mapRowToRewatchedMovie,
-  mapRowToRewatchedMovieWithProfile,
-  mapRowToRewatchedShow,
-  mapRowToRewatchedShowWithProfile,
   MovieRewatchRow,
   MovieRewatchWithProfileRow,
   RewatchTotalRow,
   ShowRewatchRow,
   ShowRewatchWithProfileRow,
+  mapRowToRewatchedMovie,
+  mapRowToRewatchedMovieWithProfile,
+  mapRowToRewatchedShow,
+  mapRowToRewatchedShowWithProfile,
 } from '../../types/statisticsTypes';
 import { getDbPool } from '../../utils/db';
 import { DbMonitor } from '../../utils/dbMonitoring';
+import { AccountRewatchStats, ProfileRewatchStats } from '@ajgifford/keepwatching-types';
 
 /**
  * Get rewatch statistics for a single profile.

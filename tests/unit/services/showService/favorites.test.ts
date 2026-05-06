@@ -6,11 +6,7 @@ import * as showsDb from '@db/showsDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import {
-  ShowService,
-  createShowService,
-  resetShowService,
-} from '@services/showService';
+import { ShowService, createShowService, resetShowService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
 
 describe('ShowService - Favorites', () => {
@@ -208,7 +204,9 @@ describe('ShowService - Favorites', () => {
         number_of_episodes: 6,
       };
 
-      (seasonsDb.saveSeason as jest.Mock).mockResolvedValueOnce(mockSavedSeason1).mockResolvedValueOnce(mockSavedSeason2);
+      (seasonsDb.saveSeason as jest.Mock)
+        .mockResolvedValueOnce(mockSavedSeason1)
+        .mockResolvedValueOnce(mockSavedSeason2);
 
       (seasonsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
 

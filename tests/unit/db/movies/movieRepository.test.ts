@@ -272,9 +272,7 @@ describe('movieRepository', () => {
   describe('updateWatchStatus', () => {
     it('should update watch status with CURRENT_TIMESTAMP and is_prior_watch when status is WATCHED', async () => {
       // First call: UPDATE (affectedRows: 1), second call: INSERT into history
-      mockConnection.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([{ insertId: 1 }]);
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([{ insertId: 1 }]);
 
       const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED');
 
@@ -288,9 +286,7 @@ describe('movieRepository', () => {
 
     it('should use provided watchedAt date and isPriorWatch when WATCHED with both args', async () => {
       // First call: UPDATE (affectedRows: 1), second call: INSERT into history
-      mockConnection.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([{ insertId: 1 }]);
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([{ insertId: 1 }]);
 
       const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED', true, '2001-07-27');
 
@@ -298,10 +294,14 @@ describe('movieRepository', () => {
         expect.stringContaining('watched_at = ?, is_prior_watch = ?'),
         ['WATCHED', '2001-07-27', true, 123, 456],
       );
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO movie_watch_history'),
-        [123, 456, '2001-07-27', true, 123, 456],
-      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO movie_watch_history'), [
+        123,
+        456,
+        '2001-07-27',
+        true,
+        123,
+        456,
+      ]);
       expect(result).toBe(true);
     });
 
@@ -311,10 +311,11 @@ describe('movieRepository', () => {
       const result = await moviesDb.updateWatchStatus(123, 456, 'NOT_WATCHED');
 
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalled();
-      expect(mockConnection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('is_prior_watch = FALSE'),
-        ['NOT_WATCHED', 123, 456],
-      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch = FALSE'), [
+        'NOT_WATCHED',
+        123,
+        456,
+      ]);
       expect(result).toBe(true);
     });
 

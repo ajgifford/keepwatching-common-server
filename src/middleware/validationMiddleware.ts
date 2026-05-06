@@ -7,7 +7,10 @@ import { ZodError, ZodObject, ZodRawShape } from 'zod';
  * @param schema The Zod schema to validate against
  * @param source Where to find the data to validate ('query', 'body', 'params')
  */
-export const validateSchema = <T extends ZodObject<ZodRawShape>>(schema: T, source: 'query' | 'body' | 'params' = 'body') => {
+export const validateSchema = <T extends ZodObject<ZodRawShape>>(
+  schema: T,
+  source: 'query' | 'body' | 'params' = 'body',
+) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       let data: unknown;

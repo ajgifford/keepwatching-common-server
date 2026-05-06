@@ -1,8 +1,9 @@
 import { CACHE_KEY_PATTERNS, PERSON_KEYS } from '../constants/cacheKeys';
-import * as personsDb from '../db/personsDb';
 import * as personFailuresDb from '../db/personFailuresDb';
+import * as personsDb from '../db/personsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
+import { UpdatePersonResult } from '../types/personTypes';
 import { TMDBCredit, TMDBPerson } from '../types/tmdbTypes';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
@@ -16,7 +17,6 @@ import {
   SearchPerson,
   SearchPersonCredits,
 } from '@ajgifford/keepwatching-types';
-import { UpdatePersonResult } from '../types/personTypes';
 
 export class PersonService {
   private cache: CacheService;
@@ -189,7 +189,10 @@ export class PersonService {
     }
   }
 
-  public async mergeAndDeletePerson(invalidPersonId: number, validPersonId: number): Promise<{ showsMerged: number; moviesMerged: number }> {
+  public async mergeAndDeletePerson(
+    invalidPersonId: number,
+    validPersonId: number,
+  ): Promise<{ showsMerged: number; moviesMerged: number }> {
     try {
       const mergeResult = await personsDb.mergePersonCredits(invalidPersonId, validPersonId);
       await personFailuresDb.updatePersonFailureStatus(

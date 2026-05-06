@@ -377,9 +377,10 @@ describe('showRepository', () => {
 
       const show = await showsDb.findShowByTMDBId(12345);
 
-      expect(mockExecute).toHaveBeenCalledWith('SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?', [
-        12345,
-      ]);
+      expect(mockExecute).toHaveBeenCalledWith(
+        'SELECT id, tmdb_id, title, release_date FROM shows WHERE tmdb_id = ?',
+        [12345],
+      );
       expect(show).not.toBeNull();
       expect(show!.id).toBe(5);
     });

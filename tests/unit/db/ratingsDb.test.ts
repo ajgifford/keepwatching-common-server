@@ -51,13 +51,11 @@ describe('ratingsDb Module', () => {
     });
 
     it('should throw NotFoundError when rating is not found after upsert', async () => {
-      mockExecute
-        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([[]]); // empty SELECT
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]).mockResolvedValueOnce([[]]); // empty SELECT
 
-      await expect(
-        ratingsDb.upsertRating(10, 'show', 42, 5, null, 'Breaking Bad', '/poster.jpg'),
-      ).rejects.toThrow(NotFoundError);
+      await expect(ratingsDb.upsertRating(10, 'show', 42, 5, null, 'Breaking Bad', '/poster.jpg')).rejects.toThrow(
+        NotFoundError,
+      );
     });
 
     it('should handle null note and store it correctly', async () => {
@@ -76,9 +74,9 @@ describe('ratingsDb Module', () => {
     it('should throw DatabaseError on unexpected database failure', async () => {
       mockExecute.mockRejectedValue(new Error('Connection lost'));
 
-      await expect(
-        ratingsDb.upsertRating(10, 'show', 42, 5, null, 'Breaking Bad', '/poster.jpg'),
-      ).rejects.toThrow(DatabaseError);
+      await expect(ratingsDb.upsertRating(10, 'show', 42, 5, null, 'Breaking Bad', '/poster.jpg')).rejects.toThrow(
+        DatabaseError,
+      );
     });
   });
 
@@ -89,10 +87,7 @@ describe('ratingsDb Module', () => {
       const result = await ratingsDb.getRatingsForProfile(10);
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('profile_id = ?'),
-        [10],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('profile_id = ?'), [10]);
       expect(result).toEqual([expectedContentRating]);
     });
 
@@ -220,10 +215,7 @@ describe('ratingsDb Module', () => {
       await ratingsDb.deleteRating(10, 1);
 
       expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM profile_content_ratings'),
-        [1, 10],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM profile_content_ratings'), [1, 10]);
     });
 
     it('should throw NoAffectedRowsError when rating is not found or does not belong to profile', async () => {

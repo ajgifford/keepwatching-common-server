@@ -40,13 +40,7 @@ export default [
     rules: { '@typescript-eslint/no-floating-promises': 'error' },
   },
   {
-    files: [
-      'test/**/*',
-      'tests/**/*',
-      '*/testing/**',
-      '**/*.test.ts',
-      '**/*.spec.ts',
-    ],
+    files: ['test/**/*', 'tests/**/*', '*/testing/**', '**/*.test.ts', '**/*.spec.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off',

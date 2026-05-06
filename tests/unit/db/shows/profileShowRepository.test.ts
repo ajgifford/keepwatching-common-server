@@ -703,10 +703,7 @@ describe('profileShowRepository', () => {
 
       await showsDb.getNextUnwatchedEpisodesForProfile(123);
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('rewatch_count > 0'),
-        expect.any(Array),
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('rewatch_count > 0'), expect.any(Array));
     });
 
     it('should handle database error properly', async () => {

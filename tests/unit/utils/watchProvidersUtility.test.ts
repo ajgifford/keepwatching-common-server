@@ -66,9 +66,24 @@ describe('watchProvidersUtility', () => {
             US: {
               link: 'https://example.com',
               flatrate: [
-                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
-                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
-                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo3.png', display_priority: 3 },
+                {
+                  provider_id: 1853,
+                  provider_name: 'Paramount Plus Apple TV Channel',
+                  logo_path: '/logo1.png',
+                  display_priority: 1,
+                },
+                {
+                  provider_id: 633,
+                  provider_name: 'Paramount+ Roku Premium Channel',
+                  logo_path: '/logo2.png',
+                  display_priority: 2,
+                },
+                {
+                  provider_id: 2616,
+                  provider_name: 'Paramount Plus Essential',
+                  logo_path: '/logo3.png',
+                  display_priority: 3,
+                },
               ],
             },
           },
@@ -90,10 +105,30 @@ describe('watchProvidersUtility', () => {
             US: {
               link: 'https://example.com',
               flatrate: [
-                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
-                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
-                { provider_id: 2303, provider_name: 'Paramount Plus Premium', logo_path: '/logo3.png', display_priority: 3 },
-                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo4.png', display_priority: 4 },
+                {
+                  provider_id: 1853,
+                  provider_name: 'Paramount Plus Apple TV Channel',
+                  logo_path: '/logo1.png',
+                  display_priority: 1,
+                },
+                {
+                  provider_id: 633,
+                  provider_name: 'Paramount+ Roku Premium Channel',
+                  logo_path: '/logo2.png',
+                  display_priority: 2,
+                },
+                {
+                  provider_id: 2303,
+                  provider_name: 'Paramount Plus Premium',
+                  logo_path: '/logo3.png',
+                  display_priority: 3,
+                },
+                {
+                  provider_id: 2616,
+                  provider_name: 'Paramount Plus Essential',
+                  logo_path: '/logo4.png',
+                  display_priority: 4,
+                },
               ],
             },
           },
@@ -117,8 +152,18 @@ describe('watchProvidersUtility', () => {
               link: 'https://example.com',
               flatrate: [
                 { provider_id: 8, provider_name: 'Netflix', logo_path: '/logo1.png', display_priority: 1 },
-                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo2.png', display_priority: 2 },
-                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo3.png', display_priority: 3 },
+                {
+                  provider_id: 1853,
+                  provider_name: 'Paramount Plus Apple TV Channel',
+                  logo_path: '/logo2.png',
+                  display_priority: 2,
+                },
+                {
+                  provider_id: 2616,
+                  provider_name: 'Paramount Plus Essential',
+                  logo_path: '/logo3.png',
+                  display_priority: 3,
+                },
               ],
             },
           },
@@ -277,9 +322,24 @@ describe('watchProvidersUtility', () => {
             US: {
               link: 'https://example.com',
               flatrate: [
-                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
-                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
-                { provider_id: 2303, provider_name: 'Paramount Plus Premium', logo_path: '/logo3.png', display_priority: 3 },
+                {
+                  provider_id: 1853,
+                  provider_name: 'Paramount Plus Apple TV Channel',
+                  logo_path: '/logo1.png',
+                  display_priority: 1,
+                },
+                {
+                  provider_id: 633,
+                  provider_name: 'Paramount+ Roku Premium Channel',
+                  logo_path: '/logo2.png',
+                  display_priority: 2,
+                },
+                {
+                  provider_id: 2303,
+                  provider_name: 'Paramount Plus Premium',
+                  logo_path: '/logo3.png',
+                  display_priority: 3,
+                },
               ],
             },
           },
@@ -301,10 +361,30 @@ describe('watchProvidersUtility', () => {
             US: {
               link: 'https://example.com',
               flatrate: [
-                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo1.png', display_priority: 1 },
-                { provider_id: 633, provider_name: 'Paramount+ Roku Premium Channel', logo_path: '/logo2.png', display_priority: 2 },
-                { provider_id: 2303, provider_name: 'Paramount Plus Premium', logo_path: '/logo3.png', display_priority: 3 },
-                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo4.png', display_priority: 4 },
+                {
+                  provider_id: 1853,
+                  provider_name: 'Paramount Plus Apple TV Channel',
+                  logo_path: '/logo1.png',
+                  display_priority: 1,
+                },
+                {
+                  provider_id: 633,
+                  provider_name: 'Paramount+ Roku Premium Channel',
+                  logo_path: '/logo2.png',
+                  display_priority: 2,
+                },
+                {
+                  provider_id: 2303,
+                  provider_name: 'Paramount Plus Premium',
+                  logo_path: '/logo3.png',
+                  display_priority: 3,
+                },
+                {
+                  provider_id: 2616,
+                  provider_name: 'Paramount Plus Essential',
+                  logo_path: '/logo4.png',
+                  display_priority: 4,
+                },
               ],
             },
           },
@@ -328,8 +408,18 @@ describe('watchProvidersUtility', () => {
               link: 'https://example.com',
               flatrate: [
                 { provider_id: 8, provider_name: 'Netflix', logo_path: '/logo1.png', display_priority: 1 },
-                { provider_id: 1853, provider_name: 'Paramount Plus Apple TV Channel', logo_path: '/logo2.png', display_priority: 2 },
-                { provider_id: 2616, provider_name: 'Paramount Plus Essential', logo_path: '/logo3.png', display_priority: 3 },
+                {
+                  provider_id: 1853,
+                  provider_name: 'Paramount Plus Apple TV Channel',
+                  logo_path: '/logo2.png',
+                  display_priority: 2,
+                },
+                {
+                  provider_id: 2616,
+                  provider_name: 'Paramount Plus Essential',
+                  logo_path: '/logo3.png',
+                  display_priority: 3,
+                },
               ],
             },
           },

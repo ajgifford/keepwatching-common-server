@@ -50,14 +50,18 @@ describe('communityRecommendationsService', () => {
 
       const result = await service.addRecommendation(10, 'show', 42, 5, 'You must watch this!');
 
-      expect(communityRecommendationsDb.addRecommendation).toHaveBeenCalledWith(10, 'show', 42, 5, 'You must watch this!');
+      expect(communityRecommendationsDb.addRecommendation).toHaveBeenCalledWith(
+        10,
+        'show',
+        42,
+        5,
+        'You must watch this!',
+      );
       expect(result).toEqual(mockProfileRecommendation);
     });
 
     it('should propagate conflict errors on duplicate recommendation', async () => {
-      (communityRecommendationsDb.addRecommendation as jest.Mock).mockRejectedValue(
-        new Error('Already recommended'),
-      );
+      (communityRecommendationsDb.addRecommendation as jest.Mock).mockRejectedValue(new Error('Already recommended'));
 
       await expect(service.addRecommendation(10, 'show', 42, null, null)).rejects.toThrow();
     });
@@ -135,9 +139,7 @@ describe('communityRecommendationsService', () => {
     });
 
     it('should propagate errors from the DB layer', async () => {
-      (communityRecommendationsDb.getRecommendationDetails as jest.Mock).mockRejectedValue(
-        new Error('DB error'),
-      );
+      (communityRecommendationsDb.getRecommendationDetails as jest.Mock).mockRejectedValue(new Error('DB error'));
 
       await expect(service.getRecommendationDetails('show', 42)).rejects.toThrow();
     });

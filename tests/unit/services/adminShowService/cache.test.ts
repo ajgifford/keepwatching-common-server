@@ -1,10 +1,6 @@
 import { mockShowId } from './helpers/fixtures';
 import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
-import {
-  AdminShowService,
-  createAdminShowService,
-  resetAdminShowService,
-} from '@services/adminShowService';
+import { AdminShowService, createAdminShowService, resetAdminShowService } from '@services/adminShowService';
 
 // Mock the repositories and services
 jest.mock('@db/showsDb');

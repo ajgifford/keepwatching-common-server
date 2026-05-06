@@ -277,10 +277,9 @@ describe('adminShowRepository', () => {
 
       const count = await adminShowRepository.getShowsCountFiltered({ streamingService: 'Netflix' });
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE streaming_services LIKE ?'),
-        ['%Netflix%'],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE streaming_services LIKE ?'), [
+        '%Netflix%',
+      ]);
       expect(count).toBe(40);
     });
 
@@ -374,10 +373,7 @@ describe('adminShowRepository', () => {
 
       await adminShowRepository.getAllShowsFiltered({ streamingService: 'Netflix' }, 10, 20);
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('streaming_services LIKE ?'),
-        ['%Netflix%'],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('streaming_services LIKE ?'), ['%Netflix%']);
       expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 10'), expect.any(Array));
       expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 20'), expect.any(Array));
     });

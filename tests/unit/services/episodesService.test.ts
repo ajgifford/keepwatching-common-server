@@ -1,11 +1,7 @@
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as episodesDb from '@db/episodesDb';
 import { appLogger } from '@logger/logger';
-import {
-  EpisodesService,
-  createEpisodesService,
-  resetEpisodesService,
-} from '@services/episodesService';
+import { EpisodesService, createEpisodesService, resetEpisodesService } from '@services/episodesService';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';

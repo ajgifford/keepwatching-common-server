@@ -1,11 +1,7 @@
 import { createMockCache, setupMocks } from './helpers/mocks';
 import { CacheService } from '@services/cacheService';
 import { profileService } from '@services/profileService';
-import {
-  ShowService,
-  createShowService,
-  resetShowService,
-} from '@services/showService';
+import { ShowService, createShowService, resetShowService } from '@services/showService';
 
 describe('ShowService - Cache Functionality', () => {
   let service: ShowService;

@@ -1,3 +1,4 @@
+import { SummaryCounts } from '@ajgifford/keepwatching-types';
 import { ADMIN_KEYS } from '@constants/cacheKeys';
 import * as summaryDb from '@db/summaryDb';
 import { CacheService } from '@services/cacheService';
@@ -9,7 +10,6 @@ import {
   resetSummaryService,
   summaryService,
 } from '@services/summaryService';
-import { SummaryCounts } from '@ajgifford/keepwatching-types';
 
 jest.mock('@db/summaryDb');
 jest.mock('@services/cacheService');
@@ -53,10 +53,7 @@ describe('SummaryService', () => {
 
       await service.getSummaryCounts();
 
-      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        ADMIN_KEYS.summaryCounts(),
-        expect.any(Function),
-      );
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(ADMIN_KEYS.summaryCounts(), expect.any(Function));
     });
 
     it('should return the value from cache on a cache hit', async () => {

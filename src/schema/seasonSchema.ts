@@ -14,7 +14,9 @@ export const profileSeasonIdsParamSchema = z.object({
 });
 
 export const seasonPriorWatchBodySchema = z.object({
-  seasonIds: z.array(z.number().int().positive('Season ID must be a positive integer')).min(1, 'At least one season ID is required'),
+  seasonIds: z
+    .array(z.number().int().positive('Season ID must be a positive integer'))
+    .min(1, 'At least one season ID is required'),
   showId: z.number().int().positive('Show ID must be a positive integer'),
 });
 

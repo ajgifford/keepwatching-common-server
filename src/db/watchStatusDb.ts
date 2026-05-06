@@ -1,4 +1,3 @@
-import { logEpisodeWatched, logEpisodesWatched, logSeasonWatched, logShowWatched } from './watchHistoryDb';
 import { NotFoundError } from '../middleware/errorMiddleware';
 import { QueryExecutionMetadata } from '../types/statsStore';
 import {
@@ -18,14 +17,15 @@ import {
   transformWatchStatusSeason,
   transformWatchStatusShow,
 } from '../types/watchStatusTypes';
+import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { WatchStatusManager } from '../utils/watchStatusManager';
+import { logEpisodeWatched, logEpisodesWatched, logSeasonWatched, logShowWatched } from './watchHistoryDb';
 import { UserWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
-import { getDbPool } from '../utils/db';
 
 export interface BulkMarkedShowRow extends RowDataPacket {
   showId: number;
@@ -992,11 +992,7 @@ export class WatchStatusDbService {
               is_prior_watch = TRUE,
               updated_at = CURRENT_TIMESTAMP
           `;
-          const [result] = await context.connection.execute<ResultSetHeader>(query, [
-            profileId,
-            episodeId,
-            airDate,
-          ]);
+          const [result] = await context.connection.execute<ResultSetHeader>(query, [profileId, episodeId, airDate]);
           context.totalAffectedRows += result.affectedRows;
 
           // Log to history with the air date as the watch timestamp
@@ -1066,9 +1062,8 @@ export class WatchStatusDbService {
       async (context) => {
         context.profileId = profileId;
 
-        const seasonFilter = seasonIds && seasonIds.length > 0
-          ? `AND se.id IN (${seasonIds.map(() => '?').join(',')})`
-          : '';
+        const seasonFilter =
+          seasonIds && seasonIds.length > 0 ? `AND se.id IN (${seasonIds.map(() => '?').join(',')})` : '';
 
         const params: (number | string)[] = [profileId, showId];
         if (seasonIds && seasonIds.length > 0) {
@@ -1155,10 +1150,7 @@ export class WatchStatusDbService {
    * @param profileId - ID of the profile
    * @param seasonIds - Array of season IDs to fetch episodes for
    */
-  async getEpisodeAirDatesForSeasons(
-    profileId: number,
-    seasonIds: number[],
-  ): Promise<Map<number, string>> {
+  async getEpisodeAirDatesForSeasons(profileId: number, seasonIds: number[]): Promise<Map<number, string>> {
     if (seasonIds.length === 0) {
       return new Map();
     }
@@ -1189,9 +1181,7 @@ export class WatchStatusDbService {
     showId: number,
     upToSeasonNumber?: number,
   ): Promise<Map<number, string>> {
-    const seasonFilter = upToSeasonNumber !== undefined
-      ? `AND se.season_number <= ?`
-      : '';
+    const seasonFilter = upToSeasonNumber !== undefined ? `AND se.season_number <= ?` : '';
 
     const params: (number | string)[] = [showId];
     if (upToSeasonNumber !== undefined) {

@@ -53,9 +53,7 @@ describe('MoviesService - Watch Status', () => {
         throw err;
       });
 
-      await expect(service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED)).rejects.toThrow(
-        'Database error',
-      );
+      await expect(service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'updateMovieWatchStatus(123, 5, WATCHED)');
     });
   });

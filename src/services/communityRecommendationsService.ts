@@ -1,11 +1,11 @@
+import * as communityRecommendationsDb from '../db/communityRecommendationsDb';
+import { errorService } from './errorService';
 import {
   CommunityRecommendation,
   ProfileRecommendation,
   RatingContentType,
   RecommendationDetail,
 } from '@ajgifford/keepwatching-types';
-import * as communityRecommendationsDb from '../db/communityRecommendationsDb';
-import { errorService } from './errorService';
 
 export class CommunityRecommendationsService {
   async addRecommendation(
@@ -18,25 +18,15 @@ export class CommunityRecommendationsService {
     try {
       return await communityRecommendationsDb.addRecommendation(profileId, contentType, contentId, rating, message);
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `addRecommendation(${profileId}, ${contentType}, ${contentId})`,
-      );
+      throw errorService.handleError(error, `addRecommendation(${profileId}, ${contentType}, ${contentId})`);
     }
   }
 
-  async removeRecommendation(
-    profileId: number,
-    contentType: RatingContentType,
-    contentId: number,
-  ): Promise<void> {
+  async removeRecommendation(profileId: number, contentType: RatingContentType, contentId: number): Promise<void> {
     try {
       await communityRecommendationsDb.removeRecommendation(profileId, contentType, contentId);
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `removeRecommendation(${profileId}, ${contentType}, ${contentId})`,
-      );
+      throw errorService.handleError(error, `removeRecommendation(${profileId}, ${contentType}, ${contentId})`);
     }
   }
 

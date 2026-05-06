@@ -2,11 +2,7 @@ import * as moviesDb from '@db/moviesDb';
 import * as personsDb from '@db/personsDb';
 import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import {
-  AdminMovieService,
-  createAdminMovieService,
-  resetAdminMovieService,
-} from '@services/adminMovieService';
+import { AdminMovieService, createAdminMovieService, resetAdminMovieService } from '@services/adminMovieService';
 import { errorService } from '@services/errorService';
 import { socketService } from '@services/socketService';
 import { getTMDBService } from '@services/tmdbService';

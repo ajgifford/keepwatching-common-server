@@ -1,4 +1,3 @@
-import { setupDatabaseTest } from './helpers/dbTestSetup';
 import {
   MovieCastMemberRow,
   MovieCreditRow,
@@ -7,6 +6,7 @@ import {
   ShowCastMemberRow,
   ShowCreditRow,
 } from '../../../src/types/personTypes';
+import { setupDatabaseTest } from './helpers/dbTestSetup';
 import { CreateCast, CreatePerson, CreateShowCast, UpdatePerson } from '@ajgifford/keepwatching-types';
 import * as personsDb from '@db/personsDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';

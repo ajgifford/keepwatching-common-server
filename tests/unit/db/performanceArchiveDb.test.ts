@@ -775,10 +775,10 @@ describe('performanceArchiveDb Module', () => {
 
       expect(mockConnection.execute).toHaveBeenCalledTimes(2);
       const insertSql = mockConnection.execute.mock.calls[0][0];
-      
+
       // Verify the SQL does NOT contain the old WHERE clause that excluded the current month
       expect(insertSql).not.toContain("WHERE archive_date < DATE_FORMAT(NOW(), '%Y-%m-01')");
-      
+
       // Verify it contains the GROUP BY clause (which aggregates all months)
       expect(insertSql).toContain('GROUP BY YEAR(archive_date), MONTH(archive_date), query_hash, query_template');
     });

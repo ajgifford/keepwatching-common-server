@@ -1,6 +1,6 @@
 import * as performanceArchiveDb from '../../../src/db/performanceArchiveDb';
-import * as performanceArchiveUtil from '../../../src/utils/performanceArchiveUtil';
 import { DbMonitor } from '../../../src/utils/dbMonitoring';
+import * as performanceArchiveUtil from '../../../src/utils/performanceArchiveUtil';
 import { TransactionHelper } from '../../../src/utils/transactionHelper';
 import { DBQueryCallHistory } from '@ajgifford/keepwatching-types';
 import * as config from '@config/config';
@@ -116,10 +116,7 @@ describe('performanceArchiveUtil Module', () => {
       expect(mockTransactionHelper.executeInTransaction).toHaveBeenCalledTimes(1);
 
       // Verify archive log started
-      expect(performanceArchiveDb.startArchiveLog).toHaveBeenCalledWith(
-        expect.any(Date),
-        mockConnection,
-      );
+      expect(performanceArchiveDb.startArchiveLog).toHaveBeenCalledWith(expect.any(Date), mockConnection);
 
       // Verify all queries were processed
       expect(mockDbMonitor.getAllQueryNames).toHaveBeenCalledTimes(1);
@@ -141,9 +138,7 @@ describe('performanceArchiveUtil Module', () => {
       );
 
       // Verify success logging
-      expect(cliLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Archive completed'),
-      );
+      expect(cliLogger.info).toHaveBeenCalledWith(expect.stringContaining('Archive completed'));
 
       // Verify Redis stats were cleared after successful archive
       expect(mockDbMonitor.clearStats).toHaveBeenCalledTimes(1);
@@ -406,10 +401,7 @@ describe('performanceArchiveUtil Module', () => {
 
       // Verify archive date is start of day
       const expectedDate = new Date('2024-01-15T00:00:00.000Z');
-      expect(performanceArchiveDb.startArchiveLog).toHaveBeenCalledWith(
-        expectedDate,
-        mockConnection,
-      );
+      expect(performanceArchiveDb.startArchiveLog).toHaveBeenCalledWith(expectedDate, mockConnection);
 
       jest.restoreAllMocks();
     });

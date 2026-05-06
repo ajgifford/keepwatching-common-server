@@ -429,10 +429,9 @@ describe('adminMovieRepository', () => {
 
       const count = await moviesDb.getMoviesCountFiltered({ streamingService: 'Netflix' });
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE streaming_services LIKE ?'),
-        ['%Netflix%'],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE streaming_services LIKE ?'), [
+        '%Netflix%',
+      ]);
       expect(count).toBe(25);
     });
 
@@ -441,10 +440,9 @@ describe('adminMovieRepository', () => {
 
       const count = await moviesDb.getMoviesCountFiltered({ year: '2023' });
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE YEAR(STR_TO_DATE(release_date'),
-        ['2023'],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE YEAR(STR_TO_DATE(release_date'), [
+        '2023',
+      ]);
       expect(count).toBe(15);
     });
 
@@ -502,10 +500,9 @@ describe('adminMovieRepository', () => {
 
       const movies = await moviesDb.getAllMoviesFiltered({ streamingService: 'Netflix' });
 
-      expect(mockExecute).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE streaming_services LIKE ?'),
-        ['%Netflix%'],
-      );
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE streaming_services LIKE ?'), [
+        '%Netflix%',
+      ]);
       expect(movies).toHaveLength(1);
     });
 

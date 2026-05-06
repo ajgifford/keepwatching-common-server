@@ -335,7 +335,8 @@ export async function updateWatchStatus(
               params = [status, isPriorWatch, profileId, movieId];
             }
           } else {
-            query = 'UPDATE movie_watch_status SET status = ?, is_prior_watch = FALSE WHERE profile_id = ? AND movie_id = ?';
+            query =
+              'UPDATE movie_watch_status SET status = ?, is_prior_watch = FALSE WHERE profile_id = ? AND movie_id = ?';
             params = [status, profileId, movieId];
           }
           const [result] = await connection.execute<ResultSetHeader>(query, params);

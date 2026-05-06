@@ -570,7 +570,10 @@ export async function runAllPeopleBatchesJob(): Promise<boolean> {
  * @param options Optional parameters; for peopleUpdate, `batch` overrides the auto-calculated batch (0-11), or `runAll` runs all 12 batches sequentially
  * @returns Promise<boolean> - true if job executed successfully, false otherwise
  */
-export async function manuallyExecuteJob(jobName: JobName, options?: { batch?: number; runAll?: boolean }): Promise<boolean> {
+export async function manuallyExecuteJob(
+  jobName: JobName,
+  options?: { batch?: number; runAll?: boolean },
+): Promise<boolean> {
   if (!jobs[jobName]) {
     cliLogger.error(`Invalid job name: ${jobName}`);
     throw new Error(`Invalid job name: ${jobName}`);

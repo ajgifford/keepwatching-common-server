@@ -4,11 +4,7 @@ import * as showsDb from '@db/showsDb';
 import { NotFoundError } from '@middleware/errorMiddleware';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import {
-  ShowService,
-  createShowService,
-  resetShowService,
-} from '@services/showService';
+import { ShowService, createShowService, resetShowService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
 
 describe('ShowService - Basic Functionality', () => {

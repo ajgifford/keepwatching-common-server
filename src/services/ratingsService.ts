@@ -1,6 +1,6 @@
-import { ContentRating, RatingContentType } from '@ajgifford/keepwatching-types';
 import * as ratingsDb from '../db/ratingsDb';
 import { errorService } from './errorService';
+import { ContentRating, RatingContentType } from '@ajgifford/keepwatching-types';
 
 export class RatingsService {
   async upsertRating(

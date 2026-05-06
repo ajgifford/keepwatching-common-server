@@ -594,10 +594,7 @@ describe('Episode Module', () => {
     const episodeId = 789;
 
     it('should delete watch history, watch status, and episode in order', async () => {
-      mockExecute
-        .mockResolvedValueOnce([{}])
-        .mockResolvedValueOnce([{}])
-        .mockResolvedValueOnce([{}]);
+      mockExecute.mockResolvedValueOnce([{}]).mockResolvedValueOnce([{}]).mockResolvedValueOnce([{}]);
 
       await episodeModule.deleteEpisodeById(episodeId);
 

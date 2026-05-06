@@ -296,7 +296,10 @@ export async function getPersonsCount(): Promise<number> {
   }
 }
 
-export async function mergePersonCredits(fromPersonId: number, toPersonId: number): Promise<{ showsMerged: number; moviesMerged: number }> {
+export async function mergePersonCredits(
+  fromPersonId: number,
+  toPersonId: number,
+): Promise<{ showsMerged: number; moviesMerged: number }> {
   const transactionHelper = new TransactionHelper();
   try {
     return await DbMonitor.getInstance().executeWithTiming(

@@ -287,14 +287,18 @@ export function mapRowToRewatchedMovie(row: MovieRewatchRow): RewatchedMovie {
   };
 }
 
-export function mapRowToRewatchedShowWithProfile(row: ShowRewatchWithProfileRow): RewatchedShow & { profileName: string } {
+export function mapRowToRewatchedShowWithProfile(
+  row: ShowRewatchWithProfileRow,
+): RewatchedShow & { profileName: string } {
   return {
     ...mapRowToRewatchedShow(row),
     profileName: row.profile_name,
   };
 }
 
-export function mapRowToRewatchedMovieWithProfile(row: MovieRewatchWithProfileRow): RewatchedMovie & { profileName: string } {
+export function mapRowToRewatchedMovieWithProfile(
+  row: MovieRewatchWithProfileRow,
+): RewatchedMovie & { profileName: string } {
   return {
     ...mapRowToRewatchedMovie(row),
     profileName: row.profile_name,

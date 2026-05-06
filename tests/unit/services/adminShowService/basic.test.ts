@@ -10,11 +10,7 @@ import {
 import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
 import * as episodesDb from '@db/episodesDb';
 import * as showsDb from '@db/showsDb';
-import {
-  AdminShowService,
-  createAdminShowService,
-  resetAdminShowService,
-} from '@services/adminShowService';
+import { AdminShowService, createAdminShowService, resetAdminShowService } from '@services/adminShowService';
 import { errorService } from '@services/errorService';
 
 // Mock the repositories and services

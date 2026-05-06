@@ -162,11 +162,7 @@ export class WatchStatusService {
   ): Promise<StatusUpdateResult> {
     try {
       // Fetch the episodes for the show, filtered by season if needed
-      const episodeAirDateMap = await this.dbService.getEpisodeAirDatesForShow(
-        profileId,
-        showId,
-        upToSeasonNumber,
-      );
+      const episodeAirDateMap = await this.dbService.getEpisodeAirDatesForShow(profileId, showId, upToSeasonNumber);
 
       if (episodeAirDateMap.size === 0) {
         return { success: true, changes: [], affectedRows: 0, message: 'No episodes to mark' };
@@ -193,10 +189,7 @@ export class WatchStatusService {
         message: `Marked ${result.affectedRows} episodes as previously watched`,
       };
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `markSeasonsAsPriorWatched(${profileId}, ${showId}, ${upToSeasonNumber})`,
-      );
+      throw errorService.handleError(error, `markSeasonsAsPriorWatched(${profileId}, ${showId}, ${upToSeasonNumber})`);
     }
   }
 
@@ -280,10 +273,7 @@ export class WatchStatusService {
         message: `Retroactively marked ${result.affectedRows} episodes as previously watched`,
       };
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `retroactivelyMarkShowAsPrior(${profileId}, ${showId})`,
-      );
+      throw errorService.handleError(error, `retroactivelyMarkShowAsPrior(${profileId}, ${showId})`);
     }
   }
 

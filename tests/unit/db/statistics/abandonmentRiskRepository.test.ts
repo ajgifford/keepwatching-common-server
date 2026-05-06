@@ -51,9 +51,11 @@ describe('abandonmentRiskRepository', () => {
 
       expect(mockPool.getConnection).toHaveBeenCalledTimes(1);
       expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.stringContaining('days_since_last_watch'), [
-        123,
-      ]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('days_since_last_watch'),
+        [123],
+      );
       expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.stringContaining('total_started_shows'), [123]);
       expect(mockConnection.release).toHaveBeenCalledTimes(1);
 

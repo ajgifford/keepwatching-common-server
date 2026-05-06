@@ -1,10 +1,10 @@
+import * as communityRecommendationsDb from '../db/communityRecommendationsDb';
+import { errorService } from './errorService';
 import {
   AdminRecommendationWithProfile,
   CommunityRecommendation,
   RatingContentType,
 } from '@ajgifford/keepwatching-types';
-import * as communityRecommendationsDb from '../db/communityRecommendationsDb';
-import { errorService } from './errorService';
 
 export class AdminCommunityRecommendationsService {
   async getAllRecommendationsWithAttribution(filters?: {
@@ -15,10 +15,7 @@ export class AdminCommunityRecommendationsService {
     try {
       return await communityRecommendationsDb.getAllRecommendationsWithAttribution(filters);
     } catch (error) {
-      throw errorService.handleError(
-        error,
-        `getAllRecommendationsWithAttribution(${JSON.stringify(filters)})`,
-      );
+      throw errorService.handleError(error, `getAllRecommendationsWithAttribution(${JSON.stringify(filters)})`);
     }
   }
 

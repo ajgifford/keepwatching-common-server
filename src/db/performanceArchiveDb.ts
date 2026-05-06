@@ -13,7 +13,13 @@ import {
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { ArchiveLogEntry, ArchiveStatistics, DailySummary, MonthlyPerformanceSummary, SlowestQuery } from '@ajgifford/keepwatching-types';
+import {
+  ArchiveLogEntry,
+  ArchiveStatistics,
+  DailySummary,
+  MonthlyPerformanceSummary,
+  SlowestQuery,
+} from '@ajgifford/keepwatching-types';
 import { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 /**

@@ -5,11 +5,7 @@ import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { appLogger, cliLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
-import {
-  AdminShowService,
-  createAdminShowService,
-  resetAdminShowService,
-} from '@services/adminShowService';
+import { AdminShowService, createAdminShowService, resetAdminShowService } from '@services/adminShowService';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
 import { socketService } from '@services/socketService';

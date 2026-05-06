@@ -1,5 +1,5 @@
-import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { MovieReferenceRow } from '../../../../src/types/movieTypes';
+import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { MovieReference } from '@ajgifford/keepwatching-types';
 import * as digestMovieRepository from '@db/movies/digestMovieRepository';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';

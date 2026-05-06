@@ -2,11 +2,7 @@ import { AccountRow } from '../../../src/types/accountTypes';
 import * as accountsDb from '@db/accountsDb';
 import { appLogger, cliLogger } from '@logger/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@middleware/errorMiddleware';
-import {
-  AccountService,
-  createAccountService,
-  resetAccountService,
-} from '@services/accountService';
+import { AccountService, createAccountService, resetAccountService } from '@services/accountService';
 import { errorService } from '@services/errorService';
 import { profileService } from '@services/profileService';
 import { getFirebaseAdmin } from '@utils/firebaseUtil';

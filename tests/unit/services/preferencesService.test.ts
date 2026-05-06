@@ -8,11 +8,7 @@ import {
 import * as preferencesDb from '@db/preferencesDb';
 import { NoAffectedRowsError } from '@middleware/errorMiddleware';
 import { errorService } from '@services/errorService';
-import {
-  PreferencesService,
-  createPreferencesService,
-  resetPreferencesService,
-} from '@services/preferencesService';
+import { PreferencesService, createPreferencesService, resetPreferencesService } from '@services/preferencesService';
 
 // Mock the database module
 jest.mock('@db/preferencesDb');

@@ -1,12 +1,12 @@
+import { NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
+import { getDbPool } from '../utils/db';
+import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import {
   AdminContentRatingSummary,
   AdminRatingWithProfile,
   ContentRating,
   RatingContentType,
 } from '@ajgifford/keepwatching-types';
-import { NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
-import { getDbPool } from '../utils/db';
-import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 interface ContentRatingRow extends RowDataPacket {
@@ -178,10 +178,9 @@ export async function getAllRatings(filters?: {
 export async function adminDeleteRating(ratingId: number): Promise<void> {
   const pool = getDbPool();
   try {
-    const [result] = await pool.execute<ResultSetHeader>(
-      `DELETE FROM profile_content_ratings WHERE id = ?`,
-      [ratingId],
-    );
+    const [result] = await pool.execute<ResultSetHeader>(`DELETE FROM profile_content_ratings WHERE id = ?`, [
+      ratingId,
+    ]);
     if (result.affectedRows === 0) {
       throw new NoAffectedRowsError('Rating not found');
     }

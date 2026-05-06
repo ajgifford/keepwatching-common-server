@@ -1,15 +1,15 @@
 import { getServiceName } from '../../config/config';
 import { ADMIN_KEYS } from '../../constants/cacheKeys';
+import { getAllProfileIds } from '../../db/profilesDb';
 import * as accountComparisonRepository from '../../db/statistics/accountComparisonRepository';
 import * as adminStatsRepository from '../../db/statistics/adminStatsRepository';
 import * as contentPerformanceRepository from '../../db/statistics/contentPerformanceRepository';
-import { getAllProfileIds } from '../../db/profilesDb';
 import { cliLogger } from '../../logger/logger';
 import { BadRequestError, FirebaseError } from '../../middleware/errorMiddleware';
 import { getFirebaseAdmin } from '../../utils/firebaseUtil';
+import { batchCheckAchievements } from '../achievementDetectionService';
 import { CacheService } from '../cacheService';
 import { errorService } from '../errorService';
-import { batchCheckAchievements } from '../achievementDetectionService';
 import {
   AccountHealthMetrics,
   AccountHealthStats,
@@ -676,11 +676,13 @@ export class AdminStatisticsService {
    *
    * @returns Summary of profiles processed and new achievements recorded
    */
-  async backfillAchievements(): Promise<{ profilesProcessed: number; totalNewAchievements: number; breakdown: Record<number, number> }> {
+  async backfillAchievements(): Promise<{
+    profilesProcessed: number;
+    totalNewAchievements: number;
+    breakdown: Record<number, number>;
+  }> {
     const profileIds = await getAllProfileIds();
-    const breakdown = Object.fromEntries(
-      [...(await batchCheckAchievements(profileIds)).entries()]
-    );
+    const breakdown = Object.fromEntries([...(await batchCheckAchievements(profileIds)).entries()]);
     const totalNewAchievements = Object.values(breakdown).reduce((sum, count) => sum + count, 0);
     return {
       profilesProcessed: profileIds.length,

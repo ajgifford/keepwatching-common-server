@@ -1,7 +1,7 @@
+import { WatchHistoryRow } from '../types/watchHistoryTypes';
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { WatchHistoryRow } from '../types/watchHistoryTypes';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 

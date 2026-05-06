@@ -4,12 +4,7 @@ import { CACHE_KEY_PATTERNS, PERSON_KEYS } from '@constants/cacheKeys';
 import * as personsDb from '@db/personsDb';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import {
-  PersonService,
-  createPersonService,
-  personService,
-  resetPersonService,
-} from '@services/personService';
+import { PersonService, createPersonService, personService, resetPersonService } from '@services/personService';
 import { getTMDBService } from '@services/tmdbService';
 
 jest.mock('@db/personsDb');

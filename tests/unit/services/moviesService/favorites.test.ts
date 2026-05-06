@@ -139,9 +139,7 @@ describe('MoviesService - Favorites', () => {
         throw err;
       });
 
-      await expect(service.addMovieToFavorites(123, 12345)).rejects.toThrow(
-        'Failed to save a movie as a favorite',
-      );
+      await expect(service.addMovieToFavorites(123, 12345)).rejects.toThrow('Failed to save a movie as a favorite');
       expect(moviesDb.saveMovie).toHaveBeenCalled();
     });
 

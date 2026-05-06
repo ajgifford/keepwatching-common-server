@@ -1,7 +1,7 @@
 import { CompletedJobEvent } from '@ajgifford/keepwatching-types';
-import { RedisPubSubService } from '@services/redisPubSubService';
-import { appLogger, cliLogger } from '@logger/logger';
 import { getRedisConfig } from '@config/config';
+import { appLogger, cliLogger } from '@logger/logger';
+import { RedisPubSubService } from '@services/redisPubSubService';
 import Redis from 'ioredis';
 
 // Mock dependencies
@@ -64,9 +64,7 @@ describe('RedisPubSubService', () => {
     } as any;
 
     // Mock Redis constructor to return our mocks
-    (Redis as unknown as jest.Mock)
-      .mockReturnValueOnce(mockPublisher)
-      .mockReturnValueOnce(mockSubscriber);
+    (Redis as unknown as jest.Mock).mockReturnValueOnce(mockPublisher).mockReturnValueOnce(mockSubscriber);
   });
 
   afterEach(() => {
@@ -521,10 +519,7 @@ describe('RedisPubSubService', () => {
 
       messageHandler('test-channel', JSON.stringify(event));
 
-      expect(appLogger.error).toHaveBeenCalledWith(
-        'Error in handler for channel test-channel:',
-        expect.any(Error),
-      );
+      expect(appLogger.error).toHaveBeenCalledWith('Error in handler for channel test-channel:', expect.any(Error));
     });
   });
 
@@ -651,10 +646,7 @@ describe('RedisPubSubService', () => {
 
       await service.disconnect();
 
-      expect(cliLogger.error).toHaveBeenCalledWith(
-        'Error during RedisPubSubService disconnect:',
-        disconnectError,
-      );
+      expect(cliLogger.error).toHaveBeenCalledWith('Error during RedisPubSubService disconnect:', disconnectError);
     });
 
     it('should handle null connections gracefully', async () => {

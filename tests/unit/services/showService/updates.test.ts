@@ -7,10 +7,7 @@ import { ErrorMessages } from '@logger/loggerModel';
 import { errorService } from '@services/errorService';
 import { notificationsService } from '@services/notificationsService';
 import { processSeasonChanges } from '@services/seasonChangesService';
-import {
-  showService,
-  resetShowService,
-} from '@services/showService';
+import { resetShowService, showService } from '@services/showService';
 import { getTMDBService } from '@services/tmdbService';
 import { watchStatusService } from '@services/watchStatusService';
 import * as contentUtility from '@utils/contentUtility';

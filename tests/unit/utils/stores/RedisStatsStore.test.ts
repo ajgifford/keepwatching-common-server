@@ -1,7 +1,7 @@
-import { RedisStatsStore } from '../../../../src/utils/stores/RedisStatsStore';
-import { QueryExecutionMetadata } from '../../../../src/types/statsStore';
-import Redis from 'ioredis';
 import { appLogger } from '../../../../src/logger/logger';
+import { QueryExecutionMetadata } from '../../../../src/types/statsStore';
+import { RedisStatsStore } from '../../../../src/utils/stores/RedisStatsStore';
+import Redis from 'ioredis';
 
 // Mock ioredis
 jest.mock('ioredis');
@@ -199,10 +199,7 @@ describe('RedisStatsStore', () => {
       mockRedis.hgetall.mockRejectedValue(new Error('Redis error'));
 
       await expect(store.recordQuery('testQuery', 100)).resolves.not.toThrow();
-      expect(appLogger.debug).toHaveBeenCalledWith(
-        'Failed to record query stats for testQuery:',
-        expect.any(Error),
-      );
+      expect(appLogger.debug).toHaveBeenCalledWith('Failed to record query stats for testQuery:', expect.any(Error));
     });
   });
 
@@ -242,11 +239,7 @@ describe('RedisStatsStore', () => {
     });
 
     it('should sort stats by total time descending', async () => {
-      mockRedis.keys.mockResolvedValue([
-        'db:query:stats:fast',
-        'db:query:stats:slow',
-        'db:query:stats:medium',
-      ]);
+      mockRedis.keys.mockResolvedValue(['db:query:stats:fast', 'db:query:stats:slow', 'db:query:stats:medium']);
       mockRedis.hgetall
         .mockResolvedValueOnce({ count: '1', totalTime: '100', maxTime: '100' })
         .mockResolvedValueOnce({ count: '1', totalTime: '1000', maxTime: '1000' })
@@ -344,10 +337,7 @@ describe('RedisStatsStore', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].timestamp).toBe(1000);
-      expect(appLogger.error).toHaveBeenCalledWith(
-        'Failed to parse history entry for testQuery:',
-        expect.any(Error),
-      );
+      expect(appLogger.error).toHaveBeenCalledWith('Failed to parse history entry for testQuery:', expect.any(Error));
     });
 
     it('should return empty array when Redis is not ready', async () => {
@@ -388,9 +378,7 @@ describe('RedisStatsStore', () => {
         'db:query:history:query1',
         'db:query:history:query2',
       );
-      expect(appLogger.info).toHaveBeenCalledWith(
-        'Cleared 4 query statistics and history entries from Redis',
-      );
+      expect(appLogger.info).toHaveBeenCalledWith('Cleared 4 query statistics and history entries from Redis');
     });
 
     it('should not call del when no keys exist', async () => {
@@ -413,11 +401,7 @@ describe('RedisStatsStore', () => {
 
   describe('getAllQueryNames', () => {
     it('should return array of query names', async () => {
-      mockRedis.keys.mockResolvedValue([
-        'db:query:stats:query1',
-        'db:query:stats:query2',
-        'db:query:stats:query3',
-      ]);
+      mockRedis.keys.mockResolvedValue(['db:query:stats:query1', 'db:query:stats:query2', 'db:query:stats:query3']);
 
       const names = await store.getAllQueryNames();
 

@@ -1,4 +1,3 @@
-import { RowDataPacket } from 'mysql2';
 import { NotFoundError } from '../../middleware/errorMiddleware';
 import { ContentCountRow } from '../../types/contentTypes';
 import { AdminEpisodeRow, transformAdminEpisode } from '../../types/episodeTypes';
@@ -26,6 +25,7 @@ import {
   ShowReference,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
+import { RowDataPacket } from 'mysql2';
 
 export async function getShowsCount(): Promise<number> {
   try {

@@ -27,12 +27,14 @@ describe('EmailService - Batch Email Sending', () => {
         return { sent: 2, failed: 0, errors: [] };
       });
 
-      (emailDeliveryService.sendDiscoveryEmailBatch as jest.Mock).mockImplementation(async (emails, emailId, callback) => {
-        for (const email of emails) {
-          await callback(email.accountId, true);
-        }
-        return { sent: 1, failed: 0, errors: [] };
-      });
+      (emailDeliveryService.sendDiscoveryEmailBatch as jest.Mock).mockImplementation(
+        async (emails, emailId, callback) => {
+          for (const email of emails) {
+            await callback(email.accountId, true);
+          }
+          return { sent: 1, failed: 0, errors: [] };
+        },
+      );
 
       await emailService.sendWeeklyDigests();
 
@@ -97,16 +99,18 @@ describe('EmailService - Batch Email Sending', () => {
         };
       });
 
-      (emailDeliveryService.sendDiscoveryEmailBatch as jest.Mock).mockImplementation(async (emails, emailId, callback) => {
-        for (const email of emails) {
-          await callback(email.accountId, false, mockError.message);
-        }
-        return {
-          sent: 0,
-          failed: 1,
-          errors: [{ email: 'user2@example.com', error: mockError }],
-        };
-      });
+      (emailDeliveryService.sendDiscoveryEmailBatch as jest.Mock).mockImplementation(
+        async (emails, emailId, callback) => {
+          for (const email of emails) {
+            await callback(email.accountId, false, mockError.message);
+          }
+          return {
+            sent: 0,
+            failed: 1,
+            errors: [{ email: 'user2@example.com', error: mockError }],
+          };
+        },
+      );
 
       await emailService.sendWeeklyDigests();
 

@@ -590,12 +590,14 @@ describe('achievementRepository', () => {
         expect.stringContaining('JOIN episodes e ON e.id = ews.episode_id'),
         [123],
       );
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('JOIN seasons se ON se.id = e.season_id'), [
-        123,
-      ]);
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('JOIN shows s ON s.id = se.show_id'), [
-        123,
-      ]);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('JOIN seasons se ON se.id = e.season_id'),
+        [123],
+      );
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('JOIN shows s ON s.id = se.show_id'),
+        [123],
+      );
     });
 
     it('should handle various episode data correctly', async () => {
@@ -677,9 +679,10 @@ describe('achievementRepository', () => {
       await getLatestWatchedMovie(123);
 
       expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('FROM movie_watch_status mws'), [123]);
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('JOIN movies m ON m.id = mws.movie_id'), [
-        123,
-      ]);
+      expect(mockPool.execute).toHaveBeenCalledWith(
+        expect.stringContaining('JOIN movies m ON m.id = mws.movie_id'),
+        [123],
+      );
     });
 
     it('should handle various movie data correctly', async () => {
@@ -790,14 +793,8 @@ describe('achievementRepository', () => {
 
       await getLatestWatchDate(123);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.stringContaining('episode_watch_status'),
-        expect.any(Array),
-      );
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        expect.stringContaining('movie_watch_status'),
-        expect.any(Array),
-      );
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('episode_watch_status'), expect.any(Array));
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('movie_watch_status'), expect.any(Array));
     });
   });
 });

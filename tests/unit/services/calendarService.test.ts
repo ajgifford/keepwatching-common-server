@@ -1,7 +1,7 @@
 import * as episodesDb from '@db/episodesDb';
 import * as moviesDb from '@db/movies/movieRepository';
-import { errorService } from '@services/errorService';
 import { CalendarService, calendarService } from '@services/calendarService';
+import { errorService } from '@services/errorService';
 
 jest.mock('@db/episodesDb');
 jest.mock('@db/movies/movieRepository');
@@ -19,9 +19,7 @@ describe('CalendarService', () => {
     { id: 2, title: 'Episode 2', airDate: '2026-04-01' },
   ] as any[];
 
-  const mockMovies = [
-    { id: 10, title: 'Movie A', releaseDate: '2026-03-20' },
-  ] as any[];
+  const mockMovies = [{ id: 10, title: 'Movie A', releaseDate: '2026-03-20' }] as any[];
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -122,14 +120,11 @@ describe('CalendarService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(
-        service.getCalendarContentForProfile(profileId, startDate, endDate),
-      ).rejects.toThrow('Handled: DB connection failed');
-
-      expect(errorService.handleError).toHaveBeenCalledWith(
-        mockError,
-        `getCalendarContentForProfile(${profileId})`,
+      await expect(service.getCalendarContentForProfile(profileId, startDate, endDate)).rejects.toThrow(
+        'Handled: DB connection failed',
       );
+
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `getCalendarContentForProfile(${profileId})`);
     });
 
     it('should handle movie query errors', async () => {
@@ -141,14 +136,11 @@ describe('CalendarService', () => {
         throw new Error(`Handled: ${error.message}`);
       });
 
-      await expect(
-        service.getCalendarContentForProfile(profileId, startDate, endDate),
-      ).rejects.toThrow('Handled: Movies query failed');
-
-      expect(errorService.handleError).toHaveBeenCalledWith(
-        mockError,
-        `getCalendarContentForProfile(${profileId})`,
+      await expect(service.getCalendarContentForProfile(profileId, startDate, endDate)).rejects.toThrow(
+        'Handled: Movies query failed',
       );
+
+      expect(errorService.handleError).toHaveBeenCalledWith(mockError, `getCalendarContentForProfile(${profileId})`);
     });
   });
 

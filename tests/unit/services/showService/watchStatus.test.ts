@@ -4,11 +4,7 @@ import { WatchStatus } from '@ajgifford/keepwatching-types';
 import { appLogger } from '@logger/logger';
 import { CacheService } from '@services/cacheService';
 import { errorService } from '@services/errorService';
-import {
-  ShowService,
-  createShowService,
-  resetShowService,
-} from '@services/showService';
+import { ShowService, createShowService, resetShowService } from '@services/showService';
 import { watchStatusService } from '@services/watchStatusService';
 
 describe('ShowService - Watch Status', () => {

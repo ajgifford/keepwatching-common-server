@@ -52,11 +52,14 @@ export default {
     ],
   },
 
-  "reporters": [
-    "default",
-    ["./node_modules/jest-html-reporter", {
-      "pageTitle": "Test Report"
-    }]
+  reporters: [
+    'default',
+    [
+      './node_modules/jest-html-reporter',
+      {
+        pageTitle: 'Test Report',
+      },
+    ],
   ],
 
   // Test match patterns

@@ -1,8 +1,8 @@
+import { upsertPersonFailure } from '../db/personFailuresDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { UpdatePersonResult } from '../types/personTypes';
 import { generateDateRange, sleep } from '../utils/changesUtility';
-import { upsertPersonFailure } from '../db/personFailuresDb';
 import { errorService } from './errorService';
 import { moviesService } from './moviesService';
 import { personService } from './personService';
@@ -76,10 +76,13 @@ export async function updatePeople(batchOverride?: number) {
       date: startTime.toISOString().split('T')[0],
       totalPeople: people.length,
     };
-    cliLogger.info(`Starting daily person update for block ${blockNumber}${batchOverride !== undefined ? ' (manual override)' : ''}`, {
-      totalPeople: blockInfo.totalPeople,
-      date: blockInfo.date,
-    });
+    cliLogger.info(
+      `Starting daily person update for block ${blockNumber}${batchOverride !== undefined ? ' (manual override)' : ''}`,
+      {
+        totalPeople: blockInfo.totalPeople,
+        date: blockInfo.date,
+      },
+    );
 
     for (const person of people) {
       try {
@@ -90,7 +93,10 @@ export async function updatePeople(batchOverride?: number) {
         // Log error but continue with next person
         const errorMsg = error instanceof Error ? error.message : String(error);
         cliLogger.error(`Failed to check for changes in person ID ${person.id}: ${errorMsg}`);
-        const errorCode = error instanceof Error && 'errorCode' in error ? (error as Error & { errorCode: string }).errorCode : 'UNKNOWN';
+        const errorCode =
+          error instanceof Error && 'errorCode' in error
+            ? (error as Error & { errorCode: string }).errorCode
+            : 'UNKNOWN';
         const errorMessage = error instanceof Error ? error.message : String(error);
         await upsertPersonFailure({
           personId: person.id,

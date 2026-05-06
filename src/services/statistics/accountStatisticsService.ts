@@ -1,7 +1,7 @@
 import { ACCOUNT_KEYS } from '../../constants/cacheKeys';
 import * as accountsDb from '../../db/accountsDb';
-import * as statisticsDb from '../../db/statisticsDb';
 import { getAccountRewatchStats } from '../../db/statistics/rewatchRepository';
+import * as statisticsDb from '../../db/statisticsDb';
 import { BadRequestError } from '../../middleware/errorMiddleware';
 import { calculateMilestones } from '../../utils/statisticsUtil';
 import { CacheService } from '../cacheService';
@@ -16,10 +16,10 @@ import {
   AccountContentDepthStats,
   AccountContentDiscoveryStats,
   AccountEpisodeProgress,
+  AccountRewatchStats,
   AccountSeasonalViewingStats,
   AccountStatisticsResponse,
   AccountTimeToWatchStats,
-  AccountRewatchStats,
   AccountUnairedContentStats,
   AccountWatchStreakStats,
   AccountWatchingVelocityStats,

@@ -1,5 +1,5 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
-import { getProfileRewatchStats, getAccountRewatchStats } from '@db/statistics/rewatchRepository';
+import { getAccountRewatchStats, getProfileRewatchStats } from '@db/statistics/rewatchRepository';
 
 describe('rewatchRepository', () => {
   let mockPool: any;

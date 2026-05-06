@@ -53,9 +53,10 @@ describe('showWatchStatusRepository', () => {
         'INSERT IGNORE INTO show_watch_status (profile_id, show_id, status) VALUES (?,?,?)',
         [123, 12345, WatchStatus.NOT_WATCHED],
       );
-      expect(mockConnection.execute).toHaveBeenCalledWith('SELECT id, release_date FROM seasons WHERE show_id = ?', [
-        12345,
-      ]);
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'SELECT id, release_date FROM seasons WHERE show_id = ?',
+        [12345],
+      );
       expect(mockConnection.execute).toHaveBeenCalledWith(
         'INSERT IGNORE INTO season_watch_status (status, profile_id, season_id) VALUES (?,?,?),(?,?,?)',
         [WatchStatus.NOT_WATCHED, 123, 1, WatchStatus.NOT_WATCHED, 123, 2],
@@ -95,9 +96,10 @@ describe('showWatchStatusRepository', () => {
         'INSERT IGNORE INTO show_watch_status (profile_id, show_id, status) VALUES (?,?,?)',
         [123, 12345, WatchStatus.NOT_WATCHED],
       );
-      expect(mockConnection.execute).toHaveBeenCalledWith('SELECT id, release_date FROM seasons WHERE show_id = ?', [
-        12345,
-      ]);
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'SELECT id, release_date FROM seasons WHERE show_id = ?',
+        [12345],
+      );
     });
 
     it('should rollback transaction on error', async () => {
@@ -120,9 +122,10 @@ describe('showWatchStatusRepository', () => {
 
       await showsDb.removeFavorite(123, 12345);
 
-      expect(mockConnection.execute).toHaveBeenCalledWith('SELECT id, release_date FROM seasons WHERE show_id = ?', [
-        12345,
-      ]);
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'SELECT id, release_date FROM seasons WHERE show_id = ?',
+        [12345],
+      );
       expect(mockConnection.execute).toHaveBeenCalledWith(
         'DELETE FROM episode_watch_status WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (?,?))',
         [123, 1, 2],
@@ -145,9 +148,10 @@ describe('showWatchStatusRepository', () => {
       await showsDb.removeFavorite(123, 12345);
 
       expect(mockConnection.execute).toHaveBeenCalledTimes(2);
-      expect(mockConnection.execute).toHaveBeenCalledWith('SELECT id, release_date FROM seasons WHERE show_id = ?', [
-        12345,
-      ]);
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'SELECT id, release_date FROM seasons WHERE show_id = ?',
+        [12345],
+      );
       expect(mockConnection.execute).toHaveBeenCalledWith(
         'DELETE FROM show_watch_status WHERE profile_id = ? AND show_id = ?',
         [123, 12345],
