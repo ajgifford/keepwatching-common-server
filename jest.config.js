@@ -97,4 +97,7 @@ export default {
 
   // Transform ESM modules from @ajgifford scope and uuid (ESM-only in v13+)
   transformIgnorePatterns: ['node_modules/(?!(@ajgifford|uuid)/)'],
+
+  // Force exit after all tests complete to prevent hanging worker processes
+  forceExit: true,
 };

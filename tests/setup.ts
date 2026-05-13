@@ -28,24 +28,9 @@ jest.mock('@logger/logger', () => ({
   formatAppLoggerResponse: jest.fn(),
 }));
 
-// Set a longer timeout for certain tests
 jest.setTimeout(10000);
 
-// Global setup before each test
-beforeEach(() => {
-  // Ensure we start with a clean state
-  jest.clearAllMocks();
-});
-
-// Global cleanup after each test to prevent memory leaks and hanging processes
+// Restore real timers after each test for tests that use jest.useFakeTimers()
 afterEach(() => {
-  // Clear all mocks (already configured in jest.config.js with clearMocks: true)
-  jest.clearAllMocks();
-
-  // Reset all modules to prevent state leakage between tests
-  jest.resetModules();
-
-  // Restore real timers to prevent timer-related issues
-  // This is critical for tests that use jest.useFakeTimers()
   jest.useRealTimers();
 });
