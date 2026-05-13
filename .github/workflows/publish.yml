@@ -12,6 +12,8 @@ jobs:
     permissions:
       contents: write
       packages: write
+    env:
+      GIT_NPM_TOKEN: ${{ secrets.GIT_NPM_TOKEN }}
 
     steps:
       - name: Checkout
