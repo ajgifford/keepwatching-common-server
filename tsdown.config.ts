@@ -17,11 +17,10 @@ export default defineConfig({
   clean: false,
   dts: true,
   deps: {
-    alwaysBundle: ['uuid'],
+    alwaysBundle: ['uuid', 'axios-retry'],
     neverBundle: [
       '@ajgifford/keepwatching-types',
       'axios',
-      'axios-retry',
       'cron-parser',
       'dotenv',
       'express',
