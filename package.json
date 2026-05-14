@@ -104,7 +104,8 @@
     "type-check": "tsc --noEmit",
     "version:patch": "yarn version --patch",
     "version:minor": "yarn version --minor",
-    "version:major": "yarn version --major"
+    "version:major": "yarn version --major",
+    "ci": "yarn format:check && yarn lint && yarn type-check && yarn test:coverage && yarn audit --level high"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
