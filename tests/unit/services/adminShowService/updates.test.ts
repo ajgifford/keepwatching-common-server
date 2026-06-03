@@ -1,6 +1,7 @@
-import { mockSeasonDetails, mockTMDBShow } from './helpers/fixtures';
+import { mockSeasonAggregateCredits, mockSeasonDetails, mockTMDBShow } from './helpers/fixtures';
 import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
 import * as episodesDb from '@db/episodesDb';
+import * as personsDb from '@db/personsDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { appLogger, cliLogger } from '@logger/logger';
@@ -18,6 +19,7 @@ import * as watchProvidersUtility from '@utils/watchProvidersUtility';
 jest.mock('@db/showsDb');
 jest.mock('@db/seasonsDb');
 jest.mock('@db/episodesDb');
+jest.mock('@db/personsDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
 jest.mock('@services/socketService');
@@ -67,6 +69,7 @@ describe('AdminShowService - Updates', () => {
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
@@ -140,6 +143,7 @@ describe('AdminShowService - Updates', () => {
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
@@ -190,6 +194,7 @@ describe('AdminShowService - Updates', () => {
       const mockError = new Error('TMDB API error');
       const mockTMDBService = {
         getShowDetails: jest.fn().mockRejectedValue(mockError),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
       (showsDb.getAdminShowDetails as jest.Mock).mockResolvedValue({ id: showId, seasonCount: 2 });
@@ -207,6 +212,7 @@ describe('AdminShowService - Updates', () => {
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
@@ -244,6 +250,7 @@ describe('AdminShowService - Updates', () => {
     it('should return false when show update fails', async () => {
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
@@ -284,6 +291,7 @@ describe('AdminShowService - Updates', () => {
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(showWithSeasonZero),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
@@ -310,6 +318,8 @@ describe('AdminShowService - Updates', () => {
       // Should only process season 2 (latest), not season 0
       expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledTimes(1);
       expect(mockTMDBService.getSeasonDetails).toHaveBeenCalledWith(showWithSeasonZero.id, 2);
+      // Should fetch aggregate credits for the latest aired season (season 2 per last_episode_to_air)
+      expect(mockTMDBService.getSeasonAggregateCredits).toHaveBeenCalledWith(showWithSeasonZero.id, 2);
     });
 
     it('should create notifications when new seasons are added', async () => {
@@ -324,6 +334,7 @@ describe('AdminShowService - Updates', () => {
       const mockTMDBService = {
         getShowDetails: jest.fn().mockResolvedValue(mockShowWithNewSeason),
         getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
       };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
 
@@ -347,6 +358,75 @@ describe('AdminShowService - Updates', () => {
       expect(notificationUtility.createNewSeasonNotifications).toHaveBeenCalledWith('Test Show', 3, [
         { accountId: 1, profileId: 1 },
       ]);
+    });
+  });
+
+  describe('processShowCast - active flag', () => {
+    const castShowId = 123;
+    const castTmdbId = 999;
+
+    it('should mark cast members active based on season aggregate credits person ID, not credit_id', async () => {
+      // Actor 1 (id: 1) appears in the latest season aggregate credits → active: 1
+      // Actor 2 (id: 2) does NOT appear in season aggregate credits → active: 0
+      // The credit_id values deliberately differ across endpoints to prove person-ID matching
+      const mockTMDBService = {
+        getShowDetails: jest.fn().mockResolvedValue(mockTMDBShow),
+        getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
+      };
+      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+
+      (showsDb.getAdminShowDetails as jest.Mock).mockResolvedValue({ id: castShowId, seasonCount: 2 });
+      (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
+      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
+        showId: '1',
+        profileAccountMappings: [],
+        totalCount: 0,
+      });
+      (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValue({ id: 99 });
+      (personsDb.saveShowCast as jest.Mock).mockResolvedValue(undefined);
+
+      await adminShowService.updateShowById(castShowId, castTmdbId);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(mockTMDBService.getSeasonAggregateCredits).toHaveBeenCalledWith(mockTMDBShow.id, 2);
+
+      const castCalls = (personsDb.saveShowCast as jest.Mock).mock.calls.map((call) => call[0]);
+      const actor1Call = castCalls.find((c) => c.character_name === 'Character 1');
+      const actor2Call = castCalls.find((c) => c.character_name === 'Character 2');
+
+      expect(actor1Call).toBeDefined();
+      expect(actor1Call.active).toBe(1);
+      expect(actor2Call).toBeDefined();
+      expect(actor2Call.active).toBe(0);
+    });
+
+    it('should mark all cast inactive when last_episode_to_air has no season number', async () => {
+      const showNoLatestSeason = { ...mockTMDBShow, last_episode_to_air: null };
+      const mockTMDBService = {
+        getShowDetails: jest.fn().mockResolvedValue(showNoLatestSeason),
+        getSeasonDetails: jest.fn().mockResolvedValue(mockSeasonDetails),
+        getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockSeasonAggregateCredits),
+      };
+      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
+
+      (showsDb.getAdminShowDetails as jest.Mock).mockResolvedValue({ id: castShowId, seasonCount: 2 });
+      (showsDb.updateShow as jest.Mock).mockResolvedValue(true);
+      (showsDb.getProfilesForShow as jest.Mock).mockResolvedValue({
+        showId: '1',
+        profileAccountMappings: [],
+        totalCount: 0,
+      });
+      (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValue({ id: 99 });
+      (personsDb.saveShowCast as jest.Mock).mockResolvedValue(undefined);
+
+      await adminShowService.updateShowById(castShowId, castTmdbId);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(mockTMDBService.getSeasonAggregateCredits).not.toHaveBeenCalled();
+
+      const castCalls = (personsDb.saveShowCast as jest.Mock).mock.calls.map((call) => call[0]);
+      expect(castCalls.every((c) => c.active === 0)).toBe(true);
     });
   });
 

@@ -52,19 +52,35 @@ export const mockTMDBShow = {
   type: 'Scripted',
   in_production: true,
   last_air_date: '2023-06-01',
-  last_episode_to_air: { id: 100 },
+  last_episode_to_air: { id: 100, season_number: 2 },
   next_episode_to_air: { id: 101 },
-  credits: { cast: [{ credit_id: 'credit1' }] },
   aggregate_credits: {
     cast: [
       {
         id: 1,
+        name: 'Actor 1',
         order: 0,
+        gender: 2,
+        profile_path: '/actor1.jpg',
         roles: [
           {
             character: 'Character 1',
-            credit_id: 'credit1',
+            credit_id: 'aggregate_credit_xyz',
             episode_count: 5,
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: 'Former Actor',
+        order: 1,
+        gender: 1,
+        profile_path: '/actor2.jpg',
+        roles: [
+          {
+            character: 'Character 2',
+            credit_id: 'aggregate_credit_old',
+            episode_count: 3,
           },
         ],
       },
@@ -123,9 +139,23 @@ export const mockSeasonDetails = {
   ],
 };
 
+// Person id: 1 is in the latest season; person id: 2 is NOT.
+// credit_id here deliberately differs from aggregate_credits to prove person-ID matching works.
+export const mockSeasonAggregateCredits = [
+  {
+    id: 1,
+    name: 'Actor 1',
+    order: 0,
+    gender: 2,
+    profile_path: '/actor1.jpg',
+    roles: [{ character: 'Character 1', credit_id: 'season_credit_abc', episode_count: 5 }],
+  },
+];
+
 export const mockTMDBResponses = {
   showDetails: mockTMDBShow,
   seasonDetails: mockSeasonDetails,
+  seasonAggregateCredits: mockSeasonAggregateCredits,
   showRecommendations: { results: [], page: 1, total_pages: 1, total_results: 0 },
   similarShows: { results: [], page: 1, total_pages: 1, total_results: 0 },
   showChanges: { changes: [] },

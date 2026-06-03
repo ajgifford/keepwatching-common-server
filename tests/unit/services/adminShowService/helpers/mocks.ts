@@ -24,6 +24,7 @@ export function setupDefaultMocks(mockCacheService: any) {
   (getTMDBService as jest.Mock).mockReturnValue({
     getShowDetails: jest.fn().mockResolvedValue(mockTMDBResponses.showDetails),
     getSeasonDetails: jest.fn().mockResolvedValue(mockTMDBResponses.seasonDetails),
+    getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockTMDBResponses.seasonAggregateCredits),
     getShowRecommendations: jest.fn().mockResolvedValue(mockTMDBResponses.showRecommendations),
     getSimilarShows: jest.fn().mockResolvedValue(mockTMDBResponses.similarShows),
     getShowChanges: jest.fn().mockResolvedValue(mockTMDBResponses.showChanges),
@@ -48,5 +49,6 @@ export function createMockCacheService(): any {
     invalidate: jest.fn(),
     invalidatePattern: jest.fn(),
     invalidateProfileShows: jest.fn(),
+    invalidatePerson: jest.fn(),
   };
 }

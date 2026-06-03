@@ -455,7 +455,7 @@ export const mockTMDBResponses = {
     type: 'Scripted',
     in_production: true,
     last_air_date: '2023-06-01',
-    last_episode_to_air: { id: 100 },
+    last_episode_to_air: { id: 100, season_number: 2 },
     next_episode_to_air: { id: 101 },
     networks: [{ origin_country: 'US', name: 'HBO' }],
     seasons: [
@@ -478,6 +478,18 @@ export const mockTMDBResponses = {
         season_number: 2,
       },
     ],
+    aggregate_credits: {
+      cast: [
+        {
+          id: 1,
+          name: 'Actor 1',
+          order: 0,
+          gender: 2,
+          profile_path: '/actor1.jpg',
+          roles: [{ character: 'Character 1', credit_id: 'aggregate_credit_xyz', episode_count: 5 }],
+        },
+      ],
+    },
     'watch/providers': {
       results: {
         US: {
@@ -631,6 +643,20 @@ export const mockTMDBResponses = {
       },
     ],
   },
+
+  /**
+   * Season aggregate credits response
+   */
+  seasonAggregateCredits: [
+    {
+      id: 1,
+      name: 'Actor 1',
+      order: 0,
+      gender: 2,
+      profile_path: '/actor1.jpg',
+      roles: [{ character: 'Character 1', credit_id: 'season_credit_abc', episode_count: 5 }],
+    },
+  ],
 
   /**
    * Season changes response

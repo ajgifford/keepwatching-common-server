@@ -590,10 +590,14 @@ export class AdminShowService {
    */
   private async processShowCast(show: TMDBShow, showId: number) {
     try {
-      const activeCast = show.credits.cast ?? [];
-      const activeCreditIds = activeCast.map((member) => member.credit_id);
+      const latestSeasonNumber = show.last_episode_to_air?.season_number;
+      let activePersonIds: number[] = [];
+      if (latestSeasonNumber) {
+        const latestSeasonCast = await getTMDBService().getSeasonAggregateCredits(show.id, latestSeasonNumber);
+        activePersonIds = latestSeasonCast.map((member) => member.id);
+      }
       const allCast = show.aggregate_credits.cast ?? [];
-      const filteredCast = this.filterShowCastMembers(allCast, showId, activeCreditIds);
+      const filteredCast = this.filterShowCastMembers(allCast, showId, activePersonIds);
 
       for (const castMember of filteredCast) {
         const person = await personsDb.findPersonByTMDBId(castMember.person_id);
@@ -642,12 +646,13 @@ export class AdminShowService {
   private filterShowCastMembers(
     showCastMembers: TMDBShowCastMember[],
     contentId: number,
-    activeCreditIds: string[],
+    activePersonIds: number[],
   ): CreateShowCast[] {
-    const activeCreditIdSet = new Set(activeCreditIds);
+    const activePersonIdSet = new Set(activePersonIds);
 
-    return showCastMembers.flatMap((showMember) =>
-      showMember.roles
+    const candidates = showCastMembers.flatMap((showMember) => {
+      const isActive = activePersonIdSet.has(showMember.id) ? 1 : 0;
+      return showMember.roles
         .filter((role) => role.episode_count >= 2)
         .map((role) => ({
           content_id: contentId,
@@ -656,9 +661,31 @@ export class AdminShowService {
           credit_id: role.credit_id,
           cast_order: showMember.order,
           total_episodes: role.episode_count,
-          active: activeCreditIdSet.has(role.credit_id) ? 1 : 0,
-        })),
-    );
+          active: isActive,
+        }));
+    });
+
+    // TMDB sometimes lists the same actor/character with multiple credit entries (e.g. per-season
+    // credits for a long-running show). Keep only the best row per (person, character) pair:
+    // active > most episodes > lowest cast_order.
+    const best = new Map<string, CreateShowCast>();
+    for (const row of candidates) {
+      const key = `${row.person_id}:${row.character_name.toLowerCase()}`;
+      const existing = best.get(key);
+      if (!existing) {
+        best.set(key, row);
+      } else {
+        const preferNew =
+          row.active > existing.active ||
+          (row.active === existing.active && row.total_episodes > existing.total_episodes) ||
+          (row.active === existing.active &&
+            row.total_episodes === existing.total_episodes &&
+            row.cast_order < existing.cast_order);
+        if (preferNew) best.set(key, row);
+      }
+    }
+
+    return Array.from(best.values());
   }
 
   /**

@@ -151,7 +151,6 @@ export interface TMDBShow extends TMDBContent {
   backdrop_path: string;
   first_air_date: string;
   genres: TMDBGenre[];
-  credits: { cast: TMDBCastMember[] };
   aggregate_credits: { cast: TMDBShowCastMember[] };
   in_production: boolean;
   last_air_date: string;

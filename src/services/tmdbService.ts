@@ -14,6 +14,7 @@ import {
   TMDBSearchTVParams,
   TMDBSeasonDetails,
   TMDBShow,
+  TMDBShowCastMember,
   TMDBTrendingResult,
 } from '../types/tmdbTypes';
 import { axiosTMDBAPIInstance } from '../utils/axiosInstance';
@@ -24,6 +25,7 @@ export const TMDB_CACHE_KEYS = {
   showDetails: (id: number) => `tmdb_show_details_${id}`,
   movieDetails: (id: number) => `tmdb_movie_details_${id}`,
   seasonDetails: (showId: number, seasonNumber: number) => `tmdb_season_details_${showId}_${seasonNumber}`,
+  seasonAggregateCredits: (showId: number, seasonNumber: number) => `tmdb_season_aggregate_credits_${showId}_${seasonNumber}`,
   personDetails: (personId: number) => `tmdb_person_details_${personId}`,
   personCredits: (personId: number) => `tmdb_person_credits_${personId}`,
   trending: (mediaType: 'tv' | 'movie', page: string = '1') => `tmdb_trending_${mediaType}_${page}`,
@@ -96,6 +98,14 @@ export interface TMDBService {
    * @returns Season details including episodes
    */
   getSeasonDetails(showId: number, seasonNumber: number): Promise<TMDBSeasonDetails>;
+
+  /**
+   * Get aggregate credits for a specific season of a TV show
+   * @param showId - TMDB ID of the show
+   * @param seasonNumber - Season number
+   * @returns All cast members who appeared in the season
+   */
+  getSeasonAggregateCredits(showId: number, seasonNumber: number): Promise<TMDBShowCastMember[]>;
 
   /**
    * Get detailed information about a specific person
@@ -312,7 +322,7 @@ export class DefaultTMDBService implements TMDBService {
         return await withRetry(
           async () => {
             const response = await axiosTMDBAPIInstance.get<TMDBShow>(
-              `/tv/${id}?append_to_response=credits,aggregate_credits,content_ratings,watch/providers`,
+              `/tv/${id}?append_to_response=aggregate_credits,content_ratings,watch/providers`,
               { timeout: 10000 },
             );
             return response.data;
@@ -371,6 +381,31 @@ export class DefaultTMDBService implements TMDBService {
             baseDelay: 1000,
           },
           `getSeasonDetails(${showId}, ${seasonNumber})`,
+        );
+      },
+      3600, // 1 hour TTL
+    );
+  }
+
+  async getSeasonAggregateCredits(showId: number, seasonNumber: number): Promise<TMDBShowCastMember[]> {
+    const cacheKey = TMDB_CACHE_KEYS.seasonAggregateCredits(showId, seasonNumber);
+
+    return await this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        return await withRetry(
+          async () => {
+            const response = await axiosTMDBAPIInstance.get<{ cast: TMDBShowCastMember[] }>(
+              `/tv/${showId}/season/${seasonNumber}/aggregate_credits`,
+              { timeout: 10000 },
+            );
+            return response.data.cast;
+          },
+          {
+            maxRetries: 3,
+            baseDelay: 1000,
+          },
+          `getSeasonAggregateCredits(${showId}, ${seasonNumber})`,
         );
       },
       3600, // 1 hour TTL

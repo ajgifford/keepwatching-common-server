@@ -39,6 +39,7 @@ describe('ShowService - Content Updates', () => {
     const mockTMDBService = {
       getShowChanges: jest.fn(),
       getShowDetails: jest.fn(),
+      getSeasonAggregateCredits: jest.fn().mockResolvedValue([]),
     };
 
     beforeEach(() => {

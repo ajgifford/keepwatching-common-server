@@ -86,6 +86,7 @@ export function setupMocks() {
   (getTMDBService as jest.Mock).mockReturnValue({
     getShowDetails: jest.fn().mockResolvedValue(mockTMDBResponses.showDetails),
     getSeasonDetails: jest.fn().mockResolvedValue(mockTMDBResponses.seasonDetails),
+    getSeasonAggregateCredits: jest.fn().mockResolvedValue(mockTMDBResponses.seasonAggregateCredits),
     getShowRecommendations: jest.fn().mockResolvedValue(mockTMDBResponses.showRecommendations),
     getSimilarShows: jest.fn().mockResolvedValue(mockTMDBResponses.similarShows),
     getShowChanges: jest.fn().mockResolvedValue(mockTMDBResponses.showChanges),
