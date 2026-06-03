@@ -215,6 +215,37 @@ export async function getSeasonsForShow(profileId: number, showId: number): Prom
 }
 
 /**
+ * Deletes a season and all its associated episodes, watch statuses, and history records
+ *
+ * @param seasonId - ID of the season to delete
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function deleteSeasonById(seasonId: number): Promise<void> {
+  try {
+    await DbMonitor.getInstance().executeWithTiming(
+      'deleteSeasonById',
+      async () => {
+        await getDbPool().execute(
+          'DELETE ewh FROM episode_watch_history ewh JOIN episodes e ON ewh.episode_id = e.id WHERE e.season_id = ?',
+          [seasonId],
+        );
+        await getDbPool().execute(
+          'DELETE ews FROM episode_watch_status ews JOIN episodes e ON ews.episode_id = e.id WHERE e.season_id = ?',
+          [seasonId],
+        );
+        await getDbPool().execute('DELETE FROM episodes WHERE season_id = ?', [seasonId]);
+        await getDbPool().execute('DELETE FROM season_watch_status WHERE season_id = ?', [seasonId]);
+        await getDbPool().execute('DELETE FROM seasons WHERE id = ?', [seasonId]);
+      },
+      1000,
+      { content: { id: seasonId, type: 'season' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, `deleteSeasonById(${seasonId})`);
+  }
+}
+
+/**
  * Gets the show ID that a season belongs to
  *
  * @param seasonId - ID of the season

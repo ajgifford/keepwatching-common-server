@@ -9,6 +9,7 @@ import {
 } from './helpers/fixtures';
 import { createMockCacheService, setupDefaultMocks } from './helpers/mocks';
 import * as episodesDb from '@db/episodesDb';
+import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { AdminShowService, createAdminShowService, resetAdminShowService } from '@services/adminShowService';
 import { errorService } from '@services/errorService';
@@ -60,7 +61,10 @@ describe('AdminShowService - Basic Operations', () => {
     ]);
     (showsDb.getDuplicateEpisodesForShow as jest.Mock).mockResolvedValue(mockEpisodes);
     (showsDb.getShowsWithDuplicateEpisodes as jest.Mock).mockResolvedValue([]);
+    (showsDb.getShowsWithDuplicateSeasons as jest.Mock).mockResolvedValue([]);
+    (showsDb.getDuplicateSeasonsForShow as jest.Mock).mockResolvedValue([]);
     (episodesDb.deleteEpisodeById as jest.Mock).mockResolvedValue(undefined);
+    (seasonsDb.deleteSeasonById as jest.Mock).mockResolvedValue(undefined);
 
     (errorService.handleError as jest.Mock).mockImplementation((err) => {
       throw err;
@@ -285,6 +289,95 @@ describe('AdminShowService - Basic Operations', () => {
       (episodesDb.deleteEpisodeById as jest.Mock).mockRejectedValue(dbError);
 
       await expect(adminShowService.deleteEpisode(episodeId, mockShowId)).rejects.toThrow();
+      expect(mockCacheService.invalidate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getShowsWithDuplicateSeasons', () => {
+    const mockShowsWithDuplicateSeasons = [
+      { id: 1, title: 'Show A', posterImage: '/a.jpg', duplicateGroupCount: 2, extraSeasonCount: 3 },
+      { id: 2, title: 'Show B', posterImage: '/b.jpg', duplicateGroupCount: 1, extraSeasonCount: 1 },
+    ];
+
+    it('should return all shows that have duplicate seasons', async () => {
+      (showsDb.getShowsWithDuplicateSeasons as jest.Mock).mockResolvedValue(mockShowsWithDuplicateSeasons);
+
+      const result = await adminShowService.getShowsWithDuplicateSeasons();
+
+      expect(showsDb.getShowsWithDuplicateSeasons).toHaveBeenCalled();
+      expect(result).toEqual(mockShowsWithDuplicateSeasons);
+    });
+
+    it('should return empty array when no shows have duplicate seasons', async () => {
+      (showsDb.getShowsWithDuplicateSeasons as jest.Mock).mockResolvedValue([]);
+
+      const result = await adminShowService.getShowsWithDuplicateSeasons();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Query failed');
+      (showsDb.getShowsWithDuplicateSeasons as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.getShowsWithDuplicateSeasons()).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('getDuplicateSeasons', () => {
+    it('should return duplicate seasons for a show', async () => {
+      (showsDb.getDuplicateSeasonsForShow as jest.Mock).mockResolvedValue(mockSeasons);
+
+      const result = await adminShowService.getDuplicateSeasons(mockShowId);
+
+      expect(showsDb.getDuplicateSeasonsForShow).toHaveBeenCalledWith(mockShowId);
+      expect(result).toEqual(mockSeasons);
+    });
+
+    it('should return empty array when no duplicate seasons exist', async () => {
+      (showsDb.getDuplicateSeasonsForShow as jest.Mock).mockResolvedValue([]);
+
+      const result = await adminShowService.getDuplicateSeasons(mockShowId);
+
+      expect(showsDb.getDuplicateSeasonsForShow).toHaveBeenCalledWith(mockShowId);
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Query failed');
+      (showsDb.getDuplicateSeasonsForShow as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.getDuplicateSeasons(mockShowId)).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('deleteSeason', () => {
+    const seasonId = mockSeasonId;
+
+    beforeEach(() => {
+      (seasonsDb.deleteSeasonById as jest.Mock).mockResolvedValue(undefined);
+    });
+
+    it('should delete the season and invalidate the show and season caches', async () => {
+      await adminShowService.deleteSeason(seasonId, mockShowId);
+
+      expect(seasonsDb.deleteSeasonById).toHaveBeenCalledWith(seasonId);
+      expect(mockCacheService.invalidate).toHaveBeenCalled();
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalled();
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Delete failed');
+      (seasonsDb.deleteSeasonById as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.deleteSeason(seasonId, mockShowId)).rejects.toThrow('Delete failed');
+    });
+
+    it('should not invalidate cache when deletion fails', async () => {
+      const dbError = new Error('Delete failed');
+      (seasonsDb.deleteSeasonById as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.deleteSeason(seasonId, mockShowId)).rejects.toThrow();
       expect(mockCacheService.invalidate).not.toHaveBeenCalled();
     });
   });

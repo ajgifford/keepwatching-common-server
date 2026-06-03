@@ -365,4 +365,34 @@ describe('seasonsDb Module', () => {
       );
     });
   });
+
+  describe('deleteSeasonById', () => {
+    const seasonId = 10;
+
+    it('should delete episode watch history, watch status, episodes, season watch status, and the season', async () => {
+      mockExecute.mockResolvedValue([{ affectedRows: 1 }]);
+
+      await seasonsDb.deleteSeasonById(seasonId);
+
+      expect(mockExecute).toHaveBeenCalledTimes(5);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('DELETE ewh FROM episode_watch_history'), [
+        seasonId,
+      ]);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('DELETE ews FROM episode_watch_status'), [
+        seasonId,
+      ]);
+      expect(mockExecute).toHaveBeenCalledWith('DELETE FROM episodes WHERE season_id = ?', [seasonId]);
+      expect(mockExecute).toHaveBeenCalledWith('DELETE FROM season_watch_status WHERE season_id = ?', [seasonId]);
+      expect(mockExecute).toHaveBeenCalledWith('DELETE FROM seasons WHERE id = ?', [seasonId]);
+    });
+
+    it('should throw DatabaseError when a delete query fails', async () => {
+      const dbError = new Error('Constraint violation');
+      mockExecute.mockRejectedValueOnce(dbError);
+
+      await expect(seasonsDb.deleteSeasonById(seasonId)).rejects.toThrow(
+        `Database error deleteSeasonById(${seasonId}): Constraint violation`,
+      );
+    });
+  });
 });

@@ -1210,6 +1210,127 @@ describe('adminShowRepository', () => {
     });
   });
 
+  describe('getShowsWithDuplicateSeasons', () => {
+    const mockRows = [
+      {
+        id: 1,
+        title: 'Show A',
+        poster_image: '/poster_a.jpg',
+        duplicate_group_count: 2,
+        extra_season_count: 3,
+      },
+      {
+        id: 2,
+        title: 'Show B',
+        poster_image: '/poster_b.jpg',
+        duplicate_group_count: 1,
+        extra_season_count: 1,
+      },
+    ];
+
+    it('should return shows with duplicate seasons ordered by group count', async () => {
+      mockExecute.mockResolvedValue([mockRows]);
+
+      const result = await adminShowRepository.getShowsWithDuplicateSeasons();
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('HAVING COUNT(*) > 1'));
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        id: 1,
+        title: 'Show A',
+        posterImage: '/poster_a.jpg',
+        duplicateGroupCount: 2,
+        extraSeasonCount: 3,
+      });
+      expect(result[1]).toEqual({
+        id: 2,
+        title: 'Show B',
+        posterImage: '/poster_b.jpg',
+        duplicateGroupCount: 1,
+        extraSeasonCount: 1,
+      });
+    });
+
+    it('should return empty array when no shows have duplicate seasons', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await adminShowRepository.getShowsWithDuplicateSeasons();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query failed');
+      mockExecute.mockRejectedValue(dbError);
+
+      await expect(adminShowRepository.getShowsWithDuplicateSeasons()).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('getDuplicateSeasonsForShow', () => {
+    const mockShowId = 10;
+    const mockSeasonRows = [
+      {
+        id: 10,
+        show_id: mockShowId,
+        tmdb_id: 3572,
+        name: 'Season 1',
+        overview: 'The first season.',
+        season_number: 1,
+        release_date: '2008-01-20',
+        poster_image: '/s1.jpg',
+        number_of_episodes: 7,
+        created_at: new Date('2024-01-01T00:00:00Z'),
+        updated_at: new Date('2024-01-01T00:00:00Z'),
+      },
+      {
+        id: 11,
+        show_id: mockShowId,
+        tmdb_id: 3573,
+        name: 'Season 1 (duplicate)',
+        overview: 'Duplicate of the first season.',
+        season_number: 1,
+        release_date: '2008-01-20',
+        poster_image: '/s1dup.jpg',
+        number_of_episodes: 7,
+        created_at: new Date('2024-01-02T00:00:00Z'),
+        updated_at: new Date('2024-01-02T00:00:00Z'),
+      },
+    ];
+
+    it('should return all duplicate seasons for a show', async () => {
+      mockExecute.mockResolvedValue([mockSeasonRows]);
+
+      const result = await adminShowRepository.getDuplicateSeasonsForShow(mockShowId);
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('HAVING COUNT(*) > 1'), [
+        mockShowId,
+        mockShowId,
+      ]);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(10);
+      expect(result[0].seasonNumber).toBe(1);
+      expect(result[0].name).toBe('Season 1');
+      expect(result[1].id).toBe(11);
+      expect(result[1].name).toBe('Season 1 (duplicate)');
+    });
+
+    it('should return empty array when no duplicate seasons exist', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await adminShowRepository.getDuplicateSeasonsForShow(mockShowId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should throw DatabaseError when query fails', async () => {
+      const dbError = new Error('Query failed');
+      mockExecute.mockRejectedValue(dbError);
+
+      await expect(adminShowRepository.getDuplicateSeasonsForShow(mockShowId)).rejects.toThrow('Query failed');
+    });
+  });
+
   describe('getAdminShowWatchProgress', () => {
     const mockShowId = 123;
     const mockProfilesRows = [

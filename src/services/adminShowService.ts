@@ -281,6 +281,33 @@ export class AdminShowService {
   }
 
   /**
+   * Get all shows that have potential duplicate seasons (same season_number within the same show)
+   *
+   * @returns Array of shows with duplicate season counts
+   */
+  public async getShowsWithDuplicateSeasons() {
+    try {
+      return await showsDb.getShowsWithDuplicateSeasons();
+    } catch (error) {
+      throw errorService.handleError(error, 'getShowsWithDuplicateSeasons()');
+    }
+  }
+
+  /**
+   * Get all seasons that are potential duplicates (same season_number) for a show
+   *
+   * @param showId - ID of the show to check for duplicate seasons
+   * @returns Array of seasons that have duplicates within the show
+   */
+  public async getDuplicateSeasons(showId: number) {
+    try {
+      return await showsDb.getDuplicateSeasonsForShow(showId);
+    } catch (error) {
+      throw errorService.handleError(error, `getDuplicateSeasons(${showId})`);
+    }
+  }
+
+  /**
    * Delete an episode and all its associated watch data, then invalidate show cache
    *
    * @param episodeId - ID of the episode to delete
@@ -292,6 +319,22 @@ export class AdminShowService {
       this.invalidateShowCache(showId);
     } catch (error) {
       throw errorService.handleError(error, `deleteEpisode(${episodeId})`);
+    }
+  }
+
+  /**
+   * Delete a season and all its associated episodes and watch data, then invalidate show cache
+   *
+   * @param seasonId - ID of the season to delete
+   * @param showId - ID of the parent show (used for cache invalidation)
+   */
+  public async deleteSeason(seasonId: number, showId: number) {
+    try {
+      await seasonsDb.deleteSeasonById(seasonId);
+      this.invalidateShowCache(showId);
+      this.cache.invalidate(ADMIN_KEYS.seasonEpisodes(seasonId));
+    } catch (error) {
+      throw errorService.handleError(error, `deleteSeason(${seasonId})`);
     }
   }
 
