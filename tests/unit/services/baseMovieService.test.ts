@@ -2,10 +2,12 @@ import * as personsDb from '@db/personsDb';
 import { cliLogger } from '@logger/logger';
 import { BaseMovieService } from '@services/baseMovieService';
 import * as castUtility from '@services/castUtility';
+import { errorService } from '@services/errorService';
 
 jest.mock('@db/personsDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/castUtility');
+jest.mock('@services/errorService');
 jest.mock('@logger/logger', () => ({
   cliLogger: { error: jest.fn() },
 }));
@@ -26,8 +28,61 @@ describe('BaseMovieService', () => {
     mockCache = { invalidatePerson: jest.fn() };
     service = new TestableMovieService({ cacheService: mockCache });
     (castUtility.processContentCast as jest.Mock).mockResolvedValue(undefined);
+    (errorService.handleError as jest.Mock).mockImplementation((err: unknown) => {
+      throw err;
+    });
   });
 
+  // ---------------------------------------------------------------------------
+  // getMovieCastMembers
+  // ---------------------------------------------------------------------------
+  describe('getMovieCastMembers', () => {
+    const mockCast = [
+      { personId: 1, name: 'Actor A', characterName: 'Hero', order: 0, profileImage: '', contentId: 42 },
+    ];
+
+    beforeEach(() => {
+      (personsDb.getMovieCastMembers as jest.Mock).mockResolvedValue(mockCast);
+    });
+
+    it('returns cast members from personsDb', async () => {
+      mockCache.getOrSet = jest.fn((_key: string, fn: () => unknown) => fn());
+
+      const result = await service.getMovieCastMembers(42);
+
+      expect(result).toEqual(mockCast);
+      expect(personsDb.getMovieCastMembers).toHaveBeenCalledWith(42);
+    });
+
+    it('uses the correct cache key', async () => {
+      mockCache.getOrSet = jest.fn().mockResolvedValue([]);
+
+      await service.getMovieCastMembers(42);
+
+      expect(mockCache.getOrSet).toHaveBeenCalledWith(expect.stringContaining('cast_42'), expect.any(Function), 600);
+    });
+
+    it('returns the cached value without calling personsDb again', async () => {
+      mockCache.getOrSet = jest.fn().mockResolvedValue(mockCast);
+
+      const result = await service.getMovieCastMembers(42);
+
+      expect(result).toEqual(mockCast);
+      expect(personsDb.getMovieCastMembers).not.toHaveBeenCalled();
+    });
+
+    it('propagates errors via errorService.handleError', async () => {
+      const err = new Error('db failure');
+      mockCache.getOrSet = jest.fn().mockRejectedValue(err);
+
+      await expect(service.getMovieCastMembers(42)).rejects.toThrow('db failure');
+      expect(errorService.handleError).toHaveBeenCalledWith(err, 'getMovieCastMembers(42)');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // processMovieCast
+  // ---------------------------------------------------------------------------
   describe('processMovieCast', () => {
     const baseMovie = { credits: { cast: [] } };
 

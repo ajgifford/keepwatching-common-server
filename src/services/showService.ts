@@ -1,6 +1,5 @@
 import { PROFILE_KEYS, SHOW_KEYS } from '../constants/cacheKeys';
 import * as episodesDb from '../db/episodesDb';
-import * as personsDb from '../db/personsDb';
 import * as seasonsDb from '../db/seasonsDb';
 import * as showsDb from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
@@ -37,7 +36,6 @@ import {
   ProfileShowWithSeasons,
   ProfileWatchProgressResponse,
   RemoveShowFavorite,
-  ShowCast,
   ShowReference,
   ShowStatisticsResponse,
   SimilarOrRecommendedShow,
@@ -181,26 +179,6 @@ export class ShowService extends BaseShowService {
         `getShowDetailsForProfileByChild(${accountId}, ${profileId}, ${childId}, ${childEntity})`,
       );
     }
-  }
-
-  /**
-   * Retrieve the cast members for the given show
-   *
-   * @param showId - ID of the show to get
-   * @returns the cast members of the show
-   */
-  public async getShowCastMembers(showId: number): Promise<ShowCast> {
-    try {
-      return await this.cache.getOrSet(SHOW_KEYS.castMembers(showId), () => this.getCastMember(showId), 600);
-    } catch (error) {
-      throw errorService.handleError(error, `getShowCastMembers(${showId})`);
-    }
-  }
-
-  private async getCastMember(showId: number): Promise<ShowCast> {
-    const activeCast = await personsDb.getShowCastMembers(showId, 1);
-    const priorCast = await personsDb.getShowCastMembers(showId, 0);
-    return { activeCast, priorCast };
   }
 
   /**

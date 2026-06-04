@@ -1,6 +1,5 @@
 import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
-import * as personsDb from '../db/personsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NoAffectedRowsError } from '../middleware/errorMiddleware';
@@ -21,7 +20,6 @@ import { getTMDBService } from './tmdbService';
 import { watchStatusService } from './watchStatusService';
 import {
   AddMovieFavorite,
-  CastMember,
   ContentReference,
   CreateMovieRequest,
   MovieReference,
@@ -104,24 +102,6 @@ export class MoviesService extends BaseMovieService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getMovieDetailsForProfile(${profileId}, ${movieId})`);
-    }
-  }
-
-  /**
-   * Retrieve the cast members for the given movie
-   *
-   * @param movieId - ID of the movie to get
-   * @returns the cast members of the movie
-   */
-  public async getMovieCastMembers(movieId: number): Promise<CastMember[]> {
-    try {
-      return await this.cache.getOrSet(
-        MOVIE_KEYS.castMembers(movieId),
-        () => personsDb.getMovieCastMembers(movieId),
-        600,
-      );
-    } catch (error) {
-      throw errorService.handleError(error, `getMovieCastMembers(${movieId})`);
     }
   }
 

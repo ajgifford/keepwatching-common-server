@@ -2,12 +2,14 @@ import * as personsDb from '@db/personsDb';
 import { cliLogger } from '@logger/logger';
 import { BaseShowService } from '@services/baseShowService';
 import * as castUtility from '@services/castUtility';
+import { errorService } from '@services/errorService';
 import { getTMDBService } from '@services/tmdbService';
 
 jest.mock('@db/personsDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/tmdbService');
 jest.mock('@services/castUtility');
+jest.mock('@services/errorService');
 jest.mock('@logger/logger', () => ({
   cliLogger: { error: jest.fn() },
 }));
@@ -32,6 +34,81 @@ describe('BaseShowService', () => {
     mockCache = { invalidatePerson: jest.fn() };
     service = new TestableShowService({ cacheService: mockCache });
     (castUtility.processContentCast as jest.Mock).mockResolvedValue(undefined);
+    (errorService.handleError as jest.Mock).mockImplementation((err: unknown) => {
+      throw err;
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getShowCastMembers
+  // ---------------------------------------------------------------------------
+  describe('getShowCastMembers', () => {
+    const activeCast = [
+      {
+        personId: 1,
+        name: 'Actor A',
+        characterName: 'Hero',
+        order: 0,
+        profileImage: '',
+        contentId: 10,
+        episodeCount: 5,
+        active: true,
+      },
+    ];
+    const priorCast = [
+      {
+        personId: 2,
+        name: 'Actor B',
+        characterName: 'Villain',
+        order: 1,
+        profileImage: '',
+        contentId: 10,
+        episodeCount: 3,
+        active: false,
+      },
+    ];
+
+    beforeEach(() => {
+      (personsDb.getShowCastMembers as jest.Mock).mockImplementation((_showId: number, active: number) =>
+        Promise.resolve(active === 1 ? activeCast : priorCast),
+      );
+    });
+
+    it('returns activeCast and priorCast from personsDb', async () => {
+      mockCache.getOrSet = jest.fn((_key: string, fn: () => unknown) => fn());
+
+      const result = await service.getShowCastMembers(10);
+
+      expect(result).toEqual({ activeCast, priorCast });
+      expect(personsDb.getShowCastMembers).toHaveBeenCalledWith(10, 1);
+      expect(personsDb.getShowCastMembers).toHaveBeenCalledWith(10, 0);
+    });
+
+    it('uses the correct cache key', async () => {
+      mockCache.getOrSet = jest.fn().mockResolvedValue({ activeCast: [], priorCast: [] });
+
+      await service.getShowCastMembers(10);
+
+      expect(mockCache.getOrSet).toHaveBeenCalledWith(expect.stringContaining('cast_10'), expect.any(Function), 600);
+    });
+
+    it('returns the cached value without calling personsDb again', async () => {
+      const cached = { activeCast, priorCast: [] };
+      mockCache.getOrSet = jest.fn().mockResolvedValue(cached);
+
+      const result = await service.getShowCastMembers(10);
+
+      expect(result).toEqual(cached);
+      expect(personsDb.getShowCastMembers).not.toHaveBeenCalled();
+    });
+
+    it('propagates errors via errorService.handleError', async () => {
+      const err = new Error('db failure');
+      mockCache.getOrSet = jest.fn().mockRejectedValue(err);
+
+      await expect(service.getShowCastMembers(10)).rejects.toThrow('db failure');
+      expect(errorService.handleError).toHaveBeenCalledWith(err, 'getShowCastMembers(10)');
+    });
   });
 
   // ---------------------------------------------------------------------------

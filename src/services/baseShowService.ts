@@ -1,16 +1,32 @@
+import { SHOW_KEYS } from '../constants/cacheKeys';
 import * as personsDb from '../db/personsDb';
 import { cliLogger } from '../logger/logger';
 import { TMDBShow, TMDBShowCastMember } from '../types/tmdbTypes';
 import { CacheService } from './cacheService';
 import { processContentCast } from './castUtility';
+import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
-import { CreateShowCast } from '@ajgifford/keepwatching-types';
+import { CreateShowCast, ShowCast } from '@ajgifford/keepwatching-types';
 
 export abstract class BaseShowService {
   protected cache: CacheService;
 
   constructor(dependencies?: { cacheService?: CacheService }) {
     this.cache = dependencies?.cacheService ?? CacheService.getInstance();
+  }
+
+  public async getShowCastMembers(showId: number): Promise<ShowCast> {
+    try {
+      return await this.cache.getOrSet(SHOW_KEYS.castMembers(showId), () => this.getCastMembers(showId), 600);
+    } catch (error) {
+      throw errorService.handleError(error, `getShowCastMembers(${showId})`);
+    }
+  }
+
+  private async getCastMembers(showId: number): Promise<ShowCast> {
+    const activeCast = await personsDb.getShowCastMembers(showId, 1);
+    const priorCast = await personsDb.getShowCastMembers(showId, 0);
+    return { activeCast, priorCast };
   }
 
   protected async processShowCast(show: TMDBShow, showId: number): Promise<void> {
