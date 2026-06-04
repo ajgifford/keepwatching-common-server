@@ -1,12 +1,12 @@
 import { ADMIN_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
 import { MovieFilterOptions } from '../db/moviesDb';
-import * as personsDb from '../db/personsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
-import { TMDBGenre, TMDBMovie } from '../types/tmdbTypes';
+import { TMDBGenre } from '../types/tmdbTypes';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils/contentUtility';
 import { getUSWatchProvidersMovie } from '../utils/watchProvidersUtility';
+import { BaseMovieService } from './baseMovieService';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { getTMDBService } from './tmdbService';
@@ -16,14 +16,12 @@ import { AdminMovieDetails, ContentProfiles, UpdateMovieRequest } from '@ajgiffo
  * Service for handling admin-specific movie operations
  * Provides caching and error handling on top of the repository layer
  */
-export class AdminMovieService {
-  private cache: CacheService;
-
+export class AdminMovieService extends BaseMovieService {
   /**
    * Constructor accepts optional dependencies for testing
    */
   constructor(dependencies?: { cacheService?: CacheService }) {
-    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
+    super(dependencies);
   }
 
   public async getAllMovies(page: number, offset: number, limit: number) {
@@ -260,40 +258,6 @@ export class AdminMovieService {
     } catch (error) {
       appLogger.error(ErrorMessages.MovieChangeFail, { error, movieId });
       throw errorService.handleError(error, `updateMovieById(${movieId})`);
-    }
-  }
-
-  private async processMovieCast(movie: TMDBMovie, movieId: number) {
-    try {
-      const cast = movie.credits.cast ?? [];
-      for (const castMember of cast) {
-        const person = await personsDb.findPersonByTMDBId(castMember.id);
-        let personId = null;
-        if (person) {
-          personId = person.id;
-        } else {
-          const tmdbPerson = await getTMDBService().getPersonDetails(castMember.id);
-          personId = await personsDb.savePerson({
-            tmdb_id: tmdbPerson.id,
-            name: tmdbPerson.name,
-            gender: tmdbPerson.gender,
-            biography: tmdbPerson.biography,
-            profile_image: tmdbPerson.profile_path,
-            birthdate: tmdbPerson.birthday,
-            deathdate: tmdbPerson.deathday,
-            place_of_birth: tmdbPerson.place_of_birth,
-          });
-        }
-        personsDb.saveMovieCast({
-          content_id: movieId,
-          person_id: personId,
-          credit_id: castMember.credit_id,
-          character_name: castMember.character,
-          cast_order: castMember.order,
-        });
-      }
-    } catch (error) {
-      cliLogger.error('Error fetching movie cast:', error);
     }
   }
 

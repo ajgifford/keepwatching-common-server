@@ -5,7 +5,7 @@ import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NoAffectedRowsError } from '../middleware/errorMiddleware';
 import { ContentUpdates } from '../types/contentTypes';
-import { TMDBMovie, TMDBPaginatedResponse, TMDBRelatedMovie } from '../types/tmdbTypes';
+import { TMDBPaginatedResponse, TMDBRelatedMovie } from '../types/tmdbTypes';
 import { TMDBGenre } from '../types/tmdbTypes';
 import { SUPPORTED_CHANGE_KEYS } from '../utils/changesUtility';
 import { getDirectors, getUSMPARating, getUSProductionCompanies } from '../utils/contentUtility';
@@ -13,6 +13,7 @@ import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { filterEnglishMovies } from '../utils/usSearchFilter';
 import { getUSWatchProvidersMovie } from '../utils/watchProvidersUtility';
 import { checkAndRecordAchievements } from './achievementDetectionService';
+import { BaseMovieService } from './baseMovieService';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { profileService } from './profileService';
@@ -37,15 +38,14 @@ import {
  * Service class for handling movie-related business logic
  * This separates the business logic from the controller layer
  */
-export class MoviesService {
-  private cache: CacheService;
+export class MoviesService extends BaseMovieService {
   private checkAchievements: (profileId: number, accountId: number) => Promise<number>;
 
   constructor(dependencies?: {
     cacheService?: CacheService;
     checkAchievements?: (profileId: number, accountId: number) => Promise<number>;
   }) {
-    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
+    super({ cacheService: dependencies?.cacheService });
     this.checkAchievements = dependencies?.checkAchievements ?? checkAndRecordAchievements;
   }
 
@@ -330,42 +330,6 @@ export class MoviesService {
       favoritedMovie,
       recentUpcomingMovies: { recentMovies, upcomingMovies },
     };
-  }
-
-  private async processMovieCast(movie: TMDBMovie, movieId: number) {
-    try {
-      const cast = movie.credits.cast ?? [];
-      for (const castMember of cast) {
-        const person = await personsDb.findPersonByTMDBId(castMember.id);
-        let personId = null;
-        if (person) {
-          personId = person.id;
-        } else {
-          const tmdbPerson = await getTMDBService().getPersonDetails(castMember.id);
-          personId = await personsDb.savePerson({
-            tmdb_id: tmdbPerson.id,
-            name: tmdbPerson.name,
-            gender: tmdbPerson.gender,
-            biography: tmdbPerson.biography,
-            profile_image: tmdbPerson.profile_path,
-            birthdate: tmdbPerson.birthday,
-            deathdate: tmdbPerson.deathday,
-            place_of_birth: tmdbPerson.place_of_birth,
-          });
-        }
-        personsDb.saveMovieCast({
-          content_id: movieId,
-          person_id: personId,
-          character_name: castMember.character,
-          credit_id: castMember.credit_id,
-          cast_order: castMember.order,
-        });
-
-        this.cache.invalidatePerson(personId);
-      }
-    } catch (error) {
-      cliLogger.error('Error fetching movie cast:', error);
-    }
   }
 
   /**

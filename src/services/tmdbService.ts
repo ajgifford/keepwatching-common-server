@@ -25,7 +25,8 @@ export const TMDB_CACHE_KEYS = {
   showDetails: (id: number) => `tmdb_show_details_${id}`,
   movieDetails: (id: number) => `tmdb_movie_details_${id}`,
   seasonDetails: (showId: number, seasonNumber: number) => `tmdb_season_details_${showId}_${seasonNumber}`,
-  seasonAggregateCredits: (showId: number, seasonNumber: number) => `tmdb_season_aggregate_credits_${showId}_${seasonNumber}`,
+  seasonAggregateCredits: (showId: number, seasonNumber: number) =>
+    `tmdb_season_aggregate_credits_${showId}_${seasonNumber}`,
   personDetails: (personId: number) => `tmdb_person_details_${personId}`,
   personCredits: (personId: number) => `tmdb_person_credits_${personId}`,
   trending: (mediaType: 'tv' | 'movie', page: string = '1') => `tmdb_trending_${mediaType}_${page}`,

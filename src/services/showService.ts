@@ -6,14 +6,7 @@ import * as showsDb from '../db/showsDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { ShowContentUpdates } from '../types/contentTypes';
-import {
-  TMDBGenre,
-  TMDBPaginatedResponse,
-  TMDBRelatedShow,
-  TMDBShow,
-  TMDBShowCastMember,
-  TMDBShowSeason,
-} from '../types/tmdbTypes';
+import { TMDBGenre, TMDBPaginatedResponse, TMDBRelatedShow, TMDBShow, TMDBShowSeason } from '../types/tmdbTypes';
 import {
   GLOBAL_KEYS,
   LANGUAGE_SPECIFIC_KEYS,
@@ -25,6 +18,7 @@ import { generateGenreArrayFromIds } from '../utils/genreUtility';
 import { createNewSeasonNotifications } from '../utils/notificationUtility';
 import { filterUSOrEnglishShows } from '../utils/usSearchFilter';
 import { getUSWatchProvidersShow } from '../utils/watchProvidersUtility';
+import { BaseShowService } from './baseShowService';
 import { CacheService } from './cacheService';
 import { errorService } from './errorService';
 import { profileService } from './profileService';
@@ -35,7 +29,6 @@ import { watchStatusService } from './watchStatusService';
 import {
   AddShowFavorite,
   ContentReference,
-  CreateShowCast,
   CreateShowRequest,
   EpisodesForProfile,
   KeepWatchingShow,
@@ -58,11 +51,9 @@ import {
  * Service class for handling show-related business logic
  * This separates the business logic from the controller layer
  */
-export class ShowService {
-  private cache: CacheService;
-
+export class ShowService extends BaseShowService {
   constructor(dependencies?: { cacheService?: CacheService }) {
-    this.cache = dependencies?.cacheService ?? CacheService.getInstance();
+    super(dependencies);
   }
 
   /**
@@ -434,97 +425,6 @@ export class ShowService {
     } catch (error) {
       cliLogger.error('Error fetching seasons and episodes:', error);
     }
-  }
-
-  private async processShowCast(show: TMDBShow, showId: number) {
-    try {
-      const latestSeasonNumber = show.last_episode_to_air?.season_number;
-      let activePersonIds: number[] = [];
-      if (latestSeasonNumber) {
-        const latestSeasonCast = await getTMDBService().getSeasonAggregateCredits(show.id, latestSeasonNumber);
-        activePersonIds = latestSeasonCast.map((member) => member.id);
-      }
-      const allCast = show.aggregate_credits.cast ?? [];
-      const filteredCast = this.filterShowCastMembers(allCast, showId, activePersonIds);
-
-      for (const castMember of filteredCast) {
-        const person = await personsDb.findPersonByTMDBId(castMember.person_id);
-        let personId = null;
-        if (person) {
-          personId = person.id;
-        } else {
-          const tmdbPerson = await getTMDBService().getPersonDetails(castMember.person_id);
-          personId = await personsDb.savePerson({
-            tmdb_id: tmdbPerson.id,
-            name: tmdbPerson.name,
-            gender: tmdbPerson.gender,
-            biography: tmdbPerson.biography,
-            profile_image: tmdbPerson.profile_path,
-            birthdate: tmdbPerson.birthday,
-            deathdate: tmdbPerson.deathday,
-            place_of_birth: tmdbPerson.place_of_birth,
-          });
-        }
-        personsDb.saveShowCast({
-          content_id: showId,
-          person_id: personId,
-          character_name: castMember.character_name,
-          credit_id: castMember.credit_id,
-          cast_order: castMember.cast_order,
-          total_episodes: castMember.total_episodes,
-          active: castMember.active,
-        });
-
-        this.cache.invalidatePerson(personId);
-      }
-    } catch (error) {
-      cliLogger.error('Error fetching show cast:', error);
-    }
-  }
-
-  private filterShowCastMembers(
-    showCastMembers: TMDBShowCastMember[],
-    contentId: number,
-    activePersonIds: number[],
-  ): CreateShowCast[] {
-    const activePersonIdSet = new Set(activePersonIds);
-
-    const candidates = showCastMembers.flatMap((showMember) => {
-      const isActive = activePersonIdSet.has(showMember.id) ? 1 : 0;
-      return showMember.roles
-        .filter((role) => role.episode_count >= 2)
-        .map((role) => ({
-          content_id: contentId,
-          person_id: showMember.id,
-          character_name: role.character,
-          credit_id: role.credit_id,
-          cast_order: showMember.order,
-          total_episodes: role.episode_count,
-          active: isActive,
-        }));
-    });
-
-    // TMDB sometimes lists the same actor/character with multiple credit entries (e.g. per-season
-    // credits for a long-running show). Keep only the best row per (person, character) pair:
-    // active > most episodes > lowest cast_order.
-    const best = new Map<string, CreateShowCast>();
-    for (const row of candidates) {
-      const key = `${row.person_id}:${row.character_name.toLowerCase()}`;
-      const existing = best.get(key);
-      if (!existing) {
-        best.set(key, row);
-      } else {
-        const preferNew =
-          row.active > existing.active ||
-          (row.active === existing.active && row.total_episodes > existing.total_episodes) ||
-          (row.active === existing.active &&
-            row.total_episodes === existing.total_episodes &&
-            row.cast_order < existing.cast_order);
-        if (preferNew) best.set(key, row);
-      }
-    }
-
-    return Array.from(best.values());
   }
 
   /**

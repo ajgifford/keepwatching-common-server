@@ -1,6 +1,6 @@
 import * as moviesDb from '@db/moviesDb';
 import * as personsDb from '@db/personsDb';
-import { appLogger, cliLogger } from '@logger/logger';
+import { appLogger } from '@logger/logger';
 import { ErrorMessages } from '@logger/loggerModel';
 import { AdminMovieService, createAdminMovieService, resetAdminMovieService } from '@services/adminMovieService';
 import { errorService } from '@services/errorService';
@@ -89,6 +89,7 @@ describe('AdminMovieService', () => {
       getOrSet: jest.fn(),
       invalidate: jest.fn(),
       invalidatePattern: jest.fn(),
+      invalidatePerson: jest.fn(),
     };
 
     adminMovieService = createAdminMovieService({ cacheService: mockCacheService as any });
@@ -633,225 +634,31 @@ describe('AdminMovieService', () => {
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, `updateMovieById(${mockMovieId})`);
     });
 
-    it('should process cast when person already exists in database', async () => {
+    it('should trigger cast processing for each cast member', async () => {
       const mockMovieWithCast = {
         ...mockTMDBMovie,
         credits: {
           cast: [
-            {
-              id: 5001,
-              credit_id: 'credit123',
-              character: 'Hero',
-              order: 0,
-            },
+            { id: 5001, credit_id: 'credit1', character: 'Hero', order: 0 },
+            { id: 5002, credit_id: 'credit2', character: 'Sidekick', order: 1 },
           ],
         },
       };
 
-      const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
-      };
+      const mockTMDBService = { getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast) };
       (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
-
       (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
       (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
       (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
-
-      // Mock person exists
       (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValue({ id: 100 });
 
       await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
-
-      expect(personsDb.findPersonByTMDBId).toHaveBeenCalledWith(5001);
-      expect(personsDb.savePerson).not.toHaveBeenCalled();
-      expect(personsDb.saveMovieCast).toHaveBeenCalledWith({
-        content_id: mockMovieId,
-        person_id: 100,
-        credit_id: 'credit123',
-        character_name: 'Hero',
-        cast_order: 0,
-      });
-    });
-
-    it('should process cast when person does not exist and fetch from TMDB', async () => {
-      const mockMovieWithCast = {
-        ...mockTMDBMovie,
-        credits: {
-          cast: [
-            {
-              id: 5002,
-              credit_id: 'credit456',
-              character: 'Villain',
-              order: 1,
-            },
-          ],
-        },
-      };
-
-      const mockTMDBPerson = {
-        id: 5002,
-        name: 'John Actor',
-        gender: 2,
-        biography: 'Famous actor',
-        profile_path: '/profile.jpg',
-        birthday: '1980-01-01',
-        deathday: null,
-        place_of_birth: 'Los Angeles',
-      };
-
-      const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
-        getPersonDetails: jest.fn().mockResolvedValue(mockTMDBPerson),
-      };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
-
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
-
-      // Mock person does not exist
-      (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValue(null);
-      (personsDb.savePerson as jest.Mock).mockResolvedValue(200);
-      (personsDb.saveMovieCast as jest.Mock).mockResolvedValue(true);
-
-      await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
-
-      // Wait for async processMovieCast to complete
       await new Promise((resolve) => setImmediate(resolve));
 
-      expect(personsDb.findPersonByTMDBId).toHaveBeenCalledWith(5002);
-      expect(mockTMDBService.getPersonDetails).toHaveBeenCalledWith(5002);
-      expect(personsDb.savePerson).toHaveBeenCalledWith({
-        tmdb_id: 5002,
-        name: 'John Actor',
-        gender: 2,
-        biography: 'Famous actor',
-        profile_image: '/profile.jpg',
-        birthdate: '1980-01-01',
-        deathdate: null,
-        place_of_birth: 'Los Angeles',
-      });
-      expect(personsDb.saveMovieCast).toHaveBeenCalledWith({
-        content_id: mockMovieId,
-        person_id: 200,
-        credit_id: 'credit456',
-        character_name: 'Villain',
-        cast_order: 1,
-      });
-    });
-
-    it('should process multiple cast members', async () => {
-      const mockMovieWithCast = {
-        ...mockTMDBMovie,
-        credits: {
-          cast: [
-            {
-              id: 5001,
-              credit_id: 'credit1',
-              character: 'Hero',
-              order: 0,
-            },
-            {
-              id: 5002,
-              credit_id: 'credit2',
-              character: 'Sidekick',
-              order: 1,
-            },
-          ],
-        },
-      };
-
-      const mockTMDBPerson = {
-        id: 5002,
-        name: 'John Actor',
-        gender: 2,
-        biography: 'Famous actor',
-        profile_path: '/profile.jpg',
-        birthday: '1980-01-01',
-        deathday: null,
-        place_of_birth: 'Los Angeles',
-      };
-
-      const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
-        getPersonDetails: jest.fn().mockResolvedValue(mockTMDBPerson),
-      };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
-
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
-
-      // First person exists, second doesn't
-      (personsDb.findPersonByTMDBId as jest.Mock).mockResolvedValueOnce({ id: 100 }).mockResolvedValueOnce(null);
-      (personsDb.savePerson as jest.Mock).mockResolvedValue(200);
-
-      await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
-
-      // Wait for async processMovieCast to complete
-      await new Promise((resolve) => setImmediate(resolve));
-
-      expect(personsDb.findPersonByTMDBId).toHaveBeenCalledTimes(2);
       expect(personsDb.saveMovieCast).toHaveBeenCalledTimes(2);
-    });
-
-    it('should handle errors in cast processing gracefully', async () => {
-      const mockMovieWithCast = {
-        ...mockTMDBMovie,
-        credits: {
-          cast: [
-            {
-              id: 5001,
-              credit_id: 'credit123',
-              character: 'Hero',
-              order: 0,
-            },
-          ],
-        },
-      };
-
-      const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithCast),
-      };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
-
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
-
-      // Mock error in cast processing
-      const castError = new Error('Cast processing error');
-      (personsDb.findPersonByTMDBId as jest.Mock).mockRejectedValue(castError);
-
-      // Should not throw, just log error
-      const result = await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
-
-      expect(result).toBe(true);
-      expect(cliLogger.error).toHaveBeenCalledWith('Error fetching movie cast:', castError);
-    });
-
-    it('should handle empty cast array', async () => {
-      const mockMovieWithEmptyCast = {
-        ...mockTMDBMovie,
-        credits: {
-          cast: [],
-        },
-      };
-
-      const mockTMDBService = {
-        getMovieDetails: jest.fn().mockResolvedValue(mockMovieWithEmptyCast),
-      };
-      (getTMDBService as jest.Mock).mockReturnValue(mockTMDBService);
-
-      (getUSMPARating as jest.Mock).mockReturnValue('PG-13');
-      (getUSWatchProvidersMovie as jest.Mock).mockReturnValue([8, 9]);
-      (moviesDb.updateMovie as jest.Mock).mockResolvedValue(true);
-
-      await adminMovieService.updateMovieById(mockMovieId, mockTMDBId);
-
-      expect(personsDb.findPersonByTMDBId).not.toHaveBeenCalled();
-      expect(personsDb.savePerson).not.toHaveBeenCalled();
-      expect(personsDb.saveMovieCast).not.toHaveBeenCalled();
+      expect(personsDb.saveMovieCast).toHaveBeenCalledWith(
+        expect.objectContaining({ content_id: mockMovieId, person_id: 100 }),
+      );
     });
   });
 

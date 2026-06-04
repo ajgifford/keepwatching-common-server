@@ -81,7 +81,7 @@ describe('TMDB Service', () => {
 
       // Verify axios was called with correct parameters
       expect(mockAxios.get).toHaveBeenCalledWith(
-        '/tv/123?append_to_response=credits,aggregate_credits,content_ratings,watch/providers',
+        '/tv/123?append_to_response=aggregate_credits,content_ratings,watch/providers',
         {
           timeout: 10000,
         },
