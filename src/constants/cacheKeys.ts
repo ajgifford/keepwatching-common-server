@@ -333,8 +333,10 @@ export const PERSON_KEYS = {
 
   tmdbCredits: (personId: number | string) => `${CACHE_KEY_PATTERNS.PERSON}_tmdb_credits_${personId}`,
 
-  list: (firstLetter: string, page: number, limit: number, offset: number) =>
-    `person:list:${firstLetter}:${page}:${limit}:${offset}`,
+  list: (firstLetter: string, page: number, limit: number, offset: number, search?: string) =>
+    search
+      ? `person:search:${search}:${page}:${limit}:${offset}`
+      : `person:list:${firstLetter}:${page}:${limit}:${offset}`,
 };
 
 // Discovery keys

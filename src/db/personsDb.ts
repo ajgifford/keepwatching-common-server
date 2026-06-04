@@ -284,6 +284,30 @@ export async function getPersonsAlphaCount(firstLetter: string): Promise<number>
   }
 }
 
+export async function searchPersons(search: string, offset: number = 0, limit: number = 50): Promise<AdminPerson[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('searchPersons', async () => {
+      const query = `SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC LIMIT ${limit} OFFSET ${offset}`;
+      const [dataResult] = await getDbPool().execute<PersonRow[]>(query, [`%${search}%`]);
+      return dataResult.map(transformAdminPersonRow);
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'searching persons');
+  }
+}
+
+export async function searchPersonsCount(search: string): Promise<number> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('searchPersonsCount', async () => {
+      const query = 'SELECT COUNT(*) as total FROM people WHERE name LIKE ?';
+      const [result] = await getDbPool().execute<RowDataPacket[]>(query, [`%${search}%`]);
+      return result[0].total as number;
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'searching persons count');
+  }
+}
+
 export async function getPersonsCount(): Promise<number> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('getPersonsCount', async () => {

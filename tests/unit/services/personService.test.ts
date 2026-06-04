@@ -469,6 +469,52 @@ describe('PersonService', () => {
       await expect(service.getPersons('A', 1, 0, 10)).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'getPersons(A, 1, 0, 10)');
     });
+
+    it('should use search DB functions when search term is provided', async () => {
+      const search = 'smith';
+      const page = 1;
+      const offset = 0;
+      const limit = 50;
+      const totalCount = 3;
+      const mockPersons = [{ id: 10, name: 'Will Smith', tmdbId: 99 }];
+
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (personsDb.searchPersonsCount as jest.Mock).mockResolvedValue(totalCount);
+      (personsDb.searchPersons as jest.Mock).mockResolvedValue(mockPersons);
+
+      const result = await service.getPersons('A', page, offset, limit, search);
+
+      expect(personsDb.searchPersonsCount).toHaveBeenCalledWith(search);
+      expect(personsDb.searchPersons).toHaveBeenCalledWith(search, offset, limit);
+      expect(personsDb.getPersonsAlphaCount).not.toHaveBeenCalled();
+      expect(personsDb.getPersons).not.toHaveBeenCalled();
+      expect(result.persons).toEqual(mockPersons);
+      expect(result.pagination.totalCount).toBe(totalCount);
+    });
+
+    it('should use a search-based cache key when search is provided', async () => {
+      const search = 'jones';
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (personsDb.searchPersonsCount as jest.Mock).mockResolvedValue(0);
+      (personsDb.searchPersons as jest.Mock).mockResolvedValue([]);
+
+      await service.getPersons('A', 1, 0, 50, search);
+
+      expect(mockCache.getOrSet).toHaveBeenCalledWith(PERSON_KEYS.list('A', 1, 0, 50, search), expect.any(Function));
+    });
+
+    it('should use alpha DB functions when no search term is provided', async () => {
+      mockCache.getOrSet.mockImplementation(async (_key, fn) => fn());
+      (personsDb.getPersonsAlphaCount as jest.Mock).mockResolvedValue(5);
+      (personsDb.getPersons as jest.Mock).mockResolvedValue([]);
+
+      await service.getPersons('B', 1, 0, 50);
+
+      expect(personsDb.getPersonsAlphaCount).toHaveBeenCalledWith('B');
+      expect(personsDb.getPersons).toHaveBeenCalledWith('B', 0, 50);
+      expect(personsDb.searchPersonsCount).not.toHaveBeenCalled();
+      expect(personsDb.searchPersons).not.toHaveBeenCalled();
+    });
   });
 
   describe('getPersonsCount', () => {

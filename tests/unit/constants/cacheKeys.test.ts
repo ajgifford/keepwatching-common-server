@@ -4,6 +4,7 @@ import {
   DISCOVER_KEYS,
   INVALIDATION_PATTERNS,
   MOVIE_KEYS,
+  PERSON_KEYS,
   PROFILE_KEYS,
   SEARCH_KEYS,
   SHOW_KEYS,
@@ -73,6 +74,28 @@ describe('Cache Keys Module', () => {
     it('should generate correct keys for movie data', () => {
       expect(MOVIE_KEYS.details('123', '456')).toBe('profile_123_movie_456');
       expect(MOVIE_KEYS.details(123, 456)).toBe('profile_123_movie_456');
+    });
+  });
+
+  describe('PERSON_KEYS', () => {
+    it('should generate a letter-based list key when no search is provided', () => {
+      expect(PERSON_KEYS.list('A', 1, 50, 0)).toBe('person:list:A:1:50:0');
+      expect(PERSON_KEYS.list('Z', 3, 20, 40)).toBe('person:list:Z:3:20:40');
+    });
+
+    it('should generate a search-based key when search term is provided', () => {
+      expect(PERSON_KEYS.list('A', 1, 50, 0, 'smith')).toBe('person:search:smith:1:50:0');
+      expect(PERSON_KEYS.list('A', 2, 25, 25, 'han')).toBe('person:search:han:2:25:25');
+    });
+
+    it('should use letter-based key when search is an empty string', () => {
+      expect(PERSON_KEYS.list('B', 1, 50, 0, '')).toBe('person:list:B:1:50:0');
+    });
+
+    it('should produce distinct keys for the same term across pages', () => {
+      const page1 = PERSON_KEYS.list('A', 1, 50, 0, 'jones');
+      const page2 = PERSON_KEYS.list('A', 2, 50, 50, 'jones');
+      expect(page1).not.toBe(page2);
     });
   });
 

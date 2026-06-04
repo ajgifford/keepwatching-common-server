@@ -717,6 +717,92 @@ describe('personsDb', () => {
     });
   });
 
+  describe('searchPersons', () => {
+    it('should search persons by name substring with default pagination', async () => {
+      const mockPersonRows: PersonRow[] = [
+        {
+          id: 5,
+          name: 'Tom Hanks',
+          tmdb_id: 31,
+          gender: 1,
+          biography: 'Bio',
+          profile_image: 'tom.jpg',
+          birthdate: '1956-07-09',
+          deathdate: null,
+          place_of_birth: 'Concord, CA',
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+        } as PersonRow,
+      ];
+
+      mockExecute.mockResolvedValue([mockPersonRows]);
+
+      const result = await personsDb.searchPersons('Tom');
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC LIMIT 50 OFFSET 0',
+        ['%Tom%'],
+      );
+      expect(result).toEqual([
+        {
+          id: 5,
+          name: 'Tom Hanks',
+          tmdbId: 31,
+          gender: 1,
+          biography: 'Bio',
+          profileImage: 'tom.jpg',
+          birthdate: '1956-07-09',
+          deathdate: null,
+          placeOfBirth: 'Concord, CA',
+          lastUpdated: '2024-01-01',
+        },
+      ]);
+    });
+
+    it('should search persons with custom offset and limit', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      await personsDb.searchPersons('Smith', 10, 25);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC LIMIT 25 OFFSET 10',
+        ['%Smith%'],
+      );
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      mockExecute.mockRejectedValue(error);
+
+      await expect(personsDb.searchPersons('Tom')).rejects.toThrow(
+        'Database error in searching persons: Error: Database error',
+      );
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(error, 'searching persons');
+    });
+  });
+
+  describe('searchPersonsCount', () => {
+    it('should return count of persons matching search term', async () => {
+      const mockResult = [{ total: 7 }] as RowDataPacket[];
+      mockExecute.mockResolvedValue([mockResult]);
+
+      const result = await personsDb.searchPersonsCount('han');
+
+      expect(mockExecute).toHaveBeenCalledWith('SELECT COUNT(*) as total FROM people WHERE name LIKE ?', ['%han%']);
+      expect(result).toBe(7);
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      mockExecute.mockRejectedValue(error);
+
+      await expect(personsDb.searchPersonsCount('han')).rejects.toThrow(
+        'Database error in searching persons count: Error: Database error',
+      );
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(error, 'searching persons count');
+    });
+  });
+
   describe('getPersonsAlphaCount', () => {
     it('should get count of persons by first letter', async () => {
       const mockResult = [{ total: 42 }] as RowDataPacket[];

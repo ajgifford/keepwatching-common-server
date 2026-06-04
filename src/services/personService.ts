@@ -104,13 +104,15 @@ export class PersonService {
     }
   }
 
-  public async getPersons(firstLetter: string, page: number, offset: number, limit: number) {
+  public async getPersons(firstLetter: string, page: number, offset: number, limit: number, search?: string) {
     try {
-      return await this.cache.getOrSet(PERSON_KEYS.list(firstLetter, page, offset, limit), async () => {
-        const [totalCount, persons] = await Promise.all([
-          personsDb.getPersonsAlphaCount(firstLetter),
-          personsDb.getPersons(firstLetter, offset, limit),
-        ]);
+      return await this.cache.getOrSet(PERSON_KEYS.list(firstLetter, page, offset, limit, search), async () => {
+        const [totalCount, persons] = search
+          ? await Promise.all([personsDb.searchPersonsCount(search), personsDb.searchPersons(search, offset, limit)])
+          : await Promise.all([
+              personsDb.getPersonsAlphaCount(firstLetter),
+              personsDb.getPersons(firstLetter, offset, limit),
+            ]);
         const totalPages = Math.ceil(totalCount / limit);
         return {
           persons,
