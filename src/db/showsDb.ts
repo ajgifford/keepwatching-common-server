@@ -40,8 +40,16 @@ export {
   getDuplicateSeasonsForShow,
   getShowsWithDuplicateEpisodes,
   getShowsWithDuplicateSeasons,
+  getDuplicateCastCredits,
+  deleteCastCredit,
 } from './shows/adminShowRepository';
 
-export type { ShowFilterOptions, ShowWithDuplicates, ShowWithDuplicateSeasons } from './shows/adminShowRepository';
+export type {
+  ShowFilterOptions,
+  ShowWithDuplicates,
+  ShowWithDuplicateSeasons,
+  DuplicateCastGroup,
+  DuplicateCastCredit,
+} from './shows/adminShowRepository';
 
 export { getTrendingShows, getNewlyAddedShows, getTopRatedShows } from './shows/digestShowRepository';

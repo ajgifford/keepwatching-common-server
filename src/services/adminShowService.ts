@@ -337,6 +337,32 @@ export class AdminShowService extends BaseShowService {
   }
 
   /**
+   * Get all show_cast rows that are part of a duplicate group across the entire catalog
+   *
+   * @returns Array of duplicate cast groups ready for resolution
+   */
+  public async getDuplicateCastCredits() {
+    try {
+      return await showsDb.getDuplicateCastCredits();
+    } catch (error) {
+      throw errorService.handleError(error, 'getDuplicateCastCredits()');
+    }
+  }
+
+  /**
+   * Delete a single show_cast row by credit_id
+   *
+   * @param creditId - The TMDB credit ID of the row to delete
+   */
+  public async deleteCastCredit(creditId: string) {
+    try {
+      await showsDb.deleteCastCredit(creditId);
+    } catch (error) {
+      throw errorService.handleError(error, `deleteCastCredit(${creditId})`);
+    }
+  }
+
+  /**
    * Get all episodes for a specific season
    *
    * @param seasonId - ID of the season to get episodes for

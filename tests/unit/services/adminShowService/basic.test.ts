@@ -63,6 +63,8 @@ describe('AdminShowService - Basic Operations', () => {
     (showsDb.getShowsWithDuplicateEpisodes as jest.Mock).mockResolvedValue([]);
     (showsDb.getShowsWithDuplicateSeasons as jest.Mock).mockResolvedValue([]);
     (showsDb.getDuplicateSeasonsForShow as jest.Mock).mockResolvedValue([]);
+    (showsDb.getDuplicateCastCredits as jest.Mock).mockResolvedValue([]);
+    (showsDb.deleteCastCredit as jest.Mock).mockResolvedValue(undefined);
     (episodesDb.deleteEpisodeById as jest.Mock).mockResolvedValue(undefined);
     (seasonsDb.deleteSeasonById as jest.Mock).mockResolvedValue(undefined);
 
@@ -379,6 +381,64 @@ describe('AdminShowService - Basic Operations', () => {
 
       await expect(adminShowService.deleteSeason(seasonId, mockShowId)).rejects.toThrow();
       expect(mockCacheService.invalidate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getDuplicateCastCredits', () => {
+    const mockGroups = [
+      {
+        showId: 1,
+        showTitle: 'Breaking Bad',
+        posterImage: '/bb.jpg',
+        personId: 10,
+        personName: 'Actor A',
+        characterName: 'Walter White',
+        credits: [
+          { creditId: 'aaa', totalEpisodes: 50, castOrder: 1, active: 1 },
+          { creditId: 'bbb', totalEpisodes: 10, castOrder: 2, active: 0 },
+        ],
+      },
+    ];
+
+    it('should return all duplicate cast groups', async () => {
+      (showsDb.getDuplicateCastCredits as jest.Mock).mockResolvedValue(mockGroups);
+
+      const result = await adminShowService.getDuplicateCastCredits();
+
+      expect(showsDb.getDuplicateCastCredits).toHaveBeenCalled();
+      expect(result).toEqual(mockGroups);
+    });
+
+    it('should return empty array when no duplicates exist', async () => {
+      (showsDb.getDuplicateCastCredits as jest.Mock).mockResolvedValue([]);
+
+      const result = await adminShowService.getDuplicateCastCredits();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Query failed');
+      (showsDb.getDuplicateCastCredits as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.getDuplicateCastCredits()).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('deleteCastCredit', () => {
+    const creditId = 'credit-xyz-123';
+
+    it('should call the repository with the credit ID', async () => {
+      await adminShowService.deleteCastCredit(creditId);
+
+      expect(showsDb.deleteCastCredit).toHaveBeenCalledWith(creditId);
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const dbError = new Error('Delete failed');
+      (showsDb.deleteCastCredit as jest.Mock).mockRejectedValue(dbError);
+
+      await expect(adminShowService.deleteCastCredit(creditId)).rejects.toThrow('Delete failed');
     });
   });
 });

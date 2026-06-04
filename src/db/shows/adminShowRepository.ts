@@ -25,6 +25,7 @@ import {
   ShowReference,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
+import { ResultSetHeader } from 'mysql2';
 import { RowDataPacket } from 'mysql2';
 
 export async function getShowsCount(): Promise<number> {
@@ -642,5 +643,124 @@ export async function getAdminShowWatchProgress(showId: number): Promise<AdminSh
     );
   } catch (error) {
     handleDatabaseError(error, `getAdminShowWatchProgress(${showId})`);
+  }
+}
+
+interface DuplicateCastCreditRow extends RowDataPacket {
+  credit_id: string;
+  show_id: number;
+  show_title: string;
+  poster_image: string;
+  person_id: number;
+  person_name: string;
+  character_name: string;
+  total_episodes: number;
+  cast_order: number;
+  active: number;
+}
+
+export interface DuplicateCastCredit {
+  creditId: string;
+  totalEpisodes: number;
+  castOrder: number;
+  active: number;
+}
+
+export interface DuplicateCastGroup {
+  showId: number;
+  showTitle: string;
+  posterImage: string;
+  personId: number;
+  personName: string;
+  characterName: string;
+  credits: DuplicateCastCredit[];
+}
+
+/**
+ * Get all show_cast rows that are part of a duplicate group (same show, person, and character name)
+ * across the entire catalog, grouped for resolution.
+ *
+ * @returns Array of duplicate cast groups, each containing the competing credit rows
+ * @throws {DatabaseError} If a database error occurs
+ */
+export async function getDuplicateCastCredits(): Promise<DuplicateCastGroup[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'getDuplicateCastCredits',
+      async () => {
+        const query = `
+          SELECT
+            sc.credit_id,
+            sc.show_id,
+            s.title AS show_title,
+            s.poster_image,
+            sc.person_id,
+            p.name AS person_name,
+            sc.character_name,
+            sc.total_episodes,
+            sc.cast_order,
+            sc.active
+          FROM show_cast sc
+          JOIN shows s ON s.id = sc.show_id
+          JOIN people p ON p.id = sc.person_id
+          WHERE (sc.show_id, sc.person_id, sc.character_name) IN (
+            SELECT show_id, person_id, character_name
+            FROM show_cast
+            GROUP BY show_id, person_id, character_name
+            HAVING COUNT(*) > 1
+          )
+          ORDER BY sc.show_id, p.name, sc.character_name, sc.active DESC, sc.total_episodes DESC, sc.cast_order
+        `;
+        const [rows] = await getDbPool().execute<DuplicateCastCreditRow[]>(query);
+
+        const groupMap = new Map<string, DuplicateCastGroup>();
+        for (const row of rows) {
+          const key = `${row.show_id}:${row.person_id}:${row.character_name}`;
+          if (!groupMap.has(key)) {
+            groupMap.set(key, {
+              showId: row.show_id,
+              showTitle: row.show_title,
+              posterImage: row.poster_image,
+              personId: row.person_id,
+              personName: row.person_name,
+              characterName: row.character_name,
+              credits: [],
+            });
+          }
+          groupMap.get(key)!.credits.push({
+            creditId: row.credit_id,
+            totalEpisodes: row.total_episodes,
+            castOrder: row.cast_order,
+            active: row.active,
+          });
+        }
+
+        return Array.from(groupMap.values());
+      },
+      2000,
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'getDuplicateCastCredits()');
+  }
+}
+
+/**
+ * Delete a single show_cast row by credit_id.
+ *
+ * @param creditId - The TMDB credit ID of the row to delete
+ * @throws {DatabaseError} If a database error occurs
+ */
+export async function deleteCastCredit(creditId: string): Promise<void> {
+  try {
+    await DbMonitor.getInstance().executeWithTiming(
+      'deleteCastCredit',
+      async () => {
+        const query = `DELETE FROM show_cast WHERE credit_id = ?`;
+        await getDbPool().execute<ResultSetHeader>(query, [creditId]);
+      },
+      1000,
+    );
+  } catch (error) {
+    handleDatabaseError(error, `deleteCastCredit(${creditId})`);
   }
 }
