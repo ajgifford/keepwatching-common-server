@@ -1,9 +1,16 @@
 import { setupDatabaseTest } from './helpers/dbTestSetup';
-import { AccountReference, DEFAULT_PREFERENCES, EmailPreferences, PreferenceType } from '@ajgifford/keepwatching-types';
+import {
+  AccountReference,
+  DEFAULT_PREFERENCES,
+  EmailPreferences,
+  NotificationPreferences,
+  PreferenceType,
+} from '@ajgifford/keepwatching-types';
 import {
   deleteAccountPreferences,
   getAccountPreferences,
   getAccountsWithEmailPreference,
+  getAccountsWithNotificationPreference,
   getPreferencesByType,
   initializeDefaultPreferences,
   updateMultiplePreferences,
@@ -380,6 +387,76 @@ describe('preferencesDb', () => {
         'Database error getting accounts with email preference weeklyDigest: Query failed',
       );
       expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'getting accounts with email preference weeklyDigest');
+    });
+  });
+
+  describe('getAccountsWithNotificationPreference', () => {
+    const preferenceKey: keyof NotificationPreferences = 'newSeasonAlerts';
+
+    it('should return account IDs with the specified notification preference set to true', async () => {
+      const mockRows = [{ account_id: 1 }, { account_id: 2 }];
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await getAccountsWithNotificationPreference(preferenceKey, true);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining("JSON_EXTRACT(ap.preferences, '$.newSeasonAlerts') = ?"),
+        [true],
+      );
+      expect(result).toEqual([1, 2]);
+    });
+
+    it('should return account IDs with the specified notification preference set to false', async () => {
+      const mockRows = [{ account_id: 3 }];
+      mockExecute.mockResolvedValueOnce([mockRows]);
+
+      const result = await getAccountsWithNotificationPreference('newSeasonAlerts', false);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining("JSON_EXTRACT(ap.preferences, '$.newSeasonAlerts') = ?"),
+        [false],
+      );
+      expect(result).toEqual([3]);
+    });
+
+    it('should default to true for the preference value', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      await getAccountsWithNotificationPreference(preferenceKey);
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.any(String), [true]);
+    });
+
+    it('should handle different preference keys', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      await getAccountsWithNotificationPreference('newEpisodeAlerts', false);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining("JSON_EXTRACT(ap.preferences, '$.newEpisodeAlerts') = ?"),
+        [false],
+      );
+    });
+
+    it('should return empty array when no accounts match', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      const result = await getAccountsWithNotificationPreference(preferenceKey, true);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle database errors', async () => {
+      const dbError = new Error('Query failed');
+      mockExecute.mockRejectedValueOnce(dbError);
+
+      await expect(getAccountsWithNotificationPreference(preferenceKey, true)).rejects.toThrow(
+        'Database error getting accounts with notification preference newSeasonAlerts: Query failed',
+      );
+      expect(handleDatabaseError).toHaveBeenCalledWith(
+        dbError,
+        'getting accounts with notification preference newSeasonAlerts',
+      );
     });
   });
 

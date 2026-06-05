@@ -10,11 +10,12 @@ import {
   AccountReference,
   DEFAULT_PREFERENCES,
   EmailPreferences,
+  NotificationPreferences,
   PreferenceData,
   PreferenceType,
   TypedPreferenceUpdate,
 } from '@ajgifford/keepwatching-types';
-import { ResultSetHeader } from 'mysql2';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 /**
  * @fileoverview Database operations module for managing user account preferences.
@@ -447,5 +448,51 @@ export async function getAccountsWithEmailPreference(
     });
   } catch (error) {
     handleDatabaseError(error, `getting accounts with email preference ${preferenceKey}`);
+  }
+}
+
+interface AccountIdRow extends RowDataPacket {
+  account_id: number;
+}
+
+/**
+ * Retrieves the IDs of all accounts that have a specific notification preference set to a given value.
+ *
+ * Uses a JOIN against account_preferences to find accounts with an explicit notification
+ * preference row matching the key/value. Accounts without any notification preference row
+ * are NOT returned — callers that need default-true behavior should treat the absence of
+ * an account in the false-value result as meaning the account should still receive the notification.
+ *
+ * @param preferenceKey - The notification preference key to search for (e.g. 'newSeasonAlerts')
+ * @param value - The boolean value to match (defaults to true)
+ * @returns Promise resolving to an array of account IDs with the matching preference
+ * @throws {Error} Database connection or query execution failures
+ *
+ * @example
+ * ```typescript
+ * // Get IDs of accounts that have explicitly opted out of season alerts
+ * const optedOut = await getAccountsWithNotificationPreference('newSeasonAlerts', false);
+ * const toNotify = allAccountIds.filter(id => !optedOut.includes(id));
+ * ```
+ */
+export async function getAccountsWithNotificationPreference(
+  preferenceKey: keyof NotificationPreferences,
+  value: boolean = true,
+): Promise<number[]> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getAccountsWithNotificationPreference', async () => {
+      const query = `
+        SELECT DISTINCT a.account_id
+        FROM accounts a
+        JOIN account_preferences ap ON a.account_id = ap.account_id
+        WHERE ap.preference_type = 'notification'
+          AND JSON_EXTRACT(ap.preferences, '$.${String(preferenceKey)}') = ?
+      `;
+
+      const [rows] = await getDbPool().execute<AccountIdRow[]>(query, [value]);
+      return rows.map((row) => row.account_id);
+    });
+  } catch (error) {
+    handleDatabaseError(error, `getting accounts with notification preference ${preferenceKey}`);
   }
 }

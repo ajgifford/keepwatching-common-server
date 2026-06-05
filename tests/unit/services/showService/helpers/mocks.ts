@@ -1,5 +1,6 @@
 import { mockTMDBResponses } from './fixtures';
 import * as episodesDb from '@db/episodesDb';
+import * as preferencesDb from '@db/preferencesDb';
 import * as seasonsDb from '@db/seasonsDb';
 import * as showsDb from '@db/showsDb';
 import { errorService } from '@services/errorService';
@@ -12,6 +13,7 @@ import * as watchProvidersUtility from '@utils/watchProvidersUtility';
 jest.mock('@db/showsDb');
 jest.mock('@db/seasonsDb');
 jest.mock('@db/episodesDb');
+jest.mock('@db/preferencesDb');
 jest.mock('@services/profileService');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
@@ -74,6 +76,9 @@ export function setupMocks() {
     }
     return item;
   });
+
+  // Default: no accounts have opted out of new season alerts
+  (preferencesDb.getAccountsWithNotificationPreference as jest.Mock).mockResolvedValue([]);
 
   // Set up common content utility mocks
   (contentUtility.getUSRating as jest.Mock).mockReturnValue('TV-14');

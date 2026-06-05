@@ -1,3 +1,4 @@
+import { getAccountsWithNotificationPreference } from '../db/preferencesDb';
 import { appLogger } from '../logger/logger';
 import { notificationsService } from '../services/notificationsService';
 import { ProfileAccountMapping } from '@ajgifford/keepwatching-types';
@@ -20,12 +21,17 @@ export async function createNewSeasonNotifications(
     // Get unique account IDs (multiple profiles in same account should only get one notification)
     const uniqueAccountIds = [...new Set(profileAccountMappings.map((mapping) => mapping.accountId))];
 
+    // Filter out accounts that have explicitly opted out of new season alerts.
+    // Accounts with no preference row keep the default (true) and are included.
+    const optedOutIds = new Set(await getAccountsWithNotificationPreference('newSeasonAlerts', false));
+    const accountIdsToNotify = uniqueAccountIds.filter((id) => !optedOutIds.has(id));
+
     const now = new Date();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 30); // Notification expires in 30 days
 
-    // Create a notification for each account
-    for (const accountId of uniqueAccountIds) {
+    // Create a notification for each account that wants season alerts
+    for (const accountId of accountIdsToNotify) {
       await notificationsService.addNotification({
         title: `New Season Available`,
         message: `Season ${seasonNumber} of "${showTitle}" has been added to your watchlist.`,
@@ -38,7 +44,7 @@ export async function createNewSeasonNotifications(
     }
 
     appLogger.info(
-      `Created new season notifications for ${showTitle} (Season ${seasonNumber}) to ${uniqueAccountIds.length} accounts`,
+      `Created new season notifications for ${showTitle} (Season ${seasonNumber}) to ${accountIdsToNotify.length} of ${uniqueAccountIds.length} accounts`,
     );
   } catch (error) {
     // Log error but don't throw - notification failure shouldn't stop the update process
