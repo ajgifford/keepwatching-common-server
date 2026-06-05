@@ -1,21 +1,9 @@
-import { WatchHistoryRow } from '../types/watchHistoryTypes';
+import { EpisodeWatchCountRow, SeasonShowRow, WatchHistoryCountRow, WatchHistoryRow } from '../types/watchHistoryTypes';
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import { ResultSetHeader } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
-
-interface SeasonShowRow extends RowDataPacket {
-  show_id: number;
-}
-
-interface WatchHistoryCountRow extends RowDataPacket {
-  total: number;
-}
-
-interface EpisodeWatchCountRow extends RowDataPacket {
-  watch_count: number;
-}
 
 // ---------------------------------------------------------------------------
 // History logging — all accept an active PoolConnection to participate in the

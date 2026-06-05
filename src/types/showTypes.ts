@@ -141,3 +141,101 @@ export function transformProfileShowWatchProgress(row: ProfileShowWatchProgressR
     percentComplete: totalEpisodes > 0 ? Math.round((watchedEpisodes / (totalEpisodes - unairedEpisodes)) * 100) : 0,
   };
 }
+
+export interface ShowFilterOptions {
+  types: string[];
+  statuses: string[];
+  networks: string[];
+  streamingServices: string[];
+}
+
+export interface ShowWithDuplicatesRow extends RowDataPacket {
+  id: number;
+  title: string;
+  poster_image: string;
+  duplicate_group_count: number;
+  extra_episode_count: number;
+}
+
+export interface ShowWithDuplicates {
+  id: number;
+  title: string;
+  posterImage: string;
+  duplicateGroupCount: number;
+  extraEpisodeCount: number;
+}
+
+export function transformShowWithDuplicates(row: ShowWithDuplicatesRow): ShowWithDuplicates {
+  return {
+    id: row.id,
+    title: row.title,
+    posterImage: row.poster_image,
+    duplicateGroupCount: row.duplicate_group_count,
+    extraEpisodeCount: row.extra_episode_count,
+  };
+}
+
+export interface ShowWithDuplicateSeasonsRow extends RowDataPacket {
+  id: number;
+  title: string;
+  poster_image: string;
+  duplicate_group_count: number;
+  extra_season_count: number;
+}
+
+export interface ShowWithDuplicateSeasons {
+  id: number;
+  title: string;
+  posterImage: string;
+  duplicateGroupCount: number;
+  extraSeasonCount: number;
+}
+
+export function transformShowWithDuplicateSeasons(row: ShowWithDuplicateSeasonsRow): ShowWithDuplicateSeasons {
+  return {
+    id: row.id,
+    title: row.title,
+    posterImage: row.poster_image,
+    duplicateGroupCount: row.duplicate_group_count,
+    extraSeasonCount: row.extra_season_count,
+  };
+}
+
+export interface DuplicateCastCreditRow extends RowDataPacket {
+  credit_id: string;
+  show_id: number;
+  show_title: string;
+  poster_image: string;
+  person_id: number;
+  person_name: string;
+  character_name: string;
+  total_episodes: number;
+  cast_order: number;
+  active: number;
+}
+
+export interface DuplicateCastCredit {
+  creditId: string;
+  totalEpisodes: number;
+  castOrder: number;
+  active: number;
+}
+
+export function transformDuplicateCastCredit(row: DuplicateCastCreditRow): DuplicateCastCredit {
+  return {
+    creditId: row.credit_id,
+    totalEpisodes: row.total_episodes,
+    castOrder: row.cast_order,
+    active: row.active,
+  };
+}
+
+export interface DuplicateCastGroup {
+  showId: number;
+  showTitle: string;
+  posterImage: string;
+  personId: number;
+  personName: string;
+  characterName: string;
+  credits: DuplicateCastCredit[];
+}

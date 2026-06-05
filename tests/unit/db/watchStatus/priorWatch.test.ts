@@ -1,5 +1,6 @@
+import { BulkMarkedShowRow } from '../../../../src/types/watchStatusTypes';
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
-import { BulkMarkedShowRow, WatchStatusDbService } from '@db/watchStatusDb';
+import { WatchStatusDbService } from '@db/watchStatusDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
 import { WatchStatusManager } from '@utils/watchStatusManager';

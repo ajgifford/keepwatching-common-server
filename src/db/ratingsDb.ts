@@ -1,4 +1,5 @@
 import { NoAffectedRowsError, NotFoundError } from '../middleware/errorMiddleware';
+import { ContentRatingRow, transformContentRatingRow } from '../types/ratingTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import {
@@ -8,34 +9,6 @@ import {
   RatingContentType,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-
-interface ContentRatingRow extends RowDataPacket {
-  id: number;
-  profile_id: number;
-  content_type: RatingContentType;
-  content_id: number;
-  content_title: string;
-  poster_image: string;
-  rating: number;
-  note: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-function transformContentRatingRow(row: ContentRatingRow): ContentRating {
-  return {
-    id: row.id,
-    profileId: row.profile_id,
-    contentType: row.content_type,
-    contentId: row.content_id,
-    contentTitle: row.content_title,
-    posterImage: row.poster_image,
-    rating: row.rating,
-    note: row.note,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
 
 export async function upsertRating(
   profileId: number,

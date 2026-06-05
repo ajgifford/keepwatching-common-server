@@ -154,3 +154,8 @@ export function transformAdminMovieDetails(movie: AdminMovieDetailsRow): AdminMo
     lastUpdated: movie.updated_at.toISOString(),
   };
 }
+
+export interface MovieFilterOptions {
+  streamingServices: string[];
+  years: string[];
+}

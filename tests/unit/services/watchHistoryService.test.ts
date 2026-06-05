@@ -1,5 +1,5 @@
 import { WatchHistoryRow } from '../../../src/types/watchHistoryTypes';
-import { StatusUpdateResult } from '../../../src/types/watchStatusTypes';
+import { BulkMarkedShowRow, StatusUpdateResult } from '../../../src/types/watchStatusTypes';
 import { BulkMarkedShow, ProfileMovie, ProfileShow, WatchHistoryItem } from '@ajgifford/keepwatching-types';
 import {
   getEpisodeWatchCount,
@@ -11,7 +11,7 @@ import {
   resetSeasonForRewatch,
   resetShowForRewatch,
 } from '@db/watchHistoryDb';
-import { BulkMarkedShowRow, WatchStatusDbService } from '@db/watchStatusDb';
+import { WatchStatusDbService } from '@db/watchStatusDb';
 import { errorService } from '@services/errorService';
 import { moviesService } from '@services/moviesService';
 import { showService } from '@services/showService';

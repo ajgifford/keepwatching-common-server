@@ -50,6 +50,6 @@ export type {
   ShowWithDuplicateSeasons,
   DuplicateCastGroup,
   DuplicateCastCredit,
-} from './shows/adminShowRepository';
+} from '../types/showTypes';
 
 export { getTrendingShows, getNewlyAddedShows, getTopRatedShows } from './shows/digestShowRepository';

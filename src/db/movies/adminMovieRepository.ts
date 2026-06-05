@@ -3,6 +3,7 @@ import { ContentCountRow } from '../../types/contentTypes';
 import {
   AdminMovieDetailsRow,
   AdminMovieRow,
+  MovieFilterOptions,
   MovieReferenceRow,
   transformAdminMovie,
   transformAdminMovieDetails,
@@ -31,11 +32,6 @@ export async function getMoviesCount(): Promise<number> {
   } catch (error) {
     handleDatabaseError(error, 'getting the count of movies');
   }
-}
-
-export interface MovieFilterOptions {
-  streamingServices: string[];
-  years: string[];
 }
 
 interface DistinctValueRow extends RowDataPacket {

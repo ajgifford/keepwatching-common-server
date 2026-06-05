@@ -8,8 +8,9 @@ import {
   resetSeasonForRewatch,
   resetShowForRewatch,
 } from '../db/watchHistoryDb';
-import { BulkMarkedShowRow, WatchStatusDbService } from '../db/watchStatusDb';
+import { WatchStatusDbService } from '../db/watchStatusDb';
 import { transformWatchHistoryRow } from '../types/watchHistoryTypes';
+import { BulkMarkedShowRow } from '../types/watchStatusTypes';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { errorService } from './errorService';
 import { moviesService } from './moviesService';

@@ -1,5 +1,5 @@
 import { SimpleWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
-import { RowDataPacket } from 'mysql2/promise';
+import { PoolConnection, RowDataPacket } from 'mysql2/promise';
 
 export type EntityType = 'episode' | 'season' | 'show';
 
@@ -155,6 +155,29 @@ export function transformWatchStatusShow(showRow: WatchStatusShowRow, seasons: W
     watchStatus: showRow.status,
     seasons,
   };
+}
+
+export interface BulkMarkedShowRow extends RowDataPacket {
+  showId: number;
+  title: string;
+  posterImage: string;
+  markDate: string;
+  episodeCount: number;
+}
+
+export interface StatusUpdateContext {
+  changes: StatusChange[];
+  totalAffectedRows: number;
+  connection: PoolConnection;
+  profileId: number;
+  timestamp: Date;
+}
+
+export interface EntityUpdateParams {
+  table: string;
+  entityColumn: string;
+  entityId: number;
+  status: WatchStatus;
 }
 
 function safeParseDate(dateString: string | null | undefined): Date {

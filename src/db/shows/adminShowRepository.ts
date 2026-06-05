@@ -9,7 +9,22 @@ import {
   transformContentProfiles,
 } from '../../types/profileTypes';
 import { AdminSeasonRow, transformAdminSeason, transformAdminSeasonWithEpisodes } from '../../types/seasonTypes';
-import { AdminShowRow, ShowReferenceRow, transformAdminShow, transformShowReferenceRow } from '../../types/showTypes';
+import {
+  AdminShowRow,
+  DuplicateCastCreditRow,
+  DuplicateCastGroup,
+  ShowFilterOptions,
+  ShowReferenceRow,
+  ShowWithDuplicateSeasons,
+  ShowWithDuplicateSeasonsRow,
+  ShowWithDuplicates,
+  ShowWithDuplicatesRow,
+  transformAdminShow,
+  transformDuplicateCastCredit,
+  transformShowReferenceRow,
+  transformShowWithDuplicateSeasons,
+  transformShowWithDuplicates,
+} from '../../types/showTypes';
 import { getDbPool } from '../../utils/db';
 import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
@@ -38,13 +53,6 @@ export async function getShowsCount(): Promise<number> {
   } catch (error) {
     handleDatabaseError(error, 'get a count of all shows');
   }
-}
-
-export interface ShowFilterOptions {
-  types: string[];
-  statuses: string[];
-  networks: string[];
-  streamingServices: string[];
 }
 
 interface DistinctValueRow extends RowDataPacket {
@@ -341,22 +349,6 @@ export async function getAdminShowSeasonsWithEpisodes(showId: number): Promise<A
   }
 }
 
-export interface ShowWithDuplicates {
-  id: number;
-  title: string;
-  posterImage: string;
-  duplicateGroupCount: number;
-  extraEpisodeCount: number;
-}
-
-interface ShowWithDuplicatesRow extends RowDataPacket {
-  id: number;
-  title: string;
-  poster_image: string;
-  duplicate_group_count: number;
-  extra_episode_count: number;
-}
-
 /**
  * Get all shows that have potential duplicate episodes (same episode_number within the same season)
  *
@@ -386,13 +378,7 @@ export async function getShowsWithDuplicateEpisodes(): Promise<ShowWithDuplicate
           ORDER BY duplicate_group_count DESC, s.title
         `;
         const [rows] = await getDbPool().execute<ShowWithDuplicatesRow[]>(query);
-        return rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          posterImage: row.poster_image,
-          duplicateGroupCount: row.duplicate_group_count,
-          extraEpisodeCount: row.extra_episode_count,
-        }));
+        return rows.map(transformShowWithDuplicates);
       },
       2000,
     );
@@ -437,22 +423,6 @@ export async function getDuplicateEpisodesForShow(showId: number): Promise<Admin
   }
 }
 
-export interface ShowWithDuplicateSeasons {
-  id: number;
-  title: string;
-  posterImage: string;
-  duplicateGroupCount: number;
-  extraSeasonCount: number;
-}
-
-interface ShowWithDuplicateSeasonsRow extends RowDataPacket {
-  id: number;
-  title: string;
-  poster_image: string;
-  duplicate_group_count: number;
-  extra_season_count: number;
-}
-
 /**
  * Get all shows that have potential duplicate seasons (same season_number within the same show)
  *
@@ -482,13 +452,7 @@ export async function getShowsWithDuplicateSeasons(): Promise<ShowWithDuplicateS
           ORDER BY duplicate_group_count DESC, s.title
         `;
         const [rows] = await getDbPool().execute<ShowWithDuplicateSeasonsRow[]>(query);
-        return rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          posterImage: row.poster_image,
-          duplicateGroupCount: row.duplicate_group_count,
-          extraSeasonCount: row.extra_season_count,
-        }));
+        return rows.map(transformShowWithDuplicateSeasons);
       },
       2000,
     );
@@ -646,36 +610,6 @@ export async function getAdminShowWatchProgress(showId: number): Promise<AdminSh
   }
 }
 
-interface DuplicateCastCreditRow extends RowDataPacket {
-  credit_id: string;
-  show_id: number;
-  show_title: string;
-  poster_image: string;
-  person_id: number;
-  person_name: string;
-  character_name: string;
-  total_episodes: number;
-  cast_order: number;
-  active: number;
-}
-
-export interface DuplicateCastCredit {
-  creditId: string;
-  totalEpisodes: number;
-  castOrder: number;
-  active: number;
-}
-
-export interface DuplicateCastGroup {
-  showId: number;
-  showTitle: string;
-  posterImage: string;
-  personId: number;
-  personName: string;
-  characterName: string;
-  credits: DuplicateCastCredit[];
-}
-
 /**
  * Get all show_cast rows that are part of a duplicate group (same show, person, and character name)
  * across the entire catalog, grouped for resolution.
@@ -727,12 +661,7 @@ export async function getDuplicateCastCredits(): Promise<DuplicateCastGroup[]> {
               credits: [],
             });
           }
-          groupMap.get(key)!.credits.push({
-            creditId: row.credit_id,
-            totalEpisodes: row.total_episodes,
-            castOrder: row.cast_order,
-            active: row.active,
-          });
+          groupMap.get(key)!.credits.push(transformDuplicateCastCredit(row));
         }
 
         return Array.from(groupMap.values());

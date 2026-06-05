@@ -27,6 +27,6 @@ export {
   getMovieProfiles,
 } from './movies/adminMovieRepository';
 
-export type { MovieFilterOptions } from './movies/adminMovieRepository';
+export type { MovieFilterOptions } from '../types/movieTypes';
 
 export { getRecentlyReleasedMovies, getTopRatedMovies, getTrendingMovies } from './movies/digestMovieRepository';

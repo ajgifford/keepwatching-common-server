@@ -1,4 +1,12 @@
 import { ConflictError, NoAffectedRowsError } from '../middleware/errorMiddleware';
+import {
+  CommunityRecommendationRow,
+  ProfileRecommendationRow,
+  RecommendationDetailRow,
+  transformCommunityRecommendationRow,
+  transformProfileRecommendationRow,
+  transformRecommendationDetailRow,
+} from '../types/ratingTypes';
 import { getDbPool } from '../utils/db';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import {
@@ -9,69 +17,6 @@ import {
   RecommendationDetail,
 } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-
-interface ProfileRecommendationRow extends RowDataPacket {
-  id: number;
-  profile_id: number;
-  content_type: RatingContentType;
-  content_id: number;
-  rating: number | null;
-  message: string | null;
-  created_at: string;
-}
-
-interface CommunityRecommendationRow extends RowDataPacket {
-  id: number;
-  content_type: RatingContentType;
-  content_id: number;
-  tmdb_id: number;
-  content_title: string;
-  poster_image: string;
-  release_date: string;
-  genres: string;
-  average_rating: number | null;
-  rating_count: number;
-  message_count: number;
-  recommendation_count: number;
-  created_at: string;
-}
-
-interface RecommendationDetailRow extends RowDataPacket {
-  profile_name: string;
-  rating: number | null;
-  message: string | null;
-  created_at: string;
-}
-
-function transformProfileRecommendationRow(row: ProfileRecommendationRow): ProfileRecommendation {
-  return {
-    id: row.id,
-    profileId: row.profile_id,
-    contentType: row.content_type,
-    contentId: row.content_id,
-    rating: row.rating,
-    message: row.message,
-    createdAt: row.created_at,
-  };
-}
-
-function transformCommunityRecommendationRow(row: CommunityRecommendationRow): CommunityRecommendation {
-  return {
-    id: row.id,
-    contentType: row.content_type,
-    contentId: row.content_id,
-    tmdbId: row.tmdb_id,
-    contentTitle: row.content_title,
-    posterImage: row.poster_image,
-    releaseDate: row.release_date,
-    genres: row.genres,
-    averageRating: row.average_rating !== null ? Math.round(row.average_rating * 10) / 10 : null,
-    ratingCount: Number(row.rating_count),
-    messageCount: Number(row.message_count),
-    recommendationCount: row.recommendation_count,
-    createdAt: row.created_at,
-  };
-}
 
 export async function addRecommendation(
   profileId: number,
@@ -324,12 +269,7 @@ export async function getRecommendationDetails(
        ORDER BY pr.created_at DESC`,
       [contentType, contentId],
     );
-    return rows.map((row) => ({
-      profileName: row.profile_name,
-      rating: row.rating,
-      message: row.message,
-      createdAt: row.created_at,
-    }));
+    return rows.map(transformRecommendationDetailRow);
   } catch (error) {
     handleDatabaseError(error, 'getting recommendation details');
   }

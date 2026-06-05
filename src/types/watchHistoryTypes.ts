@@ -32,3 +32,15 @@ export function transformWatchHistoryRow(row: WatchHistoryRow): WatchHistoryItem
     runtime: row.runtime,
   };
 }
+
+export interface SeasonShowRow extends RowDataPacket {
+  show_id: number;
+}
+
+export interface WatchHistoryCountRow extends RowDataPacket {
+  total: number;
+}
+
+export interface EpisodeWatchCountRow extends RowDataPacket {
+  watch_count: number;
+}

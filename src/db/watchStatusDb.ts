@@ -1,7 +1,10 @@
 import { NotFoundError } from '../middleware/errorMiddleware';
 import { QueryExecutionMetadata } from '../types/statsStore';
 import {
-  StatusChange,
+  BulkMarkedShowRow,
+  EntityType,
+  EntityUpdateParams,
+  StatusUpdateContext,
   StatusUpdateResult,
   WatchStatusEpisodeRow,
   WatchStatusExtendedEpisode,
@@ -25,32 +28,6 @@ import { WatchStatusManager } from '../utils/watchStatusManager';
 import { logEpisodeWatched, logEpisodesWatched, logSeasonWatched, logShowWatched } from './watchHistoryDb';
 import { UserWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import { PoolConnection } from 'mysql2/promise';
-
-export interface BulkMarkedShowRow extends RowDataPacket {
-  showId: number;
-  title: string;
-  posterImage: string;
-  markDate: string;
-  episodeCount: number;
-}
-
-type EntityType = 'episode' | 'season' | 'show';
-
-interface StatusUpdateContext {
-  changes: StatusChange[];
-  totalAffectedRows: number;
-  connection: PoolConnection;
-  profileId: number;
-  timestamp: Date;
-}
-
-interface EntityUpdateParams {
-  table: string;
-  entityColumn: string;
-  entityId: number;
-  status: WatchStatus;
-}
 
 /**
  * Database service for managing watch statuses with the centralized status manager
