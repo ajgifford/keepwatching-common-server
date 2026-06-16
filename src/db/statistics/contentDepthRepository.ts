@@ -10,7 +10,7 @@ import { ContentDepthStats } from '@ajgifford/keepwatching-types';
  * @param profileId - ID of the profile
  * @returns Content depth statistics
  */
-export async function getContentDepthStats(profileId: number): Promise<ContentDepthStats> {
+export async function getContentDepthStats(profileId: number, days: number = 36500): Promise<ContentDepthStats> {
   return await DbMonitor.getInstance().executeWithTiming('getContentDepthStats', async () => {
     const connection = await getDbPool().getConnection();
     try {
@@ -23,21 +23,23 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
         FROM show_watch_status sws
         LEFT JOIN episodes e ON e.show_id = sws.show_id
         WHERE sws.profile_id = ?
+          AND sws.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         `,
-        [profileId],
+        [profileId, days],
       );
 
       // Get average movie runtime (separate query to avoid cross join)
       const [movieDepthRows] = await connection.execute<ContentDepthDataRow[]>(
         `
-        SELECT 
+        SELECT
           COUNT(DISTINCT mws.movie_id) as total_movies,
           COALESCE(SUM(m.runtime), 0) as total_movie_runtime
         FROM movie_watch_status mws
         LEFT JOIN movies m ON m.id = mws.movie_id
         WHERE mws.profile_id = ?
+          AND mws.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         `,
-        [profileId],
+        [profileId, days],
       );
 
       const showDepthData = showDepthRows[0];
@@ -51,29 +53,31 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
       // Get release year distribution for shows
       const [showYearRows] = await connection.execute<ReleaseYearDataRow[]>(
         `
-        SELECT 
+        SELECT
           YEAR(s.release_date) as release_year,
           COUNT(*) as content_count
         FROM show_watch_status sws
         JOIN shows s ON s.id = sws.show_id
         WHERE sws.profile_id = ? AND s.release_date IS NOT NULL
+          AND sws.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         GROUP BY release_year
         `,
-        [profileId],
+        [profileId, days],
       );
 
       // Get release year distribution for movies
       const [movieYearRows] = await connection.execute<ReleaseYearDataRow[]>(
         `
-        SELECT 
+        SELECT
           YEAR(m.release_date) as release_year,
           COUNT(*) as content_count
         FROM movie_watch_status mws
         JOIN movies m ON m.id = mws.movie_id
         WHERE mws.profile_id = ? AND m.release_date IS NOT NULL
+          AND mws.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         GROUP BY release_year
         `,
-        [profileId],
+        [profileId, days],
       );
 
       // Combine and categorize release years
@@ -82,29 +86,31 @@ export async function getContentDepthStats(profileId: number): Promise<ContentDe
       // Get content rating distribution for shows
       const [showRatingRows] = await connection.execute<ContentRatingDataRow[]>(
         `
-        SELECT 
+        SELECT
           s.content_rating,
           COUNT(*) as content_count
         FROM show_watch_status sws
         JOIN shows s ON s.id = sws.show_id
         WHERE sws.profile_id = ?
+          AND sws.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         GROUP BY s.content_rating
         `,
-        [profileId],
+        [profileId, days],
       );
 
       // Get content rating distribution for movies
       const [movieRatingRows] = await connection.execute<ContentRatingDataRow[]>(
         `
-        SELECT 
+        SELECT
           m.mpa_rating as content_rating,
           COUNT(*) as content_count
         FROM movie_watch_status mws
         JOIN movies m ON m.id = mws.movie_id
         WHERE mws.profile_id = ?
+          AND mws.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
         GROUP BY m.mpa_rating
         `,
-        [profileId],
+        [profileId, days],
       );
 
       // Combine content ratings

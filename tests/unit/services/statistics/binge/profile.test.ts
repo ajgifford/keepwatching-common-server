@@ -54,7 +54,7 @@ describe('Statistics - Binge - Profile', () => {
       const result = await profileStatisticsService.getBingeWatchingStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_binge_watching_stats',
+        'profile_123_binge_watching_stats_36500',
         expect.any(Function),
         1800,
       );
@@ -83,11 +83,11 @@ describe('Statistics - Binge - Profile', () => {
       const result = await profileStatisticsService.getBingeWatchingStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_binge_watching_stats',
+        'profile_123_binge_watching_stats_36500',
         expect.any(Function),
         1800,
       );
-      expect(statisticsDb.getBingeWatchingStats).toHaveBeenCalledWith(123);
+      expect(statisticsDb.getBingeWatchingStats).toHaveBeenCalledWith(123, 36500);
       expect(result).toEqual(mockStats);
     });
 
@@ -103,7 +103,7 @@ describe('Statistics - Binge - Profile', () => {
         'Handled: Failed to get binge watching stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getBingeWatchingStats(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getBingeWatchingStats(123, 36500)');
     });
   });
 });

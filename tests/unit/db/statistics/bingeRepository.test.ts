@@ -627,7 +627,23 @@ describe('bingeRepository', () => {
 
       await getBingeWatchingStats(456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456, 36500]);
+    });
+
+    it('should use default days of 36500 when not specified', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getBingeWatchingStats(123);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [123, 36500]);
+    });
+
+    it('should pass custom days parameter to query', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getBingeWatchingStats(123, 30);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [123, 30]);
     });
 
     it('should exclude prior watch episodes from results', async () => {

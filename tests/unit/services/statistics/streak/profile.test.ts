@@ -50,7 +50,7 @@ describe('Statistics - Streak - Profile', () => {
       const result = await profileStatisticsService.getWatchStreakStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_watch_streak_stats',
+        'profile_123_watch_streak_stats_36500',
         expect.any(Function),
         1800,
       );
@@ -78,11 +78,11 @@ describe('Statistics - Streak - Profile', () => {
       const result = await profileStatisticsService.getWatchStreakStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_watch_streak_stats',
+        'profile_123_watch_streak_stats_36500',
         expect.any(Function),
         1800,
       );
-      expect(statisticsDb.getWatchStreakStats).toHaveBeenCalledWith(123);
+      expect(statisticsDb.getWatchStreakStats).toHaveBeenCalledWith(123, 36500);
       expect(result).toEqual(mockStats);
     });
 
@@ -98,7 +98,7 @@ describe('Statistics - Streak - Profile', () => {
         'Handled: Failed to get watch streak stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getWatchStreakStats(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getWatchStreakStats(123, 36500)');
     });
   });
 });

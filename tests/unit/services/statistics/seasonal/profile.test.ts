@@ -53,7 +53,7 @@ describe('Statistics - Seasonal - Profile', () => {
       const result = await profileStatisticsService.getSeasonalViewingStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_seasonal_viewing_stats',
+        'profile_123_seasonal_viewing_stats_36500',
         expect.any(Function),
         1800,
       );
@@ -84,11 +84,11 @@ describe('Statistics - Seasonal - Profile', () => {
       const result = await profileStatisticsService.getSeasonalViewingStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_seasonal_viewing_stats',
+        'profile_123_seasonal_viewing_stats_36500',
         expect.any(Function),
         1800,
       );
-      expect(statisticsDb.getSeasonalViewingStats).toHaveBeenCalledWith(123);
+      expect(statisticsDb.getSeasonalViewingStats).toHaveBeenCalledWith(123, 36500);
       expect(result).toEqual(mockStats);
     });
 
@@ -104,7 +104,7 @@ describe('Statistics - Seasonal - Profile', () => {
         'Handled: Failed to get seasonal viewing stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getSeasonalViewingStats(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getSeasonalViewingStats(123, 36500)');
     });
   });
 });

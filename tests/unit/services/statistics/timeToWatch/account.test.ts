@@ -54,7 +54,7 @@ describe('Statistics - TimeToWatch - Account', () => {
       const result = await accountStatisticsService.getAccountTimeToWatchStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_time_to_watch_stats',
+        'account_1_time_to_watch_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -99,7 +99,7 @@ describe('Statistics - TimeToWatch - Account', () => {
       const result = await accountStatisticsService.getAccountTimeToWatchStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_time_to_watch_stats',
+        'account_1_time_to_watch_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -124,7 +124,7 @@ describe('Statistics - TimeToWatch - Account', () => {
         'Handled: Failed to get time to watch stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountTimeToWatchStats(1)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountTimeToWatchStats(1, 36500)');
     });
 
     it('should throw an error when an account has no profiles', async () => {

@@ -49,7 +49,7 @@ describe('Statistics - ContentDiscovery - Profile', () => {
       const result = await profileStatisticsService.getContentDiscoveryStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_content_discovery_stats',
+        'profile_123_content_discovery_stats_30',
         expect.any(Function),
         1800,
       );
@@ -76,11 +76,11 @@ describe('Statistics - ContentDiscovery - Profile', () => {
       const result = await profileStatisticsService.getContentDiscoveryStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_content_discovery_stats',
+        'profile_123_content_discovery_stats_30',
         expect.any(Function),
         1800,
       );
-      expect(statisticsDb.getContentDiscoveryStats).toHaveBeenCalledWith(123);
+      expect(statisticsDb.getContentDiscoveryStats).toHaveBeenCalledWith(123, 30);
       expect(result).toEqual(mockStats);
     });
 
@@ -96,7 +96,7 @@ describe('Statistics - ContentDiscovery - Profile', () => {
         'Handled: Failed to get content discovery stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getContentDiscoveryStats(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getContentDiscoveryStats(123, 30)');
     });
   });
 });

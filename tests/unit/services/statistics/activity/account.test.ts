@@ -45,7 +45,11 @@ describe('Statistics - Activity - Account', () => {
 
       const result = await accountStatisticsService.getAccountActivityTimeline(1);
 
-      expect(mockCacheService.getOrSet).toHaveBeenCalledWith('account_1_activity_timeline', expect.any(Function), 3600);
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
+        'account_1_activity_timeline_36500',
+        expect.any(Function),
+        3600,
+      );
       expect(result).toEqual(mockTimeline);
       expect(profileService.getProfilesByAccountId).not.toHaveBeenCalled();
     });
@@ -76,7 +80,11 @@ describe('Statistics - Activity - Account', () => {
 
       const result = await accountStatisticsService.getAccountActivityTimeline(1);
 
-      expect(mockCacheService.getOrSet).toHaveBeenCalledWith('account_1_activity_timeline', expect.any(Function), 3600);
+      expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
+        'account_1_activity_timeline_36500',
+        expect.any(Function),
+        3600,
+      );
       expect(profileService.getProfilesByAccountId).toHaveBeenCalledWith(1);
       expect(profileStatisticsService.getActivityTimeline).toHaveBeenCalledTimes(2);
       expect(result.dailyActivity).toHaveLength(1);
@@ -100,7 +108,7 @@ describe('Statistics - Activity - Account', () => {
         'Handled: Failed to get activity timeline',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountActivityTimeline(1)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountActivityTimeline(1, 36500)');
     });
 
     it('should throw an error when an account has no profiles', async () => {

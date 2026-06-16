@@ -56,7 +56,7 @@ describe('Statistics - Seasonal - Account', () => {
       const result = await accountStatisticsService.getAccountSeasonalViewingStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_seasonal_viewing_stats',
+        'account_1_seasonal_viewing_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -111,7 +111,7 @@ describe('Statistics - Seasonal - Account', () => {
       const result = await accountStatisticsService.getAccountSeasonalViewingStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_seasonal_viewing_stats',
+        'account_1_seasonal_viewing_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -135,7 +135,7 @@ describe('Statistics - Seasonal - Account', () => {
         'Handled: Failed to get seasonal viewing stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountSeasonalViewingStats(1)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountSeasonalViewingStats(1, 36500)');
     });
 
     it('should throw an error when an account has no profiles', async () => {

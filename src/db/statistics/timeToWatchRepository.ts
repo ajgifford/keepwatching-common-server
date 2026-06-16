@@ -10,7 +10,7 @@ import { TimeToWatchStats } from '@ajgifford/keepwatching-types';
  * @param profileId - ID of the profile
  * @returns Time-to-watch statistics
  */
-export async function getTimeToWatchStats(profileId: number): Promise<TimeToWatchStats> {
+export async function getTimeToWatchStats(profileId: number, days: number = 36500): Promise<TimeToWatchStats> {
   return await DbMonitor.getInstance().executeWithTiming('getTimeToWatchStats', async () => {
     // Get show data with creation date and first/last watch dates
     const [rows] = await getDbPool().execute<ShowTimeData[]>(
@@ -31,9 +31,10 @@ export async function getTimeToWatchStats(profileId: number): Promise<TimeToWatc
       LEFT JOIN episodes e ON e.show_id = sws.show_id
       LEFT JOIN episode_watch_status ews ON ews.episode_id = e.id AND ews.profile_id = sws.profile_id
       WHERE sws.profile_id = ?
+        AND sws.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       GROUP BY sws.show_id, s.title, sws.created_at
       `,
-      [profileId],
+      [profileId, days],
     );
 
     if (rows.length === 0) {

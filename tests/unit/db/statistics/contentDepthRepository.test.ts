@@ -417,12 +417,55 @@ describe('contentDepthRepository', () => {
 
       await getContentDepthStats(456);
 
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [456]);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [456]);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(3, expect.any(String), [456]);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(4, expect.any(String), [456]);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(5, expect.any(String), [456]);
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(6, expect.any(String), [456]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [456, 36500]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [456, 36500]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(3, expect.any(String), [456, 36500]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(4, expect.any(String), [456, 36500]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(5, expect.any(String), [456, 36500]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(6, expect.any(String), [456, 36500]);
+    });
+
+    it('should use default days of 36500 when not specified', async () => {
+      const mockShowDepthRows = [{ total_shows: 0, total_episodes: 0 }] as RowDataPacket[];
+      const mockMovieDepthRows = [{ total_movies: 0, total_movie_runtime: 0 }] as RowDataPacket[];
+      const mockShowYearRows = [] as RowDataPacket[];
+      const mockMovieYearRows = [] as RowDataPacket[];
+      const mockShowRatingRows = [] as RowDataPacket[];
+      const mockMovieRatingRows = [] as RowDataPacket[];
+
+      mockConnection.execute
+        .mockResolvedValueOnce([mockShowDepthRows])
+        .mockResolvedValueOnce([mockMovieDepthRows])
+        .mockResolvedValueOnce([mockShowYearRows])
+        .mockResolvedValueOnce([mockMovieYearRows])
+        .mockResolvedValueOnce([mockShowRatingRows])
+        .mockResolvedValueOnce([mockMovieRatingRows]);
+
+      await getContentDepthStats(123);
+
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [123, 36500]);
+    });
+
+    it('should pass custom days parameter to all queries', async () => {
+      const mockShowDepthRows = [{ total_shows: 0, total_episodes: 0 }] as RowDataPacket[];
+      const mockMovieDepthRows = [{ total_movies: 0, total_movie_runtime: 0 }] as RowDataPacket[];
+      const mockShowYearRows = [] as RowDataPacket[];
+      const mockMovieYearRows = [] as RowDataPacket[];
+      const mockShowRatingRows = [] as RowDataPacket[];
+      const mockMovieRatingRows = [] as RowDataPacket[];
+
+      mockConnection.execute
+        .mockResolvedValueOnce([mockShowDepthRows])
+        .mockResolvedValueOnce([mockMovieDepthRows])
+        .mockResolvedValueOnce([mockShowYearRows])
+        .mockResolvedValueOnce([mockMovieYearRows])
+        .mockResolvedValueOnce([mockShowRatingRows])
+        .mockResolvedValueOnce([mockMovieRatingRows]);
+
+      await getContentDepthStats(123, 30);
+
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [123, 30]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [123, 30]);
     });
 
     it('should handle edge case with content at year boundary', async () => {

@@ -55,7 +55,7 @@ describe('Statistics - Binge - Account', () => {
       const result = await accountStatisticsService.getAccountBingeWatchingStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_binge_watching_stats',
+        'account_1_binge_watching_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -106,7 +106,7 @@ describe('Statistics - Binge - Account', () => {
       const result = await accountStatisticsService.getAccountBingeWatchingStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_binge_watching_stats',
+        'account_1_binge_watching_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -132,7 +132,7 @@ describe('Statistics - Binge - Account', () => {
         'Handled: Failed to get binge watching stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountBingeWatchingStats(1)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountBingeWatchingStats(1, 36500)');
     });
 
     it('should throw an error when an account has no profiles', async () => {

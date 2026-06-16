@@ -52,7 +52,7 @@ describe('Statistics - ContentDepth - Profile', () => {
       const result = await profileStatisticsService.getContentDepthStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_content_depth_stats',
+        'profile_123_content_depth_stats_36500',
         expect.any(Function),
         1800,
       );
@@ -82,11 +82,11 @@ describe('Statistics - ContentDepth - Profile', () => {
       const result = await profileStatisticsService.getContentDepthStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_content_depth_stats',
+        'profile_123_content_depth_stats_36500',
         expect.any(Function),
         1800,
       );
-      expect(statisticsDb.getContentDepthStats).toHaveBeenCalledWith(123);
+      expect(statisticsDb.getContentDepthStats).toHaveBeenCalledWith(123, 36500);
       expect(result).toEqual(mockStats);
     });
 
@@ -102,7 +102,7 @@ describe('Statistics - ContentDepth - Profile', () => {
         'Handled: Failed to get content depth stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getContentDepthStats(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getContentDepthStats(123, 36500)');
     });
   });
 });

@@ -53,7 +53,7 @@ describe('Statistics - Streak - Account', () => {
       const result = await accountStatisticsService.getAccountWatchStreakStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_watch_streak_stats',
+        'account_1_watch_streak_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -102,7 +102,7 @@ describe('Statistics - Streak - Account', () => {
       const result = await accountStatisticsService.getAccountWatchStreakStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_watch_streak_stats',
+        'account_1_watch_streak_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -127,7 +127,7 @@ describe('Statistics - Streak - Account', () => {
         'Handled: Failed to get watch streak stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountWatchStreakStats(1)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountWatchStreakStats(1, 36500)');
     });
 
     it('should throw an error when an account has no profiles', async () => {

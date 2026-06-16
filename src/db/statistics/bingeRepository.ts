@@ -10,7 +10,7 @@ import { BingeWatchingStats } from '@ajgifford/keepwatching-types';
  * @param profileId - ID of the profile
  * @returns Binge-watching statistics
  */
-export async function getBingeWatchingStats(profileId: number): Promise<BingeWatchingStats> {
+export async function getBingeWatchingStats(profileId: number, days: number = 36500): Promise<BingeWatchingStats> {
   return await DbMonitor.getInstance().executeWithTiming('getBingeWatchingStats', async () => {
     // Get all watched episodes with show information
     const [episodes] = await getDbPool().execute<EpisodeWatchEvent[]>(
@@ -25,9 +25,10 @@ export async function getBingeWatchingStats(profileId: number): Promise<BingeWat
       JOIN shows s ON s.id = e.show_id
       WHERE ewh.profile_id = ?
         AND ewh.is_prior_watch = FALSE
+        AND ewh.watched_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       ORDER BY e.show_id, ewh.watched_at
       `,
-      [profileId],
+      [profileId, days],
     );
 
     if (episodes.length === 0) {

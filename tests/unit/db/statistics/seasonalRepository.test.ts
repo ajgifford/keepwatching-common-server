@@ -203,7 +203,23 @@ describe('statisticsDb', () => {
 
       await getSeasonalViewingStats(456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('WHERE ews.profile_id = ?'), [456]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.stringContaining('WHERE ews.profile_id = ?'), [456, 36500]);
+    });
+
+    it('should use default days of 36500 when not specified', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getSeasonalViewingStats(123);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [123, 36500]);
+    });
+
+    it('should pass custom days parameter to query', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getSeasonalViewingStats(123, 30);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [123, 30]);
     });
 
     it('should release connection even if query throws error', async () => {

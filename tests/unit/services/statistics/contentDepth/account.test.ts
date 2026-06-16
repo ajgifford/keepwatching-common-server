@@ -55,7 +55,7 @@ describe('Statistics - ContentDepth - Account', () => {
       const result = await accountStatisticsService.getAccountContentDepthStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_content_depth_stats',
+        'account_1_content_depth_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -108,7 +108,7 @@ describe('Statistics - ContentDepth - Account', () => {
       const result = await accountStatisticsService.getAccountContentDepthStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_content_depth_stats',
+        'account_1_content_depth_stats_36500',
         expect.any(Function),
         3600,
       );
@@ -132,7 +132,7 @@ describe('Statistics - ContentDepth - Account', () => {
         'Handled: Failed to get content depth stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountContentDepthStats(1)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountContentDepthStats(1, 36500)');
     });
 
     it('should throw an error when an account has no profiles', async () => {

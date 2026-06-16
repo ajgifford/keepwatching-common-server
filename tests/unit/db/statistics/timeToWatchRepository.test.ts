@@ -49,7 +49,23 @@ describe('statisticsDb', () => {
 
       await getTimeToWatchStats(456);
 
-      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456]);
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [456, 36500]);
+    });
+
+    it('should use default days of 36500 when not specified', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getTimeToWatchStats(123);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [123, 36500]);
+    });
+
+    it('should pass custom days parameter to query', async () => {
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await getTimeToWatchStats(123, 30);
+
+      expect(mockPool.execute).toHaveBeenCalledWith(expect.any(String), [123, 30]);
     });
 
     it('should query for WATCHED episodes only', async () => {

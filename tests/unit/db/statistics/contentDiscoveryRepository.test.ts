@@ -320,8 +320,8 @@ describe('contentDiscoveryRepository', () => {
 
       await getContentDiscoveryStats(456);
 
-      // First query has 4 profileId parameters
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [456, 456, 456, 456]);
+      // First query: 3 profileId params + days, then profileId + days
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [456, 456, 456, 30, 456, 30]);
     });
 
     it('should pass correct profileId to second query', async () => {
@@ -343,8 +343,36 @@ describe('contentDiscoveryRepository', () => {
 
       await getContentDiscoveryStats(789);
 
-      // Second query has 2 profileId parameters
-      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [789, 789]);
+      // Second query: profileId + days, profileId + days
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [789, 30, 789, 30]);
+    });
+
+    it('should use default days of 30 when not specified', async () => {
+      const mockAdditionRows = [
+        { last_content_added: new Date(), shows_added_30_days: 0, movies_added_30_days: 0 },
+      ] as RowDataPacket[];
+      const mockCompletionRows = [{ shows_completed_30_days: 0, movies_completed_30_days: 0 }] as RowDataPacket[];
+
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+
+      await getContentDiscoveryStats(123);
+
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [123, 123, 123, 30, 123, 30]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [123, 30, 123, 30]);
+    });
+
+    it('should pass custom days parameter to queries', async () => {
+      const mockAdditionRows = [
+        { last_content_added: new Date(), shows_added_30_days: 0, movies_added_30_days: 0 },
+      ] as RowDataPacket[];
+      const mockCompletionRows = [{ shows_completed_30_days: 0, movies_completed_30_days: 0 }] as RowDataPacket[];
+
+      mockConnection.execute.mockResolvedValueOnce([mockAdditionRows]).mockResolvedValueOnce([mockCompletionRows]);
+
+      await getContentDiscoveryStats(123, 90);
+
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(1, expect.any(String), [123, 123, 123, 90, 123, 90]);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(2, expect.any(String), [123, 90, 123, 90]);
     });
 
     it('should handle very large numbers of additions', async () => {

@@ -344,10 +344,10 @@ export class AccountStatisticsService {
    * Get account-level activity timeline
    * Merges activity data across all profiles and sums by date/week/month
    */
-  public async getAccountActivityTimeline(accountId: number): Promise<AccountActivityTimeline> {
+  public async getAccountActivityTimeline(accountId: number, days: number = 36500): Promise<AccountActivityTimeline> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.activityTimeline(accountId),
+        ACCOUNT_KEYS.activityTimeline(accountId, days),
         async () => {
           const profiles = await profileService.getProfilesByAccountId(accountId);
           if (!profiles || profiles.length === 0) {
@@ -355,7 +355,7 @@ export class AccountStatisticsService {
           }
 
           const profileTimelines = await Promise.all(
-            profiles.map(async (profile) => await profileStatisticsService.getActivityTimeline(profile.id)),
+            profiles.map(async (profile) => await profileStatisticsService.getActivityTimeline(profile.id, days)),
           );
 
           // Merge daily activity
@@ -412,7 +412,7 @@ export class AccountStatisticsService {
         3600,
       );
     } catch (error) {
-      throw errorService.handleError(error, `getAccountActivityTimeline(${accountId})`);
+      throw errorService.handleError(error, `getAccountActivityTimeline(${accountId}, ${days})`);
     }
   }
 
@@ -420,10 +420,13 @@ export class AccountStatisticsService {
    * Get account-level binge-watching statistics
    * Sums sessions, finds max binge, and merges top shows across profiles
    */
-  public async getAccountBingeWatchingStats(accountId: number): Promise<AccountBingeWatchingStats> {
+  public async getAccountBingeWatchingStats(
+    accountId: number,
+    days: number = 36500,
+  ): Promise<AccountBingeWatchingStats> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.bingeWatchingStats(accountId),
+        ACCOUNT_KEYS.bingeWatchingStats(accountId, days),
         async () => {
           const profiles = await profileService.getProfilesByAccountId(accountId);
           if (!profiles || profiles.length === 0) {
@@ -434,7 +437,7 @@ export class AccountStatisticsService {
             profiles.map(async (profile) => ({
               profileId: profile.id,
               profileName: profile.name,
-              stats: await profileStatisticsService.getBingeWatchingStats(profile.id),
+              stats: await profileStatisticsService.getBingeWatchingStats(profile.id, days),
             })),
           );
 
@@ -485,7 +488,7 @@ export class AccountStatisticsService {
         3600,
       );
     } catch (error) {
-      throw errorService.handleError(error, `getAccountBingeWatchingStats(${accountId})`);
+      throw errorService.handleError(error, `getAccountBingeWatchingStats(${accountId}, ${days})`);
     }
   }
 
@@ -493,10 +496,10 @@ export class AccountStatisticsService {
    * Get account-level watch streak statistics
    * Finds max current/longest streaks across profiles
    */
-  public async getAccountWatchStreakStats(accountId: number): Promise<AccountWatchStreakStats> {
+  public async getAccountWatchStreakStats(accountId: number, days: number = 36500): Promise<AccountWatchStreakStats> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.watchStreakStats(accountId),
+        ACCOUNT_KEYS.watchStreakStats(accountId, days),
         async () => {
           const profiles = await profileService.getProfilesByAccountId(accountId);
           if (!profiles || profiles.length === 0) {
@@ -504,7 +507,7 @@ export class AccountStatisticsService {
           }
 
           const profileStats = await Promise.all(
-            profiles.map(async (profile) => await profileStatisticsService.getWatchStreakStats(profile.id)),
+            profiles.map(async (profile) => await profileStatisticsService.getWatchStreakStats(profile.id, days)),
           );
 
           let maxCurrentStreak = 0;
@@ -547,7 +550,7 @@ export class AccountStatisticsService {
         3600,
       );
     } catch (error) {
-      throw errorService.handleError(error, `getAccountWatchStreakStats(${accountId})`);
+      throw errorService.handleError(error, `getAccountWatchStreakStats(${accountId}, ${days})`);
     }
   }
 
@@ -555,10 +558,10 @@ export class AccountStatisticsService {
    * Get account-level time-to-watch statistics
    * Averages days to start/complete, merges fastest completions
    */
-  public async getAccountTimeToWatchStats(accountId: number): Promise<AccountTimeToWatchStats> {
+  public async getAccountTimeToWatchStats(accountId: number, days: number = 36500): Promise<AccountTimeToWatchStats> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.timeToWatchStats(accountId),
+        ACCOUNT_KEYS.timeToWatchStats(accountId, days),
         async () => {
           const profiles = await profileService.getProfilesByAccountId(accountId);
           if (!profiles || profiles.length === 0) {
@@ -569,7 +572,7 @@ export class AccountStatisticsService {
             profiles.map(async (profile) => ({
               profileId: profile.id,
               profileName: profile.name,
-              stats: await profileStatisticsService.getTimeToWatchStats(profile.id),
+              stats: await profileStatisticsService.getTimeToWatchStats(profile.id, days),
             })),
           );
 
@@ -621,7 +624,7 @@ export class AccountStatisticsService {
         3600,
       );
     } catch (error) {
-      throw errorService.handleError(error, `getAccountTimeToWatchStats(${accountId})`);
+      throw errorService.handleError(error, `getAccountTimeToWatchStats(${accountId}, ${days})`);
     }
   }
 
@@ -629,10 +632,13 @@ export class AccountStatisticsService {
    * Get account-level seasonal viewing statistics
    * Sums viewing by month/season across profiles
    */
-  public async getAccountSeasonalViewingStats(accountId: number): Promise<AccountSeasonalViewingStats> {
+  public async getAccountSeasonalViewingStats(
+    accountId: number,
+    days: number = 36500,
+  ): Promise<AccountSeasonalViewingStats> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.seasonalViewingStats(accountId),
+        ACCOUNT_KEYS.seasonalViewingStats(accountId, days),
         async () => {
           const profiles = await profileService.getProfilesByAccountId(accountId);
           if (!profiles || profiles.length === 0) {
@@ -640,7 +646,7 @@ export class AccountStatisticsService {
           }
 
           const profileStats = await Promise.all(
-            profiles.map(async (profile) => await profileStatisticsService.getSeasonalViewingStats(profile.id)),
+            profiles.map(async (profile) => await profileStatisticsService.getSeasonalViewingStats(profile.id, days)),
           );
 
           const viewingByMonth: Record<string, number> = {};
@@ -676,7 +682,7 @@ export class AccountStatisticsService {
         3600,
       );
     } catch (error) {
-      throw errorService.handleError(error, `getAccountSeasonalViewingStats(${accountId})`);
+      throw errorService.handleError(error, `getAccountSeasonalViewingStats(${accountId}, ${days})`);
     }
   }
 
@@ -789,10 +795,10 @@ export class AccountStatisticsService {
    * Get account-level content depth statistics
    * Weighted averages for episode counts/runtimes
    */
-  public async getAccountContentDepthStats(accountId: number): Promise<AccountContentDepthStats> {
+  public async getAccountContentDepthStats(accountId: number, days: number = 36500): Promise<AccountContentDepthStats> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.contentDepthStats(accountId),
+        ACCOUNT_KEYS.contentDepthStats(accountId, days),
         async () => {
           const profiles = await profileService.getProfilesByAccountId(accountId);
           if (!profiles || profiles.length === 0) {
@@ -800,7 +806,7 @@ export class AccountStatisticsService {
           }
 
           const profileStats = await Promise.all(
-            profiles.map(async (profile) => await profileStatisticsService.getContentDepthStats(profile.id)),
+            profiles.map(async (profile) => await profileStatisticsService.getContentDepthStats(profile.id, days)),
           );
 
           let totalEpisodeCount = 0;
@@ -834,7 +840,7 @@ export class AccountStatisticsService {
         3600,
       );
     } catch (error) {
-      throw errorService.handleError(error, `getAccountContentDepthStats(${accountId})`);
+      throw errorService.handleError(error, `getAccountContentDepthStats(${accountId}, ${days})`);
     }
   }
 
@@ -842,10 +848,13 @@ export class AccountStatisticsService {
    * Get account-level content discovery statistics
    * Average addition rates, combine ratios
    */
-  public async getAccountContentDiscoveryStats(accountId: number): Promise<AccountContentDiscoveryStats> {
+  public async getAccountContentDiscoveryStats(
+    accountId: number,
+    days: number = 30,
+  ): Promise<AccountContentDiscoveryStats> {
     try {
       return await this.cache.getOrSet(
-        ACCOUNT_KEYS.contentDiscoveryStats(accountId),
+        ACCOUNT_KEYS.contentDiscoveryStats(accountId, days),
         async () => {
           const profiles = await profileService.getProfilesByAccountId(accountId);
           if (!profiles || profiles.length === 0) {
@@ -853,7 +862,7 @@ export class AccountStatisticsService {
           }
 
           const profileStats = await Promise.all(
-            profiles.map(async (profile) => await profileStatisticsService.getContentDiscoveryStats(profile.id)),
+            profiles.map(async (profile) => await profileStatisticsService.getContentDiscoveryStats(profile.id, days)),
           );
 
           let minDaysSinceLastAdded = Infinity;
@@ -889,7 +898,7 @@ export class AccountStatisticsService {
         3600,
       );
     } catch (error) {
-      throw errorService.handleError(error, `getAccountContentDiscoveryStats(${accountId})`);
+      throw errorService.handleError(error, `getAccountContentDiscoveryStats(${accountId}, ${days})`);
     }
   }
 

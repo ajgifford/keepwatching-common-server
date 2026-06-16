@@ -10,7 +10,7 @@ import { SeasonalViewingStats } from '@ajgifford/keepwatching-types';
  * @param profileId - ID of the profile
  * @returns Seasonal viewing statistics
  */
-export async function getSeasonalViewingStats(profileId: number): Promise<SeasonalViewingStats> {
+export async function getSeasonalViewingStats(profileId: number, days: number = 36500): Promise<SeasonalViewingStats> {
   return await DbMonitor.getInstance().executeWithTiming('getSeasonalViewingStats', async () => {
     // Get episode counts by month
     const [rows] = await getDbPool().execute<MonthlyViewingData[]>(
@@ -22,10 +22,11 @@ export async function getSeasonalViewingStats(profileId: number): Promise<Season
       FROM episode_watch_status ews
       WHERE ews.profile_id = ?
         AND ews.status = 'WATCHED'
+        AND ews.updated_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       GROUP BY month, month_name
       ORDER BY month
       `,
-      [profileId],
+      [profileId, days],
     );
 
     if (rows.length === 0) {

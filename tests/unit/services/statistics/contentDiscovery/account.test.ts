@@ -52,7 +52,7 @@ describe('Statistics - ContentDiscovery - Account', () => {
       const result = await accountStatisticsService.getAccountContentDiscoveryStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_content_discovery_stats',
+        'account_1_content_discovery_stats_30',
         expect.any(Function),
         3600,
       );
@@ -99,7 +99,7 @@ describe('Statistics - ContentDiscovery - Account', () => {
       const result = await accountStatisticsService.getAccountContentDiscoveryStats(1);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'account_1_content_discovery_stats',
+        'account_1_content_discovery_stats_30',
         expect.any(Function),
         3600,
       );
@@ -124,7 +124,7 @@ describe('Statistics - ContentDiscovery - Account', () => {
         'Handled: Failed to get content discovery stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountContentDiscoveryStats(1)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getAccountContentDiscoveryStats(1, 30)');
     });
 
     it('should throw an error when an account has no profiles', async () => {

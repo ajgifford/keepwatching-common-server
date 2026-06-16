@@ -153,12 +153,15 @@ export class ProfileStatisticsService {
    * @param profileId - ID of the profile
    * @returns Complete activity timeline
    */
-  public async getActivityTimeline(profileId: number): Promise<WatchingActivityTimeline> {
+  public async getActivityTimeline(profileId: number, days: number = 36500): Promise<WatchingActivityTimeline> {
     try {
+      const weeks = Math.ceil(days / 7);
+      const months = Math.max(1, Math.ceil(days / 30));
+
       const [dailyActivity, weeklyActivity, monthlyActivity] = await Promise.all([
-        this.getDailyActivity(profileId, 30),
-        this.getWeeklyActivity(profileId, 12),
-        this.getMonthlyActivity(profileId, 12),
+        this.getDailyActivity(profileId, days),
+        this.getWeeklyActivity(profileId, weeks),
+        this.getMonthlyActivity(profileId, months),
       ]);
 
       return {
@@ -167,7 +170,7 @@ export class ProfileStatisticsService {
         monthlyActivity,
       };
     } catch (error) {
-      throw errorService.handleError(error, `getActivityTimeline(${profileId})`);
+      throw errorService.handleError(error, `getActivityTimeline(${profileId}, ${days})`);
     }
   }
 
@@ -178,17 +181,17 @@ export class ProfileStatisticsService {
    * @param profileId - ID of the profile
    * @returns Binge-watching statistics
    */
-  public async getBingeWatchingStats(profileId: number): Promise<BingeWatchingStats> {
+  public async getBingeWatchingStats(profileId: number, days: number = 36500): Promise<BingeWatchingStats> {
     try {
       return await this.cache.getOrSet(
-        PROFILE_KEYS.bingeWatchingStats(profileId),
+        PROFILE_KEYS.bingeWatchingStats(profileId, days),
         async () => {
-          return await statisticsDb.getBingeWatchingStats(profileId);
+          return await statisticsDb.getBingeWatchingStats(profileId, days);
         },
         1800, // 30 minute TTL
       );
     } catch (error) {
-      throw errorService.handleError(error, `getBingeWatchingStats(${profileId})`);
+      throw errorService.handleError(error, `getBingeWatchingStats(${profileId}, ${days})`);
     }
   }
 
@@ -199,17 +202,17 @@ export class ProfileStatisticsService {
    * @param profileId - ID of the profile
    * @returns Watch streak statistics
    */
-  public async getWatchStreakStats(profileId: number): Promise<WatchStreakStats> {
+  public async getWatchStreakStats(profileId: number, days: number = 36500): Promise<WatchStreakStats> {
     try {
       return await this.cache.getOrSet(
-        PROFILE_KEYS.watchStreakStats(profileId),
+        PROFILE_KEYS.watchStreakStats(profileId, days),
         async () => {
-          return await statisticsDb.getWatchStreakStats(profileId);
+          return await statisticsDb.getWatchStreakStats(profileId, days);
         },
         1800, // 30 minute TTL
       );
     } catch (error) {
-      throw errorService.handleError(error, `getWatchStreakStats(${profileId})`);
+      throw errorService.handleError(error, `getWatchStreakStats(${profileId}, ${days})`);
     }
   }
 
@@ -220,17 +223,17 @@ export class ProfileStatisticsService {
    * @param profileId - ID of the profile
    * @returns Time-to-watch statistics
    */
-  public async getTimeToWatchStats(profileId: number): Promise<TimeToWatchStats> {
+  public async getTimeToWatchStats(profileId: number, days: number = 36500): Promise<TimeToWatchStats> {
     try {
       return await this.cache.getOrSet(
-        PROFILE_KEYS.timeToWatchStats(profileId),
+        PROFILE_KEYS.timeToWatchStats(profileId, days),
         async () => {
-          return await statisticsDb.getTimeToWatchStats(profileId);
+          return await statisticsDb.getTimeToWatchStats(profileId, days);
         },
         1800, // 30 minute TTL
       );
     } catch (error) {
-      throw errorService.handleError(error, `getTimeToWatchStats(${profileId})`);
+      throw errorService.handleError(error, `getTimeToWatchStats(${profileId}, ${days})`);
     }
   }
 
@@ -241,17 +244,17 @@ export class ProfileStatisticsService {
    * @param profileId - ID of the profile
    * @returns Seasonal viewing statistics
    */
-  public async getSeasonalViewingStats(profileId: number): Promise<SeasonalViewingStats> {
+  public async getSeasonalViewingStats(profileId: number, days: number = 36500): Promise<SeasonalViewingStats> {
     try {
       return await this.cache.getOrSet(
-        PROFILE_KEYS.seasonalViewingStats(profileId),
+        PROFILE_KEYS.seasonalViewingStats(profileId, days),
         async () => {
-          return await statisticsDb.getSeasonalViewingStats(profileId);
+          return await statisticsDb.getSeasonalViewingStats(profileId, days);
         },
         1800, // 30 minute TTL
       );
     } catch (error) {
-      throw errorService.handleError(error, `getSeasonalViewingStats(${profileId})`);
+      throw errorService.handleError(error, `getSeasonalViewingStats(${profileId}, ${days})`);
     }
   }
 
@@ -283,17 +286,17 @@ export class ProfileStatisticsService {
    * @param profileId - ID of the profile
    * @returns Content depth statistics
    */
-  public async getContentDepthStats(profileId: number): Promise<ContentDepthStats> {
+  public async getContentDepthStats(profileId: number, days: number = 36500): Promise<ContentDepthStats> {
     try {
       return await this.cache.getOrSet(
-        PROFILE_KEYS.contentDepthStats(profileId),
+        PROFILE_KEYS.contentDepthStats(profileId, days),
         async () => {
-          return await statisticsDb.getContentDepthStats(profileId);
+          return await statisticsDb.getContentDepthStats(profileId, days);
         },
         1800, // 30 minute TTL
       );
     } catch (error) {
-      throw errorService.handleError(error, `getContentDepthStats(${profileId})`);
+      throw errorService.handleError(error, `getContentDepthStats(${profileId}, ${days})`);
     }
   }
 
@@ -304,17 +307,17 @@ export class ProfileStatisticsService {
    * @param profileId - ID of the profile
    * @returns Content discovery statistics
    */
-  public async getContentDiscoveryStats(profileId: number): Promise<ContentDiscoveryStats> {
+  public async getContentDiscoveryStats(profileId: number, days: number = 30): Promise<ContentDiscoveryStats> {
     try {
       return await this.cache.getOrSet(
-        PROFILE_KEYS.contentDiscoveryStats(profileId),
+        PROFILE_KEYS.contentDiscoveryStats(profileId, days),
         async () => {
-          return await statisticsDb.getContentDiscoveryStats(profileId);
+          return await statisticsDb.getContentDiscoveryStats(profileId, days);
         },
         1800, // 30 minute TTL
       );
     } catch (error) {
-      throw errorService.handleError(error, `getContentDiscoveryStats(${profileId})`);
+      throw errorService.handleError(error, `getContentDiscoveryStats(${profileId}, ${days})`);
     }
   }
 

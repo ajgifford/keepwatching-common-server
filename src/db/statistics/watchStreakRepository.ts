@@ -10,7 +10,7 @@ import { RowDataPacket } from 'mysql2/promise';
  * @param profileId - ID of the profile
  * @returns Watch streak statistics
  */
-export async function getWatchStreakStats(profileId: number): Promise<WatchStreakStats> {
+export async function getWatchStreakStats(profileId: number, days: number = 36500): Promise<WatchStreakStats> {
   return await DbMonitor.getInstance().executeWithTiming('getWatchStreakStats', async () => {
     // Get distinct dates where episodes were watched
     const [rows] = await getDbPool().execute<RowDataPacket[]>(
@@ -19,9 +19,10 @@ export async function getWatchStreakStats(profileId: number): Promise<WatchStrea
       FROM episode_watch_history
       WHERE profile_id = ?
         AND is_prior_watch = FALSE
+        AND watched_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       ORDER BY watch_date
       `,
-      [profileId],
+      [profileId, days],
     );
 
     if (rows.length === 0) {

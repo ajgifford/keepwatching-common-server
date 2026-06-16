@@ -38,30 +38,35 @@ export const ACCOUNT_KEYS = {
     `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_velocity_${days}`,
 
   /** Gets the cache key for account activity timeline */
-  activityTimeline: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_activity_timeline`,
+  activityTimeline: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_activity_timeline_${days}`,
 
   /** Gets the cache key for account binge-watching statistics */
-  bingeWatchingStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_binge_watching_stats`,
+  bingeWatchingStats: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_binge_watching_stats_${days}`,
 
   /** Gets the cache key for account watch streak statistics */
-  watchStreakStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_watch_streak_stats`,
+  watchStreakStats: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_watch_streak_stats_${days}`,
 
   /** Gets the cache key for account time-to-watch statistics */
-  timeToWatchStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_time_to_watch_stats`,
+  timeToWatchStats: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_time_to_watch_stats_${days}`,
 
   /** Gets the cache key for account seasonal viewing statistics */
-  seasonalViewingStats: (accountId: number | string) =>
-    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_seasonal_viewing_stats`,
+  seasonalViewingStats: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_seasonal_viewing_stats_${days}`,
 
   /** Gets the cache key for account milestone statistics */
   milestoneStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_milestone_stats`,
 
   /** Gets the cache key for account content depth statistics */
-  contentDepthStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_content_depth_stats`,
+  contentDepthStats: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_content_depth_stats_${days}`,
 
   /** Gets the cache key for account content discovery statistics */
-  contentDiscoveryStats: (accountId: number | string) =>
-    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_content_discovery_stats`,
+  contentDiscoveryStats: (accountId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_content_discovery_stats_${days}`,
 
   /** Gets the cache key for account abandonment risk statistics */
   abandonmentRiskStats: (accountId: number | string) =>
@@ -140,27 +145,31 @@ export const PROFILE_KEYS = {
     `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_monthly_activity_${months}`,
 
   /** Gets the cache key for profile binge-watching statistics */
-  bingeWatchingStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_binge_watching_stats`,
+  bingeWatchingStats: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_binge_watching_stats_${days}`,
 
   /** Gets the cache key for profile watch streak statistics */
-  watchStreakStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_watch_streak_stats`,
+  watchStreakStats: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_watch_streak_stats_${days}`,
 
   /** Gets the cache key for profile time-to-watch statistics */
-  timeToWatchStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_time_to_watch_stats`,
+  timeToWatchStats: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_time_to_watch_stats_${days}`,
 
   /** Gets the cache key for profile seasonal viewing statistics */
-  seasonalViewingStats: (profileId: number | string) =>
-    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_seasonal_viewing_stats`,
+  seasonalViewingStats: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_seasonal_viewing_stats_${days}`,
 
   /** Gets the cache key for profile milestone statistics */
   milestoneStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_milestone_stats`,
 
   /** Gets the cache key for profile content depth statistics */
-  contentDepthStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_content_depth_stats`,
+  contentDepthStats: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_content_depth_stats_${days}`,
 
   /** Gets the cache key for profile content discovery statistics */
-  contentDiscoveryStats: (profileId: number | string) =>
-    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_content_discovery_stats`,
+  contentDiscoveryStats: (profileId: number | string, days: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_content_discovery_stats_${days}`,
 
   /** Gets the cache key for profile abandonment risk statistics */
   abandonmentRiskStats: (profileId: number | string) =>

@@ -213,9 +213,10 @@ describe('Statistics - Activity - Profile', () => {
 
       const result = await profileStatisticsService.getActivityTimeline(123);
 
-      expect(profileStatisticsService.getDailyActivity).toHaveBeenCalledWith(123, 30);
-      expect(profileStatisticsService.getWeeklyActivity).toHaveBeenCalledWith(123, 12);
-      expect(profileStatisticsService.getMonthlyActivity).toHaveBeenCalledWith(123, 12);
+      // Default days=36500: weeks=ceil(36500/7)=5215, months=max(1,ceil(36500/30))=1217
+      expect(profileStatisticsService.getDailyActivity).toHaveBeenCalledWith(123, 36500);
+      expect(profileStatisticsService.getWeeklyActivity).toHaveBeenCalledWith(123, 5215);
+      expect(profileStatisticsService.getMonthlyActivity).toHaveBeenCalledWith(123, 1217);
       expect(result).toEqual({
         dailyActivity: mockDailyActivity,
         weeklyActivity: mockWeeklyActivity,
@@ -234,7 +235,7 @@ describe('Statistics - Activity - Profile', () => {
         'Handled: Failed to get activity timeline',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getActivityTimeline(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getActivityTimeline(123, 36500)');
     });
   });
 });

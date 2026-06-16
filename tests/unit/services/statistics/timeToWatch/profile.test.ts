@@ -51,7 +51,7 @@ describe('Statistics - TimeToWatch - Profile', () => {
       const result = await profileStatisticsService.getTimeToWatchStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_time_to_watch_stats',
+        'profile_123_time_to_watch_stats_36500',
         expect.any(Function),
         1800,
       );
@@ -80,11 +80,11 @@ describe('Statistics - TimeToWatch - Profile', () => {
       const result = await profileStatisticsService.getTimeToWatchStats(123);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'profile_123_time_to_watch_stats',
+        'profile_123_time_to_watch_stats_36500',
         expect.any(Function),
         1800,
       );
-      expect(statisticsDb.getTimeToWatchStats).toHaveBeenCalledWith(123);
+      expect(statisticsDb.getTimeToWatchStats).toHaveBeenCalledWith(123, 36500);
       expect(result).toEqual(mockStats);
     });
 
@@ -100,7 +100,7 @@ describe('Statistics - TimeToWatch - Profile', () => {
         'Handled: Failed to get time to watch stats',
       );
 
-      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getTimeToWatchStats(123)');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'getTimeToWatchStats(123, 36500)');
     });
   });
 });
