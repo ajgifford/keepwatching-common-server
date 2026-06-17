@@ -1,8 +1,7 @@
 import { cliLogger } from '@logger/logger';
 import { getFirebaseAdmin, initializeFirebase, shutdownFirebase } from '@utils/firebaseUtil';
-import admin from 'firebase-admin';
+import { App, cert, deleteApp, getApp, getApps, initializeApp } from 'firebase-admin/app';
 
-// Mock the logger
 jest.mock('@logger/logger', () => ({
   cliLogger: {
     info: jest.fn(),
@@ -10,22 +9,12 @@ jest.mock('@logger/logger', () => ({
   },
 }));
 
-// Mock firebase-admin
-jest.mock('firebase-admin', () => ({
-  default: {
-    apps: [],
-    initializeApp: jest.fn(),
-    credential: {
-      cert: jest.fn(),
-    },
-    app: jest.fn(),
-  },
-  apps: [],
+jest.mock('firebase-admin/app', () => ({
+  getApps: jest.fn(),
   initializeApp: jest.fn(),
-  credential: {
-    cert: jest.fn(),
-  },
-  app: jest.fn(),
+  cert: jest.fn(),
+  getApp: jest.fn(),
+  deleteApp: jest.fn(),
 }));
 
 describe('firebaseUtil', () => {
@@ -42,84 +31,75 @@ describe('firebaseUtil', () => {
 
   const mockAppName = 'test-app';
 
-  // Create mock app objects
-  const createMockApp = (name: string): admin.app.App =>
+  const createMockApp = (name: string): App =>
     ({
       name,
       delete: jest.fn().mockResolvedValue(undefined),
-    }) as any;
+    }) as unknown as App;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset admin.apps array
-    (admin.apps as admin.app.App[]).length = 0;
+    (getApps as jest.Mock).mockReturnValue([]);
   });
 
   describe('initializeFirebase', () => {
     it('should initialize Firebase Admin SDK successfully when not already initialized', () => {
       const mockCredential = { mock: 'credential' };
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
+      (getApps as jest.Mock).mockReturnValue([]);
+      (cert as jest.Mock).mockReturnValue(mockCredential);
+      (initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
       expect(result).toBe(true);
-      expect(admin.credential.cert).toHaveBeenCalledWith(mockServiceAccount);
-      expect(admin.initializeApp).toHaveBeenCalledWith(
-        {
-          credential: mockCredential,
-        },
-        mockAppName,
-      );
+      expect(cert).toHaveBeenCalledWith(mockServiceAccount);
+      expect(initializeApp).toHaveBeenCalledWith({ credential: mockCredential }, mockAppName);
       expect(cliLogger.info).toHaveBeenCalledWith(`Firebase Admin SDK initialized for "${mockAppName}"`);
     });
 
     it('should return true and log info when Firebase Admin SDK is already initialized', () => {
-      // Setup existing app
       const existingApp = createMockApp(mockAppName);
-      (admin.apps as admin.app.App[]).push(existingApp);
+      (getApps as jest.Mock).mockReturnValue([existingApp]);
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
       expect(result).toBe(true);
-      expect(admin.credential.cert).not.toHaveBeenCalled();
-      expect(admin.initializeApp).not.toHaveBeenCalled();
+      expect(cert).not.toHaveBeenCalled();
+      expect(initializeApp).not.toHaveBeenCalled();
       expect(cliLogger.info).toHaveBeenCalledWith(`Firebase Admin SDK already initialized for "${mockAppName}"`);
     });
 
-    it('should handle null apps in admin.apps array', () => {
-      // Setup admin.apps with null values
-      (admin.apps as any[]).push(null, createMockApp('other-app'), null);
-
+    it('should handle null apps in getApps() array', () => {
+      (getApps as jest.Mock).mockReturnValue([null, createMockApp('other-app'), null]);
       const mockCredential = { mock: 'credential' };
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
+      (cert as jest.Mock).mockReturnValue(mockCredential);
+      (initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
       expect(result).toBe(true);
-      expect(admin.initializeApp).toHaveBeenCalled();
+      expect(initializeApp).toHaveBeenCalled();
     });
 
     it('should not initialize when app with same name already exists among other apps', () => {
-      // Setup multiple apps including the target one
-      (admin.apps as admin.app.App[]).push(
+      (getApps as jest.Mock).mockReturnValue([
         createMockApp('other-app-1'),
         createMockApp(mockAppName),
         createMockApp('other-app-2'),
-      );
+      ]);
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
       expect(result).toBe(true);
-      expect(admin.initializeApp).not.toHaveBeenCalled();
+      expect(initializeApp).not.toHaveBeenCalled();
       expect(cliLogger.info).toHaveBeenCalledWith(`Firebase Admin SDK already initialized for "${mockAppName}"`);
     });
 
     it('should return false and log error when initialization fails', () => {
       const mockError = new Error('Initialization failed');
-      (admin.credential.cert as jest.Mock).mockReturnValue({ mock: 'credential' });
-      (admin.initializeApp as jest.Mock).mockImplementation(() => {
+      (getApps as jest.Mock).mockReturnValue([]);
+      (cert as jest.Mock).mockReturnValue({ mock: 'credential' });
+      (initializeApp as jest.Mock).mockImplementation(() => {
         throw mockError;
       });
 
@@ -132,52 +112,45 @@ describe('firebaseUtil', () => {
       );
     });
 
-    it('should handle undefined admin.apps', () => {
-      // Simulate undefined admin.apps
-      Object.defineProperty(admin, 'apps', {
-        value: undefined,
-        writable: true,
-      });
-
+    it('should handle undefined/null return from getApps()', () => {
+      (getApps as jest.Mock).mockReturnValue(null);
       const mockCredential = { mock: 'credential' };
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
+      (cert as jest.Mock).mockReturnValue(mockCredential);
+      (initializeApp as jest.Mock).mockReturnValue(createMockApp(mockAppName));
 
       const result = initializeFirebase(mockServiceAccount, mockAppName);
 
       expect(result).toBe(true);
-      expect(admin.initializeApp).toHaveBeenCalled();
-
-      // Reset admin.apps for other tests
-      Object.defineProperty(admin, 'apps', {
-        value: [],
-        writable: true,
-      });
+      expect(initializeApp).toHaveBeenCalled();
     });
   });
 
   describe('shutdownFirebase', () => {
     it('should shutdown Firebase app successfully when app exists', async () => {
       const mockApp = createMockApp(mockAppName);
-      (admin.apps as admin.app.App[]).push(mockApp);
-      (admin.app as jest.Mock).mockReturnValue(mockApp);
+      (getApps as jest.Mock).mockReturnValue([mockApp]);
+      (getApp as jest.Mock).mockReturnValue(mockApp);
+      (deleteApp as jest.Mock).mockResolvedValue(undefined);
 
       await shutdownFirebase(mockAppName);
 
-      expect(admin.app).toHaveBeenCalledWith(mockAppName);
-      expect(mockApp.delete).toHaveBeenCalled();
+      expect(getApp).toHaveBeenCalledWith(mockAppName);
+      expect(deleteApp).toHaveBeenCalledWith(mockApp);
       expect(cliLogger.info).toHaveBeenCalledWith(`Firebase Admin SDK app "${mockAppName}" deleted`);
     });
 
     it('should log info and return early when app is not initialized', async () => {
+      (getApps as jest.Mock).mockReturnValue([]);
+
       await shutdownFirebase(mockAppName);
 
-      expect(admin.app).not.toHaveBeenCalled();
+      expect(getApp).not.toHaveBeenCalled();
+      expect(deleteApp).not.toHaveBeenCalled();
       expect(cliLogger.info).toHaveBeenCalledWith(`Firebase Admin SDK app "${mockAppName}" is not initialized`);
     });
 
-    it('should handle null apps in admin.apps array during shutdown', async () => {
-      (admin.apps as any[]).push(null, createMockApp('other-app'), null);
+    it('should handle null apps in getApps() array during shutdown', async () => {
+      (getApps as jest.Mock).mockReturnValue([null, createMockApp('other-app'), null]);
 
       await shutdownFirebase(mockAppName);
 
@@ -189,53 +162,43 @@ describe('firebaseUtil', () => {
       const otherApp1 = createMockApp('other-app-1');
       const otherApp2 = createMockApp('other-app-2');
 
-      (admin.apps as admin.app.App[]).push(otherApp1, targetApp, otherApp2);
-      (admin.app as jest.Mock).mockReturnValue(targetApp);
+      (getApps as jest.Mock).mockReturnValue([otherApp1, targetApp, otherApp2]);
+      (getApp as jest.Mock).mockReturnValue(targetApp);
+      (deleteApp as jest.Mock).mockResolvedValue(undefined);
 
       await shutdownFirebase(mockAppName);
 
-      expect(admin.app).toHaveBeenCalledWith(mockAppName);
-      expect(targetApp.delete).toHaveBeenCalled();
-      expect(otherApp1.delete).not.toHaveBeenCalled();
-      expect(otherApp2.delete).not.toHaveBeenCalled();
+      expect(getApp).toHaveBeenCalledWith(mockAppName);
+      expect(deleteApp).toHaveBeenCalledWith(targetApp);
+      expect(deleteApp).toHaveBeenCalledTimes(1);
     });
 
     it('should log error and return when deletion fails', async () => {
       const mockError = new Error('Deletion failed');
       const mockApp = createMockApp(mockAppName);
-      mockApp.delete = jest.fn().mockRejectedValue(mockError);
-
-      (admin.apps as admin.app.App[]).push(mockApp);
-      (admin.app as jest.Mock).mockReturnValue(mockApp);
+      (getApps as jest.Mock).mockReturnValue([mockApp]);
+      (getApp as jest.Mock).mockReturnValue(mockApp);
+      (deleteApp as jest.Mock).mockRejectedValue(mockError);
 
       await shutdownFirebase(mockAppName);
 
-      expect(mockApp.delete).toHaveBeenCalled();
+      expect(deleteApp).toHaveBeenCalled();
       expect(cliLogger.error).toHaveBeenCalledWith(`Error shutting down Firebase app "${mockAppName}"`, mockError);
     });
 
-    it('should handle undefined admin.apps during shutdown', async () => {
-      Object.defineProperty(admin, 'apps', {
-        value: undefined,
-        writable: true,
-      });
+    it('should handle null return from getApps() during shutdown', async () => {
+      (getApps as jest.Mock).mockReturnValue(null);
 
       await shutdownFirebase(mockAppName);
 
       expect(cliLogger.info).toHaveBeenCalledWith(`Firebase Admin SDK app "${mockAppName}" is not initialized`);
-
-      // Reset admin.apps for other tests
-      Object.defineProperty(admin, 'apps', {
-        value: [],
-        writable: true,
-      });
     });
   });
 
   describe('getFirebaseAdmin', () => {
     it('should return the Firebase app when it exists', () => {
       const targetApp = createMockApp(mockAppName);
-      (admin.apps as admin.app.App[]).push(targetApp);
+      (getApps as jest.Mock).mockReturnValue([targetApp]);
 
       const result = getFirebaseAdmin(mockAppName);
 
@@ -243,6 +206,8 @@ describe('firebaseUtil', () => {
     });
 
     it('should return null when app does not exist', () => {
+      (getApps as jest.Mock).mockReturnValue([]);
+
       const result = getFirebaseAdmin(mockAppName);
 
       expect(result).toBeNull();
@@ -252,7 +217,7 @@ describe('firebaseUtil', () => {
       const targetApp = createMockApp(mockAppName);
       const otherApp = createMockApp('other-app');
 
-      (admin.apps as any[]).push(null, otherApp, null, targetApp, null);
+      (getApps as jest.Mock).mockReturnValue([null, otherApp, null, targetApp, null]);
 
       const result = getFirebaseAdmin(mockAppName);
 
@@ -264,32 +229,23 @@ describe('firebaseUtil', () => {
       const otherApp1 = createMockApp('other-app-1');
       const otherApp2 = createMockApp('other-app-2');
 
-      (admin.apps as admin.app.App[]).push(otherApp1, targetApp, otherApp2);
+      (getApps as jest.Mock).mockReturnValue([otherApp1, targetApp, otherApp2]);
 
       const result = getFirebaseAdmin(mockAppName);
 
       expect(result).toBe(targetApp);
     });
 
-    it('should handle undefined admin.apps', () => {
-      Object.defineProperty(admin, 'apps', {
-        value: undefined,
-        writable: true,
-      });
+    it('should handle null return from getApps()', () => {
+      (getApps as jest.Mock).mockReturnValue(null);
 
       const result = getFirebaseAdmin(mockAppName);
 
       expect(result).toBeNull();
-
-      // Reset admin.apps for other tests
-      Object.defineProperty(admin, 'apps', {
-        value: [],
-        writable: true,
-      });
     });
 
     it('should return null when app name does not match any existing apps', () => {
-      (admin.apps as admin.app.App[]).push(createMockApp('app-1'), createMockApp('app-2'), createMockApp('app-3'));
+      (getApps as jest.Mock).mockReturnValue([createMockApp('app-1'), createMockApp('app-2'), createMockApp('app-3')]);
 
       const result = getFirebaseAdmin('non-existent-app');
 
@@ -302,24 +258,19 @@ describe('firebaseUtil', () => {
       const mockCredential = { mock: 'credential' };
       const mockApp = createMockApp(mockAppName);
 
-      (admin.credential.cert as jest.Mock).mockReturnValue(mockCredential);
-      (admin.initializeApp as jest.Mock).mockImplementation((config, name) => {
-        const app = createMockApp(name);
-        (admin.apps as admin.app.App[]).push(app);
-        return app;
-      });
-      (admin.app as jest.Mock).mockReturnValue(mockApp);
+      (getApps as jest.Mock).mockReturnValueOnce([]).mockReturnValue([mockApp]);
+      (cert as jest.Mock).mockReturnValue(mockCredential);
+      (initializeApp as jest.Mock).mockReturnValue(mockApp);
+      (getApp as jest.Mock).mockReturnValue(mockApp);
+      (deleteApp as jest.Mock).mockResolvedValue(undefined);
 
-      // Initialize
       const initResult = initializeFirebase(mockServiceAccount, mockAppName);
       expect(initResult).toBe(true);
 
-      // Get
       const getResult = getFirebaseAdmin(mockAppName);
       expect(getResult).not.toBeNull();
       expect(getResult?.name).toBe(mockAppName);
 
-      // Shutdown
       await shutdownFirebase(mockAppName);
       expect(cliLogger.info).toHaveBeenCalledWith(`Firebase Admin SDK app "${mockAppName}" deleted`);
     });

@@ -95,8 +95,8 @@ export default {
     '/tests/unit/services/showService/helpers/',
   ],
 
-  // Transform ESM modules from @ajgifford scope and uuid (ESM-only in v13+)
-  transformIgnorePatterns: ['node_modules/(?!(@ajgifford|uuid)/)'],
+  // Transform ESM modules from @ajgifford scope, uuid, and jose (ESM-only; jose pulled in by firebase-admin v14 via jwks-rsa)
+  transformIgnorePatterns: ['node_modules/(?!(@ajgifford|uuid|jose)/)'],
 
   // Force exit after all tests complete to prevent hanging worker processes
   forceExit: true,

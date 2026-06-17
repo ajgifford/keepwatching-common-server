@@ -21,6 +21,7 @@ import {
   PlatformTrendsStats,
   TrendingContentStats,
 } from '@ajgifford/keepwatching-types';
+import { UserIdentifier, UserRecord, getAuth } from 'firebase-admin/auth';
 
 /**
  * Service class for handling admin-level statistics business logic
@@ -61,7 +62,7 @@ export class AdminStatisticsService {
     }
 
     try {
-      const userRecord = await this.getAdmin().auth().getUser(uid);
+      const userRecord = await getAuth(this.getAdmin()).getUser(uid);
       return userRecord.emailVerified;
     } catch (error) {
       // If user not found in Firebase, return false
@@ -85,16 +86,14 @@ export class AdminStatisticsService {
       const batch = validUids.slice(i, i + 100);
 
       try {
-        const getUsersResult = await this.getAdmin()
-          .auth()
-          .getUsers(batch.map((uid) => ({ uid })));
+        const getUsersResult = await getAuth(this.getAdmin()).getUsers(batch.map((uid) => ({ uid })));
 
-        getUsersResult.users.forEach((user) => {
+        getUsersResult.users.forEach((user: UserRecord) => {
           statusMap.set(user.uid, user.emailVerified);
         });
 
         // Mark not found users as false
-        getUsersResult.notFound.forEach((userIdentifier) => {
+        getUsersResult.notFound.forEach((userIdentifier: UserIdentifier) => {
           if ('uid' in userIdentifier) {
             statusMap.set(userIdentifier.uid, false);
           }

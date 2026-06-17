@@ -7,7 +7,7 @@ import { errorService } from '@services/errorService';
 import { profileService } from '@services/profileService';
 import { getFirebaseAdmin } from '@utils/firebaseUtil';
 import { getAccountImage, getPhotoForGoogleAccount } from '@utils/imageUtility';
-import { UserRecord } from 'firebase-admin/auth';
+import { UserRecord, getAuth } from 'firebase-admin/auth';
 
 jest.mock('@logger/logger', () => ({
   cliLogger: {
@@ -26,6 +26,9 @@ jest.mock('@services/profileService');
 jest.mock('@services/preferencesService');
 jest.mock('@utils/imageUtility');
 jest.mock('@utils/firebaseUtil');
+jest.mock('firebase-admin/auth', () => ({
+  getAuth: jest.fn(),
+}));
 
 type MockUserRecord = {
   uid: string;
@@ -501,12 +504,10 @@ describe('AccountService', () => {
 
     it('should return an account when the email exists', async () => {
       (accountsDb.findAccountByEmail as jest.Mock).mockResolvedValue(mockAccount);
-      const mockFirebaseAdmin = {
-        auth: jest.fn().mockReturnValue({
-          getUserByEmail: jest.fn().mockResolvedValueOnce(mockUser1),
-        }),
-      };
-      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue({});
+      (getAuth as jest.Mock).mockReturnValue({
+        getUserByEmail: jest.fn().mockResolvedValueOnce(mockUser1),
+      });
 
       const result = await accountService.getCombinedAccountByEmail('smithfamily@example.com');
 
@@ -669,12 +670,10 @@ describe('AccountService', () => {
         pageToken: undefined,
       };
 
-      const mockFirebaseAdmin = {
-        auth: jest.fn().mockReturnValue({
-          listUsers: jest.fn().mockResolvedValueOnce(mockListUsersResult).mockResolvedValueOnce(mockListUsersResult2),
-        }),
-      };
-      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue({});
+      (getAuth as jest.Mock).mockReturnValue({
+        listUsers: jest.fn().mockResolvedValueOnce(mockListUsersResult).mockResolvedValueOnce(mockListUsersResult2),
+      });
       (accountsDb.getAccounts as jest.Mock).mockResolvedValue(mockDatabaseAccounts);
 
       const result = await accountService.getAccounts();
@@ -722,12 +721,10 @@ describe('AccountService', () => {
 
     it('should handle errors during account retrieval', async () => {
       const mockError = new Error('Failed to retrieve accounts');
-      const mockFirebaseAdmin = {
-        auth: jest.fn().mockReturnValue({
-          listUsers: jest.fn().mockRejectedValue(mockError),
-        }),
-      };
-      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue({});
+      (getAuth as jest.Mock).mockReturnValue({
+        listUsers: jest.fn().mockRejectedValue(mockError),
+      });
 
       await expect(accountService.getAccounts()).rejects.toThrow('Failed to retrieve accounts');
       expect(errorService.handleError).toHaveBeenCalledWith(mockError, 'getAccounts()');
@@ -746,19 +743,16 @@ describe('AccountService', () => {
       (accountsDb.findAccountById as jest.Mock).mockResolvedValue(mockAccount);
       (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(true);
 
-      const mockFirebaseAdmin = {
-        auth: jest.fn().mockReturnValue({
-          deleteUser: jest.fn().mockResolvedValue(undefined),
-        }),
-      };
-      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+      const mockDeleteUser = jest.fn().mockResolvedValue(undefined);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue({});
+      (getAuth as jest.Mock).mockReturnValue({ deleteUser: mockDeleteUser });
 
       const result = await accountService.deleteAccount(123);
 
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
       expect(accountsDb.deleteAccount).toHaveBeenCalledWith(123);
       expect(getFirebaseAdmin).toHaveBeenCalled();
-      expect(mockFirebaseAdmin.auth().deleteUser).toHaveBeenCalledWith('firebase-uid-123');
+      expect(mockDeleteUser).toHaveBeenCalledWith('firebase-uid-123');
       expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(123);
       expect(appLogger.info).toHaveBeenCalledWith('Account deleted: delete@example.com', { accountId: 123 });
       expect(result).toBe(true);
@@ -782,19 +776,16 @@ describe('AccountService', () => {
       (accountsDb.deleteAccount as jest.Mock).mockResolvedValue(true);
 
       const firebaseError = new Error('Firebase user not found');
-      const mockFirebaseAdmin = {
-        auth: jest.fn().mockReturnValue({
-          deleteUser: jest.fn().mockRejectedValue(firebaseError),
-        }),
-      };
-      (getFirebaseAdmin as jest.Mock).mockReturnValue(mockFirebaseAdmin);
+      const mockDeleteUser = jest.fn().mockRejectedValue(firebaseError);
+      (getFirebaseAdmin as jest.Mock).mockReturnValue({});
+      (getAuth as jest.Mock).mockReturnValue({ deleteUser: mockDeleteUser });
 
       const result = await accountService.deleteAccount(123);
 
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
       expect(accountsDb.deleteAccount).toHaveBeenCalledWith(123);
       expect(getFirebaseAdmin).toHaveBeenCalled();
-      expect(mockFirebaseAdmin.auth().deleteUser).toHaveBeenCalledWith('firebase-uid-123');
+      expect(mockDeleteUser).toHaveBeenCalledWith('firebase-uid-123');
       expect(cliLogger.error).toHaveBeenCalledWith(`Error deleting Firebase user: firebase-uid-123`, firebaseError);
       expect(mockCacheService.invalidateAccount).toHaveBeenCalledWith(123);
       expect(result).toBe(true);

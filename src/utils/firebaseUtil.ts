@@ -1,5 +1,5 @@
 import { cliLogger } from '../logger/logger';
-import admin from 'firebase-admin';
+import { App, cert, deleteApp, getApp, getApps, initializeApp } from 'firebase-admin/app';
 
 /**
  * Initialize Firebase Admin SDK if not already initialized
@@ -10,16 +10,16 @@ import admin from 'firebase-admin';
  * @returns True if initialization was successful
  */
 export function initializeFirebase(serviceAccount: object, name: string): boolean {
-  const apps: admin.app.App[] = (admin.apps || []).filter((app) => app !== null);
+  const apps: App[] = (getApps() || []).filter((app) => app !== null);
   if (apps.some((app) => app.name === name)) {
     cliLogger.info(`Firebase Admin SDK already initialized for "${name}"`);
     return true;
   }
 
   try {
-    admin.initializeApp(
+    initializeApp(
       {
-        credential: admin.credential.cert(serviceAccount),
+        credential: cert(serviceAccount),
       },
       name,
     );
@@ -33,7 +33,7 @@ export function initializeFirebase(serviceAccount: object, name: string): boolea
 }
 
 export async function shutdownFirebase(name: string) {
-  const apps: admin.app.App[] = (admin.apps || []).filter((app) => app !== null);
+  const apps: App[] = (getApps() || []).filter((app) => app !== null);
   const app = apps.find((app) => app.name === name);
   if (!app) {
     cliLogger.info(`Firebase Admin SDK app "${name}" is not initialized`);
@@ -41,7 +41,7 @@ export async function shutdownFirebase(name: string) {
   }
 
   try {
-    await admin.app(name).delete();
+    await deleteApp(getApp(name));
     cliLogger.info(`Firebase Admin SDK app "${name}" deleted`);
   } catch (error) {
     cliLogger.error(`Error shutting down Firebase app "${name}"`, error);
@@ -54,7 +54,7 @@ export async function shutdownFirebase(name: string) {
  *
  * @returns Firebase Admin SDK instance or null if not initialized
  */
-export function getFirebaseAdmin(name: string): admin.app.App | null {
-  const apps: admin.app.App[] = (admin.apps || []).filter((app) => app !== null);
+export function getFirebaseAdmin(name: string): App | null {
+  const apps: App[] = (getApps() || []).filter((app) => app !== null);
   return apps.find((app) => app.name === name) ?? null;
 }

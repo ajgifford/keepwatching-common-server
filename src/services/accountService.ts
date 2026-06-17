@@ -12,7 +12,7 @@ import { preferencesService } from './preferencesService';
 import { profileService } from './profileService';
 import { socketService } from './socketService';
 import { Account, CombinedAccount, CreateAccountRequest, UpdateAccountRequest } from '@ajgifford/keepwatching-types';
-import { UserRecord } from 'firebase-admin/auth';
+import { UserRecord, getAuth } from 'firebase-admin/auth';
 
 /**
  * Interface representing the response for a Google login operation,
@@ -308,7 +308,7 @@ export class AccountService {
 
       if (account.uid) {
         try {
-          await this.getAdmin().auth().deleteUser(account.uid);
+          await getAuth(this.getAdmin()).deleteUser(account.uid);
           cliLogger.info(`Firebase user deleted: ${account.uid}`);
         } catch (firebaseError) {
           cliLogger.error(`Error deleting Firebase user: ${account.uid}`, firebaseError);
@@ -408,7 +408,7 @@ export class AccountService {
         return null;
       }
 
-      const firebaseUser = await this.getAdmin().auth().getUserByEmail(email);
+      const firebaseUser = await getAuth(this.getAdmin()).getUserByEmail(email);
 
       return {
         uid: firebaseUser.uid,
@@ -437,7 +437,7 @@ export class AccountService {
 
   public async verifyEmail(accountUid: string): Promise<void> {
     try {
-      await this.getAdmin().auth().updateUser(accountUid, { emailVerified: true });
+      await getAuth(this.getAdmin()).updateUser(accountUid, { emailVerified: true });
     } catch (error) {
       throw errorService.handleError(error, `verifyEmail(${accountUid})`);
     }
@@ -448,7 +448,7 @@ export class AccountService {
     let allUsers: UserRecord[] = [];
 
     do {
-      const listUsersResult = await this.getAdmin().auth().listUsers(1000, nextPageToken);
+      const listUsersResult = await getAuth(this.getAdmin()).listUsers(1000, nextPageToken);
       allUsers = allUsers.concat(listUsersResult.users);
       nextPageToken = listUsersResult.pageToken;
     } while (nextPageToken);
