@@ -403,7 +403,8 @@ SELECT
 	ne.title as next_episode_title,
 	ne.air_date as next_episode_air_date,
 	ne.episode_number as next_episode_number,
-	ne.season_number as next_episode_season
+	ne.season_number as next_episode_season,
+	ROUND((SELECT AVG(e.runtime) FROM episodes e WHERE e.show_id = s.id AND e.runtime IS NOT NULL AND e.runtime > 0)) AS average_episode_runtime
 FROM 
     profiles p
 JOIN 
@@ -698,18 +699,19 @@ SELECT
       s.last_air_date,
       s.updated_at,
     GROUP_CONCAT(DISTINCT g.genre SEPARATOR ', ') AS genres,
-    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services
-    FROM 
+    GROUP_CONCAT(DISTINCT ss.name SEPARATOR ', ') AS streaming_services,
+	ROUND((SELECT AVG(e.runtime) FROM episodes e WHERE e.show_id = s.id AND e.runtime IS NOT NULL AND e.runtime > 0)) AS average_episode_runtime
+    FROM
       shows s
-    LEFT JOIN 
+    LEFT JOIN
       show_genres sg ON s.id = sg.show_id
-    LEFT JOIN 
+    LEFT JOIN
       genres g ON sg.genre_id = g.id
     LEFT JOIN
       show_services shs ON s.id = shs.show_id
     LEFT JOIN
       streaming_services ss on shs.streaming_service_id = ss.id
-    GROUP BY 
+    GROUP BY
       s.id
     ORDER BY
         s.title

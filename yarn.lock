@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@ajgifford/keepwatching-types@^0.11.7":
-  version "0.11.7"
-  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.11.7/3cc210c8ab9a2ee54e28769fb36797a9ac48e9c0#3cc210c8ab9a2ee54e28769fb36797a9ac48e9c0"
-  integrity sha512-ywYvD8uNYmAEV4m9LvLy7BOoxprZK69XJBE3eoa0iS9Ydgvv4jY3Nur6knijW9SkWB4Ie0p1KAkeIMveFky2tA==
+"@ajgifford/keepwatching-types@^0.12.0":
+  version "0.12.0"
+  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.12.0/846f686d19065fc9da2c7e7f5bf2df73987433b2#846f686d19065fc9da2c7e7f5bf2df73987433b2"
+  integrity sha512-NBEP9WyA5fLeAFlzIgstPI6xbhjHQrO1gf4Ir7FiJ6W+SalzHBA8sGOdsv4Z+nDrUaeQfyTt2YoKlHCNtHWzQQ==
 
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.27.1":
   version "7.27.1"
@@ -4581,10 +4581,10 @@ node-releases@^2.0.27:
   resolved "https://registry.yarnpkg.com/node-releases/-/node-releases-2.0.27.tgz#eedca519205cf20f650f61d56b070db111231e4e"
   integrity sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==
 
-nodemailer@9.0.0:
-  version "9.0.0"
-  resolved "https://registry.yarnpkg.com/nodemailer/-/nodemailer-9.0.0.tgz#b01f5fe72c1b3576fdd2d7b272eee8c1c6ad45bd"
-  integrity sha512-tbPTid7d/p9jAA8CRZ3iomvrMaST0o6NYuY7v6JQZHpPRZ61mLFSPKYd7342NtOFuej9/+L48SOIxwfu2uDvtw==
+nodemailer@9.0.1:
+  version "9.0.1"
+  resolved "https://registry.yarnpkg.com/nodemailer/-/nodemailer-9.0.1.tgz#871c04d8423fc0c790289f4a8f6f71f1b3563e8c"
+  integrity sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==
 
 normalize-path@^3.0.0:
   version "3.0.0"

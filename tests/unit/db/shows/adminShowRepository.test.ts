@@ -37,6 +37,7 @@ describe('adminShowRepository', () => {
           updated_at: new Date('2023-01-05'),
           genres: 'Action, Adventure',
           streaming_services: 'Netflix, Disney+',
+          average_episode_runtime: 45,
         },
         {
           id: 2,
@@ -59,6 +60,7 @@ describe('adminShowRepository', () => {
           updated_at: new Date('2023-02-05'),
           genres: 'Drama, Thriller',
           streaming_services: 'HBO Max',
+          average_episode_runtime: null,
         },
       ];
 
@@ -101,6 +103,7 @@ describe('adminShowRepository', () => {
             updated_at: new Date('2023-03-05'),
             genres: 'Sci-Fi, Fantasy',
             streaming_services: 'Prime Video',
+            average_episode_runtime: 38,
           },
         ],
       ]);
@@ -330,6 +333,7 @@ describe('adminShowRepository', () => {
       updated_at: new Date('2023-06-01'),
       genres: 'Drama',
       streaming_services: 'Netflix',
+      average_episode_runtime: null,
     };
 
     it('should return all shows with no filters and default pagination', async () => {
@@ -453,6 +457,7 @@ describe('adminShowRepository', () => {
           updated_at: new Date('2023-05-05'),
           genres: 'Fantasy',
           streaming_services: 'HBO Max',
+          average_episode_runtime: 52,
         },
       ];
 
@@ -492,6 +497,7 @@ describe('adminShowRepository', () => {
           updated_at: new Date('2023-06-05'),
           genres: 'Comedy',
           streaming_services: 'Netflix',
+          average_episode_runtime: null,
         },
       ];
 
@@ -598,6 +604,7 @@ describe('adminShowRepository', () => {
       updated_at: new Date('2023-12-31T00:00:00Z'),
       genres: 'Drama, Action',
       streaming_services: 'Netflix, Amazon Prime',
+      average_episode_runtime: 43,
     };
 
     it('should return show details when show exists', async () => {
@@ -626,6 +633,7 @@ describe('adminShowRepository', () => {
         lastUpdated: mockShowRow.updated_at.toISOString(),
         streamingServices: 'Netflix, Amazon Prime',
         genres: 'Drama, Action',
+        averageEpisodeRuntime: 43,
       });
     });
 

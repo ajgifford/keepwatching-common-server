@@ -9,3 +9,4 @@ export * from './schema/searchSchema';
 export * from './schema/seasonSchema';
 export * from './schema/showSchema';
 export * from './schema/ratingsSchema';
+export * from './schema/watchlistSchema';

@@ -45,6 +45,7 @@ interface BaseShowRow extends RowDataPacket {
 export interface AdminShowRow extends BaseShowRow {
   id: number;
   updated_at: Date;
+  average_episode_runtime: number | null;
 }
 
 export interface ProfileShowRow extends BaseShowRow {
@@ -59,6 +60,7 @@ export interface ProfileShowRow extends BaseShowRow {
   next_episode_air_date: string;
   next_episode_number: number;
   next_episode_season: number;
+  average_episode_runtime: number | null;
 }
 
 function transformBaseShowRow(show: BaseShowRow) {
@@ -105,6 +107,7 @@ export function transformProfileShow(show: ProfileShowRow): ProfileShow {
         }
       : null,
     watchStatus: show.watch_status as WatchStatus,
+    averageEpisodeRuntime: show.average_episode_runtime ?? null,
   };
 }
 
@@ -113,6 +116,7 @@ export function transformAdminShow(show: AdminShowRow): AdminShow {
     ...transformBaseShowRow(show),
     id: show.id,
     lastUpdated: show.updated_at.toISOString(),
+    averageEpisodeRuntime: show.average_episode_runtime ?? null,
   };
 }
 
