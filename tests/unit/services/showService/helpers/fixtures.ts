@@ -171,6 +171,7 @@ export const mockShows: Show[] = [
     streamingServices: 'Hulu, Prime Video',
     network: 'ABC',
     lastAirDate: '2025-05-01',
+    averageEpisodeRuntime: null,
   },
   {
     id: 2,
@@ -191,6 +192,7 @@ export const mockShows: Show[] = [
     streamingServices: 'Hulu, Prime Video',
     network: 'ABC',
     lastAirDate: '2025-05-01',
+    averageEpisodeRuntime: null,
   },
   {
     id: 3,
@@ -211,6 +213,7 @@ export const mockShows: Show[] = [
     streamingServices: 'Hulu, Prime Video',
     network: 'ABC',
     lastAirDate: '2025-05-01',
+    averageEpisodeRuntime: null,
   },
 ];
 
