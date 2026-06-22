@@ -294,4 +294,232 @@ describe('communityRecommendationsDb Module', () => {
       await expect(communityRecommendationsDb.adminDeleteRecommendation(1)).rejects.toThrow(DatabaseError);
     });
   });
+
+  describe('getAllRecommendationsWithAttribution()', () => {
+    const mockAdminRow = {
+      id: 1,
+      profile_id: 10,
+      profile_name: 'Alice',
+      account_id: 5,
+      content_type: 'show',
+      content_id: 42,
+      content_title: 'Breaking Bad',
+      poster_image: '/poster.jpg',
+      rating: 5,
+      message: 'Must watch!',
+      recommendation_count: 3,
+      created_at: '2026-04-01T00:00:00.000Z',
+    };
+
+    const expectedAdminResult = {
+      id: 1,
+      profileId: 10,
+      profileName: 'Alice',
+      accountId: 5,
+      contentType: 'show',
+      contentId: 42,
+      contentTitle: 'Breaking Bad',
+      posterImage: '/poster.jpg',
+      rating: 5,
+      message: 'Must watch!',
+      recommendationCount: 3,
+      createdAt: '2026-04-01T00:00:00.000Z',
+    };
+
+    it('should return all recommendations with attribution when no filters are provided', async () => {
+      mockExecute.mockResolvedValue([[mockAdminRow]]);
+
+      const result = await communityRecommendationsDb.getAllRecommendationsWithAttribution();
+
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      const [sql] = mockExecute.mock.calls[0];
+      expect(sql).toContain('UNION ALL');
+      expect(result).toEqual([expectedAdminResult]);
+    });
+
+    it('should filter by contentType show and run show-only query', async () => {
+      mockExecute.mockResolvedValue([[mockAdminRow]]);
+
+      const result = await communityRecommendationsDb.getAllRecommendationsWithAttribution({ contentType: 'show' });
+
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      const [sql] = mockExecute.mock.calls[0];
+      expect(sql).not.toContain('UNION ALL');
+      expect(sql).toContain("content_type = 'show'");
+      expect(result).toEqual([expectedAdminResult]);
+    });
+
+    it('should filter by contentType movie and run movie-only query', async () => {
+      const movieRow = { ...mockAdminRow, content_type: 'movie', content_id: 99, content_title: 'Inception' };
+      const expectedMovie = { ...expectedAdminResult, contentType: 'movie', contentId: 99, contentTitle: 'Inception' };
+      mockExecute.mockResolvedValue([[movieRow]]);
+
+      const result = await communityRecommendationsDb.getAllRecommendationsWithAttribution({ contentType: 'movie' });
+
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      const [sql] = mockExecute.mock.calls[0];
+      expect(sql).not.toContain('UNION ALL');
+      expect(sql).toContain("content_type = 'movie'");
+      expect(result).toEqual([expectedMovie]);
+    });
+
+    it('should wrap query in subquery when filtering by profileId', async () => {
+      mockExecute.mockResolvedValue([[mockAdminRow]]);
+
+      await communityRecommendationsDb.getAllRecommendationsWithAttribution({ profileId: 10 });
+
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).toContain('SELECT * FROM (');
+      expect(sql).toContain('t.profile_id = ?');
+      expect(params).toContain(10);
+    });
+
+    it('should wrap query in subquery when filtering by accountId', async () => {
+      mockExecute.mockResolvedValue([[mockAdminRow]]);
+
+      await communityRecommendationsDb.getAllRecommendationsWithAttribution({ accountId: 5 });
+
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).toContain('SELECT * FROM (');
+      expect(sql).toContain('t.account_id = ?');
+      expect(params).toContain(5);
+    });
+
+    it('should apply both profileId and accountId conditions in the subquery', async () => {
+      mockExecute.mockResolvedValue([[mockAdminRow]]);
+
+      await communityRecommendationsDb.getAllRecommendationsWithAttribution({ profileId: 10, accountId: 5 });
+
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).toContain('t.profile_id = ?');
+      expect(sql).toContain('t.account_id = ?');
+      expect(params).toEqual(expect.arrayContaining([10, 5]));
+    });
+
+    it('should return empty array when no recommendations exist', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await communityRecommendationsDb.getAllRecommendationsWithAttribution();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should correctly map recommendationCount as a number', async () => {
+      const rowWithStringCount = { ...mockAdminRow, recommendation_count: '7' };
+      mockExecute.mockResolvedValue([[rowWithStringCount]]);
+
+      const result = await communityRecommendationsDb.getAllRecommendationsWithAttribution();
+
+      expect(result[0].recommendationCount).toBe(7);
+    });
+
+    it('should throw DatabaseError on unexpected database failure', async () => {
+      mockExecute.mockRejectedValue(new Error('Connection lost'));
+
+      await expect(communityRecommendationsDb.getAllRecommendationsWithAttribution()).rejects.toThrow(DatabaseError);
+    });
+  });
+
+  describe('getTopRecommendedContent()', () => {
+    const mockTopRow = {
+      id: 1,
+      content_type: 'show',
+      content_id: 42,
+      tmdb_id: 1396,
+      content_title: 'Breaking Bad',
+      poster_image: '/poster.jpg',
+      release_date: '2008-01-20',
+      genres: 'Drama, Crime',
+      average_rating: 4.5,
+      rating_count: 3,
+      message_count: 2,
+      recommendation_count: 5,
+      created_at: '2026-04-01T00:00:00.000Z',
+    };
+
+    const expectedTop = {
+      id: 1,
+      contentType: 'show',
+      contentId: 42,
+      tmdbId: 1396,
+      contentTitle: 'Breaking Bad',
+      posterImage: '/poster.jpg',
+      releaseDate: '2008-01-20',
+      genres: 'Drama, Crime',
+      averageRating: 4.5,
+      ratingCount: 3,
+      messageCount: 2,
+      recommendationCount: 5,
+      createdAt: '2026-04-01T00:00:00.000Z',
+    };
+
+    it('should return top content for both types with default limit when no filter provided', async () => {
+      mockExecute.mockResolvedValue([[mockTopRow]]);
+
+      const result = await communityRecommendationsDb.getTopRecommendedContent();
+
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).toContain('UNION ALL');
+      expect(params).toEqual([10]);
+      expect(result).toEqual([expectedTop]);
+    });
+
+    it('should run show-only query when contentType is show', async () => {
+      mockExecute.mockResolvedValue([[mockTopRow]]);
+
+      const result = await communityRecommendationsDb.getTopRecommendedContent('show');
+
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).not.toContain('UNION ALL');
+      expect(sql).toContain("content_type = 'show'");
+      expect(params).toEqual([10]);
+      expect(result[0].contentType).toBe('show');
+    });
+
+    it('should run movie-only query when contentType is movie', async () => {
+      const movieRow = { ...mockTopRow, content_type: 'movie', content_id: 99 };
+      mockExecute.mockResolvedValue([[movieRow]]);
+
+      const result = await communityRecommendationsDb.getTopRecommendedContent('movie');
+
+      const [sql, params] = mockExecute.mock.calls[0];
+      expect(sql).not.toContain('UNION ALL');
+      expect(sql).toContain("content_type = 'movie'");
+      expect(params).toEqual([10]);
+      expect(result[0].contentType).toBe('movie');
+    });
+
+    it('should respect a custom limit', async () => {
+      mockExecute.mockResolvedValue([[mockTopRow]]);
+
+      await communityRecommendationsDb.getTopRecommendedContent(undefined, 5);
+
+      const [, params] = mockExecute.mock.calls[0];
+      expect(params).toEqual([5]);
+    });
+
+    it('should return empty array when no top content exists', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await communityRecommendationsDb.getTopRecommendedContent();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle null averageRating in top content', async () => {
+      const rowWithNullRating = { ...mockTopRow, average_rating: null, rating_count: 0 };
+      mockExecute.mockResolvedValue([[rowWithNullRating]]);
+
+      const result = await communityRecommendationsDb.getTopRecommendedContent();
+
+      expect(result[0].averageRating).toBeNull();
+    });
+
+    it('should throw DatabaseError on unexpected database failure', async () => {
+      mockExecute.mockRejectedValue(new Error('Connection lost'));
+
+      await expect(communityRecommendationsDb.getTopRecommendedContent()).rejects.toThrow(DatabaseError);
+    });
+  });
 });

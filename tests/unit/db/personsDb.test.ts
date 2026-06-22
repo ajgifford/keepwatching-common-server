@@ -496,6 +496,14 @@ describe('personsDb', () => {
       ]);
     });
 
+    it('should return an empty array when the movie has no cast', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await personsDb.getMovieCastMembers(1);
+
+      expect(result).toEqual([]);
+    });
+
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockExecute.mockRejectedValue(error);
@@ -542,6 +550,37 @@ describe('personsDb', () => {
           profileImage: 'john.jpg',
         },
       ]);
+    });
+
+    it('should return inactive cast members when active is 0', async () => {
+      const mockInactiveRow: ShowCastMemberRow = {
+        show_id: 1,
+        person_id: 3,
+        character_name: 'Retired Role',
+        cast_order: 5,
+        total_episodes: 3,
+        active: 0,
+        name: 'Past Actor',
+        profile_image: 'past.jpg',
+      } as ShowCastMemberRow;
+
+      mockExecute.mockResolvedValue([[mockInactiveRow]]);
+
+      const result = await personsDb.getShowCastMembers(1, 0);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'SELECT * FROM show_cast_members WHERE show_id = ? and active = ?',
+        [1, 0],
+      );
+      expect(result[0].active).toBe(false);
+    });
+
+    it('should return an empty array when the show has no cast for the given active state', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await personsDb.getShowCastMembers(1, 1);
+
+      expect(result).toEqual([]);
     });
 
     it('should handle database errors', async () => {
@@ -706,6 +745,14 @@ describe('personsDb', () => {
       ]);
     });
 
+    it('should return an empty array when no persons match the letter', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await personsDb.getPersons('Z');
+
+      expect(result).toEqual([]);
+    });
+
     it('should handle database errors', async () => {
       const error = new Error('Database error');
       mockExecute.mockRejectedValue(error);
@@ -768,6 +815,14 @@ describe('personsDb', () => {
         'SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC LIMIT 25 OFFSET 10',
         ['%Smith%'],
       );
+    });
+
+    it('should return an empty array when no persons match the search term', async () => {
+      mockExecute.mockResolvedValue([[]]);
+
+      const result = await personsDb.searchPersons('Zzzzz');
+
+      expect(result).toEqual([]);
     });
 
     it('should handle database errors', async () => {
@@ -847,6 +902,120 @@ describe('personsDb', () => {
         'Database error in getting persons count: Error: Database error',
       );
       expect(mockHandleDatabaseError).toHaveBeenCalledWith(error, 'getting persons count');
+    });
+  });
+
+  describe('deletePerson', () => {
+    it('should return true when the person is deleted', async () => {
+      mockExecute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+
+      const result = await personsDb.deletePerson(123);
+
+      expect(mockExecute).toHaveBeenCalledWith('DELETE FROM people WHERE id = ?', [123]);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no person is found to delete', async () => {
+      mockExecute.mockResolvedValue([{ affectedRows: 0 } as ResultSetHeader]);
+
+      const result = await personsDb.deletePerson(999);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      mockExecute.mockRejectedValue(error);
+
+      await expect(personsDb.deletePerson(123)).rejects.toThrow(
+        'Database error in deleting a person: Error: Database error',
+      );
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(error, 'deleting a person');
+    });
+  });
+
+  describe('updatePersonTmdbId', () => {
+    it('should return true when the TMDB ID is updated', async () => {
+      mockExecute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+
+      const result = await personsDb.updatePersonTmdbId(123, 9999);
+
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE people SET tmdb_id = ? WHERE id = ?', [9999, 123]);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no person is found to update', async () => {
+      mockExecute.mockResolvedValue([{ affectedRows: 0 } as ResultSetHeader]);
+
+      const result = await personsDb.updatePersonTmdbId(999, 9999);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      mockExecute.mockRejectedValue(error);
+
+      await expect(personsDb.updatePersonTmdbId(123, 9999)).rejects.toThrow(
+        'Database error in updating person TMDB ID: Error: Database error',
+      );
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(error, 'updating person TMDB ID');
+    });
+  });
+
+  describe('mergePersonCredits', () => {
+    it('should merge show and movie credits and return merged counts', async () => {
+      const mockConnectionExecute = jest.fn();
+      mockTransactionHelper.executeInTransaction.mockImplementation(async (callback) => {
+        return callback({ execute: mockConnectionExecute } as any);
+      });
+
+      mockConnectionExecute
+        .mockResolvedValueOnce([{ affectedRows: 3 } as ResultSetHeader]) // show_cast update
+        .mockResolvedValueOnce([{ affectedRows: 2 } as ResultSetHeader]); // movie_cast update
+
+      const result = await personsDb.mergePersonCredits(10, 20);
+
+      expect(mockConnectionExecute).toHaveBeenCalledTimes(2);
+
+      const [showSql, showParams] = mockConnectionExecute.mock.calls[0];
+      expect(showSql).toContain('UPDATE show_cast sc');
+      expect(showSql).toContain('SET sc.person_id = ?');
+      expect(showSql).toContain('WHERE sc.person_id = ?');
+      expect(showParams).toEqual([20, 20, 10]);
+
+      const [movieSql, movieParams] = mockConnectionExecute.mock.calls[1];
+      expect(movieSql).toContain('UPDATE movie_cast mc');
+      expect(movieSql).toContain('SET mc.person_id = ?');
+      expect(movieSql).toContain('WHERE mc.person_id = ?');
+      expect(movieParams).toEqual([20, 20, 10]);
+
+      expect(result).toEqual({ showsMerged: 3, moviesMerged: 2 });
+    });
+
+    it('should return zero counts when from-person has no credits to merge', async () => {
+      const mockConnectionExecute = jest.fn();
+      mockTransactionHelper.executeInTransaction.mockImplementation(async (callback) => {
+        return callback({ execute: mockConnectionExecute } as any);
+      });
+
+      mockConnectionExecute
+        .mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader])
+        .mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+
+      const result = await personsDb.mergePersonCredits(10, 20);
+
+      expect(result).toEqual({ showsMerged: 0, moviesMerged: 0 });
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Transaction failed');
+      mockTransactionHelper.executeInTransaction.mockRejectedValue(error);
+
+      await expect(personsDb.mergePersonCredits(10, 20)).rejects.toThrow(
+        'Database error in merging person credits: Error: Transaction failed',
+      );
+      expect(mockHandleDatabaseError).toHaveBeenCalledWith(error, 'merging person credits');
     });
   });
 
