@@ -602,6 +602,70 @@ describe('WatchStatusDbService - Show Operations', () => {
       expect(result.changes).toHaveLength(0);
     });
 
+    it('should preserve SKIPPED season status without recalculating from episodes', async () => {
+      const showRow = createMockShowRow({
+        id: showId,
+        status: 'WATCHING',
+        release_date: '2023-01-01',
+        in_production: 1,
+      });
+
+      const seasonRows = [
+        createMockSeasonRow({ id: 101, show_id: showId, status: 'SKIPPED' }),
+        createMockSeasonRow({ id: 102, show_id: showId, status: 'WATCHING' }),
+      ];
+
+      // Skipped season episodes are all NOT_WATCHED — calculateSeasonStatus would
+      // return NOT_WATCHED for it, which is incorrect when the season is SKIPPED
+      const season1Episodes = [
+        createMockEpisodeRow({ id: 201, season_id: 101, status: 'NOT_WATCHED' }),
+        createMockEpisodeRow({ id: 202, season_id: 101, status: 'NOT_WATCHED' }),
+      ];
+
+      const season2Episodes = [
+        createMockEpisodeRow({ id: 203, season_id: 102, status: 'WATCHED' }),
+        createMockEpisodeRow({ id: 204, season_id: 102, status: 'NOT_WATCHED' }),
+      ];
+
+      const bulkEpisodeUpdateResult = {
+        affectedRows: 0,
+        insertId: 1,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockConnection.execute
+        .mockResolvedValueOnce([[showRow], []])
+        .mockResolvedValueOnce([bulkEpisodeUpdateResult, []])
+        .mockResolvedValueOnce([seasonRows, []])
+        .mockResolvedValueOnce([season1Episodes, []])
+        .mockResolvedValueOnce([season2Episodes, []]);
+
+      mockWatchStatusManager.calculateSeasonStatus.mockReturnValueOnce(WatchStatus.WATCHING);
+      mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHING);
+
+      const result = await watchStatusDbService.checkAndUpdateShowWatchStatus(profileId, showId);
+
+      expect(result.success).toBe(true);
+      expect(result.changes).toHaveLength(0);
+
+      // calculateSeasonStatus should only be called for the non-SKIPPED season
+      expect(mockWatchStatusManager.calculateSeasonStatus).toHaveBeenCalledTimes(1);
+
+      // Show status calculation receives skipped season with its SKIPPED status intact
+      expect(mockWatchStatusManager.calculateShowStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          seasons: expect.arrayContaining([
+            expect.objectContaining({ id: 101, watchStatus: 'SKIPPED' }),
+            expect.objectContaining({ id: 102, watchStatus: 'WATCHING' }),
+          ]),
+        }),
+      );
+    });
+
     it('should handle show not found', async () => {
       mockConnection.execute.mockResolvedValueOnce([[], []]);
 

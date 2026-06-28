@@ -1,10 +1,10 @@
 import { createPositiveIntegerSchema } from './schemaUtil';
-import { userWatchStatusSchema } from './watchStatusSchema';
+import { userSeasonWatchStatusSchema } from './watchStatusSchema';
 import { z } from 'zod';
 
 export const seasonWatchStatusBodySchema = z.object({
   seasonId: z.number().int().positive('Season ID must be a positive integer'),
-  status: userWatchStatusSchema,
+  status: userSeasonWatchStatusSchema,
 });
 
 export const profileSeasonIdsParamSchema = z.object({

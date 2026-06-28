@@ -400,7 +400,6 @@ export class WatchStatusDbService {
     seasonId: number,
     targetStatus: UserWatchStatus,
   ): Promise<void> {
-    // Get original episode statuses
     const episodeStatusQuery = `
       SELECT e.id, e.air_date, e.season_id, COALESCE(ews.status, 'NOT_WATCHED') as status
       FROM episodes e
@@ -408,6 +407,34 @@ export class WatchStatusDbService {
       WHERE e.season_id = ?
     `;
 
+    if (targetStatus === WatchStatus.SKIPPED) {
+      // SKIPPED: store the status directly on the season without touching episodes
+      const [currentEpisodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
+        context.profileId,
+        seasonId,
+      ]);
+      const currentSeasonStatus = seasonRow.status as WatchStatus;
+
+      await this.updateEntityStatus(context, {
+        table: 'season_watch_status',
+        entityColumn: 'season_id',
+        entityId: seasonId,
+        status: WatchStatus.SKIPPED,
+      });
+
+      this.recordStatusChange(
+        context,
+        'season',
+        seasonId,
+        currentSeasonStatus,
+        WatchStatus.SKIPPED,
+        `Season manually set to SKIPPED`,
+      );
+      context.totalAffectedRows += currentEpisodeRows.length;
+      return;
+    }
+
+    // Get original episode statuses
     const [originalEpisodeRows] = await context.connection.execute<WatchStatusEpisodeRow[]>(episodeStatusQuery, [
       context.profileId,
       seasonId,
@@ -891,6 +918,12 @@ export class WatchStatusDbService {
           const episodes = episodeRows.map(transformWatchStatusEpisode);
           const season = transformWatchStatusSeason(seasonRow, episodes);
           showSeasons.push(season);
+
+          // SKIPPED is an explicit user choice; episode statuses can't represent it,
+          // so skip the recalculation to avoid reverting it to NOT_WATCHED.
+          if (season.watchStatus === WatchStatus.SKIPPED) {
+            continue;
+          }
 
           const newSeasonStatus = this.statusManager.calculateSeasonStatus(season);
 

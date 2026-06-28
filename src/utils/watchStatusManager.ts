@@ -153,10 +153,11 @@ export class WatchStatusManager {
     const seasonStatuses = airedSeasons.map((season) => season.watchStatus || this.calculateSeasonStatus(season, now));
     const watchedSeasons = seasonStatuses.filter((s) => s === WatchStatus.WATCHED);
     const upToDateSeasons = seasonStatuses.filter((s) => s === WatchStatus.UP_TO_DATE);
+    const skippedSeasons = seasonStatuses.filter((s) => s === WatchStatus.SKIPPED);
     const watchingSeasons = seasonStatuses.filter((s) => s === WatchStatus.WATCHING);
     const notWatchedSeasons = seasonStatuses.filter((s) => s === WatchStatus.NOT_WATCHED);
 
-    // All seasons not watched
+    // All seasons not watched (skipped seasons count as complete, not as "not watched")
     if (notWatchedSeasons.length === airedSeasons.length) {
       return WatchStatus.NOT_WATCHED;
     }
@@ -166,13 +167,16 @@ export class WatchStatusManager {
       return WatchStatus.WATCHING;
     }
 
-    // Mix of watched/up-to-date and not watched (actual progress)
-    if (notWatchedSeasons.length > 0 && (watchedSeasons.length > 0 || upToDateSeasons.length > 0)) {
+    // Mix of watched/up-to-date/skipped and not watched (actual progress)
+    if (
+      notWatchedSeasons.length > 0 &&
+      (watchedSeasons.length > 0 || upToDateSeasons.length > 0 || skippedSeasons.length > 0)
+    ) {
       return WatchStatus.WATCHING;
     }
 
-    // All seasons watched or up to date
-    const allComplete = watchedSeasons.length + upToDateSeasons.length === airedSeasons.length;
+    // All seasons watched, up to date, or skipped
+    const allComplete = watchedSeasons.length + upToDateSeasons.length + skippedSeasons.length === airedSeasons.length;
 
     if (allComplete) {
       // If show is still in production or has future seasons, it's up to date

@@ -12,8 +12,15 @@ export const watchStatusSchema = z.enum(
 );
 
 /**
- * Schema specifically for user based actions that change the watch statuses of content, which can only be NOT_WATCHED or WATCHED
+ * Schema for user-settable watch statuses on shows, movies, and episodes (NOT_WATCHED or WATCHED only)
  */
 export const userWatchStatusSchema = z.enum([WatchStatus.NOT_WATCHED, WatchStatus.WATCHED], {
   message: 'Status must be either NOT_WATCHED or WATCHED',
+});
+
+/**
+ * Schema for user-settable watch statuses on seasons, which additionally supports SKIPPED
+ */
+export const userSeasonWatchStatusSchema = z.enum([WatchStatus.NOT_WATCHED, WatchStatus.WATCHED, WatchStatus.SKIPPED], {
+  message: 'Status must be one of: NOT_WATCHED, WATCHED, or SKIPPED',
 });

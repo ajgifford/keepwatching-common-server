@@ -13,7 +13,7 @@ describe('seasonSchema', () => {
     });
 
     it('should validate all valid status values', () => {
-      const statuses = ['WATCHED', 'NOT_WATCHED'];
+      const statuses = ['WATCHED', 'NOT_WATCHED', 'SKIPPED'];
 
       statuses.forEach((status) => {
         const input = {
@@ -36,7 +36,7 @@ describe('seasonSchema', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const formattedErrors = result.error.format();
-        expect(formattedErrors.status?._errors).toContain('Status must be either NOT_WATCHED or WATCHED');
+        expect(formattedErrors.status?._errors).toContain('Status must be one of: NOT_WATCHED, WATCHED, or SKIPPED');
       }
     });
 

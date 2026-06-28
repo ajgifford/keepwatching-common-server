@@ -474,6 +474,92 @@ describe('WatchStatusManager', () => {
       // Should return WATCHED (all aired seasons are watched, show not in production)
       expect(status).toBe(WatchStatus.WATCHED);
     });
+
+    it('should return WATCHED when all seasons are SKIPPED and show is not in production', () => {
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.SKIPPED),
+        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.SKIPPED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), false);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.WATCHED);
+    });
+
+    it('should return UP_TO_DATE when all seasons are SKIPPED and show is in production', () => {
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.SKIPPED),
+        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.SKIPPED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), true);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.UP_TO_DATE);
+    });
+
+    it('should return UP_TO_DATE when skipped seasons combined with watched seasons and no unwatched', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 4, seasonId: 2, airDate: new Date('2024-02-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.SKIPPED),
+        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.SKIPPED),
+        createMockSeason(3, new Date('2024-03-01'), season1Episodes, WatchStatus.WATCHED),
+        createMockSeason(4, new Date('2024-04-01'), season2Episodes, WatchStatus.WATCHED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), true);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.UP_TO_DATE);
+    });
+
+    it('should return WATCHING when mix of SKIPPED and NOT_WATCHED seasons', () => {
+      const season3Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 3, airDate: new Date('2024-03-01'), watchStatus: WatchStatus.NOT_WATCHED },
+        { id: 2, seasonId: 3, airDate: new Date('2024-03-08'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.SKIPPED),
+        createMockSeason(2, new Date('2024-02-01'), [], WatchStatus.SKIPPED),
+        createMockSeason(3, new Date('2024-03-01'), season3Episodes, WatchStatus.NOT_WATCHED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), false);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.WATCHING);
+    });
+
+    it('should return NOT_WATCHED when all seasons are NOT_WATCHED regardless of skipped count being 0', () => {
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
+      const season2Episodes: WatchStatusEpisode[] = [
+        { id: 2, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.NOT_WATCHED),
+        createMockSeason(2, new Date('2024-02-01'), season2Episodes, WatchStatus.NOT_WATCHED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), false);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.NOT_WATCHED);
+    });
   });
 
   describe('generateStatusSummary', () => {
