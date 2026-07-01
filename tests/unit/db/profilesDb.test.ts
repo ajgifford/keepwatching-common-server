@@ -107,6 +107,46 @@ describe('profileDb', () => {
     });
   });
 
+  describe('updateProfileAccentColor()', () => {
+    it('should update profile accent color', async () => {
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      const success = await profilesDb.updateProfileAccentColor({ id: 5, accentColor: '#7b1fa2' });
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE profiles SET accent_color = ? WHERE profile_id = ?', [
+        '#7b1fa2',
+        5,
+      ]);
+      expect(success).toBe(true);
+    });
+
+    it('should clear accent color when null is provided', async () => {
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      const success = await profilesDb.updateProfileAccentColor({ id: 5, accentColor: null });
+      expect(mockExecute).toHaveBeenCalledWith('UPDATE profiles SET accent_color = ? WHERE profile_id = ?', [null, 5]);
+      expect(success).toBe(true);
+    });
+
+    it('should return false when no rows are affected', async () => {
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      const success = await profilesDb.updateProfileAccentColor({ id: 5, accentColor: '#7b1fa2' });
+      expect(success).toBe(false);
+    });
+
+    it('should throw error when updating accent color fails', async () => {
+      const mockError = new Error('DB connection failed');
+      mockExecute.mockRejectedValue(mockError);
+      await expect(profilesDb.updateProfileAccentColor({ id: 5, accentColor: '#7b1fa2' })).rejects.toThrow(
+        'DB connection failed',
+      );
+    });
+
+    it('should throw error with default message when updating accent color fails', async () => {
+      mockExecute.mockRejectedValue({});
+      await expect(profilesDb.updateProfileAccentColor({ id: 5, accentColor: '#7b1fa2' })).rejects.toThrow(
+        'Unknown database error updating a profile accent color',
+      );
+    });
+  });
+
   describe('deleteProfile()', () => {
     it('delete() should delete profile from DB', async () => {
       mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);

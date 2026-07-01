@@ -463,6 +463,68 @@ describe('ProfileService', () => {
     });
   });
 
+  describe('updateProfileAccentColor', () => {
+    const mockProfile = {
+      id: 123,
+      name: 'Test Profile',
+      accountId: 1,
+      image: 'old-image.jpg',
+    };
+
+    it('should update a profile accent color successfully', async () => {
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(mockProfile);
+      (profilesDb.updateProfileAccentColor as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.updateProfileAccentColor(123, '#7b1fa2');
+
+      expect(profilesDb.findProfileById).toHaveBeenCalledWith(123);
+      expect(profilesDb.updateProfileAccentColor).toHaveBeenCalledWith({ id: 123, accentColor: '#7b1fa2' });
+      expect(mockCache.invalidateProfile).toHaveBeenCalledWith(123);
+      expect(mockCache.invalidateAccount).toHaveBeenCalledWith(1);
+      expect(result).toEqual({
+        id: 123,
+        name: 'Test Profile',
+        accountId: 1,
+        image: 'profile-image-url.jpg',
+        accentColor: '#7b1fa2',
+      });
+    });
+
+    it('should clear accent color when null is provided', async () => {
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(mockProfile);
+      (profilesDb.updateProfileAccentColor as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.updateProfileAccentColor(123, null);
+
+      expect(profilesDb.updateProfileAccentColor).toHaveBeenCalledWith({ id: 123, accentColor: null });
+      expect(result.accentColor).toBeUndefined();
+    });
+
+    it('should throw NotFoundError when profile does not exist', async () => {
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.updateProfileAccentColor(999, '#7b1fa2')).rejects.toThrow(NotFoundError);
+      expect(profilesDb.findProfileById).toHaveBeenCalledWith(999);
+    });
+
+    it('should throw BadRequestError when update fails', async () => {
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(mockProfile);
+      (profilesDb.updateProfileAccentColor as jest.Mock).mockResolvedValue(false);
+
+      await expect(service.updateProfileAccentColor(123, '#7b1fa2')).rejects.toThrow(BadRequestError);
+      expect(profilesDb.updateProfileAccentColor).toHaveBeenCalledWith({ id: 123, accentColor: '#7b1fa2' });
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(mockProfile);
+      (profilesDb.updateProfileAccentColor as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.updateProfileAccentColor(123, '#7b1fa2')).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'updateProfileAccentColor(123, #7b1fa2)');
+    });
+  });
+
   describe('deleteProfile', () => {
     const mockProfile = {
       id: 123,

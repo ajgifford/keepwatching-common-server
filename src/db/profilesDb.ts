@@ -6,6 +6,7 @@ import {
   AdminProfile,
   CreateProfileRequest,
   Profile,
+  UpdateProfileAccentColorRequest,
   UpdateProfileImageRequest,
   UpdateProfileNameRequest,
 } from '@ajgifford/keepwatching-types';
@@ -51,6 +52,22 @@ export async function updateProfileImage(profileRequest: UpdateProfileImageReque
     });
   } catch (error) {
     handleDatabaseError(error, 'updating a profile image');
+  }
+}
+
+export async function updateProfileAccentColor(profileRequest: UpdateProfileAccentColorRequest): Promise<boolean> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('updateProfileAccentColor', async () => {
+      const query = 'UPDATE profiles SET accent_color = ? WHERE profile_id = ?';
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [
+        profileRequest.accentColor,
+        profileRequest.id,
+      ]);
+
+      return result.affectedRows > 0;
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'updating a profile accent color');
   }
 }
 

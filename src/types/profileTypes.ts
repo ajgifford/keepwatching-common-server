@@ -18,6 +18,7 @@ export interface ProfileRow extends RowDataPacket {
   account_id: number;
   name: string;
   image: string;
+  accent_color: string | null;
 }
 
 export interface AdminProfileRow extends ProfileRow {
@@ -32,6 +33,7 @@ export function transformProfile(profile: ProfileRow): Profile {
     accountId: profile.account_id,
     name: profile.name,
     image: profile.image,
+    accentColor: profile.accent_color ?? undefined,
   };
 }
 

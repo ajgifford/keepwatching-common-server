@@ -254,6 +254,42 @@ export class ProfileService {
   }
 
   /**
+   * Updates an existing profile's color accent
+   *
+   * @param profileId - ID of the profile to update
+   * @param accentColor - Hex color string (e.g. "#7b1fa2"), or null to clear
+   * @returns Updated profile information
+   * @throws {NotFoundError} If the profile is not found
+   * @throws {BadRequestError} If the profile update fails
+   */
+  public async updateProfileAccentColor(profileId: number, accentColor: string | null): Promise<Profile> {
+    try {
+      const profile = await profilesDb.findProfileById(profileId);
+      if (!profile) {
+        throw new NotFoundError('Profile not found');
+      }
+
+      const success = await profilesDb.updateProfileAccentColor({ id: profile.id, accentColor });
+      if (!success) {
+        throw new BadRequestError('Failed to update profile accent color');
+      }
+
+      this.invalidateProfileCache(profileId);
+      this.cache.invalidateAccount(profile.accountId);
+
+      return {
+        id: profile.id,
+        name: profile.name,
+        accountId: profile.accountId,
+        image: getProfileImage(profile.image, profile.name),
+        accentColor: accentColor ?? undefined,
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `updateProfileAccentColor(${profileId}, ${accentColor})`);
+    }
+  }
+
+  /**
    * Deletes a profile from an account
    *
    * This action will cascade delete all watch status data for the profile.

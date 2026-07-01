@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@ajgifford/keepwatching-types@^0.12.1":
-  version "0.12.1"
-  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.12.1/7d3412e465aff4af315041a6d9f70b705fa771a7#7d3412e465aff4af315041a6d9f70b705fa771a7"
-  integrity sha512-wp8Vm/+GThFM98LgQTiklhPrQDhZF6UznR/fu0Av4KBaJUBGoh+XD/0//XumQOLZ3ovAF9B7qI4Nk1GIYsDllQ==
+"@ajgifford/keepwatching-types@^0.12.2":
+  version "0.12.2"
+  resolved "https://npm.pkg.github.com/download/@ajgifford/keepwatching-types/0.12.2/c3f5d4ef8fb0bcc6181d043ee249fc57afb33768#c3f5d4ef8fb0bcc6181d043ee249fc57afb33768"
+  integrity sha512-1SiTKxTlxMpRVDcRx5jaYkq7hN/DLB7GauUrx6NjQ/LCteGyU1WbHVJAbPXjtssqLzLc2TNkjBH3rYs79polZg==
 
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.27.1":
   version "7.27.1"

@@ -40,6 +40,13 @@ export const profileNameBodySchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters').max(50, 'Name must be less than 50 characters').trim(),
 });
 
+export const profileAccentColorBodySchema = z.object({
+  accentColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Accent color must be a valid hex color (e.g. #1976d2)')
+    .nullable(),
+});
+
 export const accountUIDParamSchema = z.object({
   accountUid: z.string().min(1, 'Account UID cannot be empty'),
 });
@@ -52,4 +59,5 @@ export type AccountIdParam = z.infer<typeof accountIdParamSchema>;
 export type AccountIdBody = z.infer<typeof accountIdBodySchema>;
 export type AccountAndProfileIdsParams = z.infer<typeof accountAndProfileIdsParamSchema>;
 export type ProfileNameBody = z.infer<typeof profileNameBodySchema>;
+export type ProfileAccentColorBody = z.infer<typeof profileAccentColorBodySchema>;
 export type AccountUIDParams = z.infer<typeof accountUIDParamSchema>;
