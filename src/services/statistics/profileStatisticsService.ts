@@ -7,14 +7,17 @@ import { moviesService } from '../moviesService';
 import { showService } from '../showService';
 import {
   AbandonmentRiskStats,
+  AvailableRecapPeriods,
   BingeWatchingStats,
   ContentDepthStats,
   ContentDiscoveryStats,
   DailyActivity,
   MilestoneStats,
   MonthlyActivity,
+  ProfileRecapResponse,
   ProfileRewatchStats,
   ProfileStatisticsResponse,
+  RecapPeriodType,
   SeasonalViewingStats,
   TimeToWatchStats,
   UnairedContentStats,
@@ -383,6 +386,93 @@ export class ProfileStatisticsService {
       throw errorService.handleError(error, `getRewatchStats(${profileId})`);
     }
   }
+
+  /**
+   * Get a period-scoped recap ("year/month in review") for a profile
+   * Closed periods (past months/years) are cached indefinitely since their data can't change;
+   * the current in-progress period uses a short TTL
+   *
+   * @param profileId - ID of the profile
+   * @param period - Whether to recap a calendar month or calendar year
+   * @param year - Calendar year of the period
+   * @param month - Calendar month (1-12) of the period, required when period is 'month'
+   * @returns The profile's recap for the period
+   */
+  public async getProfileRecap(
+    profileId: number,
+    period: RecapPeriodType,
+    year: number,
+    month?: number,
+  ): Promise<ProfileRecapResponse> {
+    try {
+      const { startDate, endDate, isClosedPeriod } = resolveRecapDateRange(period, year, month);
+
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.recap(profileId, period, year, month),
+        async () => {
+          return await statisticsDb.getRecapStats(profileId, period, year, month, startDate, endDate);
+        },
+        isClosedPeriod ? 0 : 1800,
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getProfileRecap(${profileId}, ${period}, ${year}, ${month})`);
+    }
+  }
+
+  /**
+   * Get the distinct calendar years and months that have watch activity for a profile
+   * Used to bound recap navigation so the UI never shows an empty period
+   *
+   * @param profileId - ID of the profile
+   * @returns Available recap periods
+   */
+  public async getAvailableRecapPeriods(profileId: number): Promise<AvailableRecapPeriods> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.recapAvailable(profileId),
+        async () => {
+          return await statisticsDb.getAvailableRecapPeriods(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getAvailableRecapPeriods(${profileId})`);
+    }
+  }
+}
+
+/**
+ * Resolve a (period, year, month) tuple to explicit date boundaries
+ *
+ * @param period - Whether the range is a calendar month or calendar year
+ * @param year - Calendar year of the period
+ * @param month - Calendar month (1-12), required when period is 'month'
+ * @returns Inclusive start/end dates (YYYY-MM-DD) and whether the period has fully closed
+ */
+export function resolveRecapDateRange(
+  period: RecapPeriodType,
+  year: number,
+  month?: number,
+): { startDate: string; endDate: string; isClosedPeriod: boolean } {
+  let startDate: string;
+  let endDate: string;
+
+  if (period === 'month') {
+    if (!month) {
+      throw new Error('month is required when period is "month"');
+    }
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  } else {
+    startDate = `${year}-01-01`;
+    endDate = `${year}-12-31`;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const isClosedPeriod = endDate < today;
+
+  return { startDate, endDate, isClosedPeriod };
 }
 
 /**

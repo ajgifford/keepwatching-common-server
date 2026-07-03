@@ -8,5 +8,6 @@ export * from './schema/personSchema';
 export * from './schema/searchSchema';
 export * from './schema/seasonSchema';
 export * from './schema/showSchema';
+export * from './schema/statisticsSchema';
 export * from './schema/ratingsSchema';
 export * from './schema/watchlistSchema';

@@ -181,6 +181,13 @@ export const PROFILE_KEYS = {
 
   /** Gets the cache key for profile rewatch statistics */
   rewatchStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_rewatch_stats`,
+
+  /** Gets the cache key for a profile's period recap (year/month in review) */
+  recap: (profileId: number | string, period: string, year: number, month?: number) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_recap_${period}_${year}${month ? `_${month}` : ''}`,
+
+  /** Gets the cache key for a profile's available recap periods */
+  recapAvailable: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_recap_available`,
 };
 
 // Show keys

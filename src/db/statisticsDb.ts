@@ -39,6 +39,7 @@ export {
 } from './statistics/contentPerformanceRepository';
 export { getMilestoneStats } from './statistics/milestoneRepository';
 export { getProfileComparisonData } from './statistics/profileComparisonRepository';
+export { getAvailableRecapPeriods, getRecapStats } from './statistics/recapRepository';
 export { getSeasonalViewingStats } from './statistics/seasonalRepository';
 export { getTimeToWatchStats } from './statistics/timeToWatchRepository';
 export { getUnairedContentStats } from './statistics/unairedContentRepository';
