@@ -25,7 +25,14 @@ import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { WatchStatusManager } from '../utils/watchStatusManager';
-import { logEpisodeWatched, logEpisodesWatched, logSeasonWatched, logShowWatched } from './watchHistoryDb';
+import {
+  logEpisodeWatched,
+  logEpisodesWatched,
+  logSeasonWatched,
+  logShowWatched,
+  markEpisodesHistoryAsPrior,
+  markEpisodesHistoryAsPriorPreservingDate,
+} from './watchHistoryDb';
 import { UserWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
@@ -1080,6 +1087,24 @@ export class WatchStatusDbService {
           params.push(...seasonIds);
         }
 
+        // Snapshot which episodes will be affected (and their air dates) before the
+        // status UPDATE, so we can realign the matching episode_watch_history rows too.
+        const affectedQuery = `
+          SELECT ews.episode_id AS episodeId, e.air_date AS airDate, ews.watched_at AS watchedAt
+          FROM episode_watch_status ews
+          JOIN episodes e ON e.id = ews.episode_id
+          JOIN seasons se ON se.id = e.season_id
+          WHERE ews.profile_id = ?
+            AND se.show_id = ?
+            AND ews.status = 'WATCHED'
+            AND ews.is_prior_watch = FALSE
+            AND (e.air_date IS NULL OR e.air_date < DATE(ews.created_at))
+            ${seasonFilter}
+        `;
+        const [affectedRows] = await context.connection.execute<
+          Array<{ episodeId: number; airDate: string | null; watchedAt: string } & RowDataPacket>
+        >(affectedQuery, params);
+
         const query = `
           UPDATE episode_watch_status ews
           JOIN episodes e ON e.id = ews.episode_id
@@ -1102,6 +1127,12 @@ export class WatchStatusDbService {
         const [result] = await context.connection.execute<ResultSetHeader>(query, params);
         context.totalAffectedRows += result.affectedRows;
 
+        const historyMap = new Map<number, string>();
+        affectedRows.forEach((row) => {
+          historyMap.set(row.episodeId, row.airDate ?? row.watchedAt);
+        });
+        await markEpisodesHistoryAsPrior(context.connection, profileId, historyMap);
+
         return this.createSuccessResult(context);
       },
       { content: { id: showId, type: 'show' } },
@@ -1122,6 +1153,23 @@ export class WatchStatusDbService {
       async (context) => {
         context.profileId = profileId;
 
+        // Snapshot the episodes that will be affected before the status UPDATE, so we
+        // can flag the matching episode_watch_history rows too (dates left untouched).
+        const affectedQuery = `
+          SELECT ews.episode_id AS episodeId
+          FROM episode_watch_status ews
+          JOIN episodes e ON e.id = ews.episode_id
+          JOIN seasons se ON se.id = e.season_id
+          WHERE ews.profile_id = ?
+            AND se.show_id = ?
+            AND ews.status = 'WATCHED'
+            AND ews.is_prior_watch = FALSE
+        `;
+        const [affectedRows] = await context.connection.execute<Array<{ episodeId: number } & RowDataPacket>>(
+          affectedQuery,
+          [profileId, showId],
+        );
+
         const query = `
           UPDATE episode_watch_status ews
           JOIN episodes e ON e.id = ews.episode_id
@@ -1137,6 +1185,12 @@ export class WatchStatusDbService {
 
         const [result] = await context.connection.execute<ResultSetHeader>(query, [profileId, showId]);
         context.totalAffectedRows += result.affectedRows;
+
+        await markEpisodesHistoryAsPriorPreservingDate(
+          context.connection,
+          profileId,
+          affectedRows.map((row) => row.episodeId),
+        );
 
         return this.createSuccessResult(context);
       },

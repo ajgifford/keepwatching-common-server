@@ -1,5 +1,6 @@
 import { BulkMarkedShowRow } from '../../../../src/types/watchStatusTypes';
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
+import { markEpisodesHistoryAsPrior, markEpisodesHistoryAsPriorPreservingDate } from '@db/watchHistoryDb';
 import { WatchStatusDbService } from '@db/watchStatusDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
@@ -189,7 +190,11 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
       });
     });
 
-    it('should update all watched episodes for a show as prior watched', async () => {
+    it('should update all watched episodes for a show as prior watched and mirror the change into history', async () => {
+      const affectedRows = [
+        { episodeId: 101, airDate: '2023-01-01', watchedAt: '2023-06-01' },
+        { episodeId: 102, airDate: null, watchedAt: '2023-06-02' },
+      ] as unknown as (RowDataPacket & { episodeId: number; airDate: string | null; watchedAt: string })[];
       const updateResult = {
         affectedRows: 10,
         insertId: 0,
@@ -200,16 +205,27 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
         fieldCount: 0,
       } as ResultSetHeader;
 
-      mockConnection.execute.mockResolvedValueOnce([updateResult, []]);
+      mockConnection.execute.mockResolvedValueOnce([affectedRows, []]).mockResolvedValueOnce([updateResult, []]);
 
       const result = await watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId);
 
       expect(result.success).toBe(true);
       expect(result.affectedRows).toBe(10);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
       expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch = TRUE'), [
         profileId,
         showId,
       ]);
+
+      // Episode with an air date realigns to it; episode without one falls back to its existing watched_at
+      expect(markEpisodesHistoryAsPrior).toHaveBeenCalledWith(
+        mockConnection,
+        profileId,
+        new Map<number, string>([
+          [101, '2023-01-01'],
+          [102, '2023-06-02'],
+        ]),
+      );
     });
 
     it('should filter by seasonIds when provided', async () => {
@@ -224,7 +240,7 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
         fieldCount: 0,
       } as ResultSetHeader;
 
-      mockConnection.execute.mockResolvedValueOnce([updateResult, []]);
+      mockConnection.execute.mockResolvedValueOnce([[], []]).mockResolvedValueOnce([updateResult, []]);
 
       const result = await watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId, seasonIds);
 
@@ -248,11 +264,28 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
         changedRows: 0,
         fieldCount: 0,
       } as ResultSetHeader;
-      mockConnection.execute.mockResolvedValueOnce([updateResult, []]);
+      mockConnection.execute.mockResolvedValueOnce([[], []]).mockResolvedValueOnce([updateResult, []]);
 
       await watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId, []);
 
       expect(mockConnection.execute).toHaveBeenCalledWith(expect.not.stringContaining('se.id IN'), [profileId, showId]);
+    });
+
+    it('should not call markEpisodesHistoryAsPrior when no episodes are affected', async () => {
+      const updateResult = {
+        affectedRows: 0,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+      mockConnection.execute.mockResolvedValueOnce([[], []]).mockResolvedValueOnce([updateResult, []]);
+
+      await watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId);
+
+      expect(markEpisodesHistoryAsPrior).toHaveBeenCalledWith(mockConnection, profileId, new Map());
     });
 
     it('should handle database errors', async () => {
@@ -262,6 +295,72 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
       await expect(watchStatusDbService.retroactivelyMarkShowAsPrior(profileId, showId)).rejects.toThrow();
 
       expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'retroactively marking show as prior watched');
+    });
+  });
+
+  describe('dismissBulkMarkedShow', () => {
+    const profileId = 123;
+    const showId = 456;
+
+    beforeEach(() => {
+      mockTransactionHelper.executeInTransaction.mockImplementation(async (callback) => {
+        return await callback(mockConnection);
+      });
+    });
+
+    it('should mark all watched episodes as prior watched without changing dates, and mirror into history', async () => {
+      const affectedRows = [{ episodeId: 101 }, { episodeId: 102 }] as unknown as (RowDataPacket & {
+        episodeId: number;
+      })[];
+      const updateResult = {
+        affectedRows: 8,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockConnection.execute.mockResolvedValueOnce([affectedRows, []]).mockResolvedValueOnce([updateResult, []]);
+
+      const result = await watchStatusDbService.dismissBulkMarkedShow(profileId, showId);
+
+      expect(result.success).toBe(true);
+      expect(result.affectedRows).toBe(8);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('ews.watched_at = ews.updated_at'), [
+        profileId,
+        showId,
+      ]);
+
+      expect(markEpisodesHistoryAsPriorPreservingDate).toHaveBeenCalledWith(mockConnection, profileId, [101, 102]);
+    });
+
+    it('should not call markEpisodesHistoryAsPriorPreservingDate when no episodes are affected', async () => {
+      const updateResult = {
+        affectedRows: 0,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+      mockConnection.execute.mockResolvedValueOnce([[], []]).mockResolvedValueOnce([updateResult, []]);
+
+      await watchStatusDbService.dismissBulkMarkedShow(profileId, showId);
+
+      expect(markEpisodesHistoryAsPriorPreservingDate).toHaveBeenCalledWith(mockConnection, profileId, []);
+    });
+
+    it('should handle database errors', async () => {
+      const dbError = new Error('Update failed');
+      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
+
+      await expect(watchStatusDbService.dismissBulkMarkedShow(profileId, showId)).rejects.toThrow();
+
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'dismissing bulk marked show from review');
     });
   });
 

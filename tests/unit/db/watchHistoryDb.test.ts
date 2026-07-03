@@ -8,6 +8,10 @@ import {
   logMovieWatched,
   logSeasonWatched,
   logShowWatched,
+  markEpisodesHistoryAsPrior,
+  markEpisodesHistoryAsPriorPreservingDate,
+  markMostRecentEpisodeHistoryAsPrior,
+  markMostRecentEpisodeHistoryAsPriorPreservingDate,
   recalculateShowStatusAfterSeasonReset,
   recordEpisodeRewatch,
   recordMovieRewatch,
@@ -126,6 +130,100 @@ describe('watchHistoryDb Module', () => {
       await logEpisodesWatched(mockConn, 5, [99], true);
 
       expect(mockConn.execute).toHaveBeenCalledWith(expect.any(String), [5, 99, null, true, 5, 99]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // markMostRecentEpisodeHistoryAsPrior
+  // ---------------------------------------------------------------------------
+
+  describe('markMostRecentEpisodeHistoryAsPrior()', () => {
+    it('should update the most recent history row with is_prior_watch=TRUE and the given watchedAt', async () => {
+      mockConn.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await markMostRecentEpisodeHistoryAsPrior(mockConn, 1, 100, '2024-01-15');
+
+      expect(mockConn.execute).toHaveBeenCalledTimes(1);
+      const [sql, params] = mockConn.execute.mock.calls[0];
+      expect(sql).toContain('UPDATE episode_watch_history');
+      expect(sql).toContain('is_prior_watch = TRUE');
+      expect(sql).toContain('watched_at = ?');
+      expect(sql).toContain('MAX(id)');
+      expect(params).toEqual(['2024-01-15', 1, 100, 1, 100]);
+    });
+
+    it('should be a no-op (zero affected rows) when no matching history row exists', async () => {
+      mockConn.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+
+      await expect(markMostRecentEpisodeHistoryAsPrior(mockConn, 1, 999, '2024-01-15')).resolves.toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // markMostRecentEpisodeHistoryAsPriorPreservingDate
+  // ---------------------------------------------------------------------------
+
+  describe('markMostRecentEpisodeHistoryAsPriorPreservingDate()', () => {
+    it('should update the most recent history row with is_prior_watch=TRUE and leave watched_at untouched', async () => {
+      mockConn.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await markMostRecentEpisodeHistoryAsPriorPreservingDate(mockConn, 1, 100);
+
+      expect(mockConn.execute).toHaveBeenCalledTimes(1);
+      const [sql, params] = mockConn.execute.mock.calls[0];
+      expect(sql).toContain('UPDATE episode_watch_history');
+      expect(sql).toContain('is_prior_watch = TRUE');
+      expect(sql).not.toContain('watched_at = ?');
+      expect(sql).toContain('MAX(id)');
+      expect(params).toEqual([1, 100, 1, 100]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // markEpisodesHistoryAsPrior
+  // ---------------------------------------------------------------------------
+
+  describe('markEpisodesHistoryAsPrior()', () => {
+    it('should call markMostRecentEpisodeHistoryAsPrior once per map entry', async () => {
+      mockConn.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+
+      const map = new Map<number, string>([
+        [10, '2024-01-01'],
+        [20, '2024-02-01'],
+      ]);
+      await markEpisodesHistoryAsPrior(mockConn, 1, map);
+
+      expect(mockConn.execute).toHaveBeenCalledTimes(2);
+      expect(mockConn.execute).toHaveBeenNthCalledWith(1, expect.any(String), ['2024-01-01', 1, 10, 1, 10]);
+      expect(mockConn.execute).toHaveBeenNthCalledWith(2, expect.any(String), ['2024-02-01', 1, 20, 1, 20]);
+    });
+
+    it('should not call execute when the map is empty', async () => {
+      await markEpisodesHistoryAsPrior(mockConn, 1, new Map());
+
+      expect(mockConn.execute).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // markEpisodesHistoryAsPriorPreservingDate
+  // ---------------------------------------------------------------------------
+
+  describe('markEpisodesHistoryAsPriorPreservingDate()', () => {
+    it('should call markMostRecentEpisodeHistoryAsPriorPreservingDate once per episode ID', async () => {
+      mockConn.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await markEpisodesHistoryAsPriorPreservingDate(mockConn, 1, [10, 20]);
+
+      expect(mockConn.execute).toHaveBeenCalledTimes(2);
+      expect(mockConn.execute).toHaveBeenNthCalledWith(1, expect.any(String), [1, 10, 1, 10]);
+      expect(mockConn.execute).toHaveBeenNthCalledWith(2, expect.any(String), [1, 20, 1, 20]);
+    });
+
+    it('should not call execute when episodeIds is empty', async () => {
+      await markEpisodesHistoryAsPriorPreservingDate(mockConn, 1, []);
+
+      expect(mockConn.execute).not.toHaveBeenCalled();
     });
   });
 

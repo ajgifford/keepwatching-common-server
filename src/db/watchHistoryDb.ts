@@ -66,6 +66,86 @@ export async function logEpisodesWatched(
 }
 
 /**
+ * Flip the most recent episode_watch_history row for an episode to is_prior_watch=TRUE
+ * and realign its watched_at to the given date (typically the episode's air date).
+ * History is append-only and a rewatch can produce multiple rows per episode, so only
+ * the latest (highest id) row is updated. Used when retroactively reclassifying a
+ * bulk-marked burst as prior watches.
+ *
+ * @param conn        Active transaction connection from the caller
+ * @param profileId   Profile the history row belongs to
+ * @param episodeId   Episode whose most recent history row should be updated
+ * @param watchedAt   Date to realign watched_at to (e.g. the episode's air date)
+ */
+export async function markMostRecentEpisodeHistoryAsPrior(
+  conn: PoolConnection,
+  profileId: number,
+  episodeId: number,
+  watchedAt: string,
+): Promise<void> {
+  const query = `
+    UPDATE episode_watch_history
+    SET is_prior_watch = TRUE, watched_at = ?
+    WHERE profile_id = ? AND episode_id = ?
+      AND id = (
+        SELECT id FROM (
+          SELECT MAX(id) AS id FROM episode_watch_history WHERE profile_id = ? AND episode_id = ?
+        ) latest
+      )
+  `;
+  await conn.execute<ResultSetHeader>(query, [watchedAt, profileId, episodeId, profileId, episodeId]);
+}
+
+/**
+ * Same as markMostRecentEpisodeHistoryAsPrior but leaves watched_at untouched — used
+ * when dismissing a bulk-mark review without altering dates.
+ */
+export async function markMostRecentEpisodeHistoryAsPriorPreservingDate(
+  conn: PoolConnection,
+  profileId: number,
+  episodeId: number,
+): Promise<void> {
+  const query = `
+    UPDATE episode_watch_history
+    SET is_prior_watch = TRUE
+    WHERE profile_id = ? AND episode_id = ?
+      AND id = (
+        SELECT id FROM (
+          SELECT MAX(id) AS id FROM episode_watch_history WHERE profile_id = ? AND episode_id = ?
+        ) latest
+      )
+  `;
+  await conn.execute<ResultSetHeader>(query, [profileId, episodeId, profileId, episodeId]);
+}
+
+/**
+ * Batched loop wrapper around markMostRecentEpisodeHistoryAsPrior, keyed by
+ * episode ID -> the date to realign watched_at to.
+ */
+export async function markEpisodesHistoryAsPrior(
+  conn: PoolConnection,
+  profileId: number,
+  episodeWatchedAtMap: Map<number, string>,
+): Promise<void> {
+  for (const [episodeId, watchedAt] of episodeWatchedAtMap) {
+    await markMostRecentEpisodeHistoryAsPrior(conn, profileId, episodeId, watchedAt);
+  }
+}
+
+/**
+ * Batched loop wrapper around markMostRecentEpisodeHistoryAsPriorPreservingDate.
+ */
+export async function markEpisodesHistoryAsPriorPreservingDate(
+  conn: PoolConnection,
+  profileId: number,
+  episodeIds: number[],
+): Promise<void> {
+  for (const episodeId of episodeIds) {
+    await markMostRecentEpisodeHistoryAsPriorPreservingDate(conn, profileId, episodeId);
+  }
+}
+
+/**
  * Log a single movie watch event to movie_watch_history.
  */
 export async function logMovieWatched(
