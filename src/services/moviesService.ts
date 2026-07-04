@@ -1,5 +1,6 @@
 import { MOVIE_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
 import * as moviesDb from '../db/moviesDb';
+import { getProfileCreatedAt } from '../db/profilesDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { ErrorMessages } from '../logger/loggerModel';
 import { BadRequestError, NoAffectedRowsError } from '../middleware/errorMiddleware';
@@ -357,7 +358,18 @@ export class MoviesService extends BaseMovieService {
     watchedAt?: string,
   ): Promise<boolean> {
     try {
-      const success = await moviesDb.updateWatchStatus(profileId, movieId, status, isPriorWatch, watchedAt);
+      // A user-picked prior-watch date that falls on/after the profile's creation date isn't
+      // really "before my account" — it's "I forgot to log it." Those should count normally
+      // (backdated but not excluded from stats), matching the per-episode split used for shows.
+      let effectiveIsPriorWatch = isPriorWatch;
+      if (isPriorWatch && watchedAt) {
+        const profileCreatedAt = await getProfileCreatedAt(profileId);
+        if (profileCreatedAt && new Date(watchedAt) >= profileCreatedAt) {
+          effectiveIsPriorWatch = false;
+        }
+      }
+
+      const success = await moviesDb.updateWatchStatus(profileId, movieId, status, effectiveIsPriorWatch, watchedAt);
 
       if (!success) {
         throw new BadRequestError(

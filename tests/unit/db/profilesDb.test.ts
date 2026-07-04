@@ -249,6 +249,39 @@ describe('profileDb', () => {
     });
   });
 
+  describe('getProfileCreatedAt()', () => {
+    it('should return the profile created_at date', async () => {
+      const createdAt = new Date('2025-01-01T00:00:00.000Z');
+      mockExecute.mockResolvedValueOnce([[{ created_at: createdAt }]]);
+
+      const result = await profilesDb.getProfileCreatedAt(5);
+
+      expect(mockExecute).toHaveBeenCalledWith('SELECT created_at FROM profiles WHERE profile_id = ?', [5]);
+      expect(result).toBe(createdAt);
+    });
+
+    it('should return null when profile is not found', async () => {
+      mockExecute.mockResolvedValueOnce([[]]);
+
+      const result = await profilesDb.getProfileCreatedAt(999);
+
+      expect(result).toBeNull();
+    });
+
+    it('should throw error when the query fails', async () => {
+      const mockError = new Error('DB connection failed');
+      mockExecute.mockRejectedValue(mockError);
+      await expect(profilesDb.getProfileCreatedAt(5)).rejects.toThrow('DB connection failed');
+    });
+
+    it('should throw error with default message when the query fails', async () => {
+      mockExecute.mockRejectedValue({});
+      await expect(profilesDb.getProfileCreatedAt(5)).rejects.toThrow(
+        'Unknown database error getting profile created_at',
+      );
+    });
+  });
+
   describe('getAdminProfilesByAccountId()', () => {
     it('should return profiles with show and movie counts', async () => {
       const mockProfiles = [

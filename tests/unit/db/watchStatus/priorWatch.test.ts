@@ -121,6 +121,78 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
     });
   });
 
+  describe('markEpisodesAsBackdatedNotPrior', () => {
+    const profileId = 123;
+
+    beforeEach(() => {
+      mockTransactionHelper.executeInTransaction.mockImplementation(async (callback) => {
+        return await callback(mockConnection);
+      });
+    });
+
+    it('should insert/update each episode with is_prior_watch = FALSE and the given air date', async () => {
+      const episodeAirDateMap = new Map<number, string>([
+        [101, '2023-01-01'],
+        [102, '2023-01-08'],
+      ]);
+
+      const updateResult = {
+        affectedRows: 1,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockConnection.execute.mockResolvedValue([updateResult, []]);
+
+      const result = await watchStatusDbService.markEpisodesAsBackdatedNotPrior(profileId, episodeAirDateMap);
+
+      expect(result.success).toBe(true);
+      expect(result.affectedRows).toBe(2);
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+
+      const calls = mockConnection.execute.mock.calls;
+      calls.forEach((call: any[]) => {
+        expect(call[0]).toContain('is_prior_watch = FALSE');
+        expect(call[0]).toContain('WATCHED');
+      });
+
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch'), [
+        profileId,
+        101,
+        '2023-01-01',
+      ]);
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('is_prior_watch'), [
+        profileId,
+        102,
+        '2023-01-08',
+      ]);
+    });
+
+    it('should return zero affectedRows for empty map', async () => {
+      const result = await watchStatusDbService.markEpisodesAsBackdatedNotPrior(profileId, new Map());
+
+      expect(result.success).toBe(true);
+      expect(result.affectedRows).toBe(0);
+      expect(mockConnection.execute).not.toHaveBeenCalled();
+    });
+
+    it('should handle database errors', async () => {
+      const episodeAirDateMap = new Map<number, string>([[101, '2023-01-01']]);
+      const dbError = new Error('Database connection failed');
+      mockTransactionHelper.executeInTransaction.mockRejectedValue(dbError);
+
+      await expect(
+        watchStatusDbService.markEpisodesAsBackdatedNotPrior(profileId, episodeAirDateMap),
+      ).rejects.toThrow();
+
+      expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'marking episodes as backdated (not prior watched)');
+    });
+  });
+
   describe('detectBulkMarkedShows', () => {
     const profileId = 123;
 

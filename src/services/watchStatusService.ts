@@ -1,3 +1,4 @@
+import { getProfileCreatedAt } from '../db/profilesDb';
 import { WatchStatusDbService } from '../db/watchStatusDb';
 import { DatabaseError } from '../middleware/errorMiddleware';
 import { StatusChange, StatusUpdateResult } from '../types/watchStatusTypes';
@@ -146,6 +147,45 @@ export class WatchStatusService {
   }
 
   /**
+   * Splits an episode ID -> air date map into a "true prior watch" bucket (aired before
+   * the profile existed, excluded from stats) and a "backdated but counted" bucket (aired
+   * after the profile was created — the user just forgot to log it in real time), then
+   * writes each bucket with the matching is_prior_watch value. Falls back to treating
+   * everything as a true prior watch if the profile's created_at can't be determined.
+   */
+  private async markEpisodesWithPriorWatchSplit(
+    profileId: number,
+    episodeAirDateMap: Map<number, string>,
+  ): Promise<StatusUpdateResult> {
+    const profileCreatedAt = await getProfileCreatedAt(profileId);
+
+    const priorBucket = new Map<number, string>();
+    const backdatedBucket = new Map<number, string>();
+
+    for (const [episodeId, airDate] of episodeAirDateMap) {
+      if (profileCreatedAt && new Date(airDate) >= profileCreatedAt) {
+        backdatedBucket.set(episodeId, airDate);
+      } else {
+        priorBucket.set(episodeId, airDate);
+      }
+    }
+
+    const results: StatusUpdateResult[] = [];
+    if (priorBucket.size > 0) {
+      results.push(await this.dbService.markEpisodesAsPriorWatched(profileId, priorBucket));
+    }
+    if (backdatedBucket.size > 0) {
+      results.push(await this.dbService.markEpisodesAsBackdatedNotPrior(profileId, backdatedBucket));
+    }
+
+    return {
+      success: results.every((r) => r.success),
+      changes: results.flatMap((r) => r.changes),
+      affectedRows: results.reduce((sum, r) => sum + r.affectedRows, 0),
+    };
+  }
+
+  /**
    * Mark all episodes in the completed seasons of a show as prior-watched.
    * Uses each episode's air date as watched_at. Season status is recalculated after.
    *
@@ -168,7 +208,7 @@ export class WatchStatusService {
         return { success: true, changes: [], affectedRows: 0, message: 'No episodes to mark' };
       }
 
-      const result = await this.dbService.markEpisodesAsPriorWatched(profileId, episodeAirDateMap);
+      const result = await this.markEpisodesWithPriorWatchSplit(profileId, episodeAirDateMap);
 
       if (!result.success) {
         throw new DatabaseError('Failed to mark episodes as prior watched', null);
@@ -214,7 +254,7 @@ export class WatchStatusService {
         return { success: true, changes: [], affectedRows: 0, message: 'No episodes to mark' };
       }
 
-      const result = await this.dbService.markEpisodesAsPriorWatched(profileId, episodeAirDateMap);
+      const result = await this.markEpisodesWithPriorWatchSplit(profileId, episodeAirDateMap);
 
       if (!result.success) {
         throw new DatabaseError('Failed to mark episodes as prior watched', null);

@@ -1023,6 +1023,48 @@ export class WatchStatusDbService {
   }
 
   /**
+   * Sets is_prior_watch = FALSE and watched_at = episode air date for all provided episodes.
+   * Unlike markEpisodesAsPriorWatched, these episodes count normally toward stats — this is
+   * for the "aired after the profile was created, user just forgot to log it" bucket, where
+   * the watch is real and should count, just backdated to the correct historical date.
+   * Season and show status cascade is NOT performed here — callers must trigger that separately.
+   *
+   * @param profileId - ID of the profile
+   * @param episodeAirDateMap - Map of episode ID → air date string (YYYY-MM-DD)
+   */
+  async markEpisodesAsBackdatedNotPrior(
+    profileId: number,
+    episodeAirDateMap: Map<number, string>,
+  ): Promise<StatusUpdateResult> {
+    return this.executeStatusUpdate(
+      'marking episodes as backdated (not prior watched)',
+      async (context) => {
+        context.profileId = profileId;
+
+        for (const [episodeId, airDate] of episodeAirDateMap) {
+          const query = `
+            INSERT INTO episode_watch_status (profile_id, episode_id, status, watched_at, is_prior_watch)
+            VALUES (?, ?, 'WATCHED', ?, FALSE)
+            ON DUPLICATE KEY UPDATE
+              status = 'WATCHED',
+              watched_at = VALUES(watched_at),
+              is_prior_watch = FALSE,
+              updated_at = CURRENT_TIMESTAMP
+          `;
+          const [result] = await context.connection.execute<ResultSetHeader>(query, [profileId, episodeId, airDate]);
+          context.totalAffectedRows += result.affectedRows;
+
+          // Log to history with the air date as the watch timestamp, counted normally
+          await logEpisodeWatched(context.connection, profileId, episodeId, false, airDate);
+        }
+
+        return this.createSuccessResult(context);
+      },
+      { content: { id: profileId, type: 'episode' } },
+    );
+  }
+
+  /**
    * Find shows where the profile has 10 or more episodes marked watched on the same date,
    * none of which are flagged as prior watches. These are candidates for retroactive flagging.
    *

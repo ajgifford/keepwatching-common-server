@@ -1,6 +1,7 @@
 import { mockTMDBResponses } from './fixtures';
 import * as moviesDb from '@db/moviesDb';
 import * as personsDb from '@db/personsDb';
+import * as profilesDb from '@db/profilesDb';
 import { errorService } from '@services/errorService';
 import { createMoviesService, resetMoviesService } from '@services/moviesService';
 import { getTMDBService } from '@services/tmdbService';
@@ -9,6 +10,7 @@ import * as watchProvidersUtility from '@utils/watchProvidersUtility';
 
 jest.mock('@db/moviesDb');
 jest.mock('@db/personsDb');
+jest.mock('@db/profilesDb');
 jest.mock('@services/cacheService');
 jest.mock('@services/errorService');
 jest.mock('@services/profileService');
@@ -73,6 +75,10 @@ export function setupMocks() {
     }
     return item;
   });
+
+  // Default: profile created_at unknown, so isPriorWatch overrides in updateMovieWatchStatus
+  // are skipped and the caller-provided value passes through unchanged.
+  (profilesDb.getProfileCreatedAt as jest.Mock).mockResolvedValue(null);
 
   // Set up common content utility mocks
   (contentUtility.getUSMPARating as jest.Mock).mockReturnValue('PG-13');

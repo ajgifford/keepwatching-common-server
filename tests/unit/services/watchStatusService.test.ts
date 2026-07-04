@@ -1,5 +1,6 @@
 import { StatusChange, StatusUpdateResult } from '../../../src/types/watchStatusTypes';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
+import * as profilesDb from '@db/profilesDb';
 import { WatchStatusDbService } from '@db/watchStatusDb';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
@@ -12,6 +13,7 @@ import {
 
 // Mock dependencies
 jest.mock('@db/watchStatusDb');
+jest.mock('@db/profilesDb');
 jest.mock('@services/errorService');
 jest.mock('@services/showService');
 
@@ -33,12 +35,18 @@ describe('WatchStatusService', () => {
       checkAndUpdateShowWatchStatus: jest.fn(),
       checkAndUpdateMovieWatchStatus: jest.fn(),
       getEpisodeAirDatesForShow: jest.fn(),
+      getEpisodeAirDatesForSeasons: jest.fn(),
       markEpisodesAsPriorWatched: jest.fn(),
+      markEpisodesAsBackdatedNotPrior: jest.fn(),
       retroactivelyMarkShowAsPrior: jest.fn(),
     } as any;
 
     // Mock checkAchievements
     mockCheckAchievements = jest.fn().mockResolvedValue(undefined);
+
+    // Default: profile created well after all fixture air dates below, so the existing
+    // "mark as prior watched" tests continue to route everything into the prior bucket.
+    jest.mocked(profilesDb.getProfileCreatedAt).mockResolvedValue(new Date('2024-06-01'));
 
     // Create a new instance for each test with mocked dependencies
     service = createWatchStatusService({
@@ -635,6 +643,117 @@ describe('WatchStatusService', () => {
       expect(errorService.handleError).toHaveBeenCalledWith(
         mockError,
         `markSeasonsAsPriorWatched(${profileId}, ${showId}, undefined)`,
+      );
+    });
+
+    it('should route all episodes to markEpisodesAsBackdatedNotPrior when all aired after profile creation', async () => {
+      jest.mocked(profilesDb.getProfileCreatedAt).mockResolvedValue(new Date('2022-01-01'));
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsBackdatedNotPrior.mockResolvedValue(mockDbResult);
+
+      const result = await service.markSeasonsAsPriorWatched(accountId, profileId, showId);
+
+      expect(mockDbService.markEpisodesAsPriorWatched).not.toHaveBeenCalled();
+      expect(mockDbService.markEpisodesAsBackdatedNotPrior).toHaveBeenCalledWith(profileId, mockEpisodeMap);
+      expect(result.affectedRows).toBe(3);
+    });
+
+    it('should split a mixed batch between markEpisodesAsPriorWatched and markEpisodesAsBackdatedNotPrior', async () => {
+      // Profile created between the first and later episodes' air dates
+      jest.mocked(profilesDb.getProfileCreatedAt).mockResolvedValue(new Date('2023-01-05'));
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue({ success: true, changes: [], affectedRows: 1 });
+      mockDbService.markEpisodesAsBackdatedNotPrior.mockResolvedValue({
+        success: true,
+        changes: [],
+        affectedRows: 2,
+      });
+
+      const result = await service.markSeasonsAsPriorWatched(accountId, profileId, showId);
+
+      expect(mockDbService.markEpisodesAsPriorWatched).toHaveBeenCalledWith(profileId, new Map([[101, '2023-01-01']]));
+      expect(mockDbService.markEpisodesAsBackdatedNotPrior).toHaveBeenCalledWith(
+        profileId,
+        new Map([
+          [102, '2023-01-08'],
+          [103, '2023-01-15'],
+        ]),
+      );
+      expect(result.affectedRows).toBe(3);
+      expect(result.success).toBe(true);
+    });
+
+    it('should fall back to treating everything as prior watched when profile created_at is unavailable', async () => {
+      jest.mocked(profilesDb.getProfileCreatedAt).mockResolvedValue(null);
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue(mockDbResult);
+
+      await service.markSeasonsAsPriorWatched(accountId, profileId, showId);
+
+      expect(mockDbService.markEpisodesAsPriorWatched).toHaveBeenCalledWith(profileId, mockEpisodeMap);
+      expect(mockDbService.markEpisodesAsBackdatedNotPrior).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('markSeasonIdsAsPriorWatched', () => {
+    const accountId = 1;
+    const profileId = 123;
+    const showId = 456;
+    const seasonIds = [10, 11];
+
+    const mockEpisodeMap = new Map<number, string>([
+      [201, '2023-03-01'],
+      [202, '2023-03-08'],
+    ]);
+
+    const mockDbResult: StatusUpdateResult = {
+      success: true,
+      changes: [],
+      affectedRows: 2,
+    };
+
+    it('should mark episodes as prior watched and return summary', async () => {
+      mockDbService.getEpisodeAirDatesForSeasons.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue(mockDbResult);
+
+      const result = await service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds);
+
+      expect(mockDbService.getEpisodeAirDatesForSeasons).toHaveBeenCalledWith(profileId, seasonIds);
+      expect(mockDbService.markEpisodesAsPriorWatched).toHaveBeenCalledWith(profileId, mockEpisodeMap);
+      expect(result).toEqual({
+        success: true,
+        changes: [],
+        affectedRows: 2,
+        message: 'Marked 2 episodes as previously watched',
+      });
+    });
+
+    it('should return early with no-op message when episode map is empty', async () => {
+      mockDbService.getEpisodeAirDatesForSeasons.mockResolvedValue(new Map());
+
+      const result = await service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds);
+
+      expect(mockDbService.markEpisodesAsPriorWatched).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: true,
+        changes: [],
+        affectedRows: 0,
+        message: 'No episodes to mark',
+      });
+    });
+
+    it('should split episodes around profile created_at', async () => {
+      jest.mocked(profilesDb.getProfileCreatedAt).mockResolvedValue(new Date('2023-03-05'));
+      mockDbService.getEpisodeAirDatesForSeasons.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue({ success: true, changes: [], affectedRows: 1 });
+      mockDbService.markEpisodesAsBackdatedNotPrior.mockResolvedValue({ success: true, changes: [], affectedRows: 1 });
+
+      await service.markSeasonIdsAsPriorWatched(accountId, profileId, showId, seasonIds);
+
+      expect(mockDbService.markEpisodesAsPriorWatched).toHaveBeenCalledWith(profileId, new Map([[201, '2023-03-01']]));
+      expect(mockDbService.markEpisodesAsBackdatedNotPrior).toHaveBeenCalledWith(
+        profileId,
+        new Map([[202, '2023-03-08']]),
       );
     });
   });

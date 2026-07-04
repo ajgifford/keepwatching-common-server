@@ -125,6 +125,21 @@ export async function getAdminProfilesByAccountId(accountId: number): Promise<Ad
   }
 }
 
+export async function getProfileCreatedAt(profileId: number): Promise<Date | null> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('getProfileCreatedAt', async () => {
+      const query = 'SELECT created_at FROM profiles WHERE profile_id = ?';
+      const [rows] = await getDbPool().execute<(RowDataPacket & { created_at: Date })[]>(query, [profileId]);
+
+      if (rows.length === 0) return null;
+
+      return rows[0].created_at;
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'getting profile created_at');
+  }
+}
+
 export async function getAllProfileIds(): Promise<number[]> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('getAllProfileIds', async () => {

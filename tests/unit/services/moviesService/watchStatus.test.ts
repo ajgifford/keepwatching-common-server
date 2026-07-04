@@ -1,6 +1,7 @@
 import { setupMoviesService } from './helpers/mocks';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as moviesDb from '@db/moviesDb';
+import * as profilesDb from '@db/profilesDb';
 import { errorService } from '@services/errorService';
 
 describe('MoviesService - Watch Status', () => {
@@ -32,6 +33,33 @@ describe('MoviesService - Watch Status', () => {
       expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED, true, '2001-07-27');
       expect(mockCache.invalidateProfileMovies).toHaveBeenCalledTimes(1);
       expect(result).toBe(true);
+    });
+
+    it('should keep isPriorWatch=true when watchedAt is before the profile was created', async () => {
+      (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
+      (profilesDb.getProfileCreatedAt as jest.Mock).mockResolvedValue(new Date('2010-01-01'));
+
+      await service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED, true, '2001-07-27');
+
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED, true, '2001-07-27');
+    });
+
+    it('should override isPriorWatch to false when watchedAt is on/after the profile was created', async () => {
+      (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
+      (profilesDb.getProfileCreatedAt as jest.Mock).mockResolvedValue(new Date('2020-01-01'));
+
+      await service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED, true, '2023-05-01');
+
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED, false, '2023-05-01');
+    });
+
+    it('should not look up profile created_at when isPriorWatch is false', async () => {
+      (moviesDb.updateWatchStatus as jest.Mock).mockResolvedValue(true);
+
+      await service.updateMovieWatchStatus(1, 123, 5, WatchStatus.WATCHED, false, '2023-05-01');
+
+      expect(profilesDb.getProfileCreatedAt).not.toHaveBeenCalled();
+      expect(moviesDb.updateWatchStatus).toHaveBeenCalledWith(123, 5, WatchStatus.WATCHED, false, '2023-05-01');
     });
 
     it('should throw BadRequestError when update fails', async () => {
