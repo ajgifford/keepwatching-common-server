@@ -149,8 +149,16 @@ export class WatchStatusManager {
       return WatchStatus.UNAIRED;
     }
 
-    // Calculate status for each aired season
-    const seasonStatuses = airedSeasons.map((season) => season.watchStatus || this.calculateSeasonStatus(season, now));
+    // Calculate status for each aired season. Only trust a season's stored watchStatus when it
+    // has no episode data to derive a status from (e.g. SKIPPED) — otherwise always recompute
+    // from its episodes, since the stored value may be stale within the same recalculation pass
+    // that just updated those episodes (see checkAndUpdateShowWatchStatus).
+    const seasonStatuses = airedSeasons.map((season) => {
+      if ((!season.episodes || season.episodes.length === 0) && season.watchStatus) {
+        return season.watchStatus;
+      }
+      return this.calculateSeasonStatus(season, now);
+    });
     const watchedSeasons = seasonStatuses.filter((s) => s === WatchStatus.WATCHED);
     const upToDateSeasons = seasonStatuses.filter((s) => s === WatchStatus.UP_TO_DATE);
     const skippedSeasons = seasonStatuses.filter((s) => s === WatchStatus.SKIPPED);

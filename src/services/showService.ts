@@ -239,11 +239,16 @@ export class ShowService extends BaseShowService {
    * @param showTMDBId - TMDB ID of the show to add
    * @returns Object containing the favorited show and updated episode lists
    */
-  public async addShowToFavorites(accountId: number, profileId: number, showTMDBId: number): Promise<AddShowFavorite> {
+  public async addShowToFavorites(
+    accountId: number,
+    profileId: number,
+    showTMDBId: number,
+    restoreFromHistory: boolean = false,
+  ): Promise<AddShowFavorite> {
     try {
       const existingShowToFavorite = await showsDb.findShowByTMDBId(showTMDBId);
       if (existingShowToFavorite) {
-        return await this.favoriteExistingShow(existingShowToFavorite, accountId, profileId);
+        return await this.favoriteExistingShow(existingShowToFavorite, accountId, profileId, restoreFromHistory);
       }
 
       return await this.favoriteNewShow(showTMDBId, accountId, profileId);
@@ -258,12 +263,15 @@ export class ShowService extends BaseShowService {
    * @param showToFavorite - Show reference to add to favorites
    * @param accountId - ID of the account to add the show for
    * @param profileId - ID of the profile to add the show for
+   * @param restoreFromHistory - `true` to rebuild watch status from any surviving watch history
+   *   (from a previous favorite/unfavorite-keeping-history cycle) instead of starting fresh
    * @returns Object containing the favorited show and updated episode lists
    */
   private async favoriteExistingShow(
     showToFavorite: ShowReference,
     accountId: number,
     profileId: number,
+    restoreFromHistory: boolean = false,
   ): Promise<AddShowFavorite> {
     const now = new Date();
     await showsDb.saveFavorite(
@@ -273,6 +281,13 @@ export class ShowService extends BaseShowService {
       new Date(showToFavorite.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED,
     );
 
+    const hasSurvivingHistory = await showsDb.hasWatchHistory(profileId, showToFavorite.id);
+
+    if (restoreFromHistory && hasSurvivingHistory) {
+      await showsDb.rebuildStatusFromHistory(profileId, showToFavorite.id);
+      await watchStatusService.checkAndUpdateShowStatus(accountId, profileId, showToFavorite.id);
+    }
+
     this.invalidateProfileCache(accountId, profileId);
 
     const show = await showsDb.getShowForProfile(profileId, showToFavorite.id);
@@ -281,6 +296,7 @@ export class ShowService extends BaseShowService {
     return {
       favoritedShow: show,
       episodes: episodeData,
+      hasSurvivingHistory,
     };
   }
 
@@ -335,7 +351,7 @@ export class ShowService extends BaseShowService {
     this.fetchSeasonsAndEpisodes(responseShow, savedShowId, profileId);
     this.processShowCast(responseShow, savedShowId);
 
-    return { favoritedShow: show };
+    return { favoritedShow: show, hasSurvivingHistory: false };
   }
 
   /**
@@ -411,18 +427,20 @@ export class ShowService extends BaseShowService {
    * @param accountId - ID of the account to remove the show from
    * @param profileId - ID of the profile to remove the show from
    * @param showId - ID of the show to remove
+   * @param removeHistory - `true` to also delete the profile's watch history for this show
    * @returns Object containing information about the removed show and updated episode lists
    */
   public async removeShowFromFavorites(
     accountId: number,
     profileId: number,
     showId: number,
+    removeHistory: boolean = false,
   ): Promise<RemoveShowFavorite> {
     try {
       const showToRemove = await showsDb.findShowById(showId);
       errorService.assertExists(showToRemove, 'Show', showId);
 
-      await showsDb.removeFavorite(profileId, showId);
+      await showsDb.removeFavorite(profileId, showId, removeHistory);
 
       this.invalidateProfileCache(accountId, profileId);
 
@@ -479,9 +497,11 @@ export class ShowService extends BaseShowService {
     profileAccountMappings: ProfileAccountMapping[],
   ): Promise<void> {
     try {
-      for (const mapping of profileAccountMappings) {
-        watchStatusService.checkAndUpdateShowStatus(mapping.accountId, mapping.profileId, showId);
-      }
+      await Promise.all(
+        profileAccountMappings.map((mapping) =>
+          watchStatusService.checkAndUpdateShowStatus(mapping.accountId, mapping.profileId, showId),
+        ),
+      );
     } catch (error) {
       throw errorService.handleError(error, `updateShowWatchStatusForNewContent(${showId}, profileAccountMappings...)`);
     }

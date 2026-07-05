@@ -28,7 +28,7 @@ import {
   UpdateMovieRequest,
   WatchStatus,
 } from '@ajgifford/keepwatching-types';
-import { ResultSetHeader } from 'mysql2';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 
 /**
@@ -277,22 +277,109 @@ export async function saveFavorite(
  *
  * @param profileId - ID of the profile to remove this movie from
  * @param movieId - ID of the movie to remove
+ * @param removeHistory - `true` to also delete the profile's watch history for this movie (a
+ *   deliberate, user-authorized exception to history normally being append-only); `false`
+ *   (default) preserves history for stats even though the favorite/status row is gone
  * @returns A promise that resolves when the favorite has been removed
  * @throws {DatabaseError} If a database error occurs during the operation
  */
-export async function removeFavorite(profileId: number, movieId: number): Promise<void> {
+export async function removeFavorite(
+  profileId: number,
+  movieId: number,
+  removeHistory: boolean = false,
+): Promise<void> {
   try {
     await DbMonitor.getInstance().executeWithTiming(
       'removeFavorite',
       async () => {
         const query = 'DELETE FROM movie_watch_status WHERE profile_id = ? AND movie_id = ?';
         await getDbPool().execute(query, [profileId, movieId]);
+
+        if (removeHistory) {
+          const historyQuery = 'DELETE FROM movie_watch_history WHERE profile_id = ? AND movie_id = ?';
+          await getDbPool().execute(historyQuery, [profileId, movieId]);
+        }
       },
       1000,
       { content: { id: movieId, type: 'movie' } },
     );
   } catch (error) {
     handleDatabaseError(error, 'removing a movie as a favorite');
+  }
+}
+
+/**
+ * Checks whether a profile has any surviving watch history for a movie (i.e. movie watch
+ * history rows left over from a previous favorite/unfavorite cycle where history was kept).
+ *
+ * @param profileId - ID of the profile
+ * @param movieId - ID of the movie
+ * @returns `true` if at least one movie_watch_history row exists for this profile and movie
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function hasMovieWatchHistory(profileId: number, movieId: number): Promise<boolean> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'hasMovieWatchHistory',
+      async () => {
+        const query = `
+          SELECT EXISTS(
+            SELECT 1 FROM movie_watch_history WHERE profile_id = ? AND movie_id = ?
+          ) AS hasHistory
+        `;
+        const [rows] = await getDbPool().execute<(RowDataPacket & { hasHistory: number })[]>(query, [
+          profileId,
+          movieId,
+        ]);
+        return Boolean(rows[0]?.hasHistory);
+      },
+      1000,
+      { content: { id: movieId, type: 'movie' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'checking for existing movie watch history');
+  }
+}
+
+/**
+ * Rebuilds the movie_watch_status row for a movie from its most recent surviving
+ * movie_watch_history row (highest watch_number).
+ *
+ * @param profileId - ID of the profile
+ * @param movieId - ID of the movie
+ * @returns `true` if a status row was updated, `false` if no surviving history exists
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function rebuildMovieStatusFromHistory(profileId: number, movieId: number): Promise<boolean> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'rebuildMovieStatusFromHistory',
+      async () => {
+        const query = `
+          UPDATE movie_watch_status mws
+          JOIN (
+            SELECT watched_at, is_prior_watch, watch_number
+            FROM movie_watch_history
+            WHERE profile_id = ? AND movie_id = ?
+            ORDER BY watch_number DESC
+            LIMIT 1
+          ) latest ON TRUE
+          SET
+            mws.status = 'WATCHED',
+            mws.watched_at = latest.watched_at,
+            mws.is_prior_watch = latest.is_prior_watch,
+            mws.rewatch_count = GREATEST(latest.watch_number - 1, 0),
+            mws.updated_at = CURRENT_TIMESTAMP
+          WHERE mws.profile_id = ? AND mws.movie_id = ?
+        `;
+        const [result] = await getDbPool().execute<ResultSetHeader>(query, [profileId, movieId, profileId, movieId]);
+        return result.affectedRows > 0;
+      },
+      1000,
+      { content: { id: movieId, type: 'movie' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'rebuilding movie watch status from history');
   }
 }
 

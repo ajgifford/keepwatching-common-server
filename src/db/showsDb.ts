@@ -19,7 +19,12 @@ export {
   getWatchProgressForProfile,
 } from './shows/profileShowRepository';
 
-export { saveFavorite, removeFavorite } from './shows/showWatchStatusRepository';
+export {
+  saveFavorite,
+  removeFavorite,
+  hasWatchHistory,
+  rebuildStatusFromHistory,
+} from './shows/showWatchStatusRepository';
 
 export {
   getAllShows,

@@ -390,6 +390,38 @@ describe('WatchStatusManager', () => {
       expect(status).toBe(WatchStatus.WATCHED);
     });
 
+    it('should recompute from episodes rather than trust a stale season.watchStatus', () => {
+      // Regression test: within a single recalculation pass, a season's episodes may already
+      // reflect newly-watched status while its stored watchStatus field hasn't been updated yet
+      // (e.g. checkAndUpdateShowWatchStatus queries season status before recalculating it).
+      // The show-level calculation must derive the season's real status from its episodes,
+      // not short-circuit on the stale watchStatus string.
+      const season1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const seasons = [
+        // watchStatus says NOT_WATCHED (stale), but the episodes are all WATCHED
+        createMockSeason(1, new Date('2024-01-01'), season1Episodes, WatchStatus.NOT_WATCHED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), false);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.WATCHED);
+    });
+
+    it('should still trust watchStatus (e.g. SKIPPED) when a season has no episode data', () => {
+      const seasons = [createMockSeason(1, new Date('2024-01-01'), [], WatchStatus.SKIPPED)];
+      const show = createMockShow(seasons, new Date('2024-01-01'), false);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.WATCHED);
+    });
+
     it('should handle shows with no seasons', () => {
       const show = createMockShow([]);
       const now = new Date('2025-06-21');

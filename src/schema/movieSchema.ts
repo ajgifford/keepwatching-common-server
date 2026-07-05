@@ -4,12 +4,17 @@ import { z } from 'zod';
 
 export const addMovieFavoriteBodySchema = z.object({
   movieTMDBId: z.number().int().positive('Movie TMDB ID must be a positive integer'),
+  restoreFromHistory: z.boolean().optional().default(false),
 });
 
 export const removeMovieFavoriteParamSchema = z.object({
   accountId: createPositiveIntegerSchema('Account ID'),
   profileId: createPositiveIntegerSchema('Profile ID'),
   movieId: createPositiveIntegerSchema('Movie ID'),
+});
+
+export const removeMovieFavoriteQuerySchema = z.object({
+  removeHistory: z.stringbool().default(false),
 });
 
 export const movieParamsSchema = z.object({
@@ -29,3 +34,4 @@ export type MovieWatchStatusBody = z.infer<typeof movieWatchStatusBodySchema>;
 export type AddMovieFavoriteBody = z.infer<typeof addMovieFavoriteBodySchema>;
 export type RemoveMovieFavoriteParams = z.infer<typeof removeMovieFavoriteParamSchema>;
 export type MovieParams = z.infer<typeof movieParamsSchema>;
+export type RemoveMovieFavoriteQuery = z.infer<typeof removeMovieFavoriteQuerySchema>;

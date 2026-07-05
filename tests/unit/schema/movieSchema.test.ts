@@ -2,6 +2,7 @@ import {
   addMovieFavoriteBodySchema,
   movieWatchStatusBodySchema,
   removeMovieFavoriteParamSchema,
+  removeMovieFavoriteQuerySchema,
 } from '@schema/movieSchema';
 
 describe('movieSchema', () => {
@@ -12,6 +13,7 @@ describe('movieSchema', () => {
       };
       const expectedOutput = {
         movieTMDBId: 123,
+        restoreFromHistory: false,
       };
 
       const result = addMovieFavoriteBodySchema.safeParse(validInput);
@@ -130,6 +132,34 @@ describe('movieSchema', () => {
         const result = removeMovieFavoriteParamSchema.safeParse(invalidInput);
         expect(result.success).toBe(false);
       });
+    });
+  });
+
+  describe('removeMovieFavoriteQuerySchema', () => {
+    it('should default removeHistory to false when not provided', () => {
+      const result = removeMovieFavoriteQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ removeHistory: false });
+      }
+    });
+
+    it('should coerce a "true" query string to boolean true', () => {
+      const result = removeMovieFavoriteQuerySchema.safeParse({ removeHistory: 'true' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ removeHistory: true });
+      }
+    });
+
+    it('should correctly parse the literal string "false" to boolean false', () => {
+      // z.stringbool() (unlike z.coerce.boolean()) actually parses "true"/"false" strings
+      // semantically instead of treating any non-empty string as truthy.
+      const result = removeMovieFavoriteQuerySchema.safeParse({ removeHistory: 'false' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ removeHistory: false });
+      }
     });
   });
 

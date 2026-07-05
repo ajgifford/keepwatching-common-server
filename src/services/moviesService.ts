@@ -209,11 +209,15 @@ export class MoviesService extends BaseMovieService {
    * @param movieTMDBId - TMDB ID of the movie to add
    * @returns Object containing the favorited movie and updated recent/upcoming lists
    */
-  public async addMovieToFavorites(profileId: number, movieTMDBId: number): Promise<AddMovieFavorite> {
+  public async addMovieToFavorites(
+    profileId: number,
+    movieTMDBId: number,
+    restoreFromHistory: boolean = false,
+  ): Promise<AddMovieFavorite> {
     try {
       const existingMovieToFavorite = await moviesDb.findMovieByTMDBId(movieTMDBId);
       if (existingMovieToFavorite) {
-        return await this.favoriteExistingMovie(existingMovieToFavorite, profileId);
+        return await this.favoriteExistingMovie(existingMovieToFavorite, profileId, restoreFromHistory);
       }
 
       return await this.favoriteNewMovie(movieTMDBId, profileId);
@@ -227,24 +231,31 @@ export class MoviesService extends BaseMovieService {
    *
    * @param movieToFavorite - Movie to add to favorites
    * @param profileId - ID of the profile to add the movie for
+   * @param restoreFromHistory - `true` to rebuild watch status from any surviving watch history
+   *   (from a previous favorite/unfavorite-keeping-history cycle) instead of starting fresh
    * @returns Object containing the favorited movie and updated recent/upcoming lists
    */
-  private async favoriteExistingMovie(movie: MovieReference, profileId: number): Promise<AddMovieFavorite> {
+  private async favoriteExistingMovie(
+    movie: MovieReference,
+    profileId: number,
+    restoreFromHistory: boolean = false,
+  ): Promise<AddMovieFavorite> {
     const now = new Date();
     const status =
       !movie.releaseDate || new Date(movie.releaseDate) > now ? WatchStatus.UNAIRED : WatchStatus.NOT_WATCHED;
     const existing = await moviesDb.getMovieForProfile(profileId, movie.id).catch(() => null);
-    if (existing) {
-      const recentMovies = await this.getRecentMoviesForProfile(profileId);
-      const upcomingMovies = await this.getUpcomingMoviesForProfile(profileId);
-      return {
-        favoritedMovie: existing,
-        recentUpcomingMovies: { recentMovies, upcomingMovies },
-      };
+
+    if (!existing) {
+      const saved = await moviesDb.saveFavorite(profileId, movie.id, status);
+      if (!saved) {
+        throw new NoAffectedRowsError('Failed to save a movie as a favorite');
+      }
     }
-    const saved = await moviesDb.saveFavorite(profileId, movie.id, status);
-    if (!saved) {
-      throw new NoAffectedRowsError('Failed to save a movie as a favorite');
+
+    const hasSurvivingHistory = await moviesDb.hasMovieWatchHistory(profileId, movie.id);
+
+    if (restoreFromHistory && hasSurvivingHistory) {
+      await moviesDb.rebuildMovieStatusFromHistory(profileId, movie.id);
     }
 
     this.invalidateProfileMovieCache(profileId);
@@ -256,6 +267,7 @@ export class MoviesService extends BaseMovieService {
     return {
       favoritedMovie,
       recentUpcomingMovies: { recentMovies, upcomingMovies },
+      hasSurvivingHistory,
     };
   }
 
@@ -310,6 +322,7 @@ export class MoviesService extends BaseMovieService {
     return {
       favoritedMovie,
       recentUpcomingMovies: { recentMovies, upcomingMovies },
+      hasSurvivingHistory: false,
     };
   }
 
@@ -318,14 +331,19 @@ export class MoviesService extends BaseMovieService {
    *
    * @param profileId - ID of the profile to remove the movie from
    * @param movieId - ID of the movie to remove
+   * @param removeHistory - `true` to also delete the profile's watch history for this movie
    * @returns Object containing recent and upcoming movies after removal
    */
-  public async removeMovieFromFavorites(profileId: number, movieId: number): Promise<RemoveMovieFavorite> {
+  public async removeMovieFromFavorites(
+    profileId: number,
+    movieId: number,
+    removeHistory: boolean = false,
+  ): Promise<RemoveMovieFavorite> {
     try {
       const removedMovie = await moviesDb.findMovieById(movieId);
       errorService.assertExists(removedMovie, 'Movie', movieId);
 
-      await moviesDb.removeFavorite(profileId, movieId);
+      await moviesDb.removeFavorite(profileId, movieId, removeHistory);
       this.invalidateProfileMovieCache(profileId);
 
       const recentMovies = await this.getRecentMoviesForProfile(profileId);

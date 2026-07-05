@@ -53,6 +53,7 @@ describe('ShowService - Favorites', () => {
     it('should add an existing show to favorites with the default status', async () => {
       (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(mockExistingShow);
       (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+      (showsDb.hasWatchHistory as jest.Mock).mockResolvedValue(false);
       (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
 
       const episodeData = {
@@ -66,11 +67,49 @@ describe('ShowService - Favorites', () => {
 
       expect(showsDb.findShowByTMDBId).toHaveBeenCalledWith(123);
       expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, showId, true, WatchStatus.NOT_WATCHED);
+      expect(showsDb.hasWatchHistory).toHaveBeenCalledWith(profileId, showId);
+      expect(showsDb.rebuildStatusFromHistory).not.toHaveBeenCalled();
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(result).toEqual({
         favoritedShow: mockProfileShow,
         episodes: episodeData,
+        hasSurvivingHistory: false,
       });
+    });
+
+    it('should rebuild status from history when restoreFromHistory is true and history exists', async () => {
+      (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(mockExistingShow);
+      (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+      (showsDb.hasWatchHistory as jest.Mock).mockResolvedValue(true);
+      (showsDb.rebuildStatusFromHistory as jest.Mock).mockResolvedValue(undefined);
+      (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
+
+      const episodeData = { recentEpisodes: [], upcomingEpisodes: [], nextUnwatchedEpisodes: [] };
+      service.getEpisodesForProfile = jest.fn().mockResolvedValue(episodeData);
+
+      const result = await service.addShowToFavorites(accountId, profileId, showTMDBId, true);
+
+      expect(showsDb.rebuildStatusFromHistory).toHaveBeenCalledWith(profileId, showId);
+      expect(result).toEqual({
+        favoritedShow: mockProfileShow,
+        episodes: episodeData,
+        hasSurvivingHistory: true,
+      });
+    });
+
+    it('should not rebuild status from history when restoreFromHistory is true but no history exists', async () => {
+      (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(mockExistingShow);
+      (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
+      (showsDb.hasWatchHistory as jest.Mock).mockResolvedValue(false);
+      (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
+
+      service.getEpisodesForProfile = jest
+        .fn()
+        .mockResolvedValue({ recentEpisodes: [], upcomingEpisodes: [], nextUnwatchedEpisodes: [] });
+
+      await service.addShowToFavorites(accountId, profileId, showTMDBId, true);
+
+      expect(showsDb.rebuildStatusFromHistory).not.toHaveBeenCalled();
     });
 
     it('should add a new show to favorites by fetching from TMDB', async () => {
@@ -273,12 +312,25 @@ describe('ShowService - Favorites', () => {
       const result = await service.removeShowFromFavorites(accountId, profileId, showId);
 
       expect(showsDb.findShowById).toHaveBeenCalledWith(showId);
-      expect(showsDb.removeFavorite).toHaveBeenCalledWith(profileId, showId);
+      expect(showsDb.removeFavorite).toHaveBeenCalledWith(profileId, showId, false);
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(result).toEqual({
         removedShow: mockShow,
         episodes: mockEpisodeData,
       });
+    });
+
+    it('should pass removeHistory through to showsDb.removeFavorite when true', async () => {
+      (showsDb.findShowById as jest.Mock).mockResolvedValue(mockShow);
+      (errorService.assertExists as jest.Mock).mockResolvedValue((item: any) => item);
+      (showsDb.removeFavorite as jest.Mock).mockResolvedValue(undefined);
+
+      const mockEpisodeData = { recentEpisodes: [], upcomingEpisodes: [], nextUnwatchedEpisodes: [] };
+      service.getEpisodesForProfile = jest.fn().mockResolvedValue(mockEpisodeData);
+
+      await service.removeShowFromFavorites(accountId, profileId, showId, true);
+
+      expect(showsDb.removeFavorite).toHaveBeenCalledWith(profileId, showId, true);
     });
 
     it('should throw NotFoundError when show does not exist', async () => {

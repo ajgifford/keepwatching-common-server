@@ -32,6 +32,7 @@ describe('MoviesService - Favorites', () => {
       (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovie);
       (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(mockMovie);
       (moviesDb.saveFavorite as jest.Mock).mockResolvedValue(true);
+      (moviesDb.hasMovieWatchHistory as jest.Mock).mockResolvedValue(false);
 
       // First call returns null (movie not yet favorited), second call returns the movie after it's favorited
       (moviesDb.getMovieForProfile as jest.Mock)
@@ -49,7 +50,82 @@ describe('MoviesService - Favorites', () => {
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
         recentUpcomingMovies: { recentMovies: mockRecentMovies, upcomingMovies: mockUpcomingMovies },
+        hasSurvivingHistory: false,
       });
+    });
+
+    it('should rebuild status from history when restoreFromHistory is true and history exists', async () => {
+      const mockMovie = {
+        id: 5,
+        tmdb_id: 12345,
+        title: 'Existing Movie',
+        releaseDate: '2099-12-31',
+      };
+      const mockMovieForProfile = { movie_id: 5, title: 'Existing Movie' };
+
+      (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(mockMovie);
+      (moviesDb.saveFavorite as jest.Mock).mockResolvedValue(true);
+      (moviesDb.hasMovieWatchHistory as jest.Mock).mockResolvedValue(true);
+      (moviesDb.rebuildMovieStatusFromHistory as jest.Mock).mockResolvedValue(true);
+      (moviesDb.getMovieForProfile as jest.Mock)
+        .mockRejectedValueOnce(new Error('Not found'))
+        .mockResolvedValueOnce(mockMovieForProfile);
+      mockCache.getOrSet.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      const result = await service.addMovieToFavorites(123, 12345, true);
+
+      expect(moviesDb.rebuildMovieStatusFromHistory).toHaveBeenCalledWith(123, 5);
+      expect(result.hasSurvivingHistory).toBe(true);
+    });
+
+    it('should not rebuild status from history when restoreFromHistory is true but no history exists', async () => {
+      const mockMovie = {
+        id: 5,
+        tmdb_id: 12345,
+        title: 'Existing Movie',
+        releaseDate: '2099-12-31',
+      };
+
+      (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(mockMovie);
+      (moviesDb.saveFavorite as jest.Mock).mockResolvedValue(true);
+      (moviesDb.hasMovieWatchHistory as jest.Mock).mockResolvedValue(false);
+      (moviesDb.getMovieForProfile as jest.Mock)
+        .mockRejectedValueOnce(new Error('Not found'))
+        .mockResolvedValueOnce({ movie_id: 5 });
+      mockCache.getOrSet.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      await service.addMovieToFavorites(123, 12345, true);
+
+      expect(moviesDb.rebuildMovieStatusFromHistory).not.toHaveBeenCalled();
+    });
+
+    it('should rebuild status from history when restoreFromHistory is true even if the movie is already favorited (regression: restore-dialog second call)', async () => {
+      // Regression test for a real bug: the "already favorited" branch (movie_watch_status row
+      // already exists — as it would after the first addMovieFavorite call that surfaced the
+      // restore dialog) used to return early before ever checking restoreFromHistory, so the
+      // user's "Restore previous watch status" choice on the second call was silently ignored.
+      const mockMovie = {
+        id: 5,
+        tmdb_id: 12345,
+        title: 'Existing Movie',
+        releaseDate: '2099-12-31',
+      };
+      const mockMovieForProfile = { movie_id: 5, title: 'Existing Movie', watchStatus: WatchStatus.WATCHED };
+
+      (moviesDb.findMovieByTMDBId as jest.Mock).mockResolvedValue(mockMovie);
+      (moviesDb.hasMovieWatchHistory as jest.Mock).mockResolvedValue(true);
+      (moviesDb.rebuildMovieStatusFromHistory as jest.Mock).mockResolvedValue(true);
+      // Already favorited: getMovieForProfile resolves truthy on the very first call.
+      (moviesDb.getMovieForProfile as jest.Mock).mockResolvedValue(mockMovieForProfile);
+      mockCache.getOrSet.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      const result = await service.addMovieToFavorites(123, 12345, true);
+
+      expect(moviesDb.saveFavorite).not.toHaveBeenCalled();
+      expect(moviesDb.hasMovieWatchHistory).toHaveBeenCalledWith(123, 5);
+      expect(moviesDb.rebuildMovieStatusFromHistory).toHaveBeenCalledWith(123, 5);
+      expect(result.hasSurvivingHistory).toBe(true);
+      expect(result.favoritedMovie).toEqual(mockMovieForProfile);
     });
 
     it('should fetch and add new movie from TMDB', async () => {
@@ -86,6 +162,8 @@ describe('MoviesService - Favorites', () => {
       mockCache.getOrSet.mockResolvedValueOnce(mockUpcomingMovies);
 
       const result = await service.addMovieToFavorites(123, 12345);
+      // Brand-new movies never have prior history — service returns hasSurvivingHistory: false
+      // without calling hasMovieWatchHistory (see assertions below).
 
       expect(moviesDb.findMovieByTMDBId).toHaveBeenCalledWith(12345);
       expect(getTMDBService).toHaveBeenCalled();
@@ -107,9 +185,11 @@ describe('MoviesService - Favorites', () => {
       });
       expect(moviesDb.saveMovie).toHaveBeenCalled();
       expect(moviesDb.saveFavorite).toHaveBeenCalledWith(123, 5, WatchStatus.NOT_WATCHED);
+      expect(moviesDb.hasMovieWatchHistory).not.toHaveBeenCalled();
       expect(result).toEqual({
         favoritedMovie: mockMovieForProfile,
         recentUpcomingMovies: { recentMovies: mockRecentMovies, upcomingMovies: mockUpcomingMovies },
+        hasSurvivingHistory: false,
       });
     });
 
@@ -174,12 +254,22 @@ describe('MoviesService - Favorites', () => {
       const result = await service.removeMovieFromFavorites(123, 5);
 
       expect(moviesDb.findMovieById).toHaveBeenCalledWith(5);
-      expect(moviesDb.removeFavorite).toHaveBeenCalledWith(123, 5);
+      expect(moviesDb.removeFavorite).toHaveBeenCalledWith(123, 5, false);
       expect(mockCache.invalidateProfileMovies).toHaveBeenCalledWith(123);
       expect(result).toEqual({
         removedMovie: mockMovie,
         recentUpcomingMovies: { recentMovies: mockRecentMovies, upcomingMovies: mockUpcomingMovies },
       });
+    });
+
+    it('should pass removeHistory through to moviesDb.removeFavorite when true', async () => {
+      const mockMovie = { id: 5, title: 'Movie to Remove' };
+      (moviesDb.findMovieById as jest.Mock).mockResolvedValue(mockMovie);
+      mockCache.getOrSet.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      await service.removeMovieFromFavorites(123, 5, true);
+
+      expect(moviesDb.removeFavorite).toHaveBeenCalledWith(123, 5, true);
     });
 
     it('should throw NotFoundError when movie does not exist', async () => {

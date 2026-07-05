@@ -4,6 +4,8 @@ export {
   saveFavorite,
   removeFavorite,
   updateWatchStatus,
+  hasMovieWatchHistory,
+  rebuildMovieStatusFromHistory,
   findMovieById,
   findMovieByTMDBId,
   getAllMoviesForProfile,

@@ -1,5 +1,6 @@
 import {
   addShowFavoriteBodySchema,
+  removeShowFavoriteQuerySchema,
   showParamsSchema,
   showPriorWatchBodySchema,
   showWatchStatusBodySchema,
@@ -15,6 +16,7 @@ describe('showSchema', () => {
 
       const expectedOutput = {
         showTMDBId: 456,
+        restoreFromHistory: false,
       };
 
       const result = addShowFavoriteBodySchema.safeParse(validInput);
@@ -130,6 +132,32 @@ describe('showSchema', () => {
         const result = showParamsSchema.safeParse(incompleteInput);
         expect(result.success).toBe(false);
       });
+    });
+  });
+
+  describe('removeShowFavoriteQuerySchema', () => {
+    it('should default removeHistory to false when not provided', () => {
+      const result = removeShowFavoriteQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ removeHistory: false });
+      }
+    });
+
+    it('should coerce a "true" query string to boolean true', () => {
+      const result = removeShowFavoriteQuerySchema.safeParse({ removeHistory: 'true' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ removeHistory: true });
+      }
+    });
+
+    it('should correctly parse the literal string "false" to boolean false', () => {
+      const result = removeShowFavoriteQuerySchema.safeParse({ removeHistory: 'false' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ removeHistory: false });
+      }
     });
   });
 

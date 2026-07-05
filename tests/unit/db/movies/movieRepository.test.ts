@@ -267,6 +267,87 @@ describe('movieRepository', () => {
 
       await expect(moviesDb.removeFavorite(123, 456)).rejects.toThrow('Database error removing a movie as a favorite');
     });
+
+    it('should also delete watch history when removeHistory is true', async () => {
+      mockExecute.mockResolvedValue([{ affectedRows: 1 }]);
+
+      await moviesDb.removeFavorite(123, 456, true);
+
+      expect(mockExecute).toHaveBeenCalledWith(
+        'DELETE FROM movie_watch_status WHERE profile_id = ? AND movie_id = ?',
+        [123, 456],
+      );
+      expect(mockExecute).toHaveBeenCalledWith(
+        'DELETE FROM movie_watch_history WHERE profile_id = ? AND movie_id = ?',
+        [123, 456],
+      );
+    });
+
+    it('should not delete watch history when removeHistory is false (default)', async () => {
+      mockExecute.mockResolvedValue([{ affectedRows: 1 }]);
+
+      await moviesDb.removeFavorite(123, 456);
+
+      expect(mockExecute).toHaveBeenCalledTimes(1);
+      expect(mockExecute).not.toHaveBeenCalledWith(expect.stringContaining('movie_watch_history'), expect.any(Array));
+    });
+  });
+
+  describe('hasMovieWatchHistory', () => {
+    it('should return true when history rows exist', async () => {
+      mockExecute.mockResolvedValueOnce([[{ hasHistory: 1 }]]);
+
+      const result = await moviesDb.hasMovieWatchHistory(123, 456);
+
+      expect(result).toBe(true);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('movie_watch_history'), [123, 456]);
+    });
+
+    it('should return false when no history rows exist', async () => {
+      mockExecute.mockResolvedValueOnce([[{ hasHistory: 0 }]]);
+
+      const result = await moviesDb.hasMovieWatchHistory(123, 456);
+
+      expect(result).toBe(false);
+    });
+
+    it('should propagate errors', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(moviesDb.hasMovieWatchHistory(123, 456)).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('rebuildMovieStatusFromHistory', () => {
+    it('should rebuild movie_watch_status from the most recent surviving history row', async () => {
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+      const result = await moviesDb.rebuildMovieStatusFromHistory(123, 456);
+
+      expect(result).toBe(true);
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE movie_watch_status'),
+        [123, 456, 123, 456],
+      );
+      expect(mockExecute).toHaveBeenCalledWith(
+        expect.stringContaining('ORDER BY watch_number DESC'),
+        expect.any(Array),
+      );
+    });
+
+    it('should return false when no surviving history exists', async () => {
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+      const result = await moviesDb.rebuildMovieStatusFromHistory(123, 456);
+
+      expect(result).toBe(false);
+    });
+
+    it('should propagate errors', async () => {
+      mockExecute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(moviesDb.rebuildMovieStatusFromHistory(123, 456)).rejects.toThrow('Query failed');
+    });
   });
 
   describe('updateWatchStatus', () => {

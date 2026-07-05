@@ -4,12 +4,17 @@ import { z } from 'zod';
 
 export const addShowFavoriteBodySchema = z.object({
   showTMDBId: z.number().int().positive('Show TMDB ID must be a positive integer'),
+  restoreFromHistory: z.boolean().optional().default(false),
 });
 
 export const showParamsSchema = z.object({
   accountId: createPositiveIntegerSchema('Account ID'),
   profileId: createPositiveIntegerSchema('Profile ID'),
   showId: createPositiveIntegerSchema('Show ID'),
+});
+
+export const removeShowFavoriteQuerySchema = z.object({
+  removeHistory: z.stringbool().default(false),
 });
 
 export const showWatchStatusBodySchema = z.object({
@@ -46,6 +51,7 @@ export const watchHistoryQuerySchema = z.object({
 export type ShowWatchStatusBody = z.infer<typeof showWatchStatusBodySchema>;
 export type AddShowFavoriteBody = z.infer<typeof addShowFavoriteBodySchema>;
 export type ShowParams = z.infer<typeof showParamsSchema>;
+export type RemoveShowFavoriteQuery = z.infer<typeof removeShowFavoriteQuerySchema>;
 export type ShowPriorWatchBody = z.infer<typeof showPriorWatchBodySchema>;
 export type WatchHistoryMarkAsPriorBody = z.infer<typeof watchHistoryMarkAsPriorBodySchema>;
 export type WatchHistoryDismissBody = z.infer<typeof watchHistoryDismissBodySchema>;

@@ -166,5 +166,95 @@ describe('showWatchStatusRepository', () => {
 
       expect(mockConnection.execute).toHaveBeenCalledTimes(1);
     });
+
+    it('should also delete watch history when removeHistory is true', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([[{ id: 1 }, { id: 2 }]]) // Get seasons
+        .mockResolvedValueOnce([{ affectedRows: 10 } as ResultSetHeader]) // Delete episode watch statuses
+        .mockResolvedValueOnce([{ affectedRows: 2 } as ResultSetHeader]) // Delete season watch statuses
+        .mockResolvedValueOnce([{ affectedRows: 10 } as ResultSetHeader]) // Delete episode watch history
+        .mockResolvedValueOnce([{ affectedRows: 2 } as ResultSetHeader]) // Delete season watch history
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]) // Delete show watch status
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // Delete show watch history
+
+      await showsDb.removeFavorite(123, 12345, true);
+
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'DELETE FROM episode_watch_history WHERE profile_id = ? AND episode_id IN (SELECT id FROM episodes WHERE season_id IN (?,?))',
+        [123, 1, 2],
+      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'DELETE FROM season_watch_history WHERE profile_id = ? AND season_id IN (?,?)',
+        [123, 1, 2],
+      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        'DELETE FROM show_watch_history WHERE profile_id = ? AND show_id = ?',
+        [123, 12345],
+      );
+    });
+
+    it('should not delete watch history when removeHistory is false (default)', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([[{ id: 1 }, { id: 2 }]])
+        .mockResolvedValueOnce([{ affectedRows: 10 } as ResultSetHeader])
+        .mockResolvedValueOnce([{ affectedRows: 2 } as ResultSetHeader])
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await showsDb.removeFavorite(123, 12345);
+
+      const historyDeleteCalls = mockConnection.execute.mock.calls.filter((call: any[]) =>
+        String(call[0]).includes('_history'),
+      );
+      expect(historyDeleteCalls).toHaveLength(0);
+    });
+  });
+
+  describe('hasWatchHistory()', () => {
+    it('should return true when history rows exist', async () => {
+      mockConnection.execute.mockResolvedValueOnce([[{ hasHistory: 1 }]]);
+
+      const result = await showsDb.hasWatchHistory(123, 12345);
+
+      expect(result).toBe(true);
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('episode_watch_history'),
+        [123, 12345],
+      );
+    });
+
+    it('should return false when no history rows exist', async () => {
+      mockConnection.execute.mockResolvedValueOnce([[{ hasHistory: 0 }]]);
+
+      const result = await showsDb.hasWatchHistory(123, 12345);
+
+      expect(result).toBe(false);
+    });
+
+    it('should propagate errors', async () => {
+      mockConnection.execute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(showsDb.hasWatchHistory(123, 12345)).rejects.toThrow('Query failed');
+    });
+  });
+
+  describe('rebuildStatusFromHistory()', () => {
+    it('should rebuild episode_watch_status rows from surviving history', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 5 } as ResultSetHeader]);
+
+      await showsDb.rebuildStatusFromHistory(123, 12345);
+
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO episode_watch_status'),
+        [123, 12345],
+      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(expect.stringContaining('ROW_NUMBER()'), [123, 12345]);
+    });
+
+    it('should rollback transaction on error', async () => {
+      const error = new Error('Database error');
+      mockConnection.execute.mockRejectedValueOnce(error);
+
+      await expect(showsDb.rebuildStatusFromHistory(123, 12345)).rejects.toThrow('Database error');
+    });
   });
 });
