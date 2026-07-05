@@ -109,6 +109,7 @@ export class ProfileService {
               accountId: profile.accountId,
               name: profile.name,
               image: getProfileImage(profile.image, profile.name),
+              accentColor: profile.accentColor,
             },
             shows,
             episodes: { recentEpisodes, upcomingEpisodes, nextUnwatchedEpisodes },

@@ -171,7 +171,7 @@ describe('ProfileService', () => {
   });
 
   describe('getProfile', () => {
-    const mockProfile = { id: 123, name: 'Test Profile', accountId: 1 };
+    const mockProfile = { id: 123, name: 'Test Profile', accountId: 1, accentColor: '#7b1fa2' };
     const mockShows = [{ show_id: 1, title: 'Test Show' }];
     const mockMovies = [{ movie_id: 1, title: 'Test Movie' }];
     const mockRecentEpisodes = [{ id: 1, title: 'Recent Episode' }];
@@ -223,7 +223,13 @@ describe('ProfileService', () => {
       expect(showService.getNextUnwatchedEpisodesForProfile).toHaveBeenCalledWith(123);
 
       expect(result).toEqual({
-        profile: { id: 123, accountId: 1, name: 'Test Profile', image: 'profile-image-url.jpg' },
+        profile: {
+          id: 123,
+          accountId: 1,
+          name: 'Test Profile',
+          image: 'profile-image-url.jpg',
+          accentColor: '#7b1fa2',
+        },
         shows: mockShows,
         movies: mockMovies,
         episodes: {
