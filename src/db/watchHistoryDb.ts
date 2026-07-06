@@ -2,7 +2,7 @@ import { EpisodeWatchCountRow, SeasonShowRow, WatchHistoryCountRow, WatchHistory
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { ResultSetHeader } from 'mysql2';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { PoolConnection } from 'mysql2/promise';
 
 // ---------------------------------------------------------------------------
@@ -214,6 +214,9 @@ export async function logShowWatched(conn: PoolConnection, profileId: number, sh
  * Only WATCHED episodes are reset — UNAIRED and NOT_WATCHED rows are untouched.
  * watched_at is nulled out so the next mark sets a fresh timestamp.
  * The watch_history tables are NOT touched; history is preserved across rewatches.
+ * rewatch_reset_at is stamped so the next plain mark-watched (not just the dedicated
+ * "Rewatch this episode" button) is recognized as a genuinely new watch instead of being
+ * silently skipped by the "only log a first-ever watch" rule (see getEpisodeIdsWithExistingHistory).
  *
  * Note: show status recalculation after the reset is the caller's responsibility
  * (the service layer handles returning the updated show/episodes to the client).
@@ -229,6 +232,7 @@ export async function resetShowForRewatch(conn: PoolConnection, profileId: numbe
       ews.status = 'NOT_WATCHED',
       ews.watched_at = NULL,
       ews.is_prior_watch = FALSE,
+      ews.rewatch_reset_at = CURRENT_TIMESTAMP,
       ews.updated_at = CURRENT_TIMESTAMP
     WHERE ews.profile_id = ?
       AND se.show_id = ?
@@ -280,6 +284,7 @@ export async function resetSeasonForRewatch(conn: PoolConnection, profileId: num
       ews.status = 'NOT_WATCHED',
       ews.watched_at = NULL,
       ews.is_prior_watch = FALSE,
+      ews.rewatch_reset_at = CURRENT_TIMESTAMP,
       ews.updated_at = CURRENT_TIMESTAMP
     WHERE ews.profile_id = ?
       AND e.season_id = ?
@@ -519,6 +524,67 @@ export async function getWatchHistoryForProfile(
   } catch (error) {
     handleDatabaseError(error, 'getting watch history for profile');
   }
+}
+
+// ---------------------------------------------------------------------------
+// First-watch existence checks — the plain watch/unwatch toggle never writes to
+// history except to log an episode/movie's very first-ever watch. Unmarking never
+// touches history, and re-marking something that already has a history row just
+// restores status without creating a duplicate entry. Only the dedicated Rewatch
+// action (recordEpisodeRewatch/recordMovieRewatch/resetShowForRewatch/etc.) is
+// allowed to log an additional viewing.
+//
+// A season/show "Start Rewatch" is itself a deliberate, confirmed rewatch action —
+// it resets episode statuses but deliberately preserves history (see
+// resetSeasonForRewatch/resetShowForRewatch), and stamps rewatch_reset_at on each
+// reset episode. History rows from before that stamp no longer count as "already
+// logged" below, so the plain per-episode toggle used to walk back through a reset
+// season/show is recognized as genuinely new watches, not a stale restore.
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the subset of the given episode IDs that already have an episode_watch_history
+ * row for this profile which counts toward "already logged" — i.e. one created after the
+ * episode's most recent rewatch_reset_at (or any row at all, if it's never been reset).
+ * Used to decide which episodes in a newly-WATCHED batch represent a genuinely new watch
+ * (log it) versus the plain toggle restoring an episode that's already tracked (skip
+ * logging, so the toggle never creates a duplicate history entry).
+ */
+export async function getEpisodeIdsWithExistingHistory(
+  conn: PoolConnection,
+  profileId: number,
+  episodeIds: number[],
+): Promise<Set<number>> {
+  if (episodeIds.length === 0) {
+    return new Set();
+  }
+
+  const placeholders = episodeIds.map(() => '?').join(', ');
+  const [rows] = await conn.execute<(RowDataPacket & { episode_id: number })[]>(
+    `
+    SELECT DISTINCT ewh.episode_id
+    FROM episode_watch_history ewh
+    LEFT JOIN episode_watch_status ews
+      ON ews.profile_id = ewh.profile_id AND ews.episode_id = ewh.episode_id
+    WHERE ewh.profile_id = ? AND ewh.episode_id IN (${placeholders})
+      AND (ews.rewatch_reset_at IS NULL OR ewh.created_at > ews.rewatch_reset_at)
+    `,
+    [profileId, ...episodeIds],
+  );
+  return new Set(rows.map((row) => row.episode_id));
+}
+
+/**
+ * Whether a movie already has at least one movie_watch_history row for this profile,
+ * checked on the given transaction connection. See getEpisodeIdsWithExistingHistory
+ * for why this matters — the plain toggle should only ever log a movie's first watch.
+ */
+export async function hasMovieHistoryRow(conn: PoolConnection, profileId: number, movieId: number): Promise<boolean> {
+  const [rows] = await conn.execute<(RowDataPacket & { hasHistory: number })[]>(
+    `SELECT EXISTS(SELECT 1 FROM movie_watch_history WHERE profile_id = ? AND movie_id = ?) AS hasHistory`,
+    [profileId, movieId],
+  );
+  return Boolean(rows[0]?.hasHistory);
 }
 
 /**

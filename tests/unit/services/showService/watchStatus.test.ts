@@ -64,6 +64,20 @@ describe('ShowService - Watch Status', () => {
         `updateShowWatchStatus(${accountId}, ${profileId}, ${showId}, ${status})`,
       );
     });
+
+    it('should always invalidate cache on success (no early-return branch)', async () => {
+      (watchStatusService.updateShowWatchStatus as jest.Mock).mockResolvedValue({
+        success: true,
+        message: 'Show test message',
+        affectedRows: 1,
+        changes: [{}],
+      });
+      mockCache.getOrSet.mockResolvedValue(mockNextUnwatchedEpisodes);
+
+      await service.updateShowWatchStatus(accountId, profileId, showId, status);
+
+      expect(mockCache.invalidate).toHaveBeenCalledWith('profile_123_show_details_1');
+    });
   });
 
   describe('checkAndUpdateShowStatus (per-profile recalculation for new content)', () => {

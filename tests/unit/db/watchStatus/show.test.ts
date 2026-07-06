@@ -1,6 +1,7 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { createMockEpisodeRow, createMockSeasonRow, createMockShowRow } from './helpers/watchStatusTestTypes';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
+import { getEpisodeIdsWithExistingHistory, logEpisodesWatched } from '@db/watchHistoryDb';
 import { WatchStatusDbService } from '@db/watchStatusDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
@@ -48,6 +49,9 @@ describe('WatchStatusDbService - Show Operations', () => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Database error ${contextMessage}: ${errorMessage}`);
     });
+
+    // Default: no episode has existing history unless a test overrides this
+    jest.mocked(getEpisodeIdsWithExistingHistory).mockResolvedValue(new Set());
 
     // Create service instance with mocked dependencies
     watchStatusDbService = new WatchStatusDbService(mockWatchStatusManager, mockTransactionHelper);
@@ -371,6 +375,176 @@ describe('WatchStatusDbService - Show Operations', () => {
       );
 
       expect(handleDatabaseError).toHaveBeenCalledWith(dbError, 'updating show watch status with propagation');
+    });
+
+    // -------------------------------------------------------------------------
+    // First-watch history gating for bulk show mark/unmark
+    // -------------------------------------------------------------------------
+
+    const updateResult = {
+      affectedRows: 1,
+      insertId: 1,
+      info: '',
+      serverStatus: 0,
+      warningStatus: 0,
+      changedRows: 0,
+      fieldCount: 0,
+    } as ResultSetHeader;
+
+    const episodeUpdateResult = {
+      affectedRows: 2,
+      insertId: 1,
+      info: '',
+      serverStatus: 0,
+      warningStatus: 0,
+      changedRows: 0,
+      fieldCount: 0,
+    } as ResultSetHeader;
+
+    it('should log history only for newly-watched episodes with no prior history, skipping ones that already have history', async () => {
+      const showRow = createMockShowRow({ id: showId, status: WatchStatus.NOT_WATCHED, release_date: '2023-01-01' });
+      const preUpdateRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+      ];
+      const seasonRows = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.NOT_WATCHED })];
+      const seasonEpisodeRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.WATCHED }),
+      ];
+      const updatedSeasonRows = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+      const postUpdateEpisodeRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.WATCHED }),
+      ];
+
+      mockConnection.execute
+        .mockResolvedValueOnce([[showRow], []]) // Show query
+        .mockResolvedValueOnce([preUpdateRows, []]) // preUpdateRows snapshot
+        .mockResolvedValueOnce([episodeUpdateResult, []]) // Episode bulk update
+        .mockResolvedValueOnce([seasonRows, []]) // Seasons query
+        .mockResolvedValueOnce([seasonEpisodeRows, []]) // Episodes for the season (loop)
+        .mockResolvedValueOnce([updateResult, []]) // Season status update
+        .mockResolvedValueOnce([updatedSeasonRows, []]) // Re-query season statuses
+        .mockResolvedValueOnce([postUpdateEpisodeRows, []]) // postUpdateEpisodeRows
+        .mockResolvedValueOnce([updateResult, []]); // Show status update
+
+      // Episode 1 already has a surviving history row; episode 2 does not.
+      jest.mocked(getEpisodeIdsWithExistingHistory).mockResolvedValueOnce(new Set([1]));
+      mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.WATCHED);
+      mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHED);
+
+      const result = await watchStatusDbService.updateShowWatchStatus(profileId, showId, WatchStatus.WATCHED);
+
+      expect(result.success).toBe(true);
+      expect(getEpisodeIdsWithExistingHistory).toHaveBeenCalledWith(mockConnection, profileId, [1, 2]);
+      expect(logEpisodesWatched).toHaveBeenCalledTimes(1);
+      expect(logEpisodesWatched).toHaveBeenCalledWith(mockConnection, profileId, [2]);
+    });
+
+    it('should skip logging entirely when all newly-watched episodes already have history', async () => {
+      const showRow = createMockShowRow({ id: showId, status: WatchStatus.NOT_WATCHED, release_date: '2023-01-01' });
+      const preUpdateRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+      ];
+      const seasonRows = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.NOT_WATCHED })];
+      const seasonEpisodeRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.WATCHED }),
+      ];
+      const updatedSeasonRows = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+      const postUpdateEpisodeRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.WATCHED }),
+      ];
+
+      mockConnection.execute
+        .mockResolvedValueOnce([[showRow], []])
+        .mockResolvedValueOnce([preUpdateRows, []])
+        .mockResolvedValueOnce([episodeUpdateResult, []])
+        .mockResolvedValueOnce([seasonRows, []])
+        .mockResolvedValueOnce([seasonEpisodeRows, []])
+        .mockResolvedValueOnce([updateResult, []])
+        .mockResolvedValueOnce([updatedSeasonRows, []])
+        .mockResolvedValueOnce([postUpdateEpisodeRows, []])
+        .mockResolvedValueOnce([updateResult, []]);
+
+      jest.mocked(getEpisodeIdsWithExistingHistory).mockResolvedValueOnce(new Set([1, 2]));
+      mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.WATCHED);
+      mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHED);
+
+      const result = await watchStatusDbService.updateShowWatchStatus(profileId, showId, WatchStatus.WATCHED);
+
+      expect(result.success).toBe(true);
+      expect(logEpisodesWatched).not.toHaveBeenCalled();
+    });
+
+    it('should not call getEpisodeIdsWithExistingHistory when no episodes transition to WATCHED', async () => {
+      const showRow = createMockShowRow({ id: showId, status: WatchStatus.WATCHED, release_date: '2023-01-01' });
+      // Already WATCHED before and after — no transition to WATCHED occurs.
+      const preUpdateRows = [createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED })];
+      const seasonRows = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+      const seasonEpisodeRows = [createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED })];
+      const updatedSeasonRows = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+      const postUpdateEpisodeRows = [createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED })];
+
+      mockConnection.execute
+        .mockResolvedValueOnce([[showRow], []])
+        .mockResolvedValueOnce([preUpdateRows, []])
+        .mockResolvedValueOnce([episodeUpdateResult, []])
+        .mockResolvedValueOnce([seasonRows, []])
+        .mockResolvedValueOnce([seasonEpisodeRows, []])
+        .mockResolvedValueOnce([updatedSeasonRows, []])
+        .mockResolvedValueOnce([postUpdateEpisodeRows, []]);
+
+      mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.WATCHED);
+      mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHED);
+
+      await watchStatusDbService.updateShowWatchStatus(profileId, showId, WatchStatus.WATCHED);
+
+      expect(getEpisodeIdsWithExistingHistory).not.toHaveBeenCalled();
+      expect(logEpisodesWatched).not.toHaveBeenCalled();
+    });
+
+    it('should never touch history when unmarking a show (plain status update, no delete, no classification)', async () => {
+      const showRow = createMockShowRow({ id: showId, status: WatchStatus.WATCHED, release_date: '2023-01-01' });
+      const preUpdateRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.WATCHED }),
+      ];
+      const seasonRows = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+      const seasonEpisodeRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+      ];
+      const updatedSeasonRows = [
+        createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.NOT_WATCHED }),
+      ];
+      const postUpdateEpisodeRows = [
+        createMockEpisodeRow({ id: 1, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+        createMockEpisodeRow({ id: 2, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+      ];
+
+      mockConnection.execute
+        .mockResolvedValueOnce([[showRow], []])
+        .mockResolvedValueOnce([preUpdateRows, []])
+        .mockResolvedValueOnce([episodeUpdateResult, []])
+        .mockResolvedValueOnce([seasonRows, []])
+        .mockResolvedValueOnce([seasonEpisodeRows, []])
+        .mockResolvedValueOnce([updateResult, []])
+        .mockResolvedValueOnce([updatedSeasonRows, []])
+        .mockResolvedValueOnce([postUpdateEpisodeRows, []])
+        .mockResolvedValueOnce([updateResult, []]);
+
+      mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.NOT_WATCHED);
+      mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.NOT_WATCHED);
+
+      const result = await watchStatusDbService.updateShowWatchStatus(profileId, showId, WatchStatus.NOT_WATCHED);
+
+      expect(result.success).toBe(true);
+      expect(getEpisodeIdsWithExistingHistory).not.toHaveBeenCalled();
+      expect(logEpisodesWatched).not.toHaveBeenCalled();
     });
   });
 

@@ -17,7 +17,7 @@ import { getDbPool } from '../../utils/db';
 import { DbMonitor } from '../../utils/dbMonitoring';
 import { handleDatabaseError } from '../../utils/errorHandlingUtility';
 import { TransactionHelper } from '../../utils/transactionHelper';
-import { logMovieWatched } from '../watchHistoryDb';
+import { hasMovieHistoryRow, logMovieWatched } from '../watchHistoryDb';
 import {
   ContentReference,
   CreateMovieRequest,
@@ -429,7 +429,14 @@ export async function updateWatchStatus(
           const [result] = await connection.execute<ResultSetHeader>(query, params);
 
           if (isWatched && result.affectedRows > 0) {
-            await logMovieWatched(connection, profileId, movieId, isPriorWatch, watchedAt);
+            // Log to history only the very first time this movie is marked watched.
+            // The plain toggle (and the prior-watch date picker, which reuses this same
+            // path) never creates an additional entry — only the dedicated Rewatch action
+            // does. Unmarking never touches history at all.
+            const alreadyLogged = await hasMovieHistoryRow(connection, profileId, movieId);
+            if (!alreadyLogged) {
+              await logMovieWatched(connection, profileId, movieId, isPriorWatch, watchedAt);
+            }
           }
 
           // Return true if at least one row was affected (watch status was updated)

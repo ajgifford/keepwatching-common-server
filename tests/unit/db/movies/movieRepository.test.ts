@@ -416,6 +416,69 @@ describe('movieRepository', () => {
         'Database error updating a movie watch status',
       );
     });
+
+    // -------------------------------------------------------------------------
+    // First-watch history gating (plain toggle never duplicates history)
+    // -------------------------------------------------------------------------
+
+    it('should log movie watch history only on the first-ever watch', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE movie_watch_status
+        .mockResolvedValueOnce([[{ hasHistory: 0 }]]) // hasMovieHistoryRow -> no existing history
+        .mockResolvedValueOnce([{ insertId: 1 }]); // logMovieWatched INSERT
+
+      const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED');
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(3);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('movie_watch_history'),
+        [123, 456],
+      );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        3,
+        expect.stringContaining('INSERT INTO movie_watch_history'),
+        expect.any(Array),
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should not duplicate history when marking watched again after the movie already has history', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE movie_watch_status
+        .mockResolvedValueOnce([[{ hasHistory: 1 }]]); // hasMovieHistoryRow -> already has history
+
+      const result = await moviesDb.updateWatchStatus(123, 456, 'WATCHED');
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(2);
+      expect(mockConnection.execute).not.toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO movie_watch_history'),
+        expect.any(Array),
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should never touch movie_watch_history when unmarking, regardless of existing history', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE movie_watch_status only
+
+      const result = await moviesDb.updateWatchStatus(123, 456, 'NOT_WATCHED');
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
+      expect(mockConnection.execute).not.toHaveBeenCalledWith(
+        expect.stringContaining('movie_watch_history'),
+        expect.any(Array),
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should not attempt to check or log history when unmarking affected zero rows', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 0 }]);
+
+      const result = await moviesDb.updateWatchStatus(123, 456, 'NOT_WATCHED');
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
+      expect(result).toBe(false);
+    });
   });
 
   describe('findMovieById', () => {

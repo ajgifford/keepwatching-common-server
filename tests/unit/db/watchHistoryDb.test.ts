@@ -1,8 +1,10 @@
 import { setupDatabaseTest } from './helpers/dbTestSetup';
 import {
+  getEpisodeIdsWithExistingHistory,
   getEpisodeWatchCount,
   getShowIdForSeason,
   getWatchHistoryForProfile,
+  hasMovieHistoryRow,
   logEpisodeWatched,
   logEpisodesWatched,
   logMovieWatched,
@@ -337,6 +339,15 @@ describe('watchHistoryDb Module', () => {
       expect(firstCall[1]).toEqual([1, 5]);
     });
 
+    it('should stamp rewatch_reset_at on each reset episode', async () => {
+      mockConn.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await resetShowForRewatch(mockConn, 1, 5);
+
+      const firstCall = mockConn.execute.mock.calls[0];
+      expect(firstCall[0]).toContain('ews.rewatch_reset_at = CURRENT_TIMESTAMP');
+    });
+
     it('should reset season statuses to NOT_WATCHED', async () => {
       mockConn.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
 
@@ -382,6 +393,15 @@ describe('watchHistoryDb Module', () => {
       expect(firstCall[0]).toContain("ews.status = 'NOT_WATCHED'");
       expect(firstCall[0]).toContain('e.season_id = ?');
       expect(firstCall[1]).toEqual([2, 10]);
+    });
+
+    it('should stamp rewatch_reset_at on each reset episode', async () => {
+      mockConn.execute.mockResolvedValue([{ affectedRows: 1 } as ResultSetHeader]);
+
+      await resetSeasonForRewatch(mockConn, 2, 10);
+
+      const firstCall = mockConn.execute.mock.calls[0];
+      expect(firstCall[0]).toContain('ews.rewatch_reset_at = CURRENT_TIMESTAMP');
     });
 
     it('should reset the season itself to NOT_WATCHED', async () => {
@@ -506,6 +526,86 @@ describe('watchHistoryDb Module', () => {
       await expect(getEpisodeWatchCount(1, 100)).rejects.toThrow(
         'Database error getting episode watch count: query timeout',
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getEpisodeIdsWithExistingHistory
+  // ---------------------------------------------------------------------------
+
+  describe('getEpisodeIdsWithExistingHistory()', () => {
+    it('should return an empty set without querying the database when episodeIds is empty', async () => {
+      const result = await getEpisodeIdsWithExistingHistory(mockConn, 1, []);
+
+      expect(result).toEqual(new Set());
+      expect(mockConn.execute).not.toHaveBeenCalled();
+    });
+
+    it('should return an empty set when none of the given episodes have history', async () => {
+      mockConn.execute.mockResolvedValueOnce([[]]);
+
+      const result = await getEpisodeIdsWithExistingHistory(mockConn, 1, [10, 20]);
+
+      expect(result).toEqual(new Set());
+      const [sql, params] = mockConn.execute.mock.calls[0];
+      expect(sql).toContain('SELECT DISTINCT ewh.episode_id');
+      expect(sql).toContain('FROM episode_watch_history ewh');
+      expect(sql).toContain('LEFT JOIN episode_watch_status ews');
+      expect(sql).toContain('ews.rewatch_reset_at IS NULL OR ewh.created_at > ews.rewatch_reset_at');
+      expect(sql).toContain('IN (?, ?)');
+      expect(params).toEqual([1, 10, 20]);
+    });
+
+    it('should return the subset of episode IDs that already have history rows', async () => {
+      mockConn.execute.mockResolvedValueOnce([[{ episode_id: 10 }]]);
+
+      const result = await getEpisodeIdsWithExistingHistory(mockConn, 1, [10, 20, 30]);
+
+      expect(result).toEqual(new Set([10]));
+    });
+
+    it('should return all given episode IDs when all of them already have history', async () => {
+      mockConn.execute.mockResolvedValueOnce([[{ episode_id: 10 }, { episode_id: 20 }, { episode_id: 30 }]]);
+
+      const result = await getEpisodeIdsWithExistingHistory(mockConn, 1, [10, 20, 30]);
+
+      expect(result).toEqual(new Set([10, 20, 30]));
+    });
+
+    it('should correctly distinguish multiple episodes with a mix of existing and no history', async () => {
+      mockConn.execute.mockResolvedValueOnce([[{ episode_id: 20 }, { episode_id: 40 }]]);
+
+      const result = await getEpisodeIdsWithExistingHistory(mockConn, 1, [10, 20, 30, 40]);
+
+      expect(result).toEqual(new Set([20, 40]));
+      expect(result.has(10)).toBe(false);
+      expect(result.has(30)).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // hasMovieHistoryRow
+  // ---------------------------------------------------------------------------
+
+  describe('hasMovieHistoryRow()', () => {
+    it('should return true when a movie_watch_history row exists', async () => {
+      mockConn.execute.mockResolvedValueOnce([[{ hasHistory: 1 }]]);
+
+      const result = await hasMovieHistoryRow(mockConn, 3, 50);
+
+      expect(result).toBe(true);
+      const [sql, params] = mockConn.execute.mock.calls[0];
+      expect(sql).toContain('movie_watch_history');
+      expect(sql).toContain('EXISTS');
+      expect(params).toEqual([3, 50]);
+    });
+
+    it('should return false when no movie_watch_history row exists', async () => {
+      mockConn.execute.mockResolvedValueOnce([[{ hasHistory: 0 }]]);
+
+      const result = await hasMovieHistoryRow(mockConn, 3, 999);
+
+      expect(result).toBe(false);
     });
   });
 

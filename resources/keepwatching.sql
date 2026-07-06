@@ -170,6 +170,7 @@ CREATE TABLE episode_watch_status (
 	status ENUM('NOT_WATCHED', 'WATCHED', 'UNAIRED') NOT NULL DEFAULT 'NOT_WATCHED',
     watched_at TIMESTAMP NULL,
     is_prior_watch BOOLEAN DEFAULT FALSE,
+    rewatch_reset_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
@@ -197,12 +198,14 @@ CREATE TABLE episode_watch_history (
     profile_id INT NOT NULL,
     episode_id BIGINT NOT NULL,
     watch_number INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_prior_watch BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
     FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE,
     INDEX idx_ewh_profile_episode (profile_id, episode_id),
-    INDEX idx_ewh_profile_watched_at (profile_id, watched_at)
+    INDEX idx_ewh_profile_watched_at (profile_id, watched_at),
+    INDEX idx_ewh_profile_created (profile_id, created_at)
 );
 
 CREATE TABLE movie_watch_history (
@@ -210,12 +213,14 @@ CREATE TABLE movie_watch_history (
     profile_id INT NOT NULL,
     movie_id BIGINT NOT NULL,
     watch_number INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_prior_watch BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
     FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
     INDEX idx_mwh_profile_movie (profile_id, movie_id),
-    INDEX idx_mwh_profile_watched_at (profile_id, watched_at)
+    INDEX idx_mwh_profile_watched_at (profile_id, watched_at),
+    INDEX idx_mwh_profile_created (profile_id, created_at)
 );
 
 CREATE TABLE season_watch_history (

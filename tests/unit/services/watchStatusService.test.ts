@@ -261,6 +261,15 @@ describe('WatchStatusService', () => {
       );
     });
 
+    it('should always invalidate cache and check achievements on success', async () => {
+      mockDbService.updateSeasonWatchStatus.mockResolvedValue(mockDbResult);
+
+      await service.updateSeasonWatchStatus(accountId, profileId, seasonId, status);
+
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
+      expect(mockCheckAchievements).toHaveBeenCalledWith(profileId, accountId);
+    });
+
     it('should handle errors from db service', async () => {
       const mockError = new Error('Transaction failed');
       mockDbService.updateSeasonWatchStatus.mockRejectedValue(mockError);
@@ -374,6 +383,15 @@ describe('WatchStatusService', () => {
         mockError,
         `updateShowWatchStatus(${profileId}, ${showId}, ${status})`,
       );
+    });
+
+    it('should always invalidate cache and check achievements on success', async () => {
+      mockDbService.updateShowWatchStatus.mockResolvedValue(mockDbResult);
+
+      await service.updateShowWatchStatus(accountId, profileId, showId, status);
+
+      expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
+      expect(mockCheckAchievements).toHaveBeenCalledWith(profileId, accountId);
     });
   });
 

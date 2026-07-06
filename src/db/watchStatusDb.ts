@@ -26,6 +26,7 @@ import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { TransactionHelper } from '../utils/transactionHelper';
 import { WatchStatusManager } from '../utils/watchStatusManager';
 import {
+  getEpisodeIdsWithExistingHistory,
   logEpisodeWatched,
   logEpisodesWatched,
   logSeasonWatched,
@@ -209,9 +210,14 @@ export class WatchStatusDbService {
           `Episode manually set to ${status}`,
         );
 
-        // Log to watch history when marking as watched
+        // Log to watch history only the very first time this episode is marked watched.
+        // The plain toggle never creates an additional entry — only the dedicated
+        // Rewatch action does that. Unmarking never touches history at all.
         if (status === 'WATCHED') {
-          await logEpisodeWatched(context.connection, profileId, episodeId);
+          const existingHistory = await getEpisodeIdsWithExistingHistory(context.connection, profileId, [episodeId]);
+          if (!existingHistory.has(episodeId)) {
+            await logEpisodeWatched(context.connection, profileId, episodeId);
+          }
         }
 
         // Propagate to season and show
@@ -368,7 +374,7 @@ export class WatchStatusDbService {
 
         // Get season data
         const seasonQuery = `
-        SELECT 
+        SELECT
           s.id, s.show_id, s.release_date,
           COALESCE(sws.status, 'NOT_WATCHED') as status,
           sh.in_production as show_in_production, sh.release_date as show_air_date,
@@ -494,7 +500,9 @@ export class WatchStatusDbService {
       );
     });
 
-    // Log newly-WATCHED episodes to history (diff pre/post snapshots)
+    // Log newly-WATCHED episodes to history (diff pre/post snapshots), but only the ones
+    // with no existing history row — the plain toggle never creates a duplicate entry for
+    // an episode that was already watched before (only the dedicated Rewatch action does).
     const newlyWatchedIds = updatedEpisodeRows
       .filter((ep) => {
         const original = originalEpisodeRows.find((oe) => oe.id === ep.id);
@@ -502,7 +510,15 @@ export class WatchStatusDbService {
       })
       .map((ep) => ep.id);
     if (newlyWatchedIds.length > 0) {
-      await logEpisodesWatched(context.connection, context.profileId, newlyWatchedIds);
+      const existingHistoryIds = await getEpisodeIdsWithExistingHistory(
+        context.connection,
+        context.profileId,
+        newlyWatchedIds,
+      );
+      const firstWatchIds = newlyWatchedIds.filter((id) => !existingHistoryIds.has(id));
+      if (firstWatchIds.length > 0) {
+        await logEpisodesWatched(context.connection, context.profileId, firstWatchIds);
+      }
     }
 
     // Calculate and update season status
@@ -601,7 +617,7 @@ export class WatchStatusDbService {
 
         // Get current show status
         const showQuery = `
-        SELECT 
+        SELECT
           sh.id, sh.release_date, sh.in_production,
           COALESCE(shws.status, 'NOT_WATCHED') as status
         FROM shows sh
@@ -756,7 +772,15 @@ export class WatchStatusDbService {
       .filter((ep) => ep.status === 'WATCHED' && !preWatchedIds.has(ep.id))
       .map((ep) => ep.id);
     if (newlyWatchedIds.length > 0) {
-      await logEpisodesWatched(context.connection, context.profileId, newlyWatchedIds);
+      const existingHistoryIds = await getEpisodeIdsWithExistingHistory(
+        context.connection,
+        context.profileId,
+        newlyWatchedIds,
+      );
+      const firstWatchIds = newlyWatchedIds.filter((id) => !existingHistoryIds.has(id));
+      if (firstWatchIds.length > 0) {
+        await logEpisodesWatched(context.connection, context.profileId, firstWatchIds);
+      }
     }
 
     // Log season completions to history
