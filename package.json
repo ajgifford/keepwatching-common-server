@@ -92,6 +92,7 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "dev": "tsdown --watch",
     "clean": "rimraf dist",
     "rebuild": "yarn clean && yarn build",
     "prepare": "yarn build",
