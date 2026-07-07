@@ -1,4 +1,5 @@
 import { setupDatabaseTest } from './helpers/dbTestSetup';
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as watchlistDb from '@db/watchlistDb';
 import { DatabaseError } from '@middleware/errorMiddleware';
 import { ResultSetHeader } from 'mysql2';
@@ -20,7 +21,7 @@ describe('watchlistDb Module', () => {
     genres: 'Drama, Crime',
     streaming_services: 'Netflix',
     runtime: 47,
-    has_new_season: 0 as const,
+    current_watch_status: WatchStatus.NOT_WATCHED,
   };
 
   const expectedWatchlistItem = {
@@ -35,7 +36,7 @@ describe('watchlistDb Module', () => {
     genres: 'Drama, Crime',
     streamingServices: 'Netflix',
     runtime: 47,
-    hasNewSeason: false,
+    currentWatchStatus: WatchStatus.NOT_WATCHED,
   };
 
   beforeEach(() => {
@@ -61,13 +62,22 @@ describe('watchlistDb Module', () => {
       expect(result).toEqual([expectedWatchlistItem]);
     });
 
-    it('should map has_new_season=1 to hasNewSeason=true', async () => {
-      const rowWithNewSeason = { ...mockWatchlistRow, has_new_season: 1 as const };
-      mockExecute.mockResolvedValueOnce([[rowWithNewSeason]]);
+    it('should map current_watch_status through to currentWatchStatus', async () => {
+      const rowWithStatus = { ...mockWatchlistRow, current_watch_status: WatchStatus.WATCHING };
+      mockExecute.mockResolvedValueOnce([[rowWithStatus]]);
 
       const result = await watchlistDb.getWatchlistForProfile(10);
 
-      expect(result[0].hasNewSeason).toBe(true);
+      expect(result[0].currentWatchStatus).toBe(WatchStatus.WATCHING);
+    });
+
+    it('should default a null current_watch_status to NOT_WATCHED', async () => {
+      const rowWithNullStatus = { ...mockWatchlistRow, current_watch_status: null as unknown as WatchStatus };
+      mockExecute.mockResolvedValueOnce([[rowWithNullStatus]]);
+
+      const result = await watchlistDb.getWatchlistForProfile(10);
+
+      expect(result[0].currentWatchStatus).toBe(WatchStatus.NOT_WATCHED);
     });
 
     it('should default null genres and streaming_services to empty string', async () => {

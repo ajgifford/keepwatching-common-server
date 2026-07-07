@@ -1,3 +1,4 @@
+import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as watchlistDb from '@db/watchlistDb';
 import { WatchlistService } from '@services/watchlistService';
 
@@ -18,7 +19,7 @@ describe('watchlistService', () => {
     genres: 'Drama, Crime',
     streamingServices: 'Netflix',
     runtime: 47,
-    hasNewSeason: false,
+    currentWatchStatus: WatchStatus.NOT_WATCHED,
   };
 
   beforeEach(() => {

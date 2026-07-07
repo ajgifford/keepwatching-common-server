@@ -1,7 +1,7 @@
 import { getDbPool } from '../utils/db';
 import { DbMonitor } from '../utils/dbMonitoring';
 import { handleDatabaseError } from '../utils/errorHandlingUtility';
-import { WatchlistContentType, WatchlistItem } from '@ajgifford/keepwatching-types';
+import { WatchStatus, WatchlistContentType, WatchlistItem } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 interface WatchlistRow extends RowDataPacket {
@@ -16,7 +16,7 @@ interface WatchlistRow extends RowDataPacket {
   genres: string;
   streaming_services: string;
   runtime: number | null;
-  has_new_season: 0 | 1;
+  current_watch_status: WatchStatus;
 }
 
 function transformWatchlistRow(row: WatchlistRow): WatchlistItem {
@@ -32,7 +32,7 @@ function transformWatchlistRow(row: WatchlistRow): WatchlistItem {
     genres: row.genres ?? '',
     streamingServices: row.streaming_services ?? '',
     runtime: row.runtime ?? null,
-    hasNewSeason: Boolean(row.has_new_season),
+    currentWatchStatus: row.current_watch_status ?? WatchStatus.NOT_WATCHED,
   };
 }
 
@@ -87,15 +87,16 @@ export async function getWatchlistForProfile(profileId: number): Promise<Watchli
             ))
             WHEN 'movie' THEN m.runtime
           END AS runtime,
-          CASE
-            WHEN wi.content_type = 'show' THEN (
-              SELECT IF(sws.status = 'UP_TO_DATE' AND s_inner.next_episode_to_air IS NOT NULL, 1, 0)
-              FROM show_watch_status sws
-              JOIN shows s_inner ON sws.show_id = s_inner.id
+          CASE wi.content_type
+            WHEN 'show' THEN (
+              SELECT sws.status FROM show_watch_status sws
               WHERE sws.show_id = wi.content_id AND sws.profile_id = wi.profile_id
             )
-            ELSE 0
-          END AS has_new_season
+            WHEN 'movie' THEN (
+              SELECT mws.status FROM movie_watch_status mws
+              WHERE mws.movie_id = wi.content_id AND mws.profile_id = wi.profile_id
+            )
+          END AS current_watch_status
         FROM watchlist_items wi
         LEFT JOIN shows s ON wi.content_type = 'show' AND wi.content_id = s.id
         LEFT JOIN movies m ON wi.content_type = 'movie' AND wi.content_id = m.id
