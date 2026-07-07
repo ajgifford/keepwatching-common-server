@@ -229,6 +229,23 @@ describe('WatchStatusDbService - Prior Watch Operations', () => {
       expect(result[0].episodeCount).toBe(50);
     });
 
+    it('should group by watched_at, not updated_at, so backdated Catch-Up Mode batches are not flagged', async () => {
+      // Regression test: Catch-Up Mode/Previously-Watched batches correctly backdate watched_at
+      // per-episode to each episode's air date, so a 10+ episode batch is written to the DB
+      // "today" (same updated_at) but spread across many different watched_at dates. Grouping
+      // on updated_at previously treated every such batch as a false-positive burst-mark.
+      mockPool.execute.mockResolvedValueOnce([[]]);
+
+      await watchStatusDbService.detectBulkMarkedShows(profileId);
+
+      const [queryText] = mockPool.execute.mock.calls[0];
+      expect(queryText).toEqual(expect.stringContaining('DATE(ews.watched_at) AS markDate'));
+      expect(queryText).toEqual(
+        expect.stringContaining('GROUP BY sh.id, sh.title, sh.poster_image, DATE(ews.watched_at)'),
+      );
+      expect(queryText).not.toEqual(expect.stringContaining('updated_at'));
+    });
+
     it('should return empty array when no bulk-marked shows exist', async () => {
       mockPool.execute.mockResolvedValueOnce([[]]);
 

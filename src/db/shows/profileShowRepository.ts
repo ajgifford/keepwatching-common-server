@@ -233,6 +233,10 @@ async function getShowSeasons(profileId: number, showId: number): Promise<Profil
  * - Supports out-of-order season watching (e.g., watching seasons 26, 28, 41 simultaneously)
  * - Estimated improvement: 500-1000ms → 50-150ms
  *
+ * Seasons with season_watch_status = 'SKIPPED' are excluded from every candidate query below —
+ * skipping a season is an explicit "not watching this" choice and its episodes (even if a user
+ * later marks one individually watched) should never resurface as "next up".
+ *
  * @param profileId - ID of the profile to get next unwatched episodes for
  * @returns Array of shows with their next unwatched episodes, ordered by most recently watched
  * @throws {DatabaseError} If a database error occurs during the operation
@@ -266,8 +270,12 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
               LEFT JOIN episode_watch_status ews2
                 ON e2.id = ews2.episode_id
                 AND ews2.profile_id = ?
+              LEFT JOIN season_watch_status sws2
+                ON e2.season_id = sws2.season_id
+                AND sws2.profile_id = ?
               WHERE e2.show_id = s.id
                 AND (ews2.status IS NULL OR ews2.status != 'WATCHED')
+                AND (sws2.status IS NULL OR sws2.status != 'SKIPPED')
                 AND e2.air_date IS NOT NULL
                 AND e2.air_date <= CURDATE()
               LIMIT 1
@@ -294,8 +302,12 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
               LEFT JOIN episode_watch_status ews2
                 ON e2.id = ews2.episode_id
                 AND ews2.profile_id = ?
+              LEFT JOIN season_watch_status sws2
+                ON e2.season_id = sws2.season_id
+                AND sws2.profile_id = ?
               WHERE e2.show_id = s.id
                 AND (ews2.status IS NULL OR ews2.status != 'WATCHED')
+                AND (sws2.status IS NULL OR sws2.status != 'SKIPPED')
                 AND e2.air_date IS NOT NULL
                 AND e2.air_date <= CURDATE()
               LIMIT 1
@@ -313,7 +325,11 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
           INNER JOIN episode_watch_status ews
             ON ews.episode_id = e.id
             AND ews.profile_id = ?
+          LEFT JOIN season_watch_status sws
+            ON e.season_id = sws.season_id
+            AND sws.profile_id = ?
           WHERE ews.status = 'WATCHED'
+            AND (sws.status IS NULL OR sws.status != 'SKIPPED')
         ),
         next_episodes_per_active_season AS (
           SELECT
@@ -403,8 +419,12 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
                 LEFT JOIN episode_watch_status ews2
                   ON e2.id = ews2.episode_id
                   AND ews2.profile_id = ?
+                LEFT JOIN season_watch_status sws2
+                  ON e2.season_id = sws2.season_id
+                  AND sws2.profile_id = ?
                 WHERE e2.show_id = rs.show_id
                   AND (ews2.status IS NULL OR ews2.status != 'WATCHED')
+                  AND (sws2.status IS NULL OR sws2.status != 'SKIPPED')
                   AND e2.air_date IS NOT NULL
                   AND e2.air_date <= CURDATE()
               )
@@ -468,13 +488,17 @@ export async function getNextUnwatchedEpisodesForProfile(profileId: number): Pro
 
       const [rows] = await pool.execute<OptimizedResultRow[]>(query, [
         profileId, // recent_shows: original branch profile filter
-        profileId, // recent_shows: original branch EXISTS subquery
+        profileId, // recent_shows: original branch EXISTS subquery (episode watch status)
+        profileId, // recent_shows: original branch EXISTS subquery (season watch status, excludes SKIPPED)
         profileId, // recent_shows: rewatch branch profile filter
-        profileId, // recent_shows: rewatch branch EXISTS subquery
-        profileId, // active_seasons
+        profileId, // recent_shows: rewatch branch EXISTS subquery (episode watch status)
+        profileId, // recent_shows: rewatch branch EXISTS subquery (season watch status, excludes SKIPPED)
+        profileId, // active_seasons (episode watch status)
+        profileId, // active_seasons (season watch status, excludes SKIPPED)
         profileId, // next_episodes_per_active_season
         profileId, // fallback_episodes inner
-        profileId, // fallback_episodes MIN subquery
+        profileId, // fallback_episodes MIN subquery (episode watch status)
+        profileId, // fallback_episodes MIN subquery (season watch status, excludes SKIPPED)
       ]);
 
       if (rows.length === 0) {

@@ -170,6 +170,69 @@ describe('WatchStatusDbService - Episode Operations', () => {
       });
     });
 
+    it('should not overwrite a SKIPPED season status when a single episode is toggled', async () => {
+      // Regression test: toggling one episode inside a season the user explicitly skipped
+      // must not silently un-skip the season as a side effect. calculateSeasonStatus has no
+      // concept of SKIPPED, so it must never be consulted when the stored season status is SKIPPED.
+      const episodeRow = createMockEpisodeExtendedRow({
+        id: episodeId,
+        season_id: seasonId,
+        show_id: showId,
+        status: 'NOT_WATCHED',
+        season_status: 'SKIPPED',
+        show_status: 'WATCHING',
+        air_date: '2023-01-15',
+        season_air_date: '2023-01-01',
+        show_air_date: '2023-01-01',
+        show_in_production: 1,
+      });
+
+      const seasonEpisodesRows = [
+        createMockEpisodeRow({ id: episodeId, season_id: seasonId, status: WatchStatus.WATCHED }),
+        createMockEpisodeRow({ id: episodeId + 1, season_id: seasonId, status: WatchStatus.NOT_WATCHED }),
+      ];
+
+      const showSeasons = [createMockSeasonRow({ id: seasonId, show_id: showId, status: 'SKIPPED' })];
+
+      const updateResult = {
+        affectedRows: 1,
+        insertId: 1,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      const noUpdateResult = {
+        affectedRows: 0,
+        insertId: 0,
+        info: '',
+        serverStatus: 0,
+        warningStatus: 0,
+        changedRows: 0,
+        fieldCount: 0,
+      } as ResultSetHeader;
+
+      mockConnection.execute
+        .mockResolvedValueOnce([[episodeRow], []]) // Episode query
+        .mockResolvedValueOnce([updateResult, []]) // Episode update
+        .mockResolvedValueOnce([noUpdateResult, []]) // Episodes in season update
+        .mockResolvedValueOnce([seasonEpisodesRows, []]) // Season episodes query
+        .mockResolvedValueOnce([showSeasons, []]); // Show seasons query (no season update in between)
+
+      // Show status also stays the same, so no show update call is issued either.
+      mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHING);
+
+      const result = await watchStatusDbService.updateEpisodeWatchStatus(profileId, episodeId, WatchStatus.WATCHED);
+
+      expect(result.success).toBe(true);
+      expect(mockWatchStatusManager.calculateSeasonStatus).not.toHaveBeenCalled();
+
+      const seasonChange = result.changes.find((change) => change.entityType === 'season');
+      expect(seasonChange).toBeUndefined();
+    });
+
     it('should handle episode not found', async () => {
       mockConnection.execute.mockResolvedValueOnce([[], []]);
 

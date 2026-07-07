@@ -556,6 +556,36 @@ describe('WatchStatusManager', () => {
       expect(status).toBe(WatchStatus.UP_TO_DATE);
     });
 
+    it('should return UP_TO_DATE (not WATCHING) when SKIPPED seasons still carry their untouched episode data', () => {
+      // Regression test: skipping a season never clears its episode_watch_status rows, so a
+      // real SKIPPED season still carries its full episode list (all NOT_WATCHED) — unlike the
+      // empty-array shape used in the tests above. A show with seasons 1-2 skipped, 3-8 watched,
+      // and season 9 unaired previously computed as WATCHING instead of UP_TO_DATE because the
+      // SKIPPED seasons, having real episode data, fell through to calculateSeasonStatus (which
+      // has no concept of SKIPPED) and were miscounted as NOT_WATCHED.
+      const skippedSeason1Episodes: WatchStatusEpisode[] = [
+        { id: 1, seasonId: 1, airDate: new Date('2024-01-01'), watchStatus: WatchStatus.NOT_WATCHED },
+        { id: 2, seasonId: 1, airDate: new Date('2024-01-08'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
+      const skippedSeason2Episodes: WatchStatusEpisode[] = [
+        { id: 3, seasonId: 2, airDate: new Date('2024-02-01'), watchStatus: WatchStatus.NOT_WATCHED },
+      ];
+      const watchedSeasonEpisodes: WatchStatusEpisode[] = [
+        { id: 4, seasonId: 3, airDate: new Date('2024-03-01'), watchStatus: WatchStatus.WATCHED },
+      ];
+      const seasons = [
+        createMockSeason(1, new Date('2024-01-01'), skippedSeason1Episodes, WatchStatus.SKIPPED),
+        createMockSeason(2, new Date('2024-02-01'), skippedSeason2Episodes, WatchStatus.SKIPPED),
+        createMockSeason(3, new Date('2024-03-01'), watchedSeasonEpisodes, WatchStatus.WATCHED),
+      ];
+      const show = createMockShow(seasons, new Date('2024-01-01'), true);
+      const now = new Date('2025-06-21');
+
+      const status = watchStatusManager.calculateShowStatus(show, now);
+
+      expect(status).toBe(WatchStatus.UP_TO_DATE);
+    });
+
     it('should return WATCHING when mix of SKIPPED and NOT_WATCHED seasons', () => {
       const season3Episodes: WatchStatusEpisode[] = [
         { id: 1, seasonId: 3, airDate: new Date('2024-03-01'), watchStatus: WatchStatus.NOT_WATCHED },

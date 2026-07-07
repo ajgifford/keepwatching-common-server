@@ -498,8 +498,14 @@ describe('profileShowRepository', () => {
       expect(mockExecute).toHaveBeenCalledTimes(1);
       expect(mockExecute).toHaveBeenCalledWith(
         expect.stringContaining('WITH recent_shows AS'),
-        [123, 123, 123, 123, 123, 123, 123, 123],
+        [123, 123, 123, 123, 123, 123, 123, 123, 123, 123, 123, 123],
       );
+
+      // Regression guard: seasons the profile has skipped must never surface as "next up",
+      // even if a user later marks an individual episode inside one watched.
+      const [queryText] = mockExecute.mock.calls[0];
+      expect(queryText).toEqual(expect.stringContaining("sws2.status != 'SKIPPED'"));
+      expect(queryText).toEqual(expect.stringContaining("sws.status != 'SKIPPED'"));
 
       expect(result).toHaveLength(2);
 

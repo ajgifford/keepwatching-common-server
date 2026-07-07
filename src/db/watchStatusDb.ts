@@ -286,7 +286,12 @@ export class WatchStatusDbService {
       watchStatus: episode.seasonWatchStatus,
     };
 
-    const newSeasonStatus = this.statusManager.calculateSeasonStatus(seasonWithEpisodes);
+    // SKIPPED is an explicit user choice; episode statuses can't represent it, so skip the
+    // recalculation to avoid a single episode toggle silently un-skipping the season.
+    const newSeasonStatus =
+      episode.seasonWatchStatus === WatchStatus.SKIPPED
+        ? WatchStatus.SKIPPED
+        : this.statusManager.calculateSeasonStatus(seasonWithEpisodes);
 
     // Update season status if changed
     if (episode.seasonWatchStatus !== newSeasonStatus) {
@@ -1089,8 +1094,14 @@ export class WatchStatusDbService {
   }
 
   /**
-   * Find shows where the profile has 10 or more episodes marked watched on the same date,
+   * Find shows where the profile has 10 or more episodes with the same watched_at date,
    * none of which are flagged as prior watches. These are candidates for retroactive flagging.
+   *
+   * Groups on watched_at (the date the user is claiming to have watched it), not updated_at
+   * (when the row was written) — a Catch-Up Mode / "Previously Watched" batch correctly
+   * backdates watched_at per-episode to each episode's air date, so those rows are spread
+   * across many different dates even though they were all written to the DB today. Grouping
+   * on updated_at would treat every such batch as a false-positive burst-mark.
    *
    * @param profileId - ID of the profile to check
    * @returns Array of rows with show info and bulk-mark details
@@ -1105,9 +1116,9 @@ export class WatchStatusDbService {
             sh.id AS showId,
             sh.title,
             sh.poster_image AS posterImage,
-            DATE(ews.updated_at) AS markDate,
+            DATE(ews.watched_at) AS markDate,
             COUNT(*) AS episodeCount,
-            ROW_NUMBER() OVER (PARTITION BY sh.id ORDER BY COUNT(*) DESC, DATE(ews.updated_at) DESC) AS rn
+            ROW_NUMBER() OVER (PARTITION BY sh.id ORDER BY COUNT(*) DESC, DATE(ews.watched_at) DESC) AS rn
           FROM episode_watch_status ews
           JOIN episodes e ON e.id = ews.episode_id
           JOIN seasons se ON se.id = e.season_id
@@ -1115,7 +1126,7 @@ export class WatchStatusDbService {
           WHERE ews.profile_id = ?
             AND ews.status = 'WATCHED'
             AND ews.is_prior_watch = FALSE
-          GROUP BY sh.id, sh.title, sh.poster_image, DATE(ews.updated_at)
+          GROUP BY sh.id, sh.title, sh.poster_image, DATE(ews.watched_at)
           HAVING COUNT(*) >= 10
         ) ranked
         WHERE rn = 1
