@@ -1,11 +1,12 @@
 import { getProfileCreatedAt } from '../db/profilesDb';
+import { findShowById } from '../db/showsDb';
 import { WatchStatusDbService } from '../db/watchStatusDb';
 import { DatabaseError } from '../middleware/errorMiddleware';
 import { StatusChange, StatusUpdateResult } from '../types/watchStatusTypes';
-import { checkAndRecordAchievements } from './achievementDetectionService';
+import { checkAndRecordAchievements, detectShowCompletion } from './achievementDetectionService';
 import { errorService } from './errorService';
 import { showService } from './showService';
-import { UserWatchStatus } from '@ajgifford/keepwatching-types';
+import { UserWatchStatus, WatchStatus } from '@ajgifford/keepwatching-types';
 
 /**
  * Service for managing watch statuses for shows with centralized logic
@@ -23,6 +24,31 @@ export class WatchStatusService {
   }) {
     this.dbService = dependencies?.dbService ?? new WatchStatusDbService();
     this.checkAchievements = dependencies?.checkAchievements ?? checkAndRecordAchievements;
+  }
+
+  /**
+   * Detects a show-completion achievement from a status-update result's `changes` list. A show
+   * most commonly becomes WATCHED as a *side effect* of its last episode or season being marked
+   * watched (cascading recalculation), not through the explicit "mark whole show watched" action
+   * -- so this needs to run after every update that can trigger that cascade, not just the direct
+   * one. `detectShowCompletion` is itself dedup'd (unique per profile+show), so calling this from
+   * multiple flows for the same completion event is harmless.
+   */
+  private detectShowCompletionFromChanges(profileId: number, changes: StatusChange[]): void {
+    const showCompletion = changes.find((c) => c.entityType === 'show' && c.to === WatchStatus.WATCHED);
+    if (!showCompletion) {
+      return;
+    }
+
+    findShowById(showCompletion.entityId)
+      .then((show) => {
+        if (show) {
+          return detectShowCompletion(profileId, showCompletion.entityId, show.title);
+        }
+      })
+      .catch((err) => {
+        console.error('Error detecting show completion achievement:', err);
+      });
   }
 
   /**
@@ -52,6 +78,7 @@ export class WatchStatusService {
       this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after episode watch status update:', err);
       });
+      this.detectShowCompletionFromChanges(profileId, result.changes);
 
       return {
         success: true,
@@ -94,6 +121,7 @@ export class WatchStatusService {
       this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after season watch status update:', err);
       });
+      this.detectShowCompletionFromChanges(profileId, result.changes);
 
       return {
         success: true,
@@ -134,6 +162,7 @@ export class WatchStatusService {
       this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after show watch status update:', err);
       });
+      this.detectShowCompletionFromChanges(profileId, result.changes);
 
       return {
         success: true,
@@ -214,13 +243,14 @@ export class WatchStatusService {
         throw new DatabaseError('Failed to mark episodes as prior watched', null);
       }
 
-      await this.dbService.checkAndUpdateShowWatchStatus(profileId, showId);
+      const showStatusResult = await this.dbService.checkAndUpdateShowWatchStatus(profileId, showId);
 
       showService.invalidateProfileCache(accountId, profileId);
 
       this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after prior watch marking:', err);
       });
+      this.detectShowCompletionFromChanges(profileId, showStatusResult.changes);
 
       return {
         success: true,
@@ -260,13 +290,14 @@ export class WatchStatusService {
         throw new DatabaseError('Failed to mark episodes as prior watched', null);
       }
 
-      await this.dbService.checkAndUpdateShowWatchStatus(profileId, showId);
+      const showStatusResult = await this.dbService.checkAndUpdateShowWatchStatus(profileId, showId);
 
       showService.invalidateProfileCache(accountId, profileId);
 
       this.checkAchievements(profileId, accountId).catch((err) => {
         console.error('Error checking achievements after prior watch marking:', err);
       });
+      this.detectShowCompletionFromChanges(profileId, showStatusResult.changes);
 
       return {
         success: true,

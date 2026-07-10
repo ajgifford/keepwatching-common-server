@@ -1,5 +1,6 @@
 import { AchievementType, MILESTONE_THRESHOLDS } from '@ajgifford/keepwatching-types';
 import { ACCOUNT_KEYS, PROFILE_KEYS } from '@constants/cacheKeys';
+import { getProfileCreatedAt } from '@db/profilesDb';
 import * as statisticsDb from '@db/statisticsDb';
 import {
   batchCheckAchievements,
@@ -10,6 +11,7 @@ import { CacheService } from '@services/cacheService';
 
 // Mock dependencies
 jest.mock('@db/statisticsDb');
+jest.mock('@db/profilesDb');
 jest.mock('@services/cacheService');
 
 describe('AchievementDetectionService', () => {
@@ -27,6 +29,9 @@ describe('AchievementDetectionService', () => {
 
     // Mock getLatestWatchDate
     (statisticsDb.getLatestWatchDate as jest.Mock).mockResolvedValue(new Date());
+
+    // No profile creation date by default -- anniversary detection is a no-op unless a test opts in
+    (getProfileCreatedAt as jest.Mock).mockResolvedValue(null);
 
     // Mock cache service
     mockCacheService = {
@@ -337,6 +342,91 @@ describe('AchievementDetectionService', () => {
 
       expect(mockCacheService.invalidate).toHaveBeenCalledWith(PROFILE_KEYS.milestoneStats(profileId));
       expect(mockCacheService.invalidate).not.toHaveBeenCalledWith(ACCOUNT_KEYS.milestoneStats(expect.any(Number)));
+    });
+  });
+
+  describe('profile anniversary detection (via checkAndRecordAchievements)', () => {
+    const profileId = 1;
+
+    beforeEach(() => {
+      (statisticsDb.getAchievementsByType as jest.Mock).mockResolvedValue([]);
+      (statisticsDb.recordAchievement as jest.Mock).mockResolvedValue(1);
+    });
+
+    it('records an anniversary achievement once the first-year threshold has passed', async () => {
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      (getProfileCreatedAt as jest.Mock).mockResolvedValue(twoYearsAgo);
+
+      await checkAndRecordAchievements(profileId);
+
+      expect(statisticsDb.recordAchievement).toHaveBeenCalledWith(
+        profileId,
+        AchievementType.PROFILE_ANNIVERSARY,
+        1,
+        expect.any(Date),
+      );
+      expect(statisticsDb.recordAchievement).toHaveBeenCalledWith(
+        profileId,
+        AchievementType.PROFILE_ANNIVERSARY,
+        2,
+        expect.any(Date),
+      );
+    });
+
+    it('does not record an anniversary achievement before the profile is a year old', async () => {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      (getProfileCreatedAt as jest.Mock).mockResolvedValue(sixMonthsAgo);
+
+      await checkAndRecordAchievements(profileId);
+
+      expect(statisticsDb.recordAchievement).not.toHaveBeenCalledWith(
+        profileId,
+        AchievementType.PROFILE_ANNIVERSARY,
+        expect.any(Number),
+        expect.any(Date),
+      );
+    });
+
+    it('does not re-record an anniversary year that already exists', async () => {
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      (getProfileCreatedAt as jest.Mock).mockResolvedValue(twoYearsAgo);
+      (statisticsDb.getAchievementsByType as jest.Mock).mockImplementation((_pid, type) => {
+        if (type === AchievementType.PROFILE_ANNIVERSARY) {
+          return Promise.resolve([{ id: 1, thresholdValue: 1, achievementType: AchievementType.PROFILE_ANNIVERSARY }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await checkAndRecordAchievements(profileId);
+
+      expect(statisticsDb.recordAchievement).not.toHaveBeenCalledWith(
+        profileId,
+        AchievementType.PROFILE_ANNIVERSARY,
+        1,
+        expect.any(Date),
+      );
+      expect(statisticsDb.recordAchievement).toHaveBeenCalledWith(
+        profileId,
+        AchievementType.PROFILE_ANNIVERSARY,
+        2,
+        expect.any(Date),
+      );
+    });
+
+    it('does nothing when the profile creation date is unknown', async () => {
+      (getProfileCreatedAt as jest.Mock).mockResolvedValue(null);
+
+      await checkAndRecordAchievements(profileId);
+
+      expect(statisticsDb.recordAchievement).not.toHaveBeenCalledWith(
+        profileId,
+        AchievementType.PROFILE_ANNIVERSARY,
+        expect.any(Number),
+        expect.any(Date),
+      );
     });
   });
 

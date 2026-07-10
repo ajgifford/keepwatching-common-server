@@ -1,7 +1,10 @@
 import { ACCOUNT_KEYS, PROFILE_KEYS } from '../constants/cacheKeys';
+import { getAllProfileIds, getProfileCreatedAt } from '../db/profilesDb';
 import * as statisticsDb from '../db/statisticsDb';
+import { getDbPool } from '../utils/db';
 import { CacheService } from './cacheService';
 import { AchievementType, MILESTONE_THRESHOLDS } from '@ajgifford/keepwatching-types';
+import { RowDataPacket } from 'mysql2';
 
 /**
  * Detect and record episode milestone achievements
@@ -143,6 +146,44 @@ async function detectHoursAchievements(profileId: number, currentHours: number):
 }
 
 /**
+ * Detect and record profile anniversary achievements. Anniversary year is used directly as the
+ * achievement's threshold value, which is what already dedups a repeat call for the same year
+ * via `recordAchievement`'s existing `(profile_id, achievement_type, threshold_value)` check.
+ */
+async function detectProfileAnniversary(profileId: number): Promise<number> {
+  const createdAt = await getProfileCreatedAt(profileId);
+  if (!createdAt) {
+    return 0;
+  }
+
+  const now = new Date();
+  let elapsedYears = now.getFullYear() - createdAt.getFullYear();
+  const anniversaryPassedThisYear =
+    now.getMonth() > createdAt.getMonth() ||
+    (now.getMonth() === createdAt.getMonth() && now.getDate() >= createdAt.getDate());
+  if (!anniversaryPassedThisYear) {
+    elapsedYears -= 1;
+  }
+
+  if (elapsedYears < 1) {
+    return 0;
+  }
+
+  const existingAchievements = await statisticsDb.getAchievementsByType(profileId, AchievementType.PROFILE_ANNIVERSARY);
+  const existingThresholds = new Set(existingAchievements.map((a) => a.thresholdValue));
+
+  let newAchievements = 0;
+  for (const year of MILESTONE_THRESHOLDS.anniversary) {
+    if (elapsedYears >= year && !existingThresholds.has(year)) {
+      const insertId = await statisticsDb.recordAchievement(profileId, AchievementType.PROFILE_ANNIVERSARY, year, now);
+      if (insertId > 0) newAchievements++;
+    }
+  }
+
+  return newAchievements;
+}
+
+/**
  * Detect and record show completion achievement
  */
 export async function detectShowCompletion(profileId: number, showId: number, showTitle: string): Promise<boolean> {
@@ -192,6 +233,9 @@ export async function checkAndRecordAchievements(profileId: number, accountId?: 
     // Check hours achievements
     totalNewAchievements += await detectHoursAchievements(profileId, counts.hours);
 
+    // Check profile anniversary achievements
+    totalNewAchievements += await detectProfileAnniversary(profileId);
+
     // Clear milestone cache if new achievements were recorded
     if (totalNewAchievements > 0) {
       const cacheService = CacheService.getInstance();
@@ -218,6 +262,66 @@ export async function batchCheckAchievements(profileIds: number[]): Promise<Map<
   for (const profileId of profileIds) {
     const newAchievements = await checkAndRecordAchievements(profileId);
     results.set(profileId, newAchievements);
+  }
+
+  return results;
+}
+
+interface WatchedShowRow extends RowDataPacket {
+  id: number;
+  title: string;
+}
+
+/**
+ * One-off backfill for `SHOW_COMPLETED` achievements a profile should already have earned.
+ * `detectShowCompletion` is only ever called from a status-update flow going forward (see
+ * `watchStatusService.ts`), so a show that was already WATCHED before that wiring existed has no
+ * achievement record for it. This scans a profile's currently-WATCHED shows and detects each one
+ * individually -- safe to re-run, since `detectShowCompletion`/`recordAchievement` already dedup
+ * per (profile, show).
+ *
+ * @param profileId - ID of the profile to backfill
+ * @returns Number of new achievements recorded
+ */
+export async function backfillShowCompletionAchievements(profileId: number): Promise<number> {
+  const [rows] = await getDbPool().execute<WatchedShowRow[]>(
+    `SELECT sh.id, sh.title
+     FROM show_watch_status sws
+     JOIN shows sh ON sh.id = sws.show_id
+     WHERE sws.profile_id = ? AND sws.status = 'WATCHED'`,
+    [profileId],
+  );
+
+  let newAchievements = 0;
+  for (const row of rows) {
+    const recorded = await detectShowCompletion(profileId, row.id, row.title);
+    if (recorded) {
+      newAchievements++;
+    }
+  }
+
+  if (newAchievements > 0) {
+    const cacheService = CacheService.getInstance();
+    cacheService.invalidate(PROFILE_KEYS.milestoneStats(profileId));
+  }
+
+  return newAchievements;
+}
+
+/**
+ * Runs `backfillShowCompletionAchievements` across every profile in the system.
+ */
+export async function backfillShowCompletionAchievementsForAllProfiles(): Promise<Map<number, number>> {
+  const profileIds = await getAllProfileIds();
+  const results = new Map<number, number>();
+
+  for (const profileId of profileIds) {
+    try {
+      results.set(profileId, await backfillShowCompletionAchievements(profileId));
+    } catch (error) {
+      console.error('Error backfilling show completion achievements for profile', profileId, error);
+      results.set(profileId, 0);
+    }
   }
 
   return results;

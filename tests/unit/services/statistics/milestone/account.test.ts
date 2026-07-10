@@ -79,6 +79,14 @@ describe('Statistics - Milestone - Account', () => {
             category: 'episodes',
           },
         ],
+        allAchievements: [
+          {
+            name: '1000 Episodes',
+            description: 'Watched 1000 episodes',
+            achievedDate: '2024-01-01',
+            category: 'episodes',
+          },
+        ],
       };
       const profile2Stats = {
         totalEpisodesWatched: 1200,
@@ -86,6 +94,14 @@ describe('Statistics - Milestone - Account', () => {
         totalHoursWatched: 2000,
         milestones: [],
         recentAchievements: [
+          {
+            name: '1000 Episodes',
+            description: 'Watched 1000 episodes',
+            achievedDate: '2024-02-01',
+            category: 'episodes',
+          },
+        ],
+        allAchievements: [
           {
             name: '1000 Episodes',
             description: 'Watched 1000 episodes',

@@ -12,7 +12,7 @@ import { Milestone } from '@ajgifford/keepwatching-types';
 export function calculateMilestones(
   current: number,
   thresholds: number[],
-  type: 'episodes' | 'movies' | 'hours',
+  type: 'episodes' | 'movies' | 'hours' | 'showsCompleted' | 'anniversary',
 ): Milestone[] {
   return thresholds.map((threshold) => {
     const achieved = current >= threshold;

@@ -715,6 +715,7 @@ export class AccountStatisticsService {
           let totalMoviesWatched = 0;
           let totalHoursWatched = 0;
           const achievements: Achievement[] = [];
+          const allAchievements: Achievement[] = [];
 
           // Track the earliest first episode and movie watched across all profiles
           let firstEpisodeWatchedAt: string | undefined;
@@ -730,6 +731,12 @@ export class AccountStatisticsService {
             // Add profile name to each achievement
             stats.recentAchievements.forEach((achievement) => {
               achievements.push({
+                ...achievement,
+                profileName,
+              });
+            });
+            stats.allAchievements.forEach((achievement) => {
+              allAchievements.push({
                 ...achievement,
                 profileName,
               });
@@ -759,6 +766,7 @@ export class AccountStatisticsService {
           const recentAchievements = achievements
             .sort((a, b) => b.achievedDate.localeCompare(a.achievedDate))
             .slice(0, 10);
+          const sortedAllAchievements = allAchievements.sort((a, b) => b.achievedDate.localeCompare(a.achievedDate));
 
           // Calculate milestones using the utility function
           const episodeThresholds = [10, 50, 100, 500, 1000, 5000, 10000];
@@ -777,6 +785,7 @@ export class AccountStatisticsService {
             totalHoursWatched,
             milestones,
             recentAchievements,
+            allAchievements: sortedAllAchievements,
             createdAt,
             firstEpisodeWatchedAt,
             firstMovieWatchedAt,

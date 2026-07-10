@@ -1,7 +1,9 @@
 import { StatusChange, StatusUpdateResult } from '../../../src/types/watchStatusTypes';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
 import * as profilesDb from '@db/profilesDb';
+import * as showsDb from '@db/showsDb';
 import { WatchStatusDbService } from '@db/watchStatusDb';
+import * as achievementDetectionService from '@services/achievementDetectionService';
 import { errorService } from '@services/errorService';
 import { showService } from '@services/showService';
 import {
@@ -14,6 +16,8 @@ import {
 // Mock dependencies
 jest.mock('@db/watchStatusDb');
 jest.mock('@db/profilesDb');
+jest.mock('@db/showsDb');
+jest.mock('@services/achievementDetectionService');
 jest.mock('@services/errorService');
 jest.mock('@services/showService');
 
@@ -41,12 +45,19 @@ describe('WatchStatusService', () => {
       retroactivelyMarkShowAsPrior: jest.fn(),
     } as any;
 
+    // Default: no show-status change, so prior-watch tests that don't care about show
+    // completion detection don't need to stub this themselves
+    mockDbService.checkAndUpdateShowWatchStatus.mockResolvedValue({ success: true, changes: [], affectedRows: 0 });
+
     // Mock checkAchievements
     mockCheckAchievements = jest.fn().mockResolvedValue(undefined);
 
     // Default: profile created well after all fixture air dates below, so the existing
     // "mark as prior watched" tests continue to route everything into the prior bucket.
     jest.mocked(profilesDb.getProfileCreatedAt).mockResolvedValue(new Date('2024-06-01'));
+
+    // Default: no show completion detection unless a test opts in with a specific show
+    jest.mocked(showsDb.findShowById).mockResolvedValue(null);
 
     // Create a new instance for each test with mocked dependencies
     service = createWatchStatusService({
@@ -119,6 +130,46 @@ describe('WatchStatusService', () => {
       await service.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
 
       expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
+    });
+
+    it('should not detect show completion when the cascading show change is not WATCHED', async () => {
+      mockDbService.updateEpisodeWatchStatus.mockResolvedValue(mockDbResult);
+
+      await service.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(showsDb.findShowById).not.toHaveBeenCalled();
+      expect(achievementDetectionService.detectShowCompletion).not.toHaveBeenCalled();
+    });
+
+    it('should detect show completion when marking the last episode cascades the show to WATCHED', async () => {
+      const showId = 789;
+      mockDbService.updateEpisodeWatchStatus.mockResolvedValue({
+        success: true,
+        changes: [
+          ...mockDbResult.changes.filter((c) => c.entityType !== 'show'),
+          {
+            entityType: 'show',
+            entityId: showId,
+            from: WatchStatus.WATCHING,
+            to: WatchStatus.WATCHED,
+            timestamp: new Date(),
+            reason: 'Episode status changed',
+          },
+        ],
+        affectedRows: 2,
+      });
+      jest
+        .mocked(showsDb.findShowById)
+        .mockResolvedValue({ id: showId, tmdbId: 999, title: 'Breaking Bad', releaseDate: '2008-01-20' });
+
+      await service.updateEpisodeWatchStatus(accountId, profileId, episodeId, status);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(showsDb.findShowById).toHaveBeenCalledWith(showId);
+      expect(achievementDetectionService.detectShowCompletion).toHaveBeenCalledWith(profileId, showId, 'Breaking Bad');
     });
 
     it('should throw DatabaseError when db service returns unsuccessful result', async () => {
@@ -241,6 +292,20 @@ describe('WatchStatusService', () => {
       await service.updateSeasonWatchStatus(accountId, profileId, seasonId, status);
 
       expect(showService.invalidateProfileCache).not.toHaveBeenCalled();
+    });
+
+    it('should detect show completion when marking the last season cascades the show to WATCHED', async () => {
+      mockDbService.updateSeasonWatchStatus.mockResolvedValue(mockDbResult);
+      jest
+        .mocked(showsDb.findShowById)
+        .mockResolvedValue({ id: 999, tmdbId: 999, title: 'The Wire', releaseDate: '2002-06-02' });
+
+      await service.updateSeasonWatchStatus(accountId, profileId, seasonId, status);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(showsDb.findShowById).toHaveBeenCalledWith(999);
+      expect(achievementDetectionService.detectShowCompletion).toHaveBeenCalledWith(profileId, 999, 'The Wire');
     });
 
     it('should throw DatabaseError when db service returns unsuccessful result', async () => {
@@ -392,6 +457,70 @@ describe('WatchStatusService', () => {
 
       expect(showService.invalidateProfileCache).toHaveBeenCalledWith(accountId, profileId);
       expect(mockCheckAchievements).toHaveBeenCalledWith(profileId, accountId);
+    });
+
+    it('should detect show completion when the show is marked WATCHED', async () => {
+      mockDbService.updateShowWatchStatus.mockResolvedValue(mockDbResult);
+      jest
+        .mocked(showsDb.findShowById)
+        .mockResolvedValue({ id: showId, tmdbId: 999, title: 'Breaking Bad', releaseDate: '2008-01-20' });
+
+      await service.updateShowWatchStatus(accountId, profileId, showId, status);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(showsDb.findShowById).toHaveBeenCalledWith(showId);
+      expect(achievementDetectionService.detectShowCompletion).toHaveBeenCalledWith(profileId, showId, 'Breaking Bad');
+    });
+
+    it('should not detect show completion when no change transitions the show to WATCHED', async () => {
+      mockDbService.updateShowWatchStatus.mockResolvedValue({
+        success: true,
+        changes: [
+          {
+            entityType: 'show',
+            entityId: showId,
+            from: WatchStatus.WATCHED,
+            to: WatchStatus.NOT_WATCHED,
+            timestamp: new Date(),
+            reason: 'User action',
+          },
+        ],
+        affectedRows: 1,
+      });
+
+      await service.updateShowWatchStatus(accountId, profileId, showId, WatchStatus.NOT_WATCHED);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(showsDb.findShowById).not.toHaveBeenCalled();
+      expect(achievementDetectionService.detectShowCompletion).not.toHaveBeenCalled();
+    });
+
+    it('should not detect show completion when the show cannot be found', async () => {
+      mockDbService.updateShowWatchStatus.mockResolvedValue(mockDbResult);
+      jest.mocked(showsDb.findShowById).mockResolvedValue(null);
+
+      await service.updateShowWatchStatus(accountId, profileId, showId, status);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(achievementDetectionService.detectShowCompletion).not.toHaveBeenCalled();
+    });
+
+    it('should swallow errors from show completion detection without rejecting', async () => {
+      mockDbService.updateShowWatchStatus.mockResolvedValue(mockDbResult);
+      jest.mocked(showsDb.findShowById).mockRejectedValue(new Error('lookup failed'));
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const result = await service.updateShowWatchStatus(accountId, profileId, showId, status);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(result.success).toBe(true);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error detecting show completion achievement:', expect.any(Error));
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -616,6 +745,35 @@ describe('WatchStatusService', () => {
       await service.markSeasonsAsPriorWatched(accountId, profileId, showId, 2);
 
       expect(mockDbService.getEpisodeAirDatesForShow).toHaveBeenCalledWith(profileId, showId, 2);
+    });
+
+    it('should detect show completion when the post-mark status recalculation cascades the show to WATCHED', async () => {
+      mockDbService.getEpisodeAirDatesForShow.mockResolvedValue(mockEpisodeMap);
+      mockDbService.markEpisodesAsPriorWatched.mockResolvedValue(mockDbResult);
+      mockDbService.checkAndUpdateShowWatchStatus.mockResolvedValue({
+        success: true,
+        changes: [
+          {
+            entityType: 'show',
+            entityId: showId,
+            from: WatchStatus.NOT_WATCHED,
+            to: WatchStatus.WATCHED,
+            timestamp: new Date(),
+            reason: 'Recalculated after prior watch marking',
+          },
+        ],
+        affectedRows: 1,
+      });
+      jest
+        .mocked(showsDb.findShowById)
+        .mockResolvedValue({ id: showId, tmdbId: 999, title: 'The Sopranos', releaseDate: '1999-01-10' });
+
+      await service.markSeasonsAsPriorWatched(accountId, profileId, showId);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(showsDb.findShowById).toHaveBeenCalledWith(showId);
+      expect(achievementDetectionService.detectShowCompletion).toHaveBeenCalledWith(profileId, showId, 'The Sopranos');
     });
 
     it('should return early with no-op message when episode map is empty', async () => {

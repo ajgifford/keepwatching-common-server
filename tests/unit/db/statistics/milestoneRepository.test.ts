@@ -70,6 +70,7 @@ describe('statisticsDb', () => {
         firstMovieWatchedAt: undefined,
         milestones: generateMilestones(0, 0, 0),
         recentAchievements: [],
+        allAchievements: [],
       };
       expect(result).toEqual(expectedResult);
     });
@@ -114,8 +115,9 @@ describe('statisticsDb', () => {
         createdAt: '2025-01-13T00:00:00.000Z',
         firstEpisodeWatchedAt: '2025-01-16T00:00:00.000Z',
         firstMovieWatchedAt: '2025-01-17T00:00:00.000Z',
-        milestones: generateMilestones(235, 15, 26),
+        milestones: generateMilestones(235, 15, 26, 0, elapsedAnniversaryYears('2025-01-13')),
         recentAchievements: [],
+        allAchievements: [],
       };
 
       const result = await getMilestoneStats(123);
@@ -169,14 +171,23 @@ describe('statisticsDb', () => {
         {
           achievedDate: now.toISOString(),
           description: '100 Episodes Watched',
+          achievementType: 'EPISODES_WATCHED',
+          thresholdValue: 100,
+          metadata: undefined,
         },
         {
           achievedDate: now.toISOString(),
           description: '50 Movies Watched',
+          achievementType: 'MOVIES_WATCHED',
+          thresholdValue: 50,
+          metadata: undefined,
         },
         {
           achievedDate: now.toISOString(),
           description: '100 Hours Watched',
+          achievementType: 'HOURS_WATCHED',
+          thresholdValue: 100,
+          metadata: undefined,
         },
       ];
 
@@ -187,8 +198,9 @@ describe('statisticsDb', () => {
         createdAt: '2025-01-13T00:00:00.000Z',
         firstEpisodeWatchedAt: '2025-01-16T00:00:00.000Z',
         firstMovieWatchedAt: '2025-01-17T00:00:00.000Z',
-        milestones: generateMilestones(108, 54, 105),
+        milestones: generateMilestones(108, 54, 105, 0, elapsedAnniversaryYears('2025-01-13')),
         recentAchievements,
+        allAchievements: recentAchievements,
       };
 
       const result = await getMilestoneStats(123);
@@ -418,7 +430,7 @@ describe('statisticsDb', () => {
 
       const result = await getMilestoneStats(123);
 
-      const expectedMilestones = generateMilestones(100, 50, 100);
+      const expectedMilestones = generateMilestones(100, 50, 100, 0, elapsedAnniversaryYears('2025-01-13'));
       expect(result.milestones).toEqual(expectedMilestones);
     });
 
@@ -766,13 +778,143 @@ describe('statisticsDb', () => {
       expect(result.recentAchievements[2].description).toBe('Completed: The Wire');
       expect(result.recentAchievements[3].description).toBe('10 Episode Binge Session');
     });
+
+    it('should include achievements older than 30 days in allAchievements but not in recentAchievements', async () => {
+      const mockRows = [
+        {
+          total_episodes_watched: 500,
+          total_movies_watched: 0,
+          total_runtime_minutes: 0,
+          profile_created_at: '2025-01-13',
+          first_episode_watched_at: '2025-01-16',
+          first_movie_watched_at: null,
+        },
+      ];
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
+
+      // Relative to the real clock, not `fixedDate` -- fake timers don't take effect for `new
+      // Date()` calls inside the ESM-imported repository module in this test setup (see the note
+      // on `elapsedAnniversaryYears` below).
+      const old = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000); // ~200 days ago
+      const recent = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000); // ~10 days ago
+
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
+        {
+          id: 1,
+          profileId: 123,
+          achievementType: 'EPISODES_WATCHED',
+          thresholdValue: 100,
+          achievedAt: old.toISOString(),
+          createdAt: old.toISOString(),
+        },
+        {
+          id: 2,
+          profileId: 123,
+          achievementType: 'EPISODES_WATCHED',
+          thresholdValue: 500,
+          achievedAt: recent.toISOString(),
+          createdAt: recent.toISOString(),
+        },
+      ]);
+
+      const result = await getMilestoneStats(123);
+
+      expect(result.allAchievements.length).toBe(2);
+      expect(result.recentAchievements.length).toBe(1);
+      expect(result.recentAchievements[0].thresholdValue).toBe(500);
+    });
+
+    it('should tier shows completed and profile anniversary into their own milestone categories', async () => {
+      const mockRows = [
+        {
+          total_episodes_watched: 0,
+          total_movies_watched: 0,
+          total_runtime_minutes: 0,
+          profile_created_at: '2022-01-01',
+          first_episode_watched_at: null,
+          first_movie_watched_at: null,
+        },
+      ];
+      mockPool.execute.mockResolvedValueOnce([mockRows]);
+
+      (getRecentAchievements as jest.Mock).mockResolvedValueOnce([
+        {
+          id: 1,
+          profileId: 123,
+          achievementType: 'SHOW_COMPLETED',
+          thresholdValue: 101,
+          achievedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          metadata: { showTitle: 'Show A', showId: 101 },
+        },
+        {
+          id: 2,
+          profileId: 123,
+          achievementType: 'SHOW_COMPLETED',
+          thresholdValue: 102,
+          achievedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          metadata: { showTitle: 'Show B', showId: 102 },
+        },
+      ]);
+
+      const result = await getMilestoneStats(123);
+
+      // Profile created 2022-01-01 -- comfortably past the 3-year mark but nowhere near 5, so
+      // these assertions hold regardless of exactly how many years have elapsed since then.
+      const showsCompletedMilestone = result.milestones.find((m) => m.type === 'showsCompleted' && m.threshold === 1);
+      expect(showsCompletedMilestone?.achieved).toBe(true);
+      const showsCompletedNextTier = result.milestones.find((m) => m.type === 'showsCompleted' && m.threshold === 5);
+      expect(showsCompletedNextTier?.achieved).toBe(false);
+
+      const anniversaryMilestone = result.milestones.find((m) => m.type === 'anniversary' && m.threshold === 3);
+      expect(anniversaryMilestone?.achieved).toBe(true);
+      const anniversaryNextTier = result.milestones.find((m) => m.type === 'anniversary' && m.threshold === 5);
+      expect(anniversaryNextTier?.achieved).toBe(false);
+    });
   });
 });
 
-function generateMilestones(episodes: number, movies: number, hours: number): Milestone[] {
+// Mirrors the private `elapsedAnniversaryYears` logic in milestoneRepository.ts. Fake timers
+// (`jest.useFakeTimers()` / `setSystemTime` above) do not take effect for `new Date()` calls
+// inside the ESM-imported repository module in this project's ts-jest/ESM setup, so tests that
+// depend on "years elapsed since a given date" compute against the real clock instead of the
+// nominal fixedDate, matching what the source function actually sees at runtime.
+function elapsedAnniversaryYears(profileCreatedAt: string): number {
+  const createdAt = new Date(profileCreatedAt);
+  const now = new Date();
+  let years = now.getFullYear() - createdAt.getFullYear();
+  const anniversaryPassedThisYear =
+    now.getMonth() > createdAt.getMonth() ||
+    (now.getMonth() === createdAt.getMonth() && now.getDate() >= createdAt.getDate());
+  if (!anniversaryPassedThisYear) {
+    years -= 1;
+  }
+  return Math.max(years, 0);
+}
+
+function generateMilestones(
+  episodes: number,
+  movies: number,
+  hours: number,
+  showsCompleted: number = 0,
+  anniversaryYears: number = 0,
+): Milestone[] {
   const episodeMilestones = calculateMilestones(episodes, MILESTONE_THRESHOLDS.episodes, 'episodes');
   const movieMilestones = calculateMilestones(movies, MILESTONE_THRESHOLDS.movies, 'movies');
   const hourMilestones = calculateMilestones(hours, MILESTONE_THRESHOLDS.hours, 'hours');
+  const showsCompletedMilestones = calculateMilestones(
+    showsCompleted,
+    MILESTONE_THRESHOLDS.showsCompleted,
+    'showsCompleted',
+  );
+  const anniversaryMilestones = calculateMilestones(anniversaryYears, MILESTONE_THRESHOLDS.anniversary, 'anniversary');
 
-  return [...episodeMilestones, ...movieMilestones, ...hourMilestones];
+  return [
+    ...episodeMilestones,
+    ...movieMilestones,
+    ...hourMilestones,
+    ...showsCompletedMilestones,
+    ...anniversaryMilestones,
+  ];
 }

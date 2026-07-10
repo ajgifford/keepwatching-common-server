@@ -5,6 +5,21 @@ import { calculateMilestones } from '../../utils/statisticsUtil';
 import { getRecentAchievements } from './achievementRepository';
 import { Achievement, AchievementType, MILESTONE_THRESHOLDS, MilestoneStats } from '@ajgifford/keepwatching-types';
 
+function elapsedAnniversaryYears(profileCreatedAt: Date | null): number {
+  if (!profileCreatedAt) {
+    return 0;
+  }
+  const now = new Date();
+  let years = now.getFullYear() - profileCreatedAt.getFullYear();
+  const anniversaryPassedThisYear =
+    now.getMonth() > profileCreatedAt.getMonth() ||
+    (now.getMonth() === profileCreatedAt.getMonth() && now.getDate() >= profileCreatedAt.getDate());
+  if (!anniversaryPassedThisYear) {
+    years -= 1;
+  }
+  return Math.max(years, 0);
+}
+
 /**
  * Get milestone statistics for a profile
  * Includes total counts, milestone progress, and recent achievements
@@ -86,56 +101,70 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
       firstMovieAchievement?.achievedAt ||
       (counts.first_movie_watched_at ? new Date(counts.first_movie_watched_at).toISOString() : undefined);
 
+    // Shows completed and profile anniversary counts, for their own tiered milestones
+    const totalShowsCompleted = allAchievements.filter(
+      (a) => a.achievementType === AchievementType.SHOW_COMPLETED,
+    ).length;
+    const elapsedYears = elapsedAnniversaryYears(
+      counts.profile_created_at ? new Date(counts.profile_created_at) : null,
+    );
+
     // Calculate milestones for each category
     const episodeMilestones = calculateMilestones(totalEpisodesWatched, MILESTONE_THRESHOLDS.episodes, 'episodes');
     const movieMilestones = calculateMilestones(totalMoviesWatched, MILESTONE_THRESHOLDS.movies, 'movies');
     const hourMilestones = calculateMilestones(totalHoursWatched, MILESTONE_THRESHOLDS.hours, 'hours');
+    const showsCompletedMilestones = calculateMilestones(
+      totalShowsCompleted,
+      MILESTONE_THRESHOLDS.showsCompleted,
+      'showsCompleted',
+    );
+    const anniversaryMilestones = calculateMilestones(elapsedYears, MILESTONE_THRESHOLDS.anniversary, 'anniversary');
 
     // Combine all milestones
-    const allMilestones = [...episodeMilestones, ...movieMilestones, ...hourMilestones];
+    const allMilestones = [
+      ...episodeMilestones,
+      ...movieMilestones,
+      ...hourMilestones,
+      ...showsCompletedMilestones,
+      ...anniversaryMilestones,
+    ];
 
-    // Format achievements for the response
-    const recentAchievements: Achievement[] = achievementRecords.map((record) => {
-      let description: string;
-
+    const describeAchievement = (record: (typeof allAchievements)[number]): string => {
       switch (record.achievementType) {
         case AchievementType.EPISODES_WATCHED:
-          description = `${record.thresholdValue} Episodes Watched`;
-          break;
+          return `${record.thresholdValue} Episodes Watched`;
         case AchievementType.MOVIES_WATCHED:
-          description = `${record.thresholdValue} Movies Watched`;
-          break;
+          return `${record.thresholdValue} Movies Watched`;
         case AchievementType.HOURS_WATCHED:
-          description = `${record.thresholdValue} Hours Watched`;
-          break;
+          return `${record.thresholdValue} Hours Watched`;
         case AchievementType.FIRST_EPISODE:
-          description = 'First Episode Watched';
-          break;
+          return 'First Episode Watched';
         case AchievementType.FIRST_MOVIE:
-          description = 'First Movie Watched';
-          break;
+          return 'First Movie Watched';
         case AchievementType.SHOW_COMPLETED:
-          description = `Completed: ${record.metadata?.showTitle || 'Show'}`;
-          break;
+          return `Completed: ${record.metadata?.showTitle || 'Show'}`;
         case AchievementType.WATCH_STREAK:
-          description = `${record.thresholdValue} Day Watch Streak`;
-          break;
+          return `${record.thresholdValue} Day Watch Streak`;
         case AchievementType.BINGE_SESSION:
-          description = `${record.thresholdValue} Episode Binge Session`;
-          break;
+          return `${record.thresholdValue} Episode Binge Session`;
         case AchievementType.PROFILE_ANNIVERSARY:
-          description = `${record.thresholdValue} Year Anniversary`;
-          break;
+          return `${record.thresholdValue} Year Anniversary`;
         default:
-          description = `Achievement: ${record.thresholdValue}`;
+          return `Achievement: ${record.thresholdValue}`;
       }
+    };
 
-      return {
-        description,
-        achievedDate: record.achievedAt,
-        metadata: record.metadata,
-      };
+    const toAchievement = (record: (typeof allAchievements)[number]): Achievement => ({
+      description: describeAchievement(record),
+      achievedDate: record.achievedAt,
+      achievementType: record.achievementType,
+      thresholdValue: record.thresholdValue,
+      metadata: record.metadata,
     });
+
+    // Format achievements for the response
+    const recentAchievements: Achievement[] = achievementRecords.map(toAchievement);
+    const formattedAllAchievements: Achievement[] = allAchievements.map(toAchievement);
 
     // Include metadata for first episode and movie achievements
     const firstEpisodeMetadata = firstEpisodeAchievement?.metadata;
@@ -150,6 +179,7 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
       firstMovieWatchedAt,
       milestones: allMilestones,
       recentAchievements,
+      allAchievements: formattedAllAchievements,
       firstEpisodeMetadata,
       firstMovieMetadata,
     };

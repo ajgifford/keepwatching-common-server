@@ -288,6 +288,18 @@ CREATE TABLE profile_recommendations (
 	FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE
 );
 
+CREATE TABLE milestone_achievements (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	profile_id INT NOT NULL,
+	achievement_type VARCHAR(50) NOT NULL,
+	threshold_value INT NOT NULL,
+	achieved_at DATETIME NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	metadata JSON NULL,
+	UNIQUE KEY uq_profile_achievement (profile_id, achievement_type, threshold_value),
+	FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS person_update_failures (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
     person_id     BIGINT       NULL,
