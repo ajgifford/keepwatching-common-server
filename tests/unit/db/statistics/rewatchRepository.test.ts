@@ -40,6 +40,17 @@ describe('rewatchRepository', () => {
           rewatch_count: 4,
         },
       ];
+      const seasonTotalRows = [{ total: 2 }];
+      const seasonRows = [
+        {
+          season_id: 300,
+          show_id: 1,
+          show_title: 'Breaking Bad',
+          season_number: 1,
+          season_name: 'Season 1',
+          rewatch_count: 2,
+        },
+      ];
 
       mockPool.execute
         .mockResolvedValueOnce([showTotalRows])
@@ -48,15 +59,18 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([movieRows])
         .mockResolvedValueOnce([episodeTotalRows])
         .mockResolvedValueOnce([episodeRows])
+        .mockResolvedValueOnce([seasonTotalRows])
+        .mockResolvedValueOnce([seasonRows])
         .mockResolvedValueOnce([[]]);
 
       const result = await getProfileRewatchStats(123);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(7);
+      expect(mockPool.execute).toHaveBeenCalledTimes(9);
       expect(result).toEqual({
         totalShowRewatches: 5,
         totalMovieRewatches: 3,
         totalEpisodeRewatches: 4,
+        totalSeasonRewatches: 2,
         mostRewatchedShows: [
           { showId: 1, showTitle: 'Breaking Bad', rewatchCount: 3 },
           { showId: 2, showTitle: 'The Wire', rewatchCount: 2 },
@@ -73,6 +87,16 @@ describe('rewatchRepository', () => {
             rewatchCount: 4,
           },
         ],
+        mostRewatchedSeasons: [
+          {
+            seasonId: 300,
+            showId: 1,
+            showTitle: 'Breaking Bad',
+            seasonNumber: 1,
+            seasonName: 'Season 1',
+            rewatchCount: 2,
+          },
+        ],
         topRewatchedShowsByEpisodes: [],
       });
     });
@@ -85,6 +109,8 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]]);
 
       const result = await getProfileRewatchStats(123);
@@ -93,18 +119,22 @@ describe('rewatchRepository', () => {
         totalShowRewatches: 0,
         totalMovieRewatches: 0,
         totalEpisodeRewatches: 0,
+        totalSeasonRewatches: 0,
         mostRewatchedShows: [],
         mostRewatchedMovies: [],
         mostRewatchedEpisodes: [],
+        mostRewatchedSeasons: [],
         topRewatchedShowsByEpisodes: [],
       });
     });
 
-    it('should query show_watch_status, movie_watch_status, and episode_watch_history with the profileId', async () => {
+    it('should query show_watch_status, movie_watch_status, episode_watch_history, and season_watch_history with the profileId', async () => {
       mockPool.execute
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
@@ -125,9 +155,14 @@ describe('rewatchRepository', () => {
       expect(calls[4][1]).toEqual([456]);
       expect(calls[5][0]).toContain('ORDER BY rewatch_count DESC');
       expect(calls[5][1]).toEqual([456]);
-      expect(calls[6][0]).toContain('episode_watch_history');
-      expect(calls[6][0]).toContain('ORDER BY total_rewatch_count DESC');
+      expect(calls[6][0]).toContain('season_watch_history');
       expect(calls[6][1]).toEqual([456]);
+      expect(calls[7][0]).toContain('season_watch_history');
+      expect(calls[7][0]).toContain('ORDER BY rewatch_count DESC');
+      expect(calls[7][1]).toEqual([456]);
+      expect(calls[8][0]).toContain('episode_watch_history');
+      expect(calls[8][0]).toContain('ORDER BY total_rewatch_count DESC');
+      expect(calls[8][1]).toEqual([456]);
     });
 
     it('should limit top rewatch lists to 10 entries and top shows to 5', async () => {
@@ -138,6 +173,8 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]]);
 
       await getProfileRewatchStats(1);
@@ -145,7 +182,8 @@ describe('rewatchRepository', () => {
       expect(mockPool.execute.mock.calls[2][0]).toContain('LIMIT 10');
       expect(mockPool.execute.mock.calls[3][0]).toContain('LIMIT 10');
       expect(mockPool.execute.mock.calls[5][0]).toContain('LIMIT 10');
-      expect(mockPool.execute.mock.calls[6][0]).toContain('LIMIT 5');
+      expect(mockPool.execute.mock.calls[7][0]).toContain('LIMIT 10');
+      expect(mockPool.execute.mock.calls[8][0]).toContain('LIMIT 5');
     });
 
     it('should coerce numeric total to 0 when total is falsy', async () => {
@@ -156,6 +194,8 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]]);
 
       const result = await getProfileRewatchStats(1);
@@ -163,6 +203,7 @@ describe('rewatchRepository', () => {
       expect(result.totalShowRewatches).toBe(0);
       expect(result.totalMovieRewatches).toBe(0);
       expect(result.totalEpisodeRewatches).toBe(0);
+      expect(result.totalSeasonRewatches).toBe(0);
     });
 
     it('should exclude single-watch episodes from the most-rewatched episode list', async () => {
@@ -173,11 +214,30 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]]);
 
       await getProfileRewatchStats(1);
 
       expect(mockPool.execute.mock.calls[5][0]).toContain('HAVING COUNT(*) > 1');
+    });
+
+    it('should exclude single-watch seasons from the most-rewatched season list', async () => {
+      mockPool.execute
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[]]);
+
+      await getProfileRewatchStats(1);
+
+      expect(mockPool.execute.mock.calls[7][0]).toContain('HAVING COUNT(*) > 1');
     });
 
     it('should not issue a follow-up query when no shows have rewatched episodes', async () => {
@@ -188,11 +248,13 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]]);
 
       const result = await getProfileRewatchStats(1);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(7);
+      expect(mockPool.execute).toHaveBeenCalledTimes(9);
       expect(result.topRewatchedShowsByEpisodes).toEqual([]);
     });
 
@@ -246,13 +308,15 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([showEpisodeSummaryRows])
         .mockResolvedValueOnce([showEpisodeRows]);
 
       const result = await getProfileRewatchStats(1);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(8);
-      const followUpCall = mockPool.execute.mock.calls[7];
+      expect(mockPool.execute).toHaveBeenCalledTimes(10);
+      const followUpCall = mockPool.execute.mock.calls[9];
       expect(followUpCall[0]).toContain('e.show_id IN (?)');
       expect(followUpCall[1]).toEqual([1, 1]);
 
@@ -319,6 +383,18 @@ describe('rewatchRepository', () => {
           profile_name: 'Alice',
         },
       ];
+      const seasonTotalRows = [{ total: 3 }];
+      const seasonRows = [
+        {
+          season_id: 400,
+          show_id: 1,
+          show_title: 'The Sopranos',
+          season_number: 1,
+          season_name: 'Season 1',
+          rewatch_count: 3,
+          profile_name: 'Alice',
+        },
+      ];
 
       mockPool.execute
         .mockResolvedValueOnce([showTotalRows])
@@ -327,15 +403,18 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([movieRows])
         .mockResolvedValueOnce([episodeTotalRows])
         .mockResolvedValueOnce([episodeRows])
+        .mockResolvedValueOnce([seasonTotalRows])
+        .mockResolvedValueOnce([seasonRows])
         .mockResolvedValueOnce([[]]);
 
       const result = await getAccountRewatchStats(7);
 
-      expect(mockPool.execute).toHaveBeenCalledTimes(7);
+      expect(mockPool.execute).toHaveBeenCalledTimes(9);
       expect(result).toEqual({
         totalShowRewatches: 8,
         totalMovieRewatches: 4,
         totalEpisodeRewatches: 6,
+        totalSeasonRewatches: 3,
         mostRewatchedShows: [{ showId: 1, showTitle: 'The Sopranos', rewatchCount: 4, profileName: 'Alice' }],
         mostRewatchedMovies: [{ movieId: 20, movieTitle: 'The Matrix', rewatchCount: 4, profileName: 'Bob' }],
         mostRewatchedEpisodes: [
@@ -347,6 +426,17 @@ describe('rewatchRepository', () => {
             episodeNumber: 1,
             episodeTitle: 'Pilot',
             rewatchCount: 6,
+            profileName: 'Alice',
+          },
+        ],
+        mostRewatchedSeasons: [
+          {
+            seasonId: 400,
+            showId: 1,
+            showTitle: 'The Sopranos',
+            seasonNumber: 1,
+            seasonName: 'Season 1',
+            rewatchCount: 3,
             profileName: 'Alice',
           },
         ],
@@ -362,6 +452,8 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]]);
 
       const result = await getAccountRewatchStats(7);
@@ -370,9 +462,11 @@ describe('rewatchRepository', () => {
         totalShowRewatches: 0,
         totalMovieRewatches: 0,
         totalEpisodeRewatches: 0,
+        totalSeasonRewatches: 0,
         mostRewatchedShows: [],
         mostRewatchedMovies: [],
         mostRewatchedEpisodes: [],
+        mostRewatchedSeasons: [],
         topRewatchedShowsByEpisodes: [],
       });
     });
@@ -382,6 +476,8 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
@@ -403,9 +499,14 @@ describe('rewatchRepository', () => {
       expect(calls[4][1]).toEqual([99]);
       expect(calls[5][0]).toContain('p.name AS profile_name');
       expect(calls[5][1]).toEqual([99]);
-      expect(calls[6][0]).toContain('p.name AS profile_name');
-      expect(calls[6][0]).toContain('pr.account_id = ?');
+      expect(calls[6][0]).toContain('JOIN profiles p');
+      expect(calls[6][0]).toContain('p.account_id = ?');
       expect(calls[6][1]).toEqual([99]);
+      expect(calls[7][0]).toContain('p.name AS profile_name');
+      expect(calls[7][1]).toEqual([99]);
+      expect(calls[8][0]).toContain('p.name AS profile_name');
+      expect(calls[8][0]).toContain('pr.account_id = ?');
+      expect(calls[8][1]).toEqual([99]);
     });
 
     it('should limit top rewatch lists to 10 entries and top shows to 5', async () => {
@@ -416,6 +517,8 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[]]);
 
       await getAccountRewatchStats(1);
@@ -423,10 +526,11 @@ describe('rewatchRepository', () => {
       expect(mockPool.execute.mock.calls[2][0]).toContain('LIMIT 10');
       expect(mockPool.execute.mock.calls[3][0]).toContain('LIMIT 10');
       expect(mockPool.execute.mock.calls[5][0]).toContain('LIMIT 10');
-      expect(mockPool.execute.mock.calls[6][0]).toContain('LIMIT 5');
+      expect(mockPool.execute.mock.calls[7][0]).toContain('LIMIT 10');
+      expect(mockPool.execute.mock.calls[8][0]).toContain('LIMIT 5');
     });
 
-    it('should handle multiple rewatched shows, movies, and episodes across profiles', async () => {
+    it('should handle multiple rewatched shows, movies, episodes, and seasons across profiles', async () => {
       const showRows = [
         { show_id: 1, show_title: 'Show A', rewatch_count: 5, profile_name: 'Alice' },
         { show_id: 2, show_title: 'Show B', rewatch_count: 3, profile_name: 'Bob' },
@@ -457,6 +561,26 @@ describe('rewatchRepository', () => {
           profile_name: 'Bob',
         },
       ];
+      const seasonRows = [
+        {
+          season_id: 300,
+          show_id: 1,
+          show_title: 'Show A',
+          season_number: 1,
+          season_name: 'Season 1',
+          rewatch_count: 2,
+          profile_name: 'Alice',
+        },
+        {
+          season_id: 301,
+          show_id: 2,
+          show_title: 'Show B',
+          season_number: 1,
+          season_name: 'Season 1',
+          rewatch_count: 1,
+          profile_name: 'Bob',
+        },
+      ];
 
       mockPool.execute
         .mockResolvedValueOnce([[{ total: 8 }]])
@@ -465,6 +589,8 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([movieRows])
         .mockResolvedValueOnce([[{ total: 5 }]])
         .mockResolvedValueOnce([episodeRows])
+        .mockResolvedValueOnce([[{ total: 3 }]])
+        .mockResolvedValueOnce([seasonRows])
         .mockResolvedValueOnce([[]]);
 
       const result = await getAccountRewatchStats(1);
@@ -472,9 +598,11 @@ describe('rewatchRepository', () => {
       expect(result.mostRewatchedShows).toHaveLength(2);
       expect(result.mostRewatchedMovies).toHaveLength(2);
       expect(result.mostRewatchedEpisodes).toHaveLength(2);
+      expect(result.mostRewatchedSeasons).toHaveLength(2);
       expect(result.mostRewatchedShows[0]).toMatchObject({ showId: 1, profileName: 'Alice' });
       expect(result.mostRewatchedMovies[1]).toMatchObject({ movieId: 11, profileName: 'Carol' });
       expect(result.mostRewatchedEpisodes[1]).toMatchObject({ episodeId: 101, profileName: 'Bob' });
+      expect(result.mostRewatchedSeasons[1]).toMatchObject({ seasonId: 301, profileName: 'Bob' });
     });
 
     it('should attribute topRewatchedShowsByEpisodes per (show, profile) pair and dedupe show IDs in the follow-up query', async () => {
@@ -518,12 +646,14 @@ describe('rewatchRepository', () => {
         .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([[{ total: 0 }]])
         .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([[{ total: 0 }]])
+        .mockResolvedValueOnce([[]])
         .mockResolvedValueOnce([showEpisodeSummaryRows])
         .mockResolvedValueOnce([showEpisodeRows]);
 
       const result = await getAccountRewatchStats(1);
 
-      const followUpCall = mockPool.execute.mock.calls[7];
+      const followUpCall = mockPool.execute.mock.calls[9];
       expect(followUpCall[0]).toContain('e.show_id IN (?)');
       expect(followUpCall[1]).toEqual([1, 1]);
 

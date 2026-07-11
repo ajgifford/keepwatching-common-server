@@ -4,6 +4,8 @@ import {
   MovieRewatchRow,
   MovieRewatchWithProfileRow,
   RewatchTotalRow,
+  SeasonRewatchRow,
+  SeasonRewatchWithProfileRow,
   ShowEpisodeRewatchSummaryRow,
   ShowEpisodeRewatchSummaryWithProfileRow,
   ShowRewatchRow,
@@ -12,6 +14,8 @@ import {
   mapRowToRewatchedEpisodeWithProfile,
   mapRowToRewatchedMovie,
   mapRowToRewatchedMovieWithProfile,
+  mapRowToRewatchedSeason,
+  mapRowToRewatchedSeasonWithProfile,
   mapRowToRewatchedShow,
   mapRowToRewatchedShowWithProfile,
   mapRowsToRewatchedShowEpisodeSummaries,
@@ -31,46 +35,55 @@ export async function getProfileRewatchStats(profileId: number): Promise<Profile
   return await DbMonitor.getInstance().executeWithTiming('getProfileRewatchStats', async () => {
     const pool = getDbPool();
 
-    const [showTotals, movieTotals, showRows, movieRows, episodeTotals, episodeRows, showEpisodeSummaryRows] =
-      await Promise.all([
-        pool.execute<RewatchTotalRow[]>(
-          `SELECT COALESCE(SUM(rewatch_count), 0) AS total
+    const [
+      showTotals,
+      movieTotals,
+      showRows,
+      movieRows,
+      episodeTotals,
+      episodeRows,
+      seasonTotals,
+      seasonRows,
+      showEpisodeSummaryRows,
+    ] = await Promise.all([
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COALESCE(SUM(rewatch_count), 0) AS total
          FROM show_watch_status
          WHERE profile_id = ? AND rewatch_count > 0`,
-          [profileId],
-        ),
-        pool.execute<RewatchTotalRow[]>(
-          `SELECT COALESCE(SUM(rewatch_count), 0) AS total
+        [profileId],
+      ),
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COALESCE(SUM(rewatch_count), 0) AS total
          FROM movie_watch_status
          WHERE profile_id = ? AND rewatch_count > 0`,
-          [profileId],
-        ),
-        pool.execute<ShowRewatchRow[]>(
-          `SELECT s.id AS show_id, s.title AS show_title, sws.rewatch_count
+        [profileId],
+      ),
+      pool.execute<ShowRewatchRow[]>(
+        `SELECT s.id AS show_id, s.title AS show_title, sws.rewatch_count
          FROM show_watch_status sws
          JOIN shows s ON s.id = sws.show_id
          WHERE sws.profile_id = ? AND sws.rewatch_count > 0
          ORDER BY sws.rewatch_count DESC
          LIMIT 10`,
-          [profileId],
-        ),
-        pool.execute<MovieRewatchRow[]>(
-          `SELECT m.id AS movie_id, m.title AS movie_title, mws.rewatch_count
+        [profileId],
+      ),
+      pool.execute<MovieRewatchRow[]>(
+        `SELECT m.id AS movie_id, m.title AS movie_title, mws.rewatch_count
          FROM movie_watch_status mws
          JOIN movies m ON m.id = mws.movie_id
          WHERE mws.profile_id = ? AND mws.rewatch_count > 0
          ORDER BY mws.rewatch_count DESC
          LIMIT 10`,
-          [profileId],
-        ),
-        pool.execute<RewatchTotalRow[]>(
-          `SELECT COUNT(*) AS total
+        [profileId],
+      ),
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COUNT(*) AS total
          FROM episode_watch_history
          WHERE profile_id = ? AND watch_number > 1`,
-          [profileId],
-        ),
-        pool.execute<EpisodeRewatchRow[]>(
-          `SELECT e.id AS episode_id, e.show_id, sh.title AS show_title,
+        [profileId],
+      ),
+      pool.execute<EpisodeRewatchRow[]>(
+        `SELECT e.id AS episode_id, e.show_id, sh.title AS show_title,
                 e.season_number, e.episode_number, e.title AS episode_title,
                 COUNT(*) - 1 AS rewatch_count
          FROM episode_watch_history ewh
@@ -81,10 +94,30 @@ export async function getProfileRewatchStats(profileId: number): Promise<Profile
          HAVING COUNT(*) > 1
          ORDER BY rewatch_count DESC
          LIMIT 10`,
-          [profileId],
-        ),
-        pool.execute<ShowEpisodeRewatchSummaryRow[]>(
-          `SELECT e.show_id, sh.title AS show_title,
+        [profileId],
+      ),
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COUNT(*) AS total
+         FROM season_watch_history
+         WHERE profile_id = ? AND watch_number > 1`,
+        [profileId],
+      ),
+      pool.execute<SeasonRewatchRow[]>(
+        `SELECT se.id AS season_id, se.show_id, sh.title AS show_title,
+                se.season_number, COALESCE(se.name, CONCAT('Season ', se.season_number)) AS season_name,
+                COUNT(*) - 1 AS rewatch_count
+         FROM season_watch_history swh
+         JOIN seasons se ON se.id = swh.season_id
+         JOIN shows sh ON sh.id = se.show_id
+         WHERE swh.profile_id = ?
+         GROUP BY se.id, se.show_id, sh.title, se.season_number, se.name
+         HAVING COUNT(*) > 1
+         ORDER BY rewatch_count DESC
+         LIMIT 10`,
+        [profileId],
+      ),
+      pool.execute<ShowEpisodeRewatchSummaryRow[]>(
+        `SELECT e.show_id, sh.title AS show_title,
                 COUNT(*) AS total_episodes_rewatched,
                 SUM(sub.rewatch_count) AS total_rewatch_count
          FROM (
@@ -99,9 +132,9 @@ export async function getProfileRewatchStats(profileId: number): Promise<Profile
          GROUP BY e.show_id, sh.title
          ORDER BY total_rewatch_count DESC
          LIMIT 5`,
-          [profileId],
-        ),
-      ]);
+        [profileId],
+      ),
+    ]);
 
     const topShowIds = (showEpisodeSummaryRows[0] as ShowEpisodeRewatchSummaryRow[]).map((row) => row.show_id);
     const showEpisodeRows =
@@ -127,9 +160,11 @@ export async function getProfileRewatchStats(profileId: number): Promise<Profile
       totalShowRewatches: Number(showTotals[0][0].total) || 0,
       totalMovieRewatches: Number(movieTotals[0][0].total) || 0,
       totalEpisodeRewatches: Number(episodeTotals[0][0].total) || 0,
+      totalSeasonRewatches: Number(seasonTotals[0][0].total) || 0,
       mostRewatchedShows: (showRows[0] as ShowRewatchRow[]).map(mapRowToRewatchedShow),
       mostRewatchedMovies: (movieRows[0] as MovieRewatchRow[]).map(mapRowToRewatchedMovie),
       mostRewatchedEpisodes: (episodeRows[0] as EpisodeRewatchRow[]).map(mapRowToRewatchedEpisode),
+      mostRewatchedSeasons: (seasonRows[0] as SeasonRewatchRow[]).map(mapRowToRewatchedSeason),
       topRewatchedShowsByEpisodes: mapRowsToRewatchedShowEpisodeSummaries(
         showEpisodeSummaryRows[0] as ShowEpisodeRewatchSummaryRow[],
         showEpisodeRows as EpisodeRewatchRow[],
@@ -148,51 +183,60 @@ export async function getAccountRewatchStats(accountId: number): Promise<Account
   return await DbMonitor.getInstance().executeWithTiming('getAccountRewatchStats', async () => {
     const pool = getDbPool();
 
-    const [showTotals, movieTotals, showRows, movieRows, episodeTotals, episodeRows, showEpisodeSummaryRows] =
-      await Promise.all([
-        pool.execute<RewatchTotalRow[]>(
-          `SELECT COALESCE(SUM(sws.rewatch_count), 0) AS total
+    const [
+      showTotals,
+      movieTotals,
+      showRows,
+      movieRows,
+      episodeTotals,
+      episodeRows,
+      seasonTotals,
+      seasonRows,
+      showEpisodeSummaryRows,
+    ] = await Promise.all([
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COALESCE(SUM(sws.rewatch_count), 0) AS total
          FROM show_watch_status sws
          JOIN profiles p ON p.profile_id = sws.profile_id
          WHERE p.account_id = ? AND sws.rewatch_count > 0`,
-          [accountId],
-        ),
-        pool.execute<RewatchTotalRow[]>(
-          `SELECT COALESCE(SUM(mws.rewatch_count), 0) AS total
+        [accountId],
+      ),
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COALESCE(SUM(mws.rewatch_count), 0) AS total
          FROM movie_watch_status mws
          JOIN profiles p ON p.profile_id = mws.profile_id
          WHERE p.account_id = ? AND mws.rewatch_count > 0`,
-          [accountId],
-        ),
-        pool.execute<ShowRewatchWithProfileRow[]>(
-          `SELECT s.id AS show_id, s.title AS show_title, sws.rewatch_count, p.name AS profile_name
+        [accountId],
+      ),
+      pool.execute<ShowRewatchWithProfileRow[]>(
+        `SELECT s.id AS show_id, s.title AS show_title, sws.rewatch_count, p.name AS profile_name
          FROM show_watch_status sws
          JOIN shows s ON s.id = sws.show_id
          JOIN profiles p ON p.profile_id = sws.profile_id
          WHERE p.account_id = ? AND sws.rewatch_count > 0
          ORDER BY sws.rewatch_count DESC
          LIMIT 10`,
-          [accountId],
-        ),
-        pool.execute<MovieRewatchWithProfileRow[]>(
-          `SELECT m.id AS movie_id, m.title AS movie_title, mws.rewatch_count, p.name AS profile_name
+        [accountId],
+      ),
+      pool.execute<MovieRewatchWithProfileRow[]>(
+        `SELECT m.id AS movie_id, m.title AS movie_title, mws.rewatch_count, p.name AS profile_name
          FROM movie_watch_status mws
          JOIN movies m ON m.id = mws.movie_id
          JOIN profiles p ON p.profile_id = mws.profile_id
          WHERE p.account_id = ? AND mws.rewatch_count > 0
          ORDER BY mws.rewatch_count DESC
          LIMIT 10`,
-          [accountId],
-        ),
-        pool.execute<RewatchTotalRow[]>(
-          `SELECT COUNT(*) AS total
+        [accountId],
+      ),
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COUNT(*) AS total
          FROM episode_watch_history ewh
          JOIN profiles p ON p.profile_id = ewh.profile_id
          WHERE p.account_id = ? AND ewh.watch_number > 1`,
-          [accountId],
-        ),
-        pool.execute<EpisodeRewatchWithProfileRow[]>(
-          `SELECT e.id AS episode_id, e.show_id, sh.title AS show_title,
+        [accountId],
+      ),
+      pool.execute<EpisodeRewatchWithProfileRow[]>(
+        `SELECT e.id AS episode_id, e.show_id, sh.title AS show_title,
                 e.season_number, e.episode_number, e.title AS episode_title,
                 COUNT(*) - 1 AS rewatch_count, p.name AS profile_name
          FROM episode_watch_history ewh
@@ -204,10 +248,32 @@ export async function getAccountRewatchStats(accountId: number): Promise<Account
          HAVING COUNT(*) > 1
          ORDER BY rewatch_count DESC
          LIMIT 10`,
-          [accountId],
-        ),
-        pool.execute<ShowEpisodeRewatchSummaryWithProfileRow[]>(
-          `SELECT e.show_id, sh.title AS show_title, p.name AS profile_name,
+        [accountId],
+      ),
+      pool.execute<RewatchTotalRow[]>(
+        `SELECT COUNT(*) AS total
+         FROM season_watch_history swh
+         JOIN profiles p ON p.profile_id = swh.profile_id
+         WHERE p.account_id = ? AND swh.watch_number > 1`,
+        [accountId],
+      ),
+      pool.execute<SeasonRewatchWithProfileRow[]>(
+        `SELECT se.id AS season_id, se.show_id, sh.title AS show_title,
+                se.season_number, COALESCE(se.name, CONCAT('Season ', se.season_number)) AS season_name,
+                COUNT(*) - 1 AS rewatch_count, p.name AS profile_name
+         FROM season_watch_history swh
+         JOIN seasons se ON se.id = swh.season_id
+         JOIN shows sh ON sh.id = se.show_id
+         JOIN profiles p ON p.profile_id = swh.profile_id
+         WHERE p.account_id = ?
+         GROUP BY se.id, se.show_id, sh.title, se.season_number, se.name, p.name
+         HAVING COUNT(*) > 1
+         ORDER BY rewatch_count DESC
+         LIMIT 10`,
+        [accountId],
+      ),
+      pool.execute<ShowEpisodeRewatchSummaryWithProfileRow[]>(
+        `SELECT e.show_id, sh.title AS show_title, p.name AS profile_name,
                 COUNT(*) AS total_episodes_rewatched,
                 SUM(sub.rewatch_count) AS total_rewatch_count
          FROM (
@@ -224,9 +290,9 @@ export async function getAccountRewatchStats(accountId: number): Promise<Account
          GROUP BY e.show_id, sh.title, p.name
          ORDER BY total_rewatch_count DESC
          LIMIT 5`,
-          [accountId],
-        ),
-      ]);
+        [accountId],
+      ),
+    ]);
 
     const topShowIds = [
       ...new Set((showEpisodeSummaryRows[0] as ShowEpisodeRewatchSummaryWithProfileRow[]).map((row) => row.show_id)),
@@ -255,11 +321,13 @@ export async function getAccountRewatchStats(accountId: number): Promise<Account
       totalShowRewatches: Number(showTotals[0][0].total) || 0,
       totalMovieRewatches: Number(movieTotals[0][0].total) || 0,
       totalEpisodeRewatches: Number(episodeTotals[0][0].total) || 0,
+      totalSeasonRewatches: Number(seasonTotals[0][0].total) || 0,
       mostRewatchedShows: (showRows[0] as ShowRewatchWithProfileRow[]).map(mapRowToRewatchedShowWithProfile),
       mostRewatchedMovies: (movieRows[0] as MovieRewatchWithProfileRow[]).map(mapRowToRewatchedMovieWithProfile),
       mostRewatchedEpisodes: (episodeRows[0] as EpisodeRewatchWithProfileRow[]).map(
         mapRowToRewatchedEpisodeWithProfile,
       ),
+      mostRewatchedSeasons: (seasonRows[0] as SeasonRewatchWithProfileRow[]).map(mapRowToRewatchedSeasonWithProfile),
       topRewatchedShowsByEpisodes: mapRowsToRewatchedShowEpisodeSummariesWithProfile(
         showEpisodeSummaryRows[0] as ShowEpisodeRewatchSummaryWithProfileRow[],
         showEpisodeRows as EpisodeRewatchWithProfileRow[],

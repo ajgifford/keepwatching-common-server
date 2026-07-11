@@ -2,6 +2,7 @@ import {
   QueuedItemAge,
   RewatchedEpisode,
   RewatchedMovie,
+  RewatchedSeason,
   RewatchedShow,
   RewatchedShowEpisodeSummary,
   SkippedShow,
@@ -289,6 +290,19 @@ export interface EpisodeRewatchWithProfileRow extends EpisodeRewatchRow {
   profile_name: string;
 }
 
+export interface SeasonRewatchRow extends RowDataPacket {
+  season_id: number;
+  show_id: number;
+  show_title: string;
+  season_number: number;
+  season_name: string;
+  rewatch_count: number;
+}
+
+export interface SeasonRewatchWithProfileRow extends SeasonRewatchRow {
+  profile_name: string;
+}
+
 export interface RewatchTotalRow extends RowDataPacket {
   total: number;
 }
@@ -355,6 +369,26 @@ export function mapRowToRewatchedEpisodeWithProfile(
 ): RewatchedEpisode & { profileName: string } {
   return {
     ...mapRowToRewatchedEpisode(row),
+    profileName: row.profile_name,
+  };
+}
+
+export function mapRowToRewatchedSeason(row: SeasonRewatchRow): RewatchedSeason {
+  return {
+    seasonId: row.season_id,
+    showId: row.show_id,
+    showTitle: row.show_title,
+    seasonNumber: row.season_number,
+    seasonName: row.season_name,
+    rewatchCount: row.rewatch_count,
+  };
+}
+
+export function mapRowToRewatchedSeasonWithProfile(
+  row: SeasonRewatchWithProfileRow,
+): RewatchedSeason & { profileName: string } {
+  return {
+    ...mapRowToRewatchedSeason(row),
     profileName: row.profile_name,
   };
 }
