@@ -24,6 +24,7 @@ export {
   removeFavorite,
   hasWatchHistory,
   rebuildStatusFromHistory,
+  rebuildShowRewatchCountFromHistory,
 } from './shows/showWatchStatusRepository';
 
 export {

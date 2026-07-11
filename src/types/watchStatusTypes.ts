@@ -3,6 +3,19 @@ import { PoolConnection, RowDataPacket } from 'mysql2/promise';
 
 export type EntityType = 'episode' | 'season' | 'show';
 
+/** Statuses that represent a season/show being "done" for history-logging purposes. */
+export const COMPLETE_WATCH_STATUSES: readonly WatchStatus[] = [WatchStatus.WATCHED, WatchStatus.UP_TO_DATE];
+
+/**
+ * `true` if `status` represents a complete season/show (WATCHED or UP_TO_DATE — both mean
+ * "nothing outstanding to watch right now"). Used to gate watch-history logging so a
+ * WATCHED &lt;-&gt; UP_TO_DATE flip (e.g. a new season getting announced) doesn't log a
+ * spurious extra completion, and so SKIPPED is never treated as a loggable completion.
+ */
+export function isCompleteWatchStatus(status: WatchStatus): boolean {
+  return COMPLETE_WATCH_STATUSES.includes(status);
+}
+
 export interface StatusChange {
   entityType: EntityType;
   entityId: number;

@@ -228,3 +228,41 @@ export async function rebuildStatusFromHistory(profileId: number, showId: number
     handleDatabaseError(error, 'rebuilding show watch status from history');
   }
 }
+
+/**
+ * Restores `show_watch_status.rewatch_count` for a show from its most recent surviving
+ * `show_watch_history` row (highest watch_number), on re-favorite. Deliberately narrower than
+ * {@link rebuildStatusFromHistory} — it restores only `rewatch_count`, not `status`/`watched_at`,
+ * since those are already correctly rebuilt by `rebuildStatusFromHistory` plus the subsequent
+ * show status recalculation.
+ *
+ * @param profileId - ID of the profile
+ * @param showId - ID of the show
+ * @returns `true` if a status row was updated, `false` if no surviving show-level history exists
+ * @throws {DatabaseError} If a database error occurs during the operation
+ */
+export async function rebuildShowRewatchCountFromHistory(profileId: number, showId: number): Promise<boolean> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming(
+      'rebuildShowRewatchCountFromHistory',
+      async () => {
+        const query = `
+          UPDATE show_watch_status shws
+          JOIN (
+            SELECT watch_number FROM show_watch_history
+            WHERE profile_id = ? AND show_id = ?
+            ORDER BY watch_number DESC LIMIT 1
+          ) latest ON TRUE
+          SET shws.rewatch_count = GREATEST(latest.watch_number - 1, 0), shws.updated_at = CURRENT_TIMESTAMP
+          WHERE shws.profile_id = ? AND shws.show_id = ?
+        `;
+        const [result] = await getDbPool().execute<ResultSetHeader>(query, [profileId, showId, profileId, showId]);
+        return result.affectedRows > 0;
+      },
+      1000,
+      { content: { id: showId, type: 'show' } },
+    );
+  } catch (error) {
+    handleDatabaseError(error, 'rebuilding show rewatch count from history');
+  }
+}

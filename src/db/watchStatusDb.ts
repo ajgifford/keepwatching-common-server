@@ -14,6 +14,7 @@ import {
   WatchStatusSeasonRow,
   WatchStatusShow,
   WatchStatusShowRow,
+  isCompleteWatchStatus,
   transformWatchStatusEpisode,
   transformWatchStatusExtendedEpisode,
   transformWatchStatusExtendedSeason,
@@ -310,6 +311,10 @@ export class WatchStatusDbService {
         newSeasonStatus,
         `Episode ${episode.id} status changed`,
       );
+
+      if (!isCompleteWatchStatus(episode.seasonWatchStatus) && isCompleteWatchStatus(newSeasonStatus)) {
+        await logSeasonWatched(context.connection, context.profileId, episode.seasonId);
+      }
     }
 
     // Get all seasons in the show to calculate new show status
@@ -361,6 +366,10 @@ export class WatchStatusDbService {
         newShowStatus,
         `Season ${episode.seasonId} status changed`,
       );
+
+      if (!isCompleteWatchStatus(episode.showWatchStatus) && isCompleteWatchStatus(newShowStatus)) {
+        await logShowWatched(context.connection, context.profileId, episode.showId);
+      }
     }
   }
 
@@ -548,7 +557,7 @@ export class WatchStatusDbService {
     );
 
     // Log season completion to history
-    if (newSeasonStatus === 'WATCHED' && watchStatusSeason.watchStatus !== 'WATCHED') {
+    if (!isCompleteWatchStatus(watchStatusSeason.watchStatus) && isCompleteWatchStatus(newSeasonStatus)) {
       await logSeasonWatched(context.connection, context.profileId, seasonId);
     }
   }
@@ -608,6 +617,10 @@ export class WatchStatusDbService {
         newShowStatus,
         `Season ${seasonId} status changed`,
       );
+
+      if (!isCompleteWatchStatus(seasonRow.show_status) && isCompleteWatchStatus(newShowStatus)) {
+        await logShowWatched(context.connection, context.profileId, seasonRow.show_id);
+      }
     }
   }
 
@@ -791,7 +804,8 @@ export class WatchStatusDbService {
     // Log season completions to history
     for (const updatedSeason of updatedSeasonRows) {
       const originalSeason = seasonRows.find((s) => s.id === updatedSeason.id);
-      if (updatedSeason.status === 'WATCHED' && originalSeason?.status !== 'WATCHED') {
+      const originalStatus = originalSeason?.status ?? WatchStatus.NOT_WATCHED;
+      if (!isCompleteWatchStatus(originalStatus) && isCompleteWatchStatus(updatedSeason.status)) {
         await logSeasonWatched(context.connection, context.profileId, updatedSeason.id);
       }
     }
@@ -815,7 +829,7 @@ export class WatchStatusDbService {
       );
 
       // Log show completion to history
-      if (calculatedShowStatus === 'WATCHED' || calculatedShowStatus === 'UP_TO_DATE') {
+      if (!isCompleteWatchStatus(showRow.status) && isCompleteWatchStatus(calculatedShowStatus)) {
         await logShowWatched(context.connection, context.profileId, showId);
       }
     }

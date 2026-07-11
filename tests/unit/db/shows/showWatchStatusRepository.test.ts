@@ -257,4 +257,36 @@ describe('showWatchStatusRepository', () => {
       await expect(showsDb.rebuildStatusFromHistory(123, 12345)).rejects.toThrow('Database error');
     });
   });
+
+  describe('rebuildShowRewatchCountFromHistory()', () => {
+    it('should restore rewatch_count from the most recent surviving history row', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+
+      const result = await showsDb.rebuildShowRewatchCountFromHistory(123, 12345);
+
+      expect(result).toBe(true);
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE show_watch_status'),
+        [123, 12345, 123, 12345],
+      );
+      expect(mockConnection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('ORDER BY watch_number DESC'),
+        expect.any(Array),
+      );
+    });
+
+    it('should return false when no surviving show-level history exists', async () => {
+      mockConnection.execute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+
+      const result = await showsDb.rebuildShowRewatchCountFromHistory(123, 12345);
+
+      expect(result).toBe(false);
+    });
+
+    it('should propagate errors', async () => {
+      mockConnection.execute.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(showsDb.rebuildShowRewatchCountFromHistory(123, 12345)).rejects.toThrow('Query failed');
+    });
+  });
 });

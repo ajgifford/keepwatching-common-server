@@ -69,6 +69,7 @@ describe('ShowService - Favorites', () => {
       expect(showsDb.saveFavorite).toHaveBeenCalledWith(profileId, showId, true, WatchStatus.NOT_WATCHED);
       expect(showsDb.hasWatchHistory).toHaveBeenCalledWith(profileId, showId);
       expect(showsDb.rebuildStatusFromHistory).not.toHaveBeenCalled();
+      expect(showsDb.rebuildShowRewatchCountFromHistory).not.toHaveBeenCalled();
       expect(mockCache.invalidateProfileShows).toHaveBeenCalledWith(accountId, profileId);
       expect(result).toEqual({
         favoritedShow: mockProfileShow,
@@ -77,11 +78,12 @@ describe('ShowService - Favorites', () => {
       });
     });
 
-    it('should rebuild status from history when restoreFromHistory is true and history exists', async () => {
+    it('should rebuild status and rewatch count from history when restoreFromHistory is true and history exists', async () => {
       (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(mockExistingShow);
       (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
       (showsDb.hasWatchHistory as jest.Mock).mockResolvedValue(true);
       (showsDb.rebuildStatusFromHistory as jest.Mock).mockResolvedValue(undefined);
+      (showsDb.rebuildShowRewatchCountFromHistory as jest.Mock).mockResolvedValue(true);
       (showsDb.getShowForProfile as jest.Mock).mockResolvedValue(mockProfileShow);
 
       const episodeData = { recentEpisodes: [], upcomingEpisodes: [], nextUnwatchedEpisodes: [] };
@@ -90,6 +92,7 @@ describe('ShowService - Favorites', () => {
       const result = await service.addShowToFavorites(accountId, profileId, showTMDBId, true);
 
       expect(showsDb.rebuildStatusFromHistory).toHaveBeenCalledWith(profileId, showId);
+      expect(showsDb.rebuildShowRewatchCountFromHistory).toHaveBeenCalledWith(profileId, showId);
       expect(result).toEqual({
         favoritedShow: mockProfileShow,
         episodes: episodeData,
@@ -97,7 +100,7 @@ describe('ShowService - Favorites', () => {
       });
     });
 
-    it('should not rebuild status from history when restoreFromHistory is true but no history exists', async () => {
+    it('should not rebuild status or rewatch count from history when restoreFromHistory is true but no history exists', async () => {
       (showsDb.findShowByTMDBId as jest.Mock).mockResolvedValue(mockExistingShow);
       (showsDb.saveFavorite as jest.Mock).mockResolvedValue(undefined);
       (showsDb.hasWatchHistory as jest.Mock).mockResolvedValue(false);
@@ -110,6 +113,7 @@ describe('ShowService - Favorites', () => {
       await service.addShowToFavorites(accountId, profileId, showTMDBId, true);
 
       expect(showsDb.rebuildStatusFromHistory).not.toHaveBeenCalled();
+      expect(showsDb.rebuildShowRewatchCountFromHistory).not.toHaveBeenCalled();
     });
 
     it('should add a new show to favorites by fetching from TMDB', async () => {

@@ -286,6 +286,7 @@ export class ShowService extends BaseShowService {
     if (restoreFromHistory && hasSurvivingHistory) {
       await showsDb.rebuildStatusFromHistory(profileId, showToFavorite.id);
       await watchStatusService.checkAndUpdateShowStatus(accountId, profileId, showToFavorite.id);
+      await showsDb.rebuildShowRewatchCountFromHistory(profileId, showToFavorite.id);
     }
 
     this.invalidateProfileCache(accountId, profileId);

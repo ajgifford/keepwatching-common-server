@@ -1,7 +1,12 @@
 import { setupDatabaseTest } from '../helpers/dbTestSetup';
 import { createMockEpisodeRow, createMockSeasonExtendedRow, createMockSeasonRow } from './helpers/watchStatusTestTypes';
 import { WatchStatus } from '@ajgifford/keepwatching-types';
-import { getEpisodeIdsWithExistingHistory, logEpisodesWatched } from '@db/watchHistoryDb';
+import {
+  getEpisodeIdsWithExistingHistory,
+  logEpisodesWatched,
+  logSeasonWatched,
+  logShowWatched,
+} from '@db/watchHistoryDb';
 import { WatchStatusDbService } from '@db/watchStatusDb';
 import { handleDatabaseError } from '@utils/errorHandlingUtility';
 import { TransactionHelper } from '@utils/transactionHelper';
@@ -608,6 +613,8 @@ describe('WatchStatusDbService - Season Operations', () => {
       expect(result.success).toBe(true);
       expect(getEpisodeIdsWithExistingHistory).not.toHaveBeenCalled();
       expect(logEpisodesWatched).not.toHaveBeenCalled();
+      expect(logSeasonWatched).not.toHaveBeenCalled();
+      expect(logShowWatched).not.toHaveBeenCalled();
     });
 
     it('should never touch history when marking a season as SKIPPED', async () => {
@@ -637,6 +644,131 @@ describe('WatchStatusDbService - Season Operations', () => {
       );
       expect(getEpisodeIdsWithExistingHistory).not.toHaveBeenCalled();
       expect(logEpisodesWatched).not.toHaveBeenCalled();
+      expect(logSeasonWatched).not.toHaveBeenCalled();
+      expect(logShowWatched).not.toHaveBeenCalled();
+    });
+
+    // -------------------------------------------------------------------------
+    // Season/show completion history logging (manual "set season status" endpoint)
+    // -------------------------------------------------------------------------
+
+    describe('completion history logging', () => {
+      it('should log season completion when it transitions to UP_TO_DATE (not just WATCHED)', async () => {
+        const seasonRow = createMockSeasonExtendedRow({
+          id: seasonId,
+          show_id: showId,
+          status: 'WATCHING',
+          show_status: 'WATCHING',
+          release_date: '2023-01-01',
+        });
+        const originalEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.NOT_WATCHED })];
+        const updatedEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.WATCHED })];
+        const showSeasons = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.UP_TO_DATE })];
+
+        mockConnection.execute
+          .mockResolvedValueOnce([[seasonRow], []])
+          .mockResolvedValueOnce([originalEpisodeRows, []])
+          .mockResolvedValueOnce([episodeUpdateResult, []])
+          .mockResolvedValueOnce([updatedEpisodeRows, []])
+          .mockResolvedValueOnce([updateResult, []]) // season update
+          .mockResolvedValueOnce([showSeasons, []]);
+
+        mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.UP_TO_DATE);
+        mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHING);
+
+        await watchStatusDbService.updateSeasonWatchStatus(profileId, seasonId, WatchStatus.WATCHED);
+
+        expect(logSeasonWatched).toHaveBeenCalledTimes(1);
+        expect(logSeasonWatched).toHaveBeenCalledWith(mockConnection, profileId, seasonId);
+      });
+
+      it('should not log season completion again on a WATCHED <-> UP_TO_DATE flip (source already complete)', async () => {
+        const seasonRow = createMockSeasonExtendedRow({
+          id: seasonId,
+          show_id: showId,
+          status: 'UP_TO_DATE',
+          show_status: 'UP_TO_DATE',
+          release_date: '2023-01-01',
+        });
+        const originalEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.NOT_WATCHED })];
+        const updatedEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.WATCHED })];
+        const showSeasons = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+
+        mockConnection.execute
+          .mockResolvedValueOnce([[seasonRow], []])
+          .mockResolvedValueOnce([originalEpisodeRows, []])
+          .mockResolvedValueOnce([episodeUpdateResult, []])
+          .mockResolvedValueOnce([updatedEpisodeRows, []])
+          .mockResolvedValueOnce([updateResult, []])
+          .mockResolvedValueOnce([showSeasons, []]);
+
+        mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.WATCHED);
+        mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.UP_TO_DATE);
+
+        await watchStatusDbService.updateSeasonWatchStatus(profileId, seasonId, WatchStatus.WATCHED);
+
+        expect(logSeasonWatched).not.toHaveBeenCalled();
+      });
+
+      it('should log show completion when a season completion cascades to complete the show', async () => {
+        const seasonRow = createMockSeasonExtendedRow({
+          id: seasonId,
+          show_id: showId,
+          status: 'WATCHING',
+          show_status: 'WATCHING',
+          release_date: '2023-01-01',
+        });
+        const originalEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.NOT_WATCHED })];
+        const updatedEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.WATCHED })];
+        const showSeasons = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+
+        mockConnection.execute
+          .mockResolvedValueOnce([[seasonRow], []])
+          .mockResolvedValueOnce([originalEpisodeRows, []])
+          .mockResolvedValueOnce([episodeUpdateResult, []])
+          .mockResolvedValueOnce([updatedEpisodeRows, []])
+          .mockResolvedValueOnce([updateResult, []]) // season update
+          .mockResolvedValueOnce([showSeasons, []])
+          .mockResolvedValueOnce([updateResult, []]); // show update
+
+        mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.WATCHED);
+        mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHED);
+
+        await watchStatusDbService.updateSeasonWatchStatus(profileId, seasonId, WatchStatus.WATCHED);
+
+        expect(logShowWatched).toHaveBeenCalledTimes(1);
+        expect(logShowWatched).toHaveBeenCalledWith(mockConnection, profileId, showId);
+      });
+
+      it('should not log show completion again on a WATCHED <-> UP_TO_DATE flip cascaded from a season change', async () => {
+        const seasonRow = createMockSeasonExtendedRow({
+          id: seasonId,
+          show_id: showId,
+          status: 'NOT_WATCHED',
+          show_status: 'UP_TO_DATE',
+          release_date: '2023-01-01',
+        });
+        const originalEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.NOT_WATCHED })];
+        const updatedEpisodeRows = [createMockEpisodeRow({ id: 1, status: WatchStatus.WATCHED })];
+        const showSeasons = [createMockSeasonRow({ id: seasonId, show_id: showId, status: WatchStatus.WATCHED })];
+
+        mockConnection.execute
+          .mockResolvedValueOnce([[seasonRow], []])
+          .mockResolvedValueOnce([originalEpisodeRows, []])
+          .mockResolvedValueOnce([episodeUpdateResult, []])
+          .mockResolvedValueOnce([updatedEpisodeRows, []])
+          .mockResolvedValueOnce([updateResult, []]) // season update
+          .mockResolvedValueOnce([showSeasons, []])
+          .mockResolvedValueOnce([updateResult, []]); // show update
+
+        mockWatchStatusManager.calculateSeasonStatus.mockReturnValue(WatchStatus.WATCHED);
+        // Show flips UP_TO_DATE -> WATCHED (both already "complete")
+        mockWatchStatusManager.calculateShowStatus.mockReturnValue(WatchStatus.WATCHED);
+
+        await watchStatusDbService.updateSeasonWatchStatus(profileId, seasonId, WatchStatus.WATCHED);
+
+        expect(logShowWatched).not.toHaveBeenCalled();
+      });
     });
   });
 });
