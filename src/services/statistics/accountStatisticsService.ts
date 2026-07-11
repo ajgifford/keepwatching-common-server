@@ -1,6 +1,8 @@
 import { ACCOUNT_KEYS } from '../../constants/cacheKeys';
 import * as accountsDb from '../../db/accountsDb';
 import { getAccountRewatchStats } from '../../db/statistics/rewatchRepository';
+import { getAccountSkipRateStats } from '../../db/statistics/skipRateRepository';
+import { getAccountWatchlistUsageStats } from '../../db/statistics/watchlistUsageRepository';
 import * as statisticsDb from '../../db/statisticsDb';
 import { BadRequestError } from '../../middleware/errorMiddleware';
 import { calculateMilestones } from '../../utils/statisticsUtil';
@@ -18,11 +20,13 @@ import {
   AccountEpisodeProgress,
   AccountRewatchStats,
   AccountSeasonalViewingStats,
+  AccountSkipRateStats,
   AccountStatisticsResponse,
   AccountTimeToWatchStats,
   AccountUnairedContentStats,
   AccountWatchStreakStats,
   AccountWatchingVelocityStats,
+  AccountWatchlistUsageStats,
   Achievement,
   DailyActivity,
   MilestoneStats,
@@ -714,6 +718,7 @@ export class AccountStatisticsService {
           let totalEpisodesWatched = 0;
           let totalMoviesWatched = 0;
           let totalHoursWatched = 0;
+          let totalShowsCompleted = 0;
           const achievements: Achievement[] = [];
           const allAchievements: Achievement[] = [];
 
@@ -727,6 +732,7 @@ export class AccountStatisticsService {
             totalEpisodesWatched += stats.totalEpisodesWatched;
             totalMoviesWatched += stats.totalMoviesWatched;
             totalHoursWatched += stats.totalHoursWatched;
+            totalShowsCompleted += stats.totalShowsCompleted || 0;
 
             // Add profile name to each achievement
             stats.recentAchievements.forEach((achievement) => {
@@ -783,6 +789,7 @@ export class AccountStatisticsService {
             totalEpisodesWatched,
             totalMoviesWatched,
             totalHoursWatched,
+            totalShowsCompleted,
             milestones,
             recentAchievements,
             allAchievements: sortedAllAchievements,
@@ -1021,6 +1028,46 @@ export class AccountStatisticsService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getAccountRewatchStats(${accountId})`);
+    }
+  }
+
+  /**
+   * Get skip-rate statistics aggregated across all profiles in an account
+   *
+   * @param accountId - ID of the account
+   * @returns Account-wide skip-rate statistics
+   */
+  public async getAccountSkipRateStats(accountId: number): Promise<AccountSkipRateStats> {
+    try {
+      return await this.cache.getOrSet(
+        ACCOUNT_KEYS.skipRateStats(accountId),
+        async () => {
+          return await getAccountSkipRateStats(accountId);
+        },
+        3600, // 1 hour TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getAccountSkipRateStats(${accountId})`);
+    }
+  }
+
+  /**
+   * Get watchlist usage statistics aggregated across all profiles in an account
+   *
+   * @param accountId - ID of the account
+   * @returns Account-wide watchlist usage statistics
+   */
+  public async getAccountWatchlistUsageStats(accountId: number): Promise<AccountWatchlistUsageStats> {
+    try {
+      return await this.cache.getOrSet(
+        ACCOUNT_KEYS.watchlistUsageStats(accountId),
+        async () => {
+          return await getAccountWatchlistUsageStats(accountId);
+        },
+        3600, // 1 hour TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getAccountWatchlistUsageStats(${accountId})`);
     }
   }
 

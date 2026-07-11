@@ -115,56 +115,103 @@ describe('watchlistDb Module', () => {
   });
 
   describe('addWatchlistItem()', () => {
-    it('should insert item and return the newly created WatchlistItem', async () => {
-      mockExecute
-        .mockResolvedValueOnce([{ insertId: 1 } as ResultSetHeader])
-        .mockResolvedValueOnce([[mockWatchlistRow]]);
+    it('should insert item and an "added" event in a transaction, then return the newly created WatchlistItem', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([{ insertId: 1 } as ResultSetHeader]) // INSERT watchlist_items
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // INSERT watchlist_item_events
+      mockExecute.mockResolvedValueOnce([[mockWatchlistRow]]); // getWatchlistForProfile re-fetch
 
       const result = await watchlistDb.addWatchlistItem(5, 10, 'show', 42);
 
-      expect(mockExecute).toHaveBeenCalledTimes(2);
-      expect(mockExecute).toHaveBeenNthCalledWith(1, expect.stringContaining('INSERT INTO watchlist_items'), [
-        5,
-        10,
-        'show',
-        42,
-        10,
-      ]);
+      expect(mockGetConnection).toHaveBeenCalledTimes(1);
+      expect(mockConnection.beginTransaction).toHaveBeenCalledTimes(1);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('INSERT INTO watchlist_items'),
+        [5, 10, 'show', 42, 10],
+      );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('INSERT INTO watchlist_item_events'),
+        [5, 10, 'show', 42, 1],
+      );
+      expect(mockConnection.execute.mock.calls[1][0]).toContain("'added'");
+      expect(mockConnection.commit).toHaveBeenCalledTimes(1);
+      expect(mockConnection.rollback).not.toHaveBeenCalled();
+      expect(mockConnection.release).toHaveBeenCalledTimes(1);
       expect(result).toEqual(expectedWatchlistItem);
     });
 
     it('should throw DatabaseError when inserted item is not found in subsequent fetch', async () => {
-      mockExecute
+      mockConnection.execute
         .mockResolvedValueOnce([{ insertId: 999 } as ResultSetHeader])
-        .mockResolvedValueOnce([[mockWatchlistRow]]); // row has id: 1, not 999
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      mockExecute.mockResolvedValueOnce([[mockWatchlistRow]]); // row has id: 1, not 999
 
       await expect(watchlistDb.addWatchlistItem(5, 10, 'show', 42)).rejects.toThrow(DatabaseError);
     });
 
-    it('should throw DatabaseError on INSERT failure', async () => {
-      mockExecute.mockRejectedValueOnce(new Error('Duplicate entry'));
+    it('should rollback and release, and throw DatabaseError, on INSERT failure', async () => {
+      mockConnection.execute.mockRejectedValueOnce(new Error('Duplicate entry'));
 
       await expect(watchlistDb.addWatchlistItem(5, 10, 'show', 42)).rejects.toThrow(DatabaseError);
+
+      expect(mockConnection.rollback).toHaveBeenCalledTimes(1);
+      expect(mockConnection.commit).not.toHaveBeenCalled();
+      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('removeWatchlistItem()', () => {
-    it('should execute DELETE with correct itemId and profileId', async () => {
-      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+    it('should snapshot watch status, insert a "removed" event, then delete, all in one transaction', async () => {
+      mockConnection.execute
+        .mockResolvedValueOnce([[{ account_id: 5, content_type: 'show', content_id: 42 }]]) // SELECT ... FOR UPDATE
+        .mockResolvedValueOnce([[{ current_watch_status: 'WATCHING' }]]) // status snapshot
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]) // INSERT event
+        .mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]); // DELETE
 
       await watchlistDb.removeWatchlistItem(1, 10);
 
-      expect(mockExecute).toHaveBeenCalledTimes(1);
-      expect(mockExecute).toHaveBeenCalledWith(
+      expect(mockGetConnection).toHaveBeenCalledTimes(1);
+      expect(mockConnection.beginTransaction).toHaveBeenCalledTimes(1);
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('SELECT account_id, content_type, content_id FROM watchlist_items'),
+        [1, 10],
+      );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        3,
+        expect.stringContaining('INSERT INTO watchlist_item_events'),
+        [5, 10, 'show', 42, 1, 'WATCHING'],
+      );
+      expect(mockConnection.execute).toHaveBeenNthCalledWith(
+        4,
         expect.stringContaining('DELETE FROM watchlist_items WHERE id = ? AND profile_id = ?'),
         [1, 10],
       );
+      expect(mockConnection.commit).toHaveBeenCalledTimes(1);
+      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw DatabaseError on unexpected database failure', async () => {
-      mockExecute.mockRejectedValueOnce(new Error('Connection lost'));
+    it('should no-op (commit, no event or delete) when the item is not found', async () => {
+      mockConnection.execute.mockResolvedValueOnce([[]]); // SELECT ... FOR UPDATE finds nothing
+
+      await watchlistDb.removeWatchlistItem(999, 10);
+
+      expect(mockConnection.execute).toHaveBeenCalledTimes(1);
+      expect(mockConnection.commit).toHaveBeenCalledTimes(1);
+      expect(mockConnection.rollback).not.toHaveBeenCalled();
+      expect(mockConnection.release).toHaveBeenCalledTimes(1);
+    });
+
+    it('should rollback and release, and throw DatabaseError, on unexpected database failure', async () => {
+      mockConnection.execute.mockRejectedValueOnce(new Error('Connection lost'));
 
       await expect(watchlistDb.removeWatchlistItem(1, 10)).rejects.toThrow(DatabaseError);
+
+      expect(mockConnection.rollback).toHaveBeenCalledTimes(1);
+      expect(mockConnection.commit).not.toHaveBeenCalled();
+      expect(mockConnection.release).toHaveBeenCalledTimes(1);
     });
   });
 

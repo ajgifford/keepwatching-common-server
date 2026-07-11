@@ -70,6 +70,7 @@ describe('Statistics - Milestone - Account', () => {
         totalEpisodesWatched: 1500,
         totalMoviesWatched: 250,
         totalHoursWatched: 2500,
+        totalShowsCompleted: 5,
         milestones: [],
         recentAchievements: [
           {
@@ -92,6 +93,7 @@ describe('Statistics - Milestone - Account', () => {
         totalEpisodesWatched: 1200,
         totalMoviesWatched: 200,
         totalHoursWatched: 2000,
+        totalShowsCompleted: 3,
         milestones: [],
         recentAchievements: [
           {
@@ -127,6 +129,7 @@ describe('Statistics - Milestone - Account', () => {
       expect(result.totalEpisodesWatched).toBe(2700);
       expect(result.totalMoviesWatched).toBe(450);
       expect(result.totalHoursWatched).toBe(4500);
+      expect(result.totalShowsCompleted).toBe(8);
     });
 
     it('should handle errors when getting account milestone stats', async () => {

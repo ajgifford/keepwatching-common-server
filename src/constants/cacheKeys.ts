@@ -81,6 +81,13 @@ export const ACCOUNT_KEYS = {
 
   /** Gets the cache key for account rewatch statistics */
   rewatchStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_rewatch_stats`,
+
+  /** Gets the cache key for account skip-rate statistics */
+  skipRateStats: (accountId: number | string) => `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_skip_rate_stats`,
+
+  /** Gets the cache key for account watchlist usage statistics */
+  watchlistUsageStats: (accountId: number | string) =>
+    `${CACHE_KEY_PATTERNS.ACCOUNT}_${accountId}_watchlist_usage_stats`,
 };
 
 // Profile keys
@@ -181,6 +188,13 @@ export const PROFILE_KEYS = {
 
   /** Gets the cache key for profile rewatch statistics */
   rewatchStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_rewatch_stats`,
+
+  /** Gets the cache key for profile skip-rate statistics */
+  skipRateStats: (profileId: number | string) => `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_skip_rate_stats`,
+
+  /** Gets the cache key for profile watchlist usage statistics */
+  watchlistUsageStats: (profileId: number | string) =>
+    `${CACHE_KEY_PATTERNS.PROFILE}_${profileId}_watchlist_usage_stats`,
 
   /** Gets the cache key for a profile's period recap (year/month in review) */
   recap: (profileId: number | string, period: string, year: number, month?: number) =>

@@ -4,6 +4,16 @@ import { handleDatabaseError } from '../utils/errorHandlingUtility';
 import { WatchStatus, WatchlistContentType, WatchlistItem } from '@ajgifford/keepwatching-types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
+interface WatchlistItemLookupRow extends RowDataPacket {
+  account_id: number;
+  content_type: WatchlistContentType;
+  content_id: number;
+}
+
+interface CurrentStatusRow extends RowDataPacket {
+  current_watch_status: WatchStatus | null;
+}
+
 interface WatchlistRow extends RowDataPacket {
   id: number;
   profile_id: number;
@@ -120,20 +130,37 @@ export async function addWatchlistItem(
   try {
     return await DbMonitor.getInstance().executeWithTiming('addWatchlistItem', async () => {
       const pool = getDbPool();
-      const insertQuery = `
-        INSERT INTO watchlist_items (account_id, profile_id, content_type, content_id, priority)
-        SELECT ?, ?, ?, ?, COALESCE(MAX(priority), -1) + 1
-        FROM watchlist_items
-        WHERE profile_id = ?
-      `;
-      const [result] = await pool.execute<ResultSetHeader>(insertQuery, [
-        accountId,
-        profileId,
-        contentType,
-        contentId,
-        profileId,
-      ]);
-      const newId = result.insertId;
+      const conn = await pool.getConnection();
+      let newId: number;
+      try {
+        await conn.beginTransaction();
+        const insertQuery = `
+          INSERT INTO watchlist_items (account_id, profile_id, content_type, content_id, priority)
+          SELECT ?, ?, ?, ?, COALESCE(MAX(priority), -1) + 1
+          FROM watchlist_items
+          WHERE profile_id = ?
+        `;
+        const [result] = await conn.execute<ResultSetHeader>(insertQuery, [
+          accountId,
+          profileId,
+          contentType,
+          contentId,
+          profileId,
+        ]);
+        newId = result.insertId;
+        await conn.execute<ResultSetHeader>(
+          `INSERT INTO watchlist_item_events
+             (account_id, profile_id, content_type, content_id, watchlist_item_id, event_type, watch_status_at_removal)
+           VALUES (?, ?, ?, ?, ?, 'added', NULL)`,
+          [accountId, profileId, contentType, contentId, newId],
+        );
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
       const items = await getWatchlistForProfile(profileId);
       const newItem = items.find((i) => i.id === newId);
       if (!newItem) throw new Error('Watchlist item not found after insert');
@@ -148,10 +175,46 @@ export async function removeWatchlistItem(itemId: number, profileId: number): Pr
   try {
     await DbMonitor.getInstance().executeWithTiming('removeWatchlistItem', async () => {
       const pool = getDbPool();
-      await pool.execute<ResultSetHeader>('DELETE FROM watchlist_items WHERE id = ? AND profile_id = ?', [
-        itemId,
-        profileId,
-      ]);
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        const [itemRows] = await conn.execute<WatchlistItemLookupRow[]>(
+          'SELECT account_id, content_type, content_id FROM watchlist_items WHERE id = ? AND profile_id = ? FOR UPDATE',
+          [itemId, profileId],
+        );
+        const item = itemRows[0];
+        if (!item) {
+          await conn.commit();
+          return;
+        }
+
+        const [statusRows] = await conn.execute<CurrentStatusRow[]>(
+          `SELECT
+             CASE ?
+               WHEN 'show' THEN (SELECT status FROM show_watch_status WHERE show_id = ? AND profile_id = ?)
+               WHEN 'movie' THEN (SELECT status FROM movie_watch_status WHERE movie_id = ? AND profile_id = ?)
+             END AS current_watch_status`,
+          [item.content_type, item.content_id, profileId, item.content_id, profileId],
+        );
+        const watchStatusAtRemoval = statusRows[0]?.current_watch_status ?? null;
+
+        await conn.execute<ResultSetHeader>(
+          `INSERT INTO watchlist_item_events
+             (account_id, profile_id, content_type, content_id, watchlist_item_id, event_type, watch_status_at_removal)
+           VALUES (?, ?, ?, ?, ?, 'removed', ?)`,
+          [item.account_id, profileId, item.content_type, item.content_id, itemId, watchStatusAtRemoval],
+        );
+        await conn.execute<ResultSetHeader>('DELETE FROM watchlist_items WHERE id = ? AND profile_id = ?', [
+          itemId,
+          profileId,
+        ]);
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
     });
   } catch (error) {
     handleDatabaseError(error, 'removing watchlist item');

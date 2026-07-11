@@ -1,4 +1,12 @@
-import { RewatchedMovie, RewatchedShow } from '@ajgifford/keepwatching-types';
+import {
+  QueuedItemAge,
+  RewatchedEpisode,
+  RewatchedMovie,
+  RewatchedShow,
+  RewatchedShowEpisodeSummary,
+  SkippedShow,
+  WatchlistContentType,
+} from '@ajgifford/keepwatching-types';
 import { RowDataPacket } from 'mysql2/promise';
 
 export interface VelocityDataRow extends RowDataPacket {
@@ -267,8 +275,33 @@ export interface MovieRewatchWithProfileRow extends MovieRewatchRow {
   profile_name: string;
 }
 
+export interface EpisodeRewatchRow extends RowDataPacket {
+  episode_id: number;
+  show_id: number;
+  show_title: string;
+  season_number: number;
+  episode_number: number;
+  episode_title: string;
+  rewatch_count: number;
+}
+
+export interface EpisodeRewatchWithProfileRow extends EpisodeRewatchRow {
+  profile_name: string;
+}
+
 export interface RewatchTotalRow extends RowDataPacket {
   total: number;
+}
+
+export interface ShowEpisodeRewatchSummaryRow extends RowDataPacket {
+  show_id: number;
+  show_title: string;
+  total_episodes_rewatched: number;
+  total_rewatch_count: number;
+}
+
+export interface ShowEpisodeRewatchSummaryWithProfileRow extends ShowEpisodeRewatchSummaryRow {
+  profile_name: string;
 }
 
 export function mapRowToRewatchedShow(row: ShowRewatchRow): RewatchedShow {
@@ -301,6 +334,164 @@ export function mapRowToRewatchedMovieWithProfile(
 ): RewatchedMovie & { profileName: string } {
   return {
     ...mapRowToRewatchedMovie(row),
+    profileName: row.profile_name,
+  };
+}
+
+export function mapRowToRewatchedEpisode(row: EpisodeRewatchRow): RewatchedEpisode {
+  return {
+    episodeId: row.episode_id,
+    showId: row.show_id,
+    showTitle: row.show_title,
+    seasonNumber: row.season_number,
+    episodeNumber: row.episode_number,
+    episodeTitle: row.episode_title,
+    rewatchCount: row.rewatch_count,
+  };
+}
+
+export function mapRowToRewatchedEpisodeWithProfile(
+  row: EpisodeRewatchWithProfileRow,
+): RewatchedEpisode & { profileName: string } {
+  return {
+    ...mapRowToRewatchedEpisode(row),
+    profileName: row.profile_name,
+  };
+}
+
+const TOP_EPISODES_PER_SHOW = 3;
+
+export function mapRowsToRewatchedShowEpisodeSummaries(
+  summaryRows: ShowEpisodeRewatchSummaryRow[],
+  episodeRows: EpisodeRewatchRow[],
+): RewatchedShowEpisodeSummary[] {
+  const episodesByShow = new Map<number, EpisodeRewatchRow[]>();
+  for (const row of episodeRows) {
+    const episodes = episodesByShow.get(row.show_id);
+    if (episodes) {
+      episodes.push(row);
+    } else {
+      episodesByShow.set(row.show_id, [row]);
+    }
+  }
+
+  return summaryRows.map((row) => ({
+    showId: row.show_id,
+    showTitle: row.show_title,
+    totalEpisodesRewatched: row.total_episodes_rewatched,
+    totalRewatchCount: row.total_rewatch_count,
+    topEpisodes: (episodesByShow.get(row.show_id) ?? [])
+      .slice()
+      .sort((a, b) => b.rewatch_count - a.rewatch_count)
+      .slice(0, TOP_EPISODES_PER_SHOW)
+      .map(mapRowToRewatchedEpisode),
+  }));
+}
+
+export function mapRowsToRewatchedShowEpisodeSummariesWithProfile(
+  summaryRows: ShowEpisodeRewatchSummaryWithProfileRow[],
+  episodeRows: EpisodeRewatchWithProfileRow[],
+): Array<RewatchedShowEpisodeSummary & { profileName: string }> {
+  const episodesByShowAndProfile = new Map<string, EpisodeRewatchWithProfileRow[]>();
+  for (const row of episodeRows) {
+    const key = `${row.show_id}:${row.profile_name}`;
+    const episodes = episodesByShowAndProfile.get(key);
+    if (episodes) {
+      episodes.push(row);
+    } else {
+      episodesByShowAndProfile.set(key, [row]);
+    }
+  }
+
+  return summaryRows.map((row) => ({
+    showId: row.show_id,
+    showTitle: row.show_title,
+    profileName: row.profile_name,
+    totalEpisodesRewatched: row.total_episodes_rewatched,
+    totalRewatchCount: row.total_rewatch_count,
+    topEpisodes: (episodesByShowAndProfile.get(`${row.show_id}:${row.profile_name}`) ?? [])
+      .slice()
+      .sort((a, b) => b.rewatch_count - a.rewatch_count)
+      .slice(0, TOP_EPISODES_PER_SHOW)
+      .map(mapRowToRewatchedEpisode),
+  }));
+}
+
+export interface SeasonSkipTotalsRow extends RowDataPacket {
+  total_seasons_tracked: number;
+  total_seasons_skipped: number;
+}
+
+export interface ShowSkipRow extends RowDataPacket {
+  show_id: number;
+  show_title: string;
+  skipped_season_count: number;
+}
+
+export interface ShowSkipWithProfileRow extends ShowSkipRow {
+  profile_name: string;
+}
+
+export function mapRowToSkippedShow(row: ShowSkipRow): SkippedShow {
+  return {
+    showId: row.show_id,
+    showTitle: row.show_title,
+    skippedSeasonCount: row.skipped_season_count,
+  };
+}
+
+export function mapRowToSkippedShowWithProfile(row: ShowSkipWithProfileRow): SkippedShow & { profileName: string } {
+  return {
+    ...mapRowToSkippedShow(row),
+    profileName: row.profile_name,
+  };
+}
+
+export interface CurrentQueueTotalsRow extends RowDataPacket {
+  currently_queued_count: number;
+  avg_current_queue_days: number;
+}
+
+export interface QueuedItemRow extends RowDataPacket {
+  content_type: WatchlistContentType;
+  content_id: number;
+  title: string;
+  days_in_queue: number;
+}
+
+export interface QueuedItemWithProfileRow extends QueuedItemRow {
+  profile_name: string;
+}
+
+export interface ChurnCountRow extends RowDataPacket {
+  event_type: 'added' | 'removed';
+  cnt: number;
+}
+
+export interface CompletionCountsRow extends RowDataPacket {
+  completed_count: number;
+  abandoned_count: number;
+  total_removed: number;
+}
+
+export interface AvgCompletionRow extends RowDataPacket {
+  avg_days_to_completion: number | null;
+}
+
+export function mapRowToQueuedItemAge(row: QueuedItemRow): QueuedItemAge {
+  return {
+    contentId: row.content_id,
+    contentType: row.content_type,
+    title: row.title,
+    daysInQueue: Number(row.days_in_queue),
+  };
+}
+
+export function mapRowToQueuedItemAgeWithProfile(row: QueuedItemWithProfileRow): QueuedItemAge & {
+  profileName: string;
+} {
+  return {
+    ...mapRowToQueuedItemAge(row),
     profileName: row.profile_name,
   };
 }

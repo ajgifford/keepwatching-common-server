@@ -1,5 +1,7 @@
 import { PROFILE_KEYS } from '../../constants/cacheKeys';
 import { getProfileRewatchStats } from '../../db/statistics/rewatchRepository';
+import { getProfileSkipRateStats } from '../../db/statistics/skipRateRepository';
+import { getProfileWatchlistUsageStats } from '../../db/statistics/watchlistUsageRepository';
 import * as statisticsDb from '../../db/statisticsDb';
 import { CacheService } from '../cacheService';
 import { errorService } from '../errorService';
@@ -16,7 +18,9 @@ import {
   MonthlyActivity,
   ProfileRecapResponse,
   ProfileRewatchStats,
+  ProfileSkipRateStats,
   ProfileStatisticsResponse,
+  ProfileWatchlistUsageStats,
   RecapPeriodType,
   SeasonalViewingStats,
   TimeToWatchStats,
@@ -384,6 +388,48 @@ export class ProfileStatisticsService {
       );
     } catch (error) {
       throw errorService.handleError(error, `getRewatchStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get skip-rate statistics for a profile
+   * Returns totals and the shows with the most skipped seasons
+   *
+   * @param profileId - ID of the profile
+   * @returns Skip-rate statistics
+   */
+  public async getSkipRateStats(profileId: number): Promise<ProfileSkipRateStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.skipRateStats(profileId),
+        async () => {
+          return await getProfileSkipRateStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getSkipRateStats(${profileId})`);
+    }
+  }
+
+  /**
+   * Get watchlist usage statistics for a profile
+   * Returns queue age, churn, and completion-rate metrics
+   *
+   * @param profileId - ID of the profile
+   * @returns Watchlist usage statistics
+   */
+  public async getWatchlistUsageStats(profileId: number): Promise<ProfileWatchlistUsageStats> {
+    try {
+      return await this.cache.getOrSet(
+        PROFILE_KEYS.watchlistUsageStats(profileId),
+        async () => {
+          return await getProfileWatchlistUsageStats(profileId);
+        },
+        1800, // 30 minute TTL
+      );
+    } catch (error) {
+      throw errorService.handleError(error, `getWatchlistUsageStats(${profileId})`);
     }
   }
 

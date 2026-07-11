@@ -245,6 +245,23 @@ CREATE TABLE show_watch_history (
     INDEX idx_showwh_profile_show (profile_id, show_id)
 );
 
+CREATE TABLE watchlist_item_events (
+    id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    account_id INT NOT NULL,
+    profile_id INT NOT NULL,
+    content_type ENUM('show', 'movie') NOT NULL,
+    content_id BIGINT NOT NULL,
+    watchlist_item_id BIGINT NULL,
+    event_type ENUM('added', 'removed') NOT NULL,
+    watch_status_at_removal ENUM('UNAIRED', 'NOT_WATCHED', 'WATCHING', 'WATCHED', 'UP_TO_DATE') NULL,
+    occurred_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
+    INDEX idx_wie_profile_content_occurred (profile_id, content_type, content_id, occurred_at),
+    INDEX idx_wie_profile_event (profile_id, event_type),
+    INDEX idx_wie_account_occurred (account_id, occurred_at)
+);
+
 CREATE TABLE notifications (
     notification_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     message TEXT NOT NULL,
