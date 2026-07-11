@@ -174,6 +174,7 @@ export async function getMilestoneStats(profileId: number): Promise<MilestoneSta
       totalEpisodesWatched,
       totalMoviesWatched,
       totalHoursWatched,
+      totalShowsCompleted,
       createdAt,
       firstEpisodeWatchedAt,
       firstMovieWatchedAt,
