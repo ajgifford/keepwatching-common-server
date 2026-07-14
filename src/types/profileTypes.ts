@@ -19,6 +19,7 @@ export interface ProfileRow extends RowDataPacket {
   name: string;
   image: string;
   accent_color: string | null;
+  last_viewed_achievements_at: Date | null;
 }
 
 export interface AdminProfileRow extends ProfileRow {
@@ -34,6 +35,9 @@ export function transformProfile(profile: ProfileRow): Profile {
     name: profile.name,
     image: profile.image,
     accentColor: profile.accent_color ?? undefined,
+    lastViewedAchievementsAt: profile.last_viewed_achievements_at
+      ? profile.last_viewed_achievements_at.toISOString()
+      : null,
   };
 }
 

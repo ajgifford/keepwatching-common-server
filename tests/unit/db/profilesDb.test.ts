@@ -147,6 +147,37 @@ describe('profileDb', () => {
     });
   });
 
+  describe('markProfileAchievementsViewed()', () => {
+    it('should mark profile achievements as viewed', async () => {
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
+      const success = await profilesDb.markProfileAchievementsViewed(5);
+      expect(mockExecute).toHaveBeenCalledWith(
+        'UPDATE profiles SET last_viewed_achievements_at = NOW() WHERE profile_id = ?',
+        [5],
+      );
+      expect(success).toBe(true);
+    });
+
+    it('should return false when no rows are affected', async () => {
+      mockExecute.mockResolvedValueOnce([{ affectedRows: 0 } as ResultSetHeader]);
+      const success = await profilesDb.markProfileAchievementsViewed(5);
+      expect(success).toBe(false);
+    });
+
+    it('should throw error when marking achievements as viewed fails', async () => {
+      const mockError = new Error('DB connection failed');
+      mockExecute.mockRejectedValue(mockError);
+      await expect(profilesDb.markProfileAchievementsViewed(5)).rejects.toThrow('DB connection failed');
+    });
+
+    it('should throw error with default message when marking achievements as viewed fails', async () => {
+      mockExecute.mockRejectedValue({});
+      await expect(profilesDb.markProfileAchievementsViewed(5)).rejects.toThrow(
+        'Unknown database error marking profile achievements as viewed',
+      );
+    });
+  });
+
   describe('deleteProfile()', () => {
     it('delete() should delete profile from DB', async () => {
       mockExecute.mockResolvedValueOnce([{ affectedRows: 1 } as ResultSetHeader]);
@@ -311,6 +342,8 @@ describe('profileDb', () => {
           accountId: 5,
           name: 'Profile 1',
           image: 'profile1.jpg',
+          accentColor: undefined,
+          lastViewedAchievementsAt: null,
           favoritedShows: 10,
           favoritedMovies: 5,
           createdAt: '2025-01-01T00:00:00.000Z',
@@ -320,6 +353,8 @@ describe('profileDb', () => {
           accountId: 5,
           name: 'Profile 2',
           image: null,
+          accentColor: undefined,
+          lastViewedAchievementsAt: null,
           favoritedShows: 3,
           favoritedMovies: 7,
           createdAt: '2025-01-02T00:00:00.000Z',

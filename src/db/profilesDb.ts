@@ -71,6 +71,19 @@ export async function updateProfileAccentColor(profileRequest: UpdateProfileAcce
   }
 }
 
+export async function markProfileAchievementsViewed(id: number): Promise<boolean> {
+  try {
+    return await DbMonitor.getInstance().executeWithTiming('markProfileAchievementsViewed', async () => {
+      const query = 'UPDATE profiles SET last_viewed_achievements_at = NOW() WHERE profile_id = ?';
+      const [result] = await getDbPool().execute<ResultSetHeader>(query, [id]);
+
+      return result.affectedRows > 0;
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'marking profile achievements as viewed');
+  }
+}
+
 export async function deleteProfile(id: number): Promise<boolean> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('deleteProfile', async () => {

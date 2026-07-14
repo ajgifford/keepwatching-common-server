@@ -171,7 +171,13 @@ describe('ProfileService', () => {
   });
 
   describe('getProfile', () => {
-    const mockProfile = { id: 123, name: 'Test Profile', accountId: 1, accentColor: '#7b1fa2' };
+    const mockProfile = {
+      id: 123,
+      name: 'Test Profile',
+      accountId: 1,
+      accentColor: '#7b1fa2',
+      lastViewedAchievementsAt: '2026-07-14T12:00:00.000Z',
+    };
     const mockShows = [{ show_id: 1, title: 'Test Show' }];
     const mockMovies = [{ movie_id: 1, title: 'Test Movie' }];
     const mockRecentEpisodes = [{ id: 1, title: 'Recent Episode' }];
@@ -229,6 +235,7 @@ describe('ProfileService', () => {
           name: 'Test Profile',
           image: 'profile-image-url.jpg',
           accentColor: '#7b1fa2',
+          lastViewedAchievementsAt: '2026-07-14T12:00:00.000Z',
         },
         shows: mockShows,
         movies: mockMovies,
@@ -528,6 +535,62 @@ describe('ProfileService', () => {
 
       await expect(service.updateProfileAccentColor(123, '#7b1fa2')).rejects.toThrow('Database error');
       expect(errorService.handleError).toHaveBeenCalledWith(error, 'updateProfileAccentColor(123, #7b1fa2)');
+    });
+  });
+
+  describe('markAchievementsViewed', () => {
+    const mockProfile = {
+      id: 123,
+      name: 'Test Profile',
+      accountId: 1,
+      image: 'old-image.jpg',
+      accentColor: '#7b1fa2',
+    };
+
+    it('should mark a profile achievements as viewed successfully', async () => {
+      (profilesDb.findProfileById as jest.Mock)
+        .mockResolvedValueOnce(mockProfile)
+        .mockResolvedValueOnce({ ...mockProfile, lastViewedAchievementsAt: '2026-07-14T12:00:00.000Z' });
+      (profilesDb.markProfileAchievementsViewed as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.markAchievementsViewed(123);
+
+      expect(profilesDb.findProfileById).toHaveBeenCalledWith(123);
+      expect(profilesDb.markProfileAchievementsViewed).toHaveBeenCalledWith(123);
+      expect(mockCache.invalidateProfile).toHaveBeenCalledWith(123);
+      expect(mockCache.invalidateAccount).toHaveBeenCalledWith(1);
+      expect(result).toEqual({
+        id: 123,
+        name: 'Test Profile',
+        accountId: 1,
+        image: 'profile-image-url.jpg',
+        accentColor: '#7b1fa2',
+        lastViewedAchievementsAt: '2026-07-14T12:00:00.000Z',
+      });
+    });
+
+    it('should throw NotFoundError when profile does not exist', async () => {
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.markAchievementsViewed(999)).rejects.toThrow(NotFoundError);
+      expect(profilesDb.findProfileById).toHaveBeenCalledWith(999);
+    });
+
+    it('should throw BadRequestError when update fails', async () => {
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(mockProfile);
+      (profilesDb.markProfileAchievementsViewed as jest.Mock).mockResolvedValue(false);
+
+      await expect(service.markAchievementsViewed(123)).rejects.toThrow(BadRequestError);
+      expect(profilesDb.markProfileAchievementsViewed).toHaveBeenCalledWith(123);
+    });
+
+    it('should handle database errors', async () => {
+      const error = new Error('Database error');
+      (profilesDb.findProfileById as jest.Mock).mockResolvedValue(mockProfile);
+      (profilesDb.markProfileAchievementsViewed as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.markAchievementsViewed(123)).rejects.toThrow('Database error');
+      expect(errorService.handleError).toHaveBeenCalledWith(error, 'markAchievementsViewed(123)');
     });
   });
 

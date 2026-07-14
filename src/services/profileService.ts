@@ -110,6 +110,7 @@ export class ProfileService {
               name: profile.name,
               image: getProfileImage(profile.image, profile.name),
               accentColor: profile.accentColor,
+              lastViewedAchievementsAt: profile.lastViewedAchievementsAt,
             },
             shows,
             episodes: { recentEpisodes, upcomingEpisodes, nextUnwatchedEpisodes },
@@ -287,6 +288,47 @@ export class ProfileService {
       };
     } catch (error) {
       throw errorService.handleError(error, `updateProfileAccentColor(${profileId}, ${accentColor})`);
+    }
+  }
+
+  /**
+   * Marks a profile's achievements as viewed as of now
+   *
+   * @param profileId - ID of the profile to update
+   * @returns Updated profile information
+   * @throws {NotFoundError} If the profile is not found
+   * @throws {BadRequestError} If the profile update fails
+   */
+  public async markAchievementsViewed(profileId: number): Promise<Profile> {
+    try {
+      const profile = await profilesDb.findProfileById(profileId);
+      if (!profile) {
+        throw new NotFoundError('Profile not found');
+      }
+
+      const success = await profilesDb.markProfileAchievementsViewed(profile.id);
+      if (!success) {
+        throw new BadRequestError('Failed to mark profile achievements as viewed');
+      }
+
+      this.invalidateProfileCache(profileId);
+      this.cache.invalidateAccount(profile.accountId);
+
+      const updatedProfile = await profilesDb.findProfileById(profileId);
+      if (!updatedProfile) {
+        throw new NotFoundError('Profile not found');
+      }
+
+      return {
+        id: updatedProfile.id,
+        name: updatedProfile.name,
+        accountId: updatedProfile.accountId,
+        image: getProfileImage(updatedProfile.image, updatedProfile.name),
+        accentColor: updatedProfile.accentColor,
+        lastViewedAchievementsAt: updatedProfile.lastViewedAchievementsAt,
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `markAchievementsViewed(${profileId})`);
     }
   }
 
