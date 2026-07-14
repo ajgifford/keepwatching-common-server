@@ -312,6 +312,32 @@ export class SocketService {
   }
 
   /**
+   * Notifies a source account that one of its profiles was just claimed into a new,
+   * independent account, so any of its open sessions can drop the profile from local
+   * state instead of continuing to show it until the next login.
+   *
+   * @param accountId ID of the account the profile was transferred out of
+   * @param profileId ID of the profile that was transferred
+   * @param newDefaultProfileId If the transferred profile was this account's default, the
+   *   profile that replaced it — undefined if the account's default is unchanged
+   */
+  public notifyProfileTransferred(accountId: number, profileId: number, newDefaultProfileId?: number): void {
+    if (!this.io) return;
+
+    const accountSockets = Array.from(this.connectedUsers.values()).filter((user) => user.accountId === accountId);
+    if (accountSockets.length === 0) return;
+
+    accountSockets.forEach((user) => {
+      const socket = this.io!.sockets.sockets.get(user.socketId);
+      if (socket) {
+        socket.emit('profileTransferred', { profileId, newDefaultProfileId });
+      }
+    });
+
+    cliLogger.info(`Notified ${accountSockets.length} sockets for account ${accountId} of profile transfer`);
+  }
+
+  /**
    * Notifies a specific account that show data has been fully loaded
    * @param profileId ID of the profile that favorited the show
    * @param loadedShow Show data that was loaded

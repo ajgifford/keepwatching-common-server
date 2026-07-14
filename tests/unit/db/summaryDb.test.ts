@@ -35,6 +35,7 @@ describe('summaryDb Module', () => {
         { entity: 'people', count: 1000 },
         { entity: 'favoritedShows', count: 300 },
         { entity: 'favoritedMovies', count: 150 },
+        { entity: 'profilesTransferred', count: 5 },
       ];
 
       mockPool.execute.mockResolvedValueOnce([mockRows]);
@@ -52,6 +53,7 @@ describe('summaryDb Module', () => {
         people: 1000,
         favoritedShows: 300,
         favoritedMovies: 150,
+        profilesTransferred: 5,
       });
     });
 

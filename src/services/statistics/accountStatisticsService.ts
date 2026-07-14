@@ -322,9 +322,7 @@ export class AccountStatisticsService {
           const mostActiveDay = Object.entries(dayCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Monday';
           const mostActiveHour = Number(Object.entries(hourCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 0);
           const velocityTrend = (Object.entries(trendCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'stable') as
-            | 'increasing'
-            | 'decreasing'
-            | 'stable';
+            'increasing' | 'decreasing' | 'stable';
 
           return {
             episodesPerWeek: totalEpisodes > 0 ? Math.round((weightedEpisodesPerWeek / totalEpisodes) * 100) / 100 : 0,

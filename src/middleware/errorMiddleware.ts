@@ -127,6 +127,13 @@ export class ConflictError extends CustomError {
   }
 }
 
+export class GoneError extends CustomError {
+  constructor(message: string) {
+    super(message, 410, 'GONE');
+    Object.setPrototypeOf(this, GoneError.prototype);
+  }
+}
+
 export class NoAffectedRowsError extends CustomError {
   constructor(message: string) {
     super(message, 400, 'NO_AFFECTED_ROWS');

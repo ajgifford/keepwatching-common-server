@@ -352,6 +352,35 @@ export class AccountService {
   }
 
   /**
+   * Find account by email address
+   *
+   * @param email - Email of the account to find
+   * @returns Account information or null if not found
+   * @throws Error if the database operation fails
+   */
+  public async findAccountByEmail(email: string): Promise<Account | null> {
+    try {
+      const account = await accountsDb.findAccountByEmail(email);
+
+      if (!account) {
+        return null;
+      }
+
+      return {
+        id: account.account_id,
+        name: account.account_name,
+        email: account.email,
+        uid: account.uid,
+        image: getAccountImage(account.image, account.account_name),
+        defaultProfileId: account.default_profile_id,
+        createdAt: account.created_at,
+      };
+    } catch (error) {
+      throw errorService.handleError(error, `findAccountByEmail(${email})`);
+    }
+  }
+
+  /**
    * Find the account ID associated with a profile
    *
    * @param profileId - ID of the profile to look up

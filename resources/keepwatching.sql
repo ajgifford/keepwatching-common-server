@@ -262,6 +262,25 @@ CREATE TABLE watchlist_item_events (
     INDEX idx_wie_account_occurred (account_id, occurred_at)
 );
 
+CREATE TABLE profile_transfer_invitations (
+    invitation_id INT AUTO_INCREMENT PRIMARY KEY,
+    profile_id INT NOT NULL,
+    source_account_id INT NOT NULL,
+    target_email VARCHAR(255) NOT NULL,
+    target_name VARCHAR(255),
+    new_default_profile_id INT,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    status ENUM('pending', 'claimed', 'canceled', 'expired') NOT NULL DEFAULT 'pending',
+    expires_at DATETIME NOT NULL,
+    claimed_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (profile_id) REFERENCES profiles(profile_id) ON DELETE CASCADE,
+    FOREIGN KEY (source_account_id) REFERENCES accounts(account_id) ON DELETE CASCADE,
+    FOREIGN KEY (new_default_profile_id) REFERENCES profiles(profile_id) ON DELETE SET NULL,
+    INDEX idx_pti_profile_status (profile_id, status),
+    INDEX idx_pti_source_account (source_account_id)
+);
+
 CREATE TABLE notifications (
     notification_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     message TEXT NOT NULL,

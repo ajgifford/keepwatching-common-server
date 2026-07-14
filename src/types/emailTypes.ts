@@ -68,6 +68,14 @@ export interface WelcomeEmail {
   featuredContent: FeaturedContent;
 }
 
+export interface ProfileTransferInvitationEmail {
+  to: string;
+  profileName: string;
+  sourceAccountName: string;
+  claimUrl: string;
+  expiresAt: string;
+}
+
 export interface DiscoveryEmail {
   accountId: number;
   to: string;

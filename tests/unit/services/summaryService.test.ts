@@ -29,6 +29,7 @@ describe('SummaryService', () => {
     people: 200,
     favoritedShows: 80,
     favoritedMovies: 30,
+    profilesTransferred: 5,
   };
 
   beforeEach(() => {

@@ -33,6 +33,14 @@ export function getServiceName() {
   return process.env.SERVICE_NAME || 'keepwatching';
 }
 
+/**
+ * Base URL of the client app, used to build links in outbound emails
+ * (welcome email, profile transfer invitations). No trailing slash.
+ */
+export function getClientAppUrl() {
+  return process.env.CLIENT_APP_URL || 'https://keepwatching.giffordfamilydev.us';
+}
+
 export function getPort() {
   return process.env.PORT || 3001;
 }

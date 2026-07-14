@@ -5,6 +5,7 @@ export * from './schema/movieSchema';
 export * from './schema/notificationsSchema';
 export * from './schema/preferencesSchema';
 export * from './schema/personSchema';
+export * from './schema/profileTransferSchema';
 export * from './schema/searchSchema';
 export * from './schema/seasonSchema';
 export * from './schema/showSchema';

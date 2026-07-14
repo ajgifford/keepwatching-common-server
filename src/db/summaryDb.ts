@@ -25,6 +25,8 @@ export async function getSummaryCounts(): Promise<SummaryCounts> {
       SELECT 'favoritedShows' as entity, COUNT(*) as count FROM show_watch_status
       UNION ALL
       SELECT 'favoritedMovies' as entity, COUNT(*) as count FROM movie_watch_status
+      UNION ALL
+      SELECT 'profilesTransferred' as entity, COUNT(*) as count FROM profile_transfer_invitations WHERE status = 'claimed'
     `;
       const [rows] = await getDbPool().execute<SummaryCountRow[]>(query);
 

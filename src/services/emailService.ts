@@ -1,7 +1,7 @@
 import * as emailDb from '../db/emailDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { BadRequestError, NotFoundError } from '../middleware/errorMiddleware';
-import { CreateEmailRow, EmailContentResult } from '../types/emailTypes';
+import { CreateEmailRow, EmailContentResult, ProfileTransferInvitationEmail } from '../types/emailTypes';
 import { emailContentService } from './email/emailContentService';
 import { emailDeliveryService } from './email/emailDeliveryService';
 import { errorService } from './errorService';
@@ -489,6 +489,22 @@ export class EmailService {
         email: accountEmail,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  /**
+   * Send a profile transfer invitation email
+   *
+   * Unlike other transactional emails, this is not tied to an existing account (the
+   * recipient doesn't have one yet), so it bypasses the account-scoped email/recipient
+   * tracking tables and delivers directly. Failures are propagated to the caller since,
+   * unlike a welcome email, a failed send makes the invitation unusable.
+   */
+  public async sendProfileTransferInvitation(emailData: ProfileTransferInvitationEmail): Promise<void> {
+    try {
+      await emailDeliveryService.sendProfileTransferInvitationEmail(emailData);
+    } catch (error) {
+      throw errorService.handleError(error, `sendProfileTransferInvitation(${emailData.to})`);
     }
   }
 

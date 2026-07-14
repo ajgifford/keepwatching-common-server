@@ -285,6 +285,54 @@ describe('SocketService', () => {
     });
   });
 
+  describe('notifyProfileTransferred', () => {
+    it('should emit profileTransferred to every connected socket for the source account', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      const socketEmit = jest.fn();
+      mockSocketsMap.set('socket-1', { emit: socketEmit });
+      (service as any).connectedUsers.set('socket-1', { accountId: 5, socketId: 'socket-1', userId: 'uid-1' });
+
+      service.notifyProfileTransferred(5, 10, 11);
+
+      expect(socketEmit).toHaveBeenCalledWith('profileTransferred', { profileId: 10, newDefaultProfileId: 11 });
+    });
+
+    it('should omit newDefaultProfileId when the transferred profile was not the default', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      const socketEmit = jest.fn();
+      mockSocketsMap.set('socket-1', { emit: socketEmit });
+      (service as any).connectedUsers.set('socket-1', { accountId: 5, socketId: 'socket-1', userId: 'uid-1' });
+
+      service.notifyProfileTransferred(5, 10);
+
+      expect(socketEmit).toHaveBeenCalledWith('profileTransferred', { profileId: 10, newDefaultProfileId: undefined });
+    });
+
+    it('should not emit to sockets for a different account', () => {
+      const service = SocketService.getInstance();
+      service.initialize(mockServer as Server);
+
+      const socketEmit = jest.fn();
+      mockSocketsMap.set('socket-1', { emit: socketEmit });
+      (service as any).connectedUsers.set('socket-1', { accountId: 999, socketId: 'socket-1', userId: 'uid-1' });
+
+      service.notifyProfileTransferred(5, 10);
+
+      expect(socketEmit).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing if the server is not initialized', () => {
+      const service = SocketService.getInstance();
+      (service as any).connectedUsers.set('socket-1', { accountId: 5, socketId: 'socket-1', userId: 'uid-1' });
+
+      expect(() => service.notifyProfileTransferred(5, 10)).not.toThrow();
+    });
+  });
+
   describe('clearNotificationCache', () => {
     it('should clear cache for specific account', () => {
       const service = SocketService.getInstance();

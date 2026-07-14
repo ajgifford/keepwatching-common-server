@@ -1,9 +1,11 @@
 import { EmailConfig, getEmailConfig } from '../../config/config';
 import { appLogger, cliLogger } from '../../logger/logger';
-import { DigestEmail, DiscoveryEmail, WelcomeEmail } from '../../types/emailTypes';
+import { DigestEmail, DiscoveryEmail, ProfileTransferInvitationEmail, WelcomeEmail } from '../../types/emailTypes';
 import {
   generateDiscoveryEmailHTML,
   generateDiscoveryEmailText,
+  generateProfileTransferInvitationHTML,
+  generateProfileTransferInvitationText,
   generateWeeklyDigestHTML,
   generateWeeklyDigestText,
   generateWelcomeEmailHTML,
@@ -125,6 +127,34 @@ export class EmailDeliveryService {
     } catch (error) {
       const enhancedError = errorService.handleError(error, `sendDiscoveryEmail(${emailData.to})`);
       appLogger.error('Discovery email failed', {
+        email: emailData.to,
+        error: enhancedError,
+      });
+      throw enhancedError;
+    }
+  }
+
+  /**
+   * Send a profile transfer invitation email
+   */
+  public async sendProfileTransferInvitationEmail(emailData: ProfileTransferInvitationEmail): Promise<void> {
+    try {
+      const htmlContent = generateProfileTransferInvitationHTML(emailData);
+      const textContent = generateProfileTransferInvitationText(emailData);
+
+      const mailOptions = {
+        from: this.config.from,
+        to: emailData.to,
+        subject: `You've Been Invited to KeepWatching`,
+        html: htmlContent,
+        text: textContent,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      cliLogger.info(`Profile transfer invitation email sent to: ${emailData.to}`);
+    } catch (error) {
+      const enhancedError = errorService.handleError(error, `sendProfileTransferInvitationEmail(${emailData.to})`);
+      appLogger.error('Profile transfer invitation email failed', {
         email: emailData.to,
         error: enhancedError,
       });

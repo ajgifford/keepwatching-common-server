@@ -1,4 +1,5 @@
-import { DigestEmail, DiscoveryEmail, WelcomeEmail } from '../types/emailTypes';
+import { getClientAppUrl } from '../config/config';
+import { DigestEmail, DiscoveryEmail, ProfileTransferInvitationEmail, WelcomeEmail } from '../types/emailTypes';
 
 /**
  * Generate HTML content for weekly digest email
@@ -291,7 +292,7 @@ export function generateDiscoveryEmailHTML(emailData: DiscoveryEmail): string {
         <div class="cta-section">
             <div class="cta-title">Ready to Explore?</div>
             <div class="cta-text">Log in to KeepWatching and add these to your watchlist!</div>
-            <a href="https://keepwatching.giffordfamilydev.us/" class="cta-button">Browse Content →</a>
+            <a href="${getClientAppUrl()}/" class="cta-button">Browse Content →</a>
         </div>
 
         <div class="footer">
@@ -488,7 +489,7 @@ export function generateWelcomeEmailHTML(emailData: WelcomeEmail): string {
         <div class="cta-section">
             <div class="cta-title">Ready to Start Watching?</div>
             <div class="cta-text">Log in now to create your profiles and build your watchlist!</div>
-            <a href="https://keepwatching.giffordfamilydev.us/" class="cta-button">Get Started →</a>
+            <a href="${getClientAppUrl()}/" class="cta-button">Get Started →</a>
         </div>
 
         <div class="footer">
@@ -547,11 +548,76 @@ export function generateWelcomeEmailText(emailData: WelcomeEmail): string {
 
   text += `READY TO START WATCHING?\n`;
   text += `Log in now to create your profiles and build your watchlist!\n`;
-  text += `Visit: https://keepwatching.giffordfamilydev.us/\n\n`;
+  text += `Visit: ${getClientAppUrl()}/\n\n`;
 
   text += `Happy watching!\n\n`;
   text += `Welcome to the KeepWatching community!\n`;
   text += `Questions? Just reply to this email.`;
+
+  return text;
+}
+
+/**
+ * Generate HTML content for a profile transfer invitation email
+ */
+export function generateProfileTransferInvitationHTML(emailData: ProfileTransferInvitationEmail): string {
+  const { profileName, sourceAccountName, claimUrl, expiresAt } = emailData;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You've Been Invited to KeepWatching</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 8px 8px 0 0; text-align: center; margin: -20px -20px 20px -20px; }
+        .header h1 { margin: 0; font-size: 26px; }
+        .info-section { background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea; }
+        .info-text { color: #555; font-size: 16px; line-height: 1.8; margin: 0 0 10px 0; }
+        .cta-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px; text-align: center; margin: 30px 0; }
+        .cta-title { color: white; font-size: 20px; font-weight: bold; margin-bottom: 15px; }
+        .cta-button { display: inline-block; background-color: white; color: #667eea; padding: 14px 35px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; }
+        .expiry { color: #888; font-size: 13px; text-align: center; margin-top: 10px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>You've Been Invited to KeepWatching</h1>
+        </div>
+        <div class="info-section">
+            <p class="info-text"><strong>${sourceAccountName}</strong> would like to hand you the profile <strong>"${profileName}"</strong> as your very own, independent KeepWatching account.</p>
+            <p class="info-text">Your watch history, ratings, watchlist, and badges will come with you. Accept below to set up your own login.</p>
+        </div>
+        <div class="cta-section">
+            <div class="cta-title">Claim Your Profile</div>
+            <a href="${claimUrl}" class="cta-button">Get Started →</a>
+        </div>
+        <p class="expiry">This invitation expires on ${formatDate(expiresAt)}.</p>
+        <div class="footer">
+            <p><small>If you weren't expecting this, you can safely ignore this email.</small></p>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+/**
+ * Generate plain text content for a profile transfer invitation email
+ */
+export function generateProfileTransferInvitationText(emailData: ProfileTransferInvitationEmail): string {
+  const { profileName, sourceAccountName, claimUrl, expiresAt } = emailData;
+
+  let text = `You've Been Invited to KeepWatching\n\n`;
+  text += `${sourceAccountName} would like to hand you the profile "${profileName}" as your very own, independent KeepWatching account.\n\n`;
+  text += `Your watch history, ratings, watchlist, and badges will come with you. Accept the invitation below to set up your own login.\n\n`;
+  text += `Claim your profile: ${claimUrl}\n\n`;
+  text += `This invitation expires on ${formatDate(expiresAt)}.\n\n`;
+  text += `If you weren't expecting this, you can safely ignore this email.\n`;
 
   return text;
 }
