@@ -140,7 +140,7 @@ describe('AccountService', () => {
       defaultProfileId: 2,
     };
 
-    it('should update an account successfully', async () => {
+    it('should update an account successfully and report both fields changed', async () => {
       (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
       (accountsDb.editAccount as jest.Mock).mockResolvedValue(updatedDBAccount);
 
@@ -149,13 +149,34 @@ describe('AccountService', () => {
       expect(accountsDb.findAccountById).toHaveBeenCalledWith(123);
       expect(accountsDb.editAccount).toHaveBeenCalledWith({ id: 123, name: 'Updated Account', defaultProfileId: 2 });
       expect(result).toEqual({
-        id: 123,
-        uid: 'uid123',
-        name: 'Updated Account',
-        email: 'test@example.com',
-        image: 'account-image-url.jpg',
-        defaultProfileId: 2,
+        account: {
+          id: 123,
+          uid: 'uid123',
+          name: 'Updated Account',
+          email: 'test@example.com',
+          image: 'account-image-url.jpg',
+          defaultProfileId: 2,
+        },
+        message: 'Account updated successfully',
       });
+    });
+
+    it('should report only the name changed when the default profile is unchanged', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
+      (accountsDb.editAccount as jest.Mock).mockResolvedValue({ ...updatedDBAccount, defaultProfileId: 1 });
+
+      const result = await accountService.editAccount(123, 'Updated Account', 1);
+
+      expect(result.message).toBe('Account name updated successfully');
+    });
+
+    it('should report only the default profile changed when the name is unchanged', async () => {
+      (accountsDb.findAccountById as jest.Mock).mockResolvedValue(dbAccount);
+      (accountsDb.editAccount as jest.Mock).mockResolvedValue({ ...updatedDBAccount, name: 'Original Account' });
+
+      const result = await accountService.editAccount(123, 'Original Account', 2);
+
+      expect(result.message).toBe('Default profile updated successfully');
     });
 
     it('should throw NotFoundError when account does not exist', async () => {

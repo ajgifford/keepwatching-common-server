@@ -24,6 +24,15 @@ export interface GoogleLoginResponse {
 }
 
 /**
+ * Interface representing the response for an account edit operation,
+ * including a message describing which fields were actually changed
+ */
+export interface EditAccountResponse {
+  account: Account;
+  message: string;
+}
+
+/**
  * Service class for handling account-related business logic
  */
 export class AccountService {
@@ -223,16 +232,19 @@ export class AccountService {
    * @param accountId - ID of the account to update
    * @param name - New name for the account
    * @param defaultProfileId - ID of the profile to set as default
-   * @returns Updated account information
+   * @returns Updated account information along with a message describing what changed
    * @throws {NotFoundError} If the account is not found
    * @throws {BadRequestError} If the account update fails
    */
-  public async editAccount(accountId: number, name: string, defaultProfileId: number): Promise<Account> {
+  public async editAccount(accountId: number, name: string, defaultProfileId: number): Promise<EditAccountResponse> {
     try {
       const account = await accountsDb.findAccountById(accountId);
       if (!account) {
         throw new NotFoundError('Account not found');
       }
+
+      const nameChanged = account.name !== name;
+      const defaultProfileChanged = account.defaultProfileId !== defaultProfileId;
 
       const accountData: UpdateAccountRequest = {
         id: accountId,
@@ -245,9 +257,19 @@ export class AccountService {
         throw new BadRequestError('Failed to update the account');
       }
 
+      let message = 'Account updated successfully';
+      if (nameChanged && !defaultProfileChanged) {
+        message = 'Account name updated successfully';
+      } else if (defaultProfileChanged && !nameChanged) {
+        message = 'Default profile updated successfully';
+      }
+
       return {
-        ...updatedAccount,
-        image: getAccountImage(updatedAccount.image, updatedAccount.name),
+        account: {
+          ...updatedAccount,
+          image: getAccountImage(updatedAccount.image, updatedAccount.name),
+        },
+        message,
       };
     } catch (error) {
       throw errorService.handleError(error, `editAccount(${accountId})`);
