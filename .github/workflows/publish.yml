@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -41,10 +43,37 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate release notes body
+        id: notes
+        run: |
+          TAG="${{ github.ref_name }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+
+          BODY=""
+          if [ -n "$PREV_TAG" ]; then
+            while IFS=$'\t' read -r subject hash; do
+              [ "$subject" = "$TAG" ] && continue
+              BODY="${BODY}- ${subject} (${hash})"$'\n'
+            done < <(git log --no-merges --pretty=tformat:"%s%x09%h" "$PREV_TAG..HEAD")
+          fi
+
+          if [ -z "$PREV_TAG" ]; then
+            BODY="- Initial tagged release"
+          elif [ -z "$BODY" ]; then
+            BODY="- No changes other than the version bump"
+          fi
+
+          {
+            echo "body<<RELEASE_NOTES_EOF"
+            echo "$BODY"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           prerelease: true
+          body: ${{ steps.notes.outputs.body }}
           generate_release_notes: true
