@@ -76,8 +76,8 @@ export const mockSentEmails = [
  * Mock email recipients
  */
 export const mockEmailRecipients = [
-  { id: 1, email: 'user1@example.com' },
-  { id: 2, email: 'user2@example.com' },
+  { id: 1, name: 'User One', email: 'user1@example.com' },
+  { id: 2, name: 'User Two', email: 'user2@example.com' },
 ];
 
 /**

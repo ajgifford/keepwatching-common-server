@@ -83,6 +83,11 @@ describe('EmailService - Email Management', () => {
       await emailService.scheduleEmail(1, {
         subject: 'Test',
         message: 'Test',
+        headerStyle: 'none' as const,
+        footerStyle: 'none' as const,
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
         sendToAll: false,
         recipients: [1],
         action: 'schedule' as const,

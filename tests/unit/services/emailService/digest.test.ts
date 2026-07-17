@@ -27,6 +27,11 @@ describe('EmailService - Digest Email Sending', () => {
       expect(emailDb.createEmail).toHaveBeenCalledWith({
         subject: 'Your Weekly Watch Guide - 2025-06-02 to 2025-06-08',
         message: 'Weekly digest email sent to single account',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: false,
         account_count: 1,
         scheduled_date: null,

@@ -1,6 +1,8 @@
 import {
   ContentReference,
   Email,
+  EmailFooterStyle,
+  EmailHeaderStyle,
   EmailStatus,
   EmailTemplate,
   KeepWatchingShow,
@@ -112,6 +114,11 @@ export interface EmailBatch {
 export interface CreateEmailRow {
   subject: string;
   message: string;
+  header_style: EmailHeaderStyle;
+  footer_style: EmailFooterStyle;
+  header_title: string | null;
+  header_subtitle: string | null;
+  footer_note: string | null;
   sent_to_all: boolean;
   account_count: number;
   scheduled_date: string | null;
@@ -128,6 +135,11 @@ export interface EmailTemplateRow extends RowDataPacket {
   name: string;
   subject: string;
   message: string;
+  header_style: EmailHeaderStyle;
+  footer_style: EmailFooterStyle;
+  header_title: string | null;
+  header_subtitle: string | null;
+  footer_note: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -136,6 +148,11 @@ export interface EmailRow extends RowDataPacket {
   id: number;
   subject: string;
   message: string;
+  header_style: EmailHeaderStyle;
+  footer_style: EmailFooterStyle;
+  header_title: string | null;
+  header_subtitle: string | null;
+  footer_note: string | null;
   sent_to_all: number;
   account_count: number;
   scheduled_date: string | null;
@@ -151,6 +168,11 @@ export function transformEmailTemplateRow(emailTemplateRow: EmailTemplateRow): E
     name: emailTemplateRow.name,
     subject: emailTemplateRow.subject,
     message: emailTemplateRow.message,
+    headerStyle: emailTemplateRow.header_style,
+    footerStyle: emailTemplateRow.footer_style,
+    headerTitle: emailTemplateRow.header_title,
+    headerSubtitle: emailTemplateRow.header_subtitle,
+    footerNote: emailTemplateRow.footer_note,
     createdAt: emailTemplateRow.created_at,
     updatedAt: emailTemplateRow.updated_at,
   };
@@ -161,6 +183,11 @@ export function transformEmailRow(sentEmailRow: EmailRow): Email {
     id: sentEmailRow.id,
     subject: sentEmailRow.subject,
     message: sentEmailRow.message,
+    headerStyle: sentEmailRow.header_style,
+    footerStyle: sentEmailRow.footer_style,
+    headerTitle: sentEmailRow.header_title,
+    headerSubtitle: sentEmailRow.header_subtitle,
+    footerNote: sentEmailRow.footer_note,
     sentToAll: sentEmailRow.sent_to_all === 1,
     accountCount: sentEmailRow.account_count,
     scheduledDate: sentEmailRow.scheduled_date,

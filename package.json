@@ -118,7 +118,7 @@
   "author": "Gifford Family Dev",
   "license": "ISC",
   "dependencies": {
-    "@ajgifford/keepwatching-types": "^0.16.1",
+    "@ajgifford/keepwatching-types": "^0.17.0",
     "axios": "1.18.1",
     "axios-retry": "^4.5.0",
     "cron-parser": "5.5.0",

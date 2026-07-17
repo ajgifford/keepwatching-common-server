@@ -10,6 +10,7 @@ import {
   generateWeeklyDigestText,
   generateWelcomeEmailHTML,
   generateWelcomeEmailText,
+  stripHtmlToText,
 } from '../../utils/emailUtility';
 import { errorService } from '../errorService';
 import nodemailer from 'nodemailer';
@@ -165,14 +166,15 @@ export class EmailDeliveryService {
   /**
    * Send an email
    */
-  public async sendEmail(to: string, subject?: string, content?: string): Promise<void> {
+  public async sendEmail(to: string, subject?: string, html?: string, text?: string): Promise<void> {
     try {
+      const htmlContent = html || '<p>This is a test email to verify email delivery is working.</p>';
       const mailOptions = {
         from: this.config.from,
         to,
         subject: subject || 'Test Email from KeepWatching',
-        html: content || '<p>This is a test email to verify email delivery is working.</p>',
-        text: content || 'This is a test email to verify email delivery is working.',
+        html: htmlContent,
+        text: text || stripHtmlToText(htmlContent),
       };
 
       await this.transporter.sendMail(mailOptions);

@@ -297,6 +297,51 @@ CREATE TABLE account_notifications (
 	FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
 );
 
+CREATE TABLE email_templates (
+	id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	subject VARCHAR(500) NOT NULL,
+	message MEDIUMTEXT NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	header_style VARCHAR(20) NOT NULL DEFAULT 'none',
+	footer_style VARCHAR(20) NOT NULL DEFAULT 'none',
+	header_title VARCHAR(500) DEFAULT NULL,
+	header_subtitle VARCHAR(500) DEFAULT NULL,
+	footer_note VARCHAR(500) DEFAULT NULL
+);
+
+CREATE TABLE emails (
+	id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	subject VARCHAR(500) NOT NULL,
+	message MEDIUMTEXT NOT NULL,
+	sent_to_all TINYINT(1) DEFAULT 0,
+	account_count INT DEFAULT 0,
+	scheduled_date TIMESTAMP NULL DEFAULT NULL,
+	sent_date TIMESTAMP NULL DEFAULT NULL,
+	status ENUM('draft', 'pending', 'scheduled', 'sent', 'failed') DEFAULT 'draft',
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	header_style VARCHAR(20) NOT NULL DEFAULT 'none',
+	footer_style VARCHAR(20) NOT NULL DEFAULT 'none',
+	header_title VARCHAR(500) DEFAULT NULL,
+	header_subtitle VARCHAR(500) DEFAULT NULL,
+	footer_note VARCHAR(500) DEFAULT NULL
+);
+
+CREATE TABLE email_recipients (
+	id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	email_id BIGINT NOT NULL,
+	account_id INT NOT NULL,
+	status ENUM('pending', 'sent', 'failed', 'bounced') DEFAULT 'pending',
+	sent_at TIMESTAMP NULL DEFAULT NULL,
+	error_message TEXT,
+	FOREIGN KEY (email_id) REFERENCES emails(id) ON DELETE CASCADE,
+	FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE,
+	INDEX idx_email_id (email_id),
+	INDEX idx_account_id (account_id)
+);
+
 CREATE TABLE profile_content_ratings (
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	profile_id INT NOT NULL,
@@ -845,8 +890,25 @@ FROM
     seasons s
 LEFT JOIN
     season_watch_status sws ON s.id = sws.season_id
-ORDER BY 
+ORDER BY
     s.season_number;
+
+CREATE VIEW email_recipient_details AS
+SELECT
+	ec.id,
+	ec.email_id,
+	ec.account_id,
+	a.email,
+	a.account_name,
+	ec.status,
+	ec.sent_at,
+	ec.error_message
+FROM
+	email_recipients ec
+JOIN
+	accounts a ON ec.account_id = a.account_id
+ORDER BY
+	ec.account_id, ec.sent_at DESC;
 
 -- Reference Data
 

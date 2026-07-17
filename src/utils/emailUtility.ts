@@ -1,5 +1,144 @@
 import { getClientAppUrl } from '../config/config';
 import { DigestEmail, DiscoveryEmail, ProfileTransferInvitationEmail, WelcomeEmail } from '../types/emailTypes';
+import { EmailFooterStyle, EmailHeaderStyle } from '@ajgifford/keepwatching-types';
+
+/**
+ * Shared base styles for admin-composed emails (predefined header/footer + body wrapper).
+ */
+const BASE_EMAIL_STYLES = `
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 14px; }
+        .body-content { color: #333; font-size: 15px; }
+        .body-content p { margin: 0 0 15px 0; }
+`;
+
+const HEADING_SUBTITLE_HTML = (subheading: string | null, opacity: string) =>
+  subheading ? `<p style="margin: 8px 0 0; font-size: 14px; opacity: ${opacity};">${subheading}</p>` : '';
+
+/**
+ * Predefined header renderers for admin-composed emails, keyed by `EmailHeaderStyle`.
+ * `heading` is the resolved heading text (`headerTitle` override or `subject` fallback);
+ * `subheading` is the optional sub-header line shown beneath it.
+ */
+const EMAIL_HEADERS: Record<EmailHeaderStyle, (heading: string, subheading: string | null) => string> = {
+  none: () => '',
+  gradient: (heading, subheading) => `
+        <div class="header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; border-radius: 8px 8px 0 0; text-align: center; margin: -20px -20px 20px -20px;">
+            <h1 style="margin: 0; font-size: 24px;">${heading}</h1>
+            ${HEADING_SUBTITLE_HTML(subheading, '0.9')}
+        </div>`,
+  dark: (heading, subheading) => `
+        <div class="header" style="background-color: #1a1a1a; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; margin: -20px -20px 20px -20px;">
+            <h1 style="margin: 0; font-size: 22px;">${heading}</h1>
+            ${HEADING_SUBTITLE_HTML(subheading, '0.85')}
+        </div>`,
+};
+
+const STANDARD_FOOTER_HTML = (footerNote: string | null) => `
+        <div class="footer">
+            <p>${footerNote ?? 'Happy watching! 🍿'}</p>
+            <p><small>This email was sent by your KeepWatching system.</small></p>
+        </div>`;
+
+/**
+ * Predefined footer renderers for admin-composed emails, keyed by `EmailFooterStyle`.
+ * Receives the resolved (already-interpolated) variables so the `cta` style can link to `appUrl`,
+ * plus the resolved `footerNote` override for the sign-off line (falls back to the default when null).
+ */
+const EMAIL_FOOTERS: Record<
+  EmailFooterStyle,
+  (variables: Record<string, string>, footerNote: string | null) => string
+> = {
+  none: () => '',
+  standard: (_variables, footerNote) => STANDARD_FOOTER_HTML(footerNote),
+  cta: (variables, footerNote) => `
+        <div class="cta-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 8px; text-align: center; margin: 25px 0;">
+            <a href="${variables.appUrl ?? ''}/" class="cta-button" style="display: inline-block; background-color: white; color: #667eea; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">Open KeepWatching →</a>
+        </div>${STANDARD_FOOTER_HTML(footerNote)}`,
+};
+
+/**
+ * Replace `{{key}}` placeholders in `text` with values from `variables`.
+ * Unknown keys resolve to an empty string.
+ */
+export function interpolateVariables(text: string, variables: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => variables[key] ?? '');
+}
+
+/**
+ * Render an admin-composed email's HTML: interpolates `{{variables}}` in the subject, body, and
+ * any header/footer text overrides, then wraps the body in the chosen predefined header/footer style.
+ *
+ * `headerTitle` overrides the header's heading text (falls back to `subject` when null/omitted).
+ * `headerSubtitle` is an optional line shown beneath the heading. `footerNote` overrides the
+ * footer's sign-off line (falls back to the style's default when null/omitted).
+ */
+export function renderTemplatedEmailHTML({
+  subject,
+  bodyHtml,
+  headerStyle,
+  footerStyle,
+  headerTitle = null,
+  headerSubtitle = null,
+  footerNote = null,
+  variables,
+}: {
+  subject: string;
+  bodyHtml: string;
+  headerStyle: EmailHeaderStyle;
+  footerStyle: EmailFooterStyle;
+  headerTitle?: string | null;
+  headerSubtitle?: string | null;
+  footerNote?: string | null;
+  variables: Record<string, string>;
+}): string {
+  const interpolatedSubject = interpolateVariables(subject, variables);
+  const interpolatedBody = interpolateVariables(bodyHtml, variables);
+  const interpolatedHeaderTitle = headerTitle ? interpolateVariables(headerTitle, variables) : null;
+  const interpolatedHeaderSubtitle = headerSubtitle ? interpolateVariables(headerSubtitle, variables) : null;
+  const interpolatedFooterNote = footerNote ? interpolateVariables(footerNote, variables) : null;
+  const headingText = interpolatedHeaderTitle || interpolatedSubject;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${interpolatedSubject}</title>
+    <style>${BASE_EMAIL_STYLES}</style>
+</head>
+<body>
+    <div class="container">
+        ${EMAIL_HEADERS[headerStyle](headingText, interpolatedHeaderSubtitle)}
+        <div class="body-content">${interpolatedBody}</div>
+        ${EMAIL_FOOTERS[footerStyle](variables, interpolatedFooterNote)}
+    </div>
+</body>
+</html>`;
+}
+
+/**
+ * Strip HTML tags to a readable plain-text fallback (no DOM available server-side).
+ */
+export function stripHtmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 /**
  * Generate HTML content for weekly digest email

@@ -1,7 +1,9 @@
+import { getClientAppUrl } from '../config/config';
 import * as emailDb from '../db/emailDb';
 import { appLogger, cliLogger } from '../logger/logger';
 import { BadRequestError, NotFoundError } from '../middleware/errorMiddleware';
 import { CreateEmailRow, EmailContentResult, ProfileTransferInvitationEmail } from '../types/emailTypes';
+import { interpolateVariables, renderTemplatedEmailHTML } from '../utils/emailUtility';
 import { emailContentService } from './email/emailContentService';
 import { emailDeliveryService } from './email/emailDeliveryService';
 import { errorService } from './errorService';
@@ -49,6 +51,11 @@ export class EmailService {
         const digestEmailRecord: CreateEmailRow = {
           subject: `Your Weekly Watch Guide`,
           message: 'Weekly digest email with upcoming content',
+          header_style: 'none',
+          footer_style: 'none',
+          header_title: null,
+          header_subtitle: null,
+          footer_note: null,
           sent_to_all: false,
           account_count: digestEmails.length,
           scheduled_date: null,
@@ -106,6 +113,11 @@ export class EmailService {
         const discoveryEmailRecord: CreateEmailRow = {
           subject: '🎬 Discover Something New This Week',
           message: 'Weekly discovery email with featured content',
+          header_style: 'none',
+          footer_style: 'none',
+          header_title: null,
+          header_subtitle: null,
+          footer_note: null,
           sent_to_all: false,
           account_count: discoveryEmails.length,
           scheduled_date: null,
@@ -199,6 +211,11 @@ export class EmailService {
       const emailRecord: CreateEmailRow = {
         subject: `Your Weekly Watch Guide - ${digestData.weekRange.start} to ${digestData.weekRange.end}`,
         message: 'Weekly digest email sent to single account',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: false,
         account_count: 1,
         scheduled_date: null,
@@ -256,6 +273,11 @@ export class EmailService {
       const emailRecord: CreateEmailRow = {
         subject: `🎬 Discover Something New This Week - ${discoveryData.data.weekRange.start} to ${discoveryData.data.weekRange.end}`,
         message: 'Weekly discovery email sent to single account',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: false,
         account_count: 1,
         scheduled_date: null,
@@ -319,6 +341,11 @@ export class EmailService {
         const emailRecord: CreateEmailRow = {
           subject: `Your Weekly Watch Guide - ${digestData.weekRange.start} to ${digestData.weekRange.end}`,
           message: 'Weekly digest email sent to single account',
+          header_style: 'none',
+          footer_style: 'none',
+          header_title: null,
+          header_subtitle: null,
+          footer_note: null,
           sent_to_all: false,
           account_count: 1,
           scheduled_date: null,
@@ -369,6 +396,11 @@ export class EmailService {
         const emailRecord: CreateEmailRow = {
           subject: `🎬 Discover Something New This Week - ${discoveryData.data.weekRange.start} to ${discoveryData.data.weekRange.end}`,
           message: 'Weekly discovery email sent to single account',
+          header_style: 'none',
+          footer_style: 'none',
+          header_title: null,
+          header_subtitle: null,
+          footer_note: null,
           sent_to_all: false,
           account_count: 1,
           scheduled_date: null,
@@ -436,6 +468,11 @@ export class EmailService {
       const emailRecord: CreateEmailRow = {
         subject: 'Welcome to KeepWatching!',
         message: 'Welcome email sent to new account',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: false,
         account_count: 1,
         scheduled_date: null,
@@ -597,6 +634,11 @@ export class EmailService {
       const emailRecord: CreateEmailRow = {
         subject: emailData.subject,
         message: emailData.message,
+        header_style: emailData.headerStyle,
+        footer_style: emailData.footerStyle,
+        header_title: emailData.headerTitle,
+        header_subtitle: emailData.headerSubtitle,
+        footer_note: emailData.footerNote,
         sent_to_all: emailData.sendToAll,
         account_count: emailData.recipients.length,
         scheduled_date: emailData.scheduledDate,
@@ -657,7 +699,19 @@ export class EmailService {
       for (const account of accounts) {
         let emailSent = false;
         try {
-          await emailDeliveryService.sendEmail(account.email, emailData.subject, emailData.message);
+          const variables = { accountName: account.name, accountEmail: account.email, appUrl: getClientAppUrl() };
+          const renderedSubject = interpolateVariables(emailData.subject, variables);
+          const renderedHtml = renderTemplatedEmailHTML({
+            subject: emailData.subject,
+            bodyHtml: emailData.message,
+            headerStyle: emailData.headerStyle,
+            footerStyle: emailData.footerStyle,
+            headerTitle: emailData.headerTitle,
+            headerSubtitle: emailData.headerSubtitle,
+            footerNote: emailData.footerNote,
+            variables,
+          });
+          await emailDeliveryService.sendEmail(account.email, renderedSubject, renderedHtml);
           emailSent = true;
           await emailDb.updateEmailRecipientStatus(emailId, account.id, new Date().toISOString(), 'sent');
         } catch (error) {

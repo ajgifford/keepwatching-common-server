@@ -71,6 +71,11 @@ describe('emailDb', () => {
         name: 'Test Template',
         subject: 'Test Subject',
         message: 'Test Message',
+        headerStyle: 'gradient',
+        footerStyle: 'standard',
+        headerTitle: 'Custom Title',
+        headerSubtitle: 'Custom Subtitle',
+        footerNote: 'Custom footer note',
       };
 
       const mockResult = {
@@ -88,8 +93,17 @@ describe('emailDb', () => {
       const result = await emailDb.createEmailTemplate(emailTemplate);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO email_templates (name, subject, message) VALUES (?, ?, ?)',
-        [emailTemplate.name, emailTemplate.subject, emailTemplate.message],
+        'INSERT INTO email_templates (name, subject, message, header_style, footer_style, header_title, header_subtitle, footer_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          emailTemplate.name,
+          emailTemplate.subject,
+          emailTemplate.message,
+          emailTemplate.headerStyle,
+          emailTemplate.footerStyle,
+          emailTemplate.headerTitle,
+          emailTemplate.headerSubtitle,
+          emailTemplate.footerNote,
+        ],
       );
       expect(result).toBe(true);
     });
@@ -99,6 +113,11 @@ describe('emailDb', () => {
         name: 'Test Template',
         subject: 'Test Subject',
         message: 'Test Message',
+        headerStyle: 'none',
+        footerStyle: 'none',
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
 
       const mockResult = {
@@ -123,6 +142,11 @@ describe('emailDb', () => {
         name: 'Test Template',
         subject: 'Test Subject',
         message: 'Test Message',
+        headerStyle: 'none',
+        footerStyle: 'none',
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
 
       const mockError = new Error('Database connection failed');
@@ -141,6 +165,11 @@ describe('emailDb', () => {
         name: 'Updated Template',
         subject: 'Updated Subject',
         message: 'Updated Message',
+        headerStyle: 'dark',
+        footerStyle: 'standard',
+        headerTitle: 'Custom Title',
+        headerSubtitle: 'Custom Subtitle',
+        footerNote: 'Custom footer note',
       };
 
       const mockResult = {
@@ -158,8 +187,18 @@ describe('emailDb', () => {
       const result = await emailDb.updateEmailTemplate(emailTemplate);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'UPDATE email_templates SET name = ?, subject = ?, message = ? WHERE id = ?',
-        [emailTemplate.name, emailTemplate.subject, emailTemplate.message, emailTemplate.id],
+        'UPDATE email_templates SET name = ?, subject = ?, message = ?, header_style = ?, footer_style = ?, header_title = ?, header_subtitle = ?, footer_note = ? WHERE id = ?',
+        [
+          emailTemplate.name,
+          emailTemplate.subject,
+          emailTemplate.message,
+          emailTemplate.headerStyle,
+          emailTemplate.footerStyle,
+          emailTemplate.headerTitle,
+          emailTemplate.headerSubtitle,
+          emailTemplate.footerNote,
+          emailTemplate.id,
+        ],
       );
       expect(result).toBe(true);
     });
@@ -170,6 +209,11 @@ describe('emailDb', () => {
         name: 'Updated Template',
         subject: 'Updated Subject',
         message: 'Updated Message',
+        headerStyle: 'none',
+        footerStyle: 'none',
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
 
       const mockResult = {
@@ -195,6 +239,11 @@ describe('emailDb', () => {
         name: 'Updated Template',
         subject: 'Updated Subject',
         message: 'Updated Message',
+        headerStyle: 'none',
+        footerStyle: 'none',
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
 
       const mockError = new Error('Database connection failed');
@@ -354,6 +403,11 @@ describe('emailDb', () => {
       const sentEmail: CreateEmailRow = {
         subject: 'Test Subject',
         message: 'Test Message',
+        header_style: 'gradient',
+        footer_style: 'standard',
+        header_title: 'Custom Title',
+        header_subtitle: 'Custom Subtitle',
+        footer_note: 'Custom footer note',
         sent_to_all: true,
         account_count: 100,
         scheduled_date: null,
@@ -376,10 +430,15 @@ describe('emailDb', () => {
       const result = await emailDb.createEmail(sentEmail);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO emails (subject, message, sent_to_all, account_count, scheduled_date, sent_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO emails (subject, message, header_style, footer_style, header_title, header_subtitle, footer_note, sent_to_all, account_count, scheduled_date, sent_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           sentEmail.subject,
           sentEmail.message,
+          sentEmail.header_style,
+          sentEmail.footer_style,
+          sentEmail.header_title,
+          sentEmail.header_subtitle,
+          sentEmail.footer_note,
           1, // sentToAll converted to 1
           sentEmail.account_count,
           sentEmail.scheduled_date,
@@ -394,6 +453,11 @@ describe('emailDb', () => {
       const sentEmail: CreateEmailRow = {
         subject: 'Test Subject',
         message: 'Test Message',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: false,
         account_count: 50,
         scheduled_date: null,
@@ -416,10 +480,15 @@ describe('emailDb', () => {
       const result = await emailDb.createEmail(sentEmail);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO emails (subject, message, sent_to_all, account_count, scheduled_date, sent_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO emails (subject, message, header_style, footer_style, header_title, header_subtitle, footer_note, sent_to_all, account_count, scheduled_date, sent_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           sentEmail.subject,
           sentEmail.message,
+          sentEmail.header_style,
+          sentEmail.footer_style,
+          sentEmail.header_title,
+          sentEmail.header_subtitle,
+          sentEmail.footer_note,
           0, // sentToAll converted to 0
           sentEmail.account_count,
           sentEmail.scheduled_date,
@@ -434,6 +503,11 @@ describe('emailDb', () => {
       const sentEmail: CreateEmailRow = {
         subject: 'Test Subject',
         message: 'Test Message',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: true,
         account_count: 50,
         scheduled_date: null,
@@ -462,6 +536,11 @@ describe('emailDb', () => {
       const sentEmail: CreateEmailRow = {
         subject: 'Test Subject',
         message: 'Test Message',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: true,
         account_count: 50,
         scheduled_date: null,
@@ -484,6 +563,11 @@ describe('emailDb', () => {
         id: 1,
         subject: 'Updated Subject',
         message: 'Updated Message',
+        header_style: 'gradient',
+        footer_style: 'standard',
+        header_title: 'Custom Title',
+        header_subtitle: 'Custom Subtitle',
+        footer_note: 'Custom footer note',
         sent_to_all: false,
         account_count: 75,
         scheduled_date: null,
@@ -506,10 +590,15 @@ describe('emailDb', () => {
       const result = await emailDb.updateEmail(emailSent);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'UPDATE emails SET subject = ?, message = ?, sent_to_all = ?, account_count = ?, scheduled_date = ?, sent_date = ?, status = ? WHERE id = ?',
+        'UPDATE emails SET subject = ?, message = ?, header_style = ?, footer_style = ?, header_title = ?, header_subtitle = ?, footer_note = ?, sent_to_all = ?, account_count = ?, scheduled_date = ?, sent_date = ?, status = ? WHERE id = ?',
         [
           emailSent.subject,
           emailSent.message,
+          emailSent.header_style,
+          emailSent.footer_style,
+          emailSent.header_title,
+          emailSent.header_subtitle,
+          emailSent.footer_note,
           0, // sentToAll converted to 0
           emailSent.account_count,
           emailSent.scheduled_date,
@@ -526,6 +615,11 @@ describe('emailDb', () => {
         id: 99,
         subject: 'Updated Subject',
         message: 'Updated Message',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: false,
         account_count: 75,
         scheduled_date: null,
@@ -555,6 +649,11 @@ describe('emailDb', () => {
         id: 1,
         subject: 'Updated Subject',
         message: 'Updated Message',
+        header_style: 'none',
+        footer_style: 'none',
+        header_title: null,
+        header_subtitle: null,
+        footer_note: null,
         sent_to_all: false,
         account_count: 75,
         scheduled_date: null,

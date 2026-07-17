@@ -38,6 +38,11 @@ describe('EmailService - Template Management', () => {
         name: 'Welcome',
         subject: 'Welcome!',
         message: 'Hello',
+        headerStyle: 'none' as const,
+        footerStyle: 'none' as const,
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
 
       (emailDb.createEmailTemplate as jest.Mock).mockResolvedValue(true);
@@ -53,6 +58,11 @@ describe('EmailService - Template Management', () => {
         name: 'Welcome',
         subject: 'Welcome!',
         message: 'Hello',
+        headerStyle: 'none' as const,
+        footerStyle: 'none' as const,
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
       const mockError = new Error('Database error');
       (emailDb.createEmailTemplate as jest.Mock).mockRejectedValue(mockError);
@@ -69,6 +79,11 @@ describe('EmailService - Template Management', () => {
         name: 'Welcome',
         subject: 'Welcome Updated!',
         message: 'Hello there',
+        headerStyle: 'gradient' as const,
+        footerStyle: 'standard' as const,
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
 
       (emailDb.updateEmailTemplate as jest.Mock).mockResolvedValue(true);
@@ -85,6 +100,11 @@ describe('EmailService - Template Management', () => {
         name: 'Welcome',
         subject: 'Welcome Updated!',
         message: 'Hello there',
+        headerStyle: 'gradient' as const,
+        footerStyle: 'standard' as const,
+        headerTitle: null,
+        headerSubtitle: null,
+        footerNote: null,
       };
       const mockError = new Error('Database error');
       (emailDb.updateEmailTemplate as jest.Mock).mockRejectedValue(mockError);

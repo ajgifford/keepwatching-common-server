@@ -186,6 +186,10 @@ describe('EmailDeliveryService', () => {
   });
 
   describe('sendTestEmail', () => {
+    beforeEach(() => {
+      (emailUtility.stripHtmlToText as jest.Mock).mockImplementation((html: string) => html.replace(/<[^>]+>/g, ''));
+    });
+
     it('should send test email with default content', async () => {
       mockSendMail.mockResolvedValue({ messageId: 'test-message-id' });
 
@@ -201,17 +205,38 @@ describe('EmailDeliveryService', () => {
       expect(cliLogger.info).toHaveBeenCalledWith('Test email sent to: test@example.com');
     });
 
-    it('should send test email with custom content', async () => {
+    it('should derive the text fallback from the html via stripHtmlToText when no text is given', async () => {
       mockSendMail.mockResolvedValue({ messageId: 'test-message-id' });
 
-      await emailDeliveryService.sendEmail('test@example.com', 'Custom Subject', 'Custom content');
+      await emailDeliveryService.sendEmail('test@example.com', 'Custom Subject', '<p>Custom content</p>');
 
+      expect(emailUtility.stripHtmlToText).toHaveBeenCalledWith('<p>Custom content</p>');
       expect(mockSendMail).toHaveBeenCalledWith({
         from: mockConfig.from,
         to: 'test@example.com',
         subject: 'Custom Subject',
-        html: 'Custom content',
+        html: '<p>Custom content</p>',
         text: 'Custom content',
+      });
+    });
+
+    it('should use the explicit text argument instead of deriving one when provided', async () => {
+      mockSendMail.mockResolvedValue({ messageId: 'test-message-id' });
+
+      await emailDeliveryService.sendEmail(
+        'test@example.com',
+        'Custom Subject',
+        '<p>Custom content</p>',
+        'Plain override text',
+      );
+
+      expect(emailUtility.stripHtmlToText).not.toHaveBeenCalled();
+      expect(mockSendMail).toHaveBeenCalledWith({
+        from: mockConfig.from,
+        to: 'test@example.com',
+        subject: 'Custom Subject',
+        html: '<p>Custom content</p>',
+        text: 'Plain override text',
       });
     });
   });

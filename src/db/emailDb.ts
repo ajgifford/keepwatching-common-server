@@ -37,11 +37,17 @@ export async function getEmailTemplates(): Promise<EmailTemplate[]> {
 export async function createEmailTemplate(emailTemplate: CreateEmailTemplate): Promise<boolean> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('createEmailTemplate', async () => {
-      const query = 'INSERT INTO email_templates (name, subject, message) VALUES (?, ?, ?)';
+      const query =
+        'INSERT INTO email_templates (name, subject, message, header_style, footer_style, header_title, header_subtitle, footer_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
       const [insertResult] = await getDbPool().execute<ResultSetHeader>(query, [
         emailTemplate.name,
         emailTemplate.subject,
         emailTemplate.message,
+        emailTemplate.headerStyle,
+        emailTemplate.footerStyle,
+        emailTemplate.headerTitle,
+        emailTemplate.headerSubtitle,
+        emailTemplate.footerNote,
       ]);
       return insertResult.affectedRows > 0;
     });
@@ -53,11 +59,17 @@ export async function createEmailTemplate(emailTemplate: CreateEmailTemplate): P
 export async function updateEmailTemplate(emailTemplate: UpdateEmailTemplate): Promise<boolean> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('updateEmailTemplate', async () => {
-      const query = 'UPDATE email_templates SET name = ?, subject = ?, message = ? WHERE id = ?';
+      const query =
+        'UPDATE email_templates SET name = ?, subject = ?, message = ?, header_style = ?, footer_style = ?, header_title = ?, header_subtitle = ?, footer_note = ? WHERE id = ?';
       const [updateResult] = await getDbPool().execute<ResultSetHeader>(query, [
         emailTemplate.name,
         emailTemplate.subject,
         emailTemplate.message,
+        emailTemplate.headerStyle,
+        emailTemplate.footerStyle,
+        emailTemplate.headerTitle,
+        emailTemplate.headerSubtitle,
+        emailTemplate.footerNote,
         emailTemplate.id,
       ]);
       return updateResult.affectedRows > 0;
@@ -123,10 +135,15 @@ export async function createEmail(email: CreateEmailRow): Promise<number> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('createEmail', async () => {
       const query =
-        'INSERT INTO emails (subject, message, sent_to_all, account_count, scheduled_date, sent_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        'INSERT INTO emails (subject, message, header_style, footer_style, header_title, header_subtitle, footer_note, sent_to_all, account_count, scheduled_date, sent_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
       const [insertResult] = await getDbPool().execute<ResultSetHeader>(query, [
         email.subject,
         email.message,
+        email.header_style,
+        email.footer_style,
+        email.header_title,
+        email.header_subtitle,
+        email.footer_note,
         email.sent_to_all ? 1 : 0,
         email.account_count,
         TimestampUtil.toMySQLDatetime(email.scheduled_date),
@@ -144,10 +161,15 @@ export async function updateEmail(email: UpdateEmailRow): Promise<boolean> {
   try {
     return await DbMonitor.getInstance().executeWithTiming('updateEmail', async () => {
       const query =
-        'UPDATE emails SET subject = ?, message = ?, sent_to_all = ?, account_count = ?, scheduled_date = ?, sent_date = ?, status = ? WHERE id = ?';
+        'UPDATE emails SET subject = ?, message = ?, header_style = ?, footer_style = ?, header_title = ?, header_subtitle = ?, footer_note = ?, sent_to_all = ?, account_count = ?, scheduled_date = ?, sent_date = ?, status = ? WHERE id = ?';
       const [updateResult] = await getDbPool().execute<ResultSetHeader>(query, [
         email.subject,
         email.message,
+        email.header_style,
+        email.footer_style,
+        email.header_title,
+        email.header_subtitle,
+        email.footer_note,
         email.sent_to_all ? 1 : 0,
         email.account_count,
         TimestampUtil.toMySQLDatetime(email.scheduled_date),
