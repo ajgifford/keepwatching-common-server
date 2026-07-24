@@ -1,4 +1,5 @@
 export * from './schema/accountSchema';
+export * from './schema/adminWatchHistorySchema';
 export * from './schema/discoverSchema';
 export * from './schema/episodeSchema';
 export * from './schema/movieSchema';

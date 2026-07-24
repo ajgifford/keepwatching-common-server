@@ -366,13 +366,28 @@ describe('AdminMovieService', () => {
       expect(moviesDb.getMoviesCount).not.toHaveBeenCalled();
     });
 
-    it('should use correct cache key when both filters are provided', async () => {
+    it('should use getMoviesCountFiltered when search filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { search: 'Matrix' };
+
+      await adminMovieService.getAllMoviesFiltered(filters, 1, 0, 2);
+
+      expect(moviesDb.getMoviesCountFiltered).toHaveBeenCalledWith(filters);
+      expect(moviesDb.getMoviesCount).not.toHaveBeenCalled();
+    });
+
+    it('should use correct cache key when all filters are provided', async () => {
       mockCacheService.getOrSet.mockResolvedValue(mockFilteredPaginationResult);
 
-      await adminMovieService.getAllMoviesFiltered({ streamingService: 'Netflix', year: '2023' }, 1, 0, 2);
+      await adminMovieService.getAllMoviesFiltered(
+        { streamingService: 'Netflix', year: '2023', search: 'Matrix' },
+        1,
+        0,
+        2,
+      );
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'allMoviesFiltered_1_0_2_stream_Netflix_year_2023',
+        'allMoviesFiltered_1_0_2_stream_Netflix_year_2023_search_Matrix',
         expect.any(Function),
       );
     });

@@ -272,12 +272,14 @@ export const ADMIN_KEYS = {
     status?: string,
     network?: string,
     streamingService?: string,
+    search?: string,
   ) => {
     const filterParts = [
       type ? `type_${type}` : '',
       status ? `status_${status}` : '',
       network ? `network_${network}` : '',
       streamingService ? `stream_${streamingService}` : '',
+      search ? `search_${search}` : '',
     ]
       .filter(Boolean)
       .join('_');
@@ -293,8 +295,19 @@ export const ADMIN_KEYS = {
   allMovies: (page: number, offset: number, limit: number) => `allMovies_${page}_${offset}_${limit}`,
 
   /** Gets the cache key for filtered movies */
-  allMoviesFiltered: (page: number, offset: number, limit: number, streamingService?: string, year?: string) => {
-    const filterParts = [streamingService ? `stream_${streamingService}` : '', year ? `year_${year}` : '']
+  allMoviesFiltered: (
+    page: number,
+    offset: number,
+    limit: number,
+    streamingService?: string,
+    year?: string,
+    search?: string,
+  ) => {
+    const filterParts = [
+      streamingService ? `stream_${streamingService}` : '',
+      year ? `year_${year}` : '',
+      search ? `search_${search}` : '',
+    ]
       .filter(Boolean)
       .join('_');
     return `allMoviesFiltered_${page}_${offset}_${limit}_${filterParts}`;

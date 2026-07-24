@@ -446,12 +446,25 @@ describe('adminMovieRepository', () => {
       expect(count).toBe(15);
     });
 
-    it('should apply both filters combined with AND', async () => {
+    it('should apply search filter with LIKE param', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 8 }]]);
+
+      const count = await moviesDb.getMoviesCountFiltered({ search: 'Matrix' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE title LIKE ?'), ['%Matrix%']);
+      expect(count).toBe(8);
+    });
+
+    it('should apply all filters combined with AND', async () => {
       mockExecute.mockResolvedValueOnce([[{ total: 5 }]]);
 
-      const count = await moviesDb.getMoviesCountFiltered({ streamingService: 'Netflix', year: '2023' });
+      const count = await moviesDb.getMoviesCountFiltered({
+        streamingService: 'Netflix',
+        year: '2023',
+        search: 'Matrix',
+      });
 
-      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('AND'), ['%Netflix%', '2023']);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('AND'), ['%Netflix%', '2023', '%Matrix%']);
       expect(count).toBe(5);
     });
 
@@ -514,14 +527,23 @@ describe('adminMovieRepository', () => {
       expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE YEAR(STR_TO_DATE'), ['2023']);
     });
 
-    it('should apply both filters with custom pagination', async () => {
+    it('should apply search filter', async () => {
       mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
 
-      await moviesDb.getAllMoviesFiltered({ streamingService: 'Netflix', year: '2023' }, 10, 20);
+      const movies = await moviesDb.getAllMoviesFiltered({ search: 'Filtered' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE title LIKE ?'), ['%Filtered%']);
+      expect(movies).toHaveLength(1);
+    });
+
+    it('should apply all filters with custom pagination', async () => {
+      mockExecute.mockResolvedValueOnce([[mockMovieRow]]);
+
+      await moviesDb.getAllMoviesFiltered({ streamingService: 'Netflix', year: '2023', search: 'Matrix' }, 10, 20);
 
       expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 10'), expect.any(Array));
       expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 20'), expect.any(Array));
-      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('AND'), ['%Netflix%', '2023']);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('AND'), ['%Netflix%', '2023', '%Matrix%']);
     });
 
     it('should return empty array when no movies match filters', async () => {

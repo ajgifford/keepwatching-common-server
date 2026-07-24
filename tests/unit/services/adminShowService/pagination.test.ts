@@ -255,14 +255,30 @@ describe('AdminShowService - Pagination', () => {
       expect(showsDb.getShowsCount).not.toHaveBeenCalled();
     });
 
+    it('should use getShowsCountFiltered when search filter is provided', async () => {
+      mockCacheService.getOrSet.mockImplementation(async (_key: string, fn: () => any) => fn());
+      const filters = { search: 'Breaking' };
+
+      await adminShowService.getAllShowsFiltered(filters, 1, 0, 2);
+
+      expect(showsDb.getShowsCountFiltered).toHaveBeenCalledWith(filters);
+      expect(showsDb.getShowsCount).not.toHaveBeenCalled();
+    });
+
     it('should use correct cache key when all filters are provided', async () => {
       mockCacheService.getOrSet.mockResolvedValue(mockFilteredPaginationResult);
-      const filters = { type: 'Scripted', status: 'Ended', network: 'HBO', streamingService: 'Netflix' };
+      const filters = {
+        type: 'Scripted',
+        status: 'Ended',
+        network: 'HBO',
+        streamingService: 'Netflix',
+        search: 'Breaking',
+      };
 
       await adminShowService.getAllShowsFiltered(filters, 1, 0, 2);
 
       expect(mockCacheService.getOrSet).toHaveBeenCalledWith(
-        'allShowsFiltered_1_0_2_type_Scripted_status_Ended_network_HBO_stream_Netflix',
+        'allShowsFiltered_1_0_2_type_Scripted_status_Ended_network_HBO_stream_Netflix_search_Breaking',
         expect.any(Function),
       );
     });

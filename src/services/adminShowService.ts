@@ -91,6 +91,7 @@ export class AdminShowService extends BaseShowService {
       status?: string;
       network?: string;
       streamingService?: string;
+      search?: string;
     },
     page: number,
     offset: number,
@@ -117,9 +118,11 @@ export class AdminShowService extends BaseShowService {
           filters.status,
           filters.network,
           filters.streamingService,
+          filters.search,
         ),
         async () => {
-          const hasFilters = filters.type || filters.status || filters.network || filters.streamingService;
+          const hasFilters =
+            filters.type || filters.status || filters.network || filters.streamingService || filters.search;
           const [totalCount, shows, filterOptions] = await Promise.all([
             hasFilters ? showsDb.getShowsCountFiltered(filters) : showsDb.getShowsCount(),
             showsDb.getAllShowsFiltered(filters, limit, offset),

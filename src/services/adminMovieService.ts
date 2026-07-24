@@ -75,6 +75,7 @@ export class AdminMovieService extends BaseMovieService {
     filters: {
       streamingService?: string;
       year?: string;
+      search?: string;
     },
     page: number,
     offset: number,
@@ -93,9 +94,9 @@ export class AdminMovieService extends BaseMovieService {
   }> {
     try {
       return await this.cache.getOrSet(
-        ADMIN_KEYS.allMoviesFiltered(page, offset, limit, filters.streamingService, filters.year),
+        ADMIN_KEYS.allMoviesFiltered(page, offset, limit, filters.streamingService, filters.year, filters.search),
         async () => {
-          const hasFilters = filters.streamingService || filters.year;
+          const hasFilters = filters.streamingService || filters.year || filters.search;
           const [totalCount, movies, filterOptions] = await Promise.all([
             hasFilters ? moviesDb.getMoviesCountFiltered(filters) : moviesDb.getMoviesCount(),
             moviesDb.getAllMoviesFiltered(filters, limit, offset),

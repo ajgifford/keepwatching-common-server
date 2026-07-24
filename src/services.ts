@@ -2,6 +2,7 @@ export * from './services/accountService';
 export * from './services/calendarService';
 export * from './services/adminMovieService';
 export * from './services/adminShowService';
+export * from './services/adminWatchHistoryService';
 export * from './services/contentDiscoveryService';
 export * from './services/contentUpdatesService';
 export * from './services/databaseService';

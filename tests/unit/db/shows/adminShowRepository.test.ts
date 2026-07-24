@@ -286,7 +286,16 @@ describe('adminShowRepository', () => {
       expect(count).toBe(40);
     });
 
-    it('should combine all four filters with AND', async () => {
+    it('should apply search filter with LIKE param', async () => {
+      mockExecute.mockResolvedValueOnce([[{ total: 5 }]]);
+
+      const count = await adminShowRepository.getShowsCountFiltered({ search: 'Breaking' });
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('WHERE title LIKE ?'), ['%Breaking%']);
+      expect(count).toBe(5);
+    });
+
+    it('should combine all five filters with AND', async () => {
       mockExecute.mockResolvedValueOnce([[{ total: 3 }]]);
 
       const count = await adminShowRepository.getShowsCountFiltered({
@@ -294,11 +303,12 @@ describe('adminShowRepository', () => {
         status: 'Running',
         network: 'HBO',
         streamingService: 'HBO Max',
+        search: 'Breaking',
       });
 
       const callArgs = mockExecute.mock.calls[0];
       expect(callArgs[0]).toContain('AND');
-      expect(callArgs[1]).toEqual(['Scripted', 'Running', 'HBO', '%HBO Max%']);
+      expect(callArgs[1]).toEqual(['Scripted', 'Running', 'HBO', '%HBO Max%', '%Breaking%']);
       expect(count).toBe(3);
     });
 
@@ -382,7 +392,17 @@ describe('adminShowRepository', () => {
       expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 20'), expect.any(Array));
     });
 
-    it('should combine all four filters with AND', async () => {
+    it('should apply search filter with custom pagination', async () => {
+      mockExecute.mockResolvedValueOnce([[mockShowRow]]);
+
+      await adminShowRepository.getAllShowsFiltered({ search: 'Filtered' }, 10, 20);
+
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('title LIKE ?'), ['%Filtered%']);
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('LIMIT 10'), expect.any(Array));
+      expect(mockExecute).toHaveBeenCalledWith(expect.stringContaining('OFFSET 20'), expect.any(Array));
+    });
+
+    it('should combine all five filters with AND', async () => {
       mockExecute.mockResolvedValueOnce([[mockShowRow]]);
 
       await adminShowRepository.getAllShowsFiltered({
@@ -390,11 +410,12 @@ describe('adminShowRepository', () => {
         status: 'Running',
         network: 'HBO',
         streamingService: 'HBO Max',
+        search: 'Breaking',
       });
 
       const callArgs = mockExecute.mock.calls[0];
       expect(callArgs[0]).toContain('AND');
-      expect(callArgs[1]).toEqual(['Scripted', 'Running', 'HBO', '%HBO Max%']);
+      expect(callArgs[1]).toEqual(['Scripted', 'Running', 'HBO', '%HBO Max%', '%Breaking%']);
     });
 
     it('should return empty array when no shows match filters', async () => {

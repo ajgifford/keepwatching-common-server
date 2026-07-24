@@ -89,6 +89,11 @@ function buildMovieFilterClause(filters: MovieFilters): { whereClause: string; p
     params.push(filters.year);
   }
 
+  if (filters.search) {
+    whereClauses.push('title LIKE ?');
+    params.push(`%${filters.search}%`);
+  }
+
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   return { whereClause, params };
 }

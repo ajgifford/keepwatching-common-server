@@ -149,6 +149,11 @@ function buildShowFilterClause(filters: ShowFilters): { whereClause: string; par
     params.push(`%${filters.streamingService}%`);
   }
 
+  if (filters.search) {
+    whereClauses.push('title LIKE ?');
+    params.push(`%${filters.search}%`);
+  }
+
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   return { whereClause, params };
 }
